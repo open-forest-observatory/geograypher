@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "semantic-mesh-pytorch3d"
+version = "0.1.0"
+description = ""
+authors = ["David Russell <davidrussell327@gmail.com>"]
+readme = "README.md"
+packages = [{include = "semantic_mesh_pytorch3d"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
