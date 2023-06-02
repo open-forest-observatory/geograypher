@@ -42,7 +42,8 @@ class Pytorch3DMesh:
         self.camera_set = MetashapeCameraSet(camera_filename)
         self.camera_set.rescale(self.scale_factor)
         self.load_mesh()
-        self.vis()
+        self.vis_pv()
+        self.render()
 
     def test_render(self):
         # mesh points
@@ -118,7 +119,12 @@ class Pytorch3DMesh:
 
         self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
-    def vis(self):
+    def vis_pv(self):
+        plotter = pv.Plotter(off_screen=True)
+        self.camera_set.vis(plotter)
+        plotter.show(screenshot="vis/render.png")
+
+    def render(self):
         # Initialize a camera.
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.

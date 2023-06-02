@@ -19,6 +19,9 @@ class MetashapeCamera():
         """
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
+    def vis(self, plotter: pv.Plotter):
+        camera_loc = pv.PolyData(self.transform[:3, 3:].T)
+        plotter.add_mesh(camera_loc)
 
 class MetashapeCameraSet():
     def __init__(self, camera_file):
@@ -33,6 +36,11 @@ class MetashapeCameraSet():
     def rescale(self, scale):
         for camera in self.cameras:
             camera.rescale(scale)
+
+    def vis(self, plotter: pv.Plotter):
+        for camera in self.cameras:
+            camera.vis(plotter)
+
 
     def parse_cam_file(self,camera_file):
         # Load the xml file
@@ -63,6 +71,7 @@ class MetashapeCameraSet():
         width = float(root[0][0][0][4][0].get("width"))
         height = float(root[0][0][0][4][0].get("height"))
         return filenames, transforms, f, cx, cy, scale, width, height
+
 
 
 MetashapeCameraSet("/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml")
