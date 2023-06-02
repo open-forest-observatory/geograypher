@@ -29,6 +29,8 @@ class Pytorch3DMesh:
         self.mesh_filename = mesh_filename
         self.scale_factor = scale_factor
         self.brighten_factor = brighten_factor
+        self.camera_set = MetashapeCameraSet(camera_filename)
+        self.camera_set.rescale(self.scale_factor)
 
         self.pyvista_mesh = None
         self.pyvista_mesh = None
@@ -41,8 +43,6 @@ class Pytorch3DMesh:
         else:
             self.device = torch.device("cpu")
 
-        self.camera_set = MetashapeCameraSet(camera_filename)
-        self.camera_set.rescale(self.scale_factor)
         self.load_mesh()
         self.vis_pv()
         self.render()
@@ -91,6 +91,11 @@ class Pytorch3DMesh:
             print("about to load")
             pyvista_mesh = pv.read(self.mesh_filename)
 
+            if pyvista_mesh["RGB"].dtype == np.uint8:
+                pyvista_mesh["RGB"] = pyvista_mesh["RGB"] * (self.brighten_factor / 255)
+            else:
+                pyvista_mesh["RGB"] = pyvista_mesh["RGB"] * self.brighten_factor
+
             while pyvista_mesh.points.shape[0] > target_number:
                 pyvista_mesh = pyvista_mesh.decimate(target_reduction=0.5)
                 print(f"number of points is {pyvista_mesh.points.shape[0]}")
@@ -123,6 +128,7 @@ class Pytorch3DMesh:
 
     def vis_pv(self):
         plotter = pv.Plotter()
+        plotter.add_axes()
         self.camera_set.vis(plotter)
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show()
