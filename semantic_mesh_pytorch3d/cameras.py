@@ -2,8 +2,11 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pyvista as pv
 
-class MetashapeCamera():
-    def __init__(self, filename, transform, f, cx, cy, scale, image_width, image_height):
+
+class MetashapeCamera:
+    def __init__(
+        self, filename, transform, f, cx, cy, scale, image_width, image_height
+    ):
         self.filename = filename
         self.transform = transform
         self.f = f
@@ -12,7 +15,7 @@ class MetashapeCamera():
         self.scale = scale
         self.image_width = image_width
         self.image_height = image_height
-    
+
     def rescale(self, scale: float):
         """
         Rescale transform in place
@@ -23,14 +26,33 @@ class MetashapeCamera():
         camera_loc = pv.PolyData(self.transform[:3, 3:].T)
         plotter.add_mesh(camera_loc)
 
-class MetashapeCameraSet():
+
+class MetashapeCameraSet:
     def __init__(self, camera_file):
-        self.filenames, self.transforms, self.f, self.cx, self.cy, self.scale, self.image_width, self.image_height = self.parse_cam_file(camera_file)
+        (
+            self.filenames,
+            self.transforms,
+            self.f,
+            self.cx,
+            self.cy,
+            self.scale,
+            self.image_width,
+            self.image_height,
+        ) = self.parse_cam_file(camera_file)
 
         self.cameras = []
 
         for filename, transform in zip(self.filenames, self.transforms):
-            new_camera = MetashapeCamera(filename, transform, self.f, self.cx, self.cy, self.scale, self.image_width, self.image_height)
+            new_camera = MetashapeCamera(
+                filename,
+                transform,
+                self.f,
+                self.cx,
+                self.cy,
+                self.scale,
+                self.image_width,
+                self.image_height,
+            )
             self.cameras.append(new_camera)
 
     def rescale(self, scale):
@@ -41,8 +63,7 @@ class MetashapeCameraSet():
         for camera in self.cameras:
             camera.vis(plotter)
 
-
-    def parse_cam_file(self,camera_file):
+    def parse_cam_file(self, camera_file):
         # Load the xml file
         tree = ET.parse(camera_file)
         root = tree.getroot()
@@ -71,7 +92,3 @@ class MetashapeCameraSet():
         width = float(root[0][0][0][4][0].get("width"))
         height = float(root[0][0][0][4][0].get("height"))
         return filenames, transforms, f, cx, cy, scale, width, height
-
-
-
-MetashapeCameraSet("/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml")

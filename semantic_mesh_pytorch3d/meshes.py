@@ -23,10 +23,12 @@ from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
 class Pytorch3DMesh:
-    def __init__(self, mesh_filename, camera_filename, scale_factor=0.1):
+    def __init__(
+        self, mesh_filename, camera_filename, scale_factor=0.1, brighten_factor=4
+    ):
         self.mesh_filename = mesh_filename
         self.scale_factor = scale_factor
-
+        self.brighten_factor = brighten_factor
 
         self.pyvista_mesh = None
         self.pyvista_mesh = None
@@ -112,7 +114,7 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 20, axis=0)).to(
+        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"], axis=0)).to(
             self.device
         )  # (1, V, 3)
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
@@ -120,9 +122,10 @@ class Pytorch3DMesh:
         self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
-        plotter = pv.Plotter(off_screen=True)
+        plotter = pv.Plotter()
         self.camera_set.vis(plotter)
-        plotter.show(screenshot="vis/render.png")
+        plotter.add_mesh(self.pyvista_mesh, rgb=True)
+        plotter.show()
 
     def render(self):
         # Initialize a camera.
@@ -143,9 +146,7 @@ class Pytorch3DMesh:
         # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
         # the difference between naive and coarse-to-fine rasterization.
         raster_settings = RasterizationSettings(
-            image_size=512,
-            blur_radius=0.0,
-            faces_per_pixel=1,
+            image_size=512, blur_radius=0.0, faces_per_pixel=1,
         )
 
         # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
@@ -165,4 +166,3 @@ class Pytorch3DMesh:
         plt.imshow(images[0, ..., :3].cpu().numpy())
         plt.axis("off")
         plt.show()
-
