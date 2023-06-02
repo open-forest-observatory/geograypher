@@ -19,11 +19,15 @@ from pytorch3d.renderer import (
     TexturesUV,
     TexturesVertex,
 )
+from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
 class Pytorch3DMesh:
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, mesh_filename, camera_filename, scale_factor=0.1):
+        self.mesh_filename = mesh_filename
+        self.scale_factor = scale_factor
+
+
         self.pyvista_mesh = None
         self.pyvista_mesh = None
         # self.test_render()
@@ -35,8 +39,9 @@ class Pytorch3DMesh:
         else:
             self.device = torch.device("cpu")
 
+        self.camera_set = MetashapeCameraSet(camera_filename)
+        self.camera_set.rescale(self.scale_factor)
         self.load_mesh()
-        # self.load_example_mesh()
         self.vis()
 
     def test_render(self):
@@ -81,7 +86,7 @@ class Pytorch3DMesh:
     ):
         if not reload:
             print("about to load")
-            pyvista_mesh = pv.read(self.filename)
+            pyvista_mesh = pv.read(self.mesh_filename)
 
             while pyvista_mesh.points.shape[0] > target_number:
                 pyvista_mesh = pyvista_mesh.decimate(target_reduction=0.5)
@@ -90,7 +95,7 @@ class Pytorch3DMesh:
             if standardize:
                 mean = np.expand_dims(np.mean(pyvista_mesh.points, axis=0), axis=0)
                 std = np.expand_dims(np.std(pyvista_mesh.points, axis=0), axis=0)
-                new_points = pyvista_mesh.points / 10
+                new_points = pyvista_mesh.points * self.scale_factor
                 pyvista_mesh.points = new_points
             self.pyvista_mesh = pyvista_mesh
             self.pyvista_mesh.save("data/decimated.ply")
@@ -118,8 +123,10 @@ class Pytorch3DMesh:
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
+        print(self.camera_set.cameras[0].transform)
+        breakpoint()
         R = torch.Tensor([[[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]]])
-        T = torch.Tensor([[10.0, 10.0, 40.0]])
+        T = torch.Tensor([[10.0, 10.0, 60.0]])
 
         cameras = FoVPerspectiveCameras(device=self.device, R=R, T=T)
 
@@ -153,10 +160,3 @@ class Pytorch3DMesh:
         plt.axis("off")
         plt.show()
 
-
-# Pytorch3DMesh(
-#    "/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230519T2042.obj"
-# )
-Pytorch3DMesh(
-    "/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_low_res_local.ply"
-)
