@@ -24,7 +24,7 @@ from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 class Pytorch3DMesh:
     def __init__(
-        self, mesh_filename, camera_filename, scale_factor=0.1, brighten_factor=4
+        self, mesh_filename, camera_filename, scale_factor=1, brighten_factor=4
     ):
         self.mesh_filename = mesh_filename
         self.scale_factor = scale_factor
@@ -130,7 +130,7 @@ class Pytorch3DMesh:
         plotter = pv.Plotter()
         plotter.add_axes()
         self.camera_set.vis(plotter)
-        plotter.add_mesh(self.pyvista_mesh, rgb=True)
+        # plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show()
 
     def render(self):
@@ -139,7 +139,6 @@ class Pytorch3DMesh:
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
         print(self.camera_set.cameras[0].transform)
-        breakpoint()
         R = torch.Tensor([[[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]]])
         T = torch.Tensor([[10.0, 10.0, 60.0]])
 

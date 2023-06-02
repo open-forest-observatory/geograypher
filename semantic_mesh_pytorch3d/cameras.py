@@ -24,7 +24,13 @@ class MetashapeCamera:
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
     def vis(self, plotter: pv.Plotter):
-        camera_loc = pv.PolyData(self.transform[:3, 3:].T)
+        zero_vector = np.array([[0, 0, 0, 1]]).T
+        projected_zero_vector = self.transform @ zero_vector
+        rescaled_projected_zero_vector = (
+            projected_zero_vector[:3, 0] / projected_zero_vector[3, 0]
+        )
+        camera_loc = pv.PolyData(np.expand_dims(rescaled_projected_zero_vector, axis=0))
+        print(rescaled_projected_zero_vector)
         plotter.add_mesh(camera_loc)
 
 
@@ -69,8 +75,8 @@ class MetashapeCameraSet:
         rotation_np = np.reshape(rotation_np, (3, 3))
         translation_np = np.fromstring(translation_str, sep=" ")
         scale = float(scale_str)
-        transform = np.zeros((4, 4))
-        transform[:3, :3] = rotation_np
+        transform = np.eye(4)
+        transform[:3, :3] = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) @ rotation_np
         transform[:3, 3] = translation_np
         transform[3, 3] = scale
         return transform
@@ -114,6 +120,9 @@ class MetashapeCameraSet:
             region_rotation, region_translation, global_scale
         )
 
+        test_transform = self.make_4x4_transform(
+            global_rotation, region_translation, global_scale
+        )
         # Iterate through the camera poses
 
         filenames = []
