@@ -1,6 +1,10 @@
 import xml.etree.ElementTree as ET
 import numpy as np
 import pyvista as pv
+from pyvista import demos
+
+REFLECT_Z = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 
 class MetashapeCamera:
@@ -34,20 +38,20 @@ class MetashapeCamera:
         ).T
         projected_vertices = self.transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
-        rescaled_projected_vertices = rescaled_projected_vertices.T
-        # mesh faces
+        ## mesh faces
         faces = np.hstack(
             [
-                [0, 1, 2],
-                [0, 2, 3],
-                [0, 3, 4],
-                [0, 4, 1],
-                [1, 2, 3],
-                [3, 4, 1],
+                [3, 0, 1, 2],
+                [3, 0, 2, 3],
+                [3, 0, 3, 4],
+                [3, 0, 4, 1],
+                [3, 1, 2, 3],
+                [3, 3, 4, 1],
             ]  # square  # triangle  # triangle
         )
-        surf = pv.PolyData(rescaled_projected_vertices, faces)
-        plotter.add_mesh(surf)
+        frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
+        frustum.triangulate()
+        plotter.add_mesh(frustum)
 
 
 class MetashapeCameraSet:
@@ -82,6 +86,16 @@ class MetashapeCameraSet:
         for camera in self.cameras:
             camera.rescale(scale)
 
+    def add_orientation_cube(self, plotter):
+        ocube = demos.orientation_cube()
+        plotter.add_mesh(ocube["cube"], show_edges=True)
+        plotter.add_mesh(ocube["x_p"], color="blue")
+        plotter.add_mesh(ocube["x_n"], color="blue")
+        plotter.add_mesh(ocube["y_p"], color="green")
+        plotter.add_mesh(ocube["y_n"], color="green")
+        plotter.add_mesh(ocube["z_p"], color="red")
+        plotter.add_mesh(ocube["z_n"], color="red")
+
     def vis(self, plotter: pv.Plotter):
         for camera in self.cameras:
             camera.vis(plotter)
@@ -92,9 +106,9 @@ class MetashapeCameraSet:
         translation_np = np.fromstring(translation_str, sep=" ")
         scale = float(scale_str)
         transform = np.eye(4)
-        transform[:3, :3] = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) @ rotation_np
+        transform[:3, :3] = rotation_np
         transform[:3, 3] = translation_np
-        transform[3, 3] = scale
+        transform[3, 3] = 1 / scale
         return transform
 
     def parse_cam_file(self, camera_file):
@@ -115,7 +129,7 @@ class MetashapeCameraSet:
         global_translation = transform[1].text
         global_scale = transform[2].text
         global_transform = self.make_4x4_transform(
-            global_rotation, global_translation, global_scale
+            global_rotation, global_translation, 1
         )
 
         # sensors info
@@ -136,13 +150,11 @@ class MetashapeCameraSet:
             region_rotation, region_translation, global_scale
         )
 
-        test_transform = self.make_4x4_transform(
-            global_rotation, region_translation, global_scale
-        )
-        # Iterate through the camera poses
-
         filenames = []
         transforms = []
+
+        print(f"global transform: {global_transform}")
+        print(f"region transform: {region_transform}")
 
         for camera in cameras:
             # Print the filename
@@ -152,21 +164,32 @@ class MetashapeCameraSet:
                 continue
             transform = np.fromstring(transform, sep=" ")
             transform = transform.reshape((4, 4))
-            # Fix the fact that the transforms are reported in a local scale
-            transform[:3, 3] = transform[:3, 3]
+
+            # The next two transforms are suggested by the following
+            # https://github.com/EnricoAhlers/agi2nerf/blob/f10c758a710e691807578bea40bbccc24bbd43c2/agi2nerf.py
+
             transform = region_transform @ transform
+            # transform = transform[[2, 0, 1, 3], :]
+            # reflect z and Y axes
+            # transform = REFLECT_Z @ transform
             filenames.append(camera.attrib["label"])
             transforms.append(transform)
         return filenames, transforms, f, cx, cy, global_scale, width, height
 
 
 if __name__ == "__main__":
-    plotter = pv.Plotter(off_screen=True)
+    plotter = pv.Plotter()
     plotter.add_axes()
     camera_set = MetashapeCameraSet(
         "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml"
     )
     camera_set.vis(plotter)
-    # plotter.add_mesh(self.pyvista_mesh, rgb=True)
-    plotter.show(screenshot="data/render.png")
+    mesh = pv.read(
+        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_low_res_local.ply"
+    )
+    plotter.add_mesh(mesh)
+    camera_set.add_orientation_cube(plotter)
+    # sphere = pv.Sphere()
+    # plotter.add_mesh(sphere)
+    plotter.show()
 
