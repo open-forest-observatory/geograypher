@@ -12,13 +12,17 @@ def parse_args():
         "--camera-file",
         default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera",
     )
-    parser.add_argument("--image-folder")
+    parser.add_argument(
+        "--image-folder",
+        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_01/images/left_camera_0.5",
+    )
     args = parser.parse_args()
     return args
 
 
 def main(mesh_file, camera_file, image_folder):
-    Pytorch3DMesh(mesh_file, camera_file)
+    mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
+    mesh.render()
 
 
 if __name__ == "__main__":

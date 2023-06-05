@@ -3,9 +3,10 @@ import torch
 import pyvista as pv
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from pytorch3d.structures import Meshes
-
+from pytorch3d.transforms import Transform3d
 from pytorch3d.renderer import (
     look_at_view_transform,
     FoVPerspectiveCameras,
@@ -23,14 +24,10 @@ from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
 class Pytorch3DMesh:
-    def __init__(
-        self, mesh_filename, camera_filename, scale_factor=1, brighten_factor=4
-    ):
+    def __init__(self, mesh_filename, camera_filename, image_folder, scale_factor=0.1):
         self.mesh_filename = mesh_filename
         self.scale_factor = scale_factor
-        self.brighten_factor = brighten_factor
-        self.camera_set = MetashapeCameraSet(camera_filename)
-        self.camera_set.rescale(self.scale_factor)
+        self.image_folder = image_folder
 
         self.pyvista_mesh = None
         self.pyvista_mesh = None
@@ -43,9 +40,9 @@ class Pytorch3DMesh:
         else:
             self.device = torch.device("cpu")
 
+        self.camera_set = MetashapeCameraSet(camera_filename)
+        self.camera_set.rescale(self.scale_factor)
         self.load_mesh()
-        self.vis_pv()
-        self.render()
 
     def test_render(self):
         # mesh points
@@ -91,11 +88,6 @@ class Pytorch3DMesh:
             print("about to load")
             pyvista_mesh = pv.read(self.mesh_filename)
 
-            if pyvista_mesh["RGB"].dtype == np.uint8:
-                pyvista_mesh["RGB"] = pyvista_mesh["RGB"] * (self.brighten_factor / 255)
-            else:
-                pyvista_mesh["RGB"] = pyvista_mesh["RGB"] * self.brighten_factor
-
             while pyvista_mesh.points.shape[0] > target_number:
                 pyvista_mesh = pyvista_mesh.decimate(target_reduction=0.5)
                 print(f"number of points is {pyvista_mesh.points.shape[0]}")
@@ -119,7 +111,7 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"], axis=0)).to(
+        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 20, axis=0)).to(
             self.device
         )  # (1, V, 3)
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
@@ -127,20 +119,31 @@ class Pytorch3DMesh:
         self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
-        plotter = pv.Plotter()
-        plotter.add_axes()
+        plotter = pv.Plotter(off_screen=True)
         self.camera_set.vis(plotter)
-        # plotter.add_mesh(self.pyvista_mesh, rgb=True)
-        plotter.show()
+        plotter.show(screenshot="vis/render.png")
 
     def render(self):
         # Initialize a camera.
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
-        print(self.camera_set.cameras[0].transform)
-        R = torch.Tensor([[[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]]])
-        T = torch.Tensor([[10.0, 10.0, 60.0]])
+        first_camera = self.camera_set.cameras[0]
+        transform_4x4 = first_camera.transform
+
+        transform_pytorch = Transform3d(matrix=torch.Tensor(transform_4x4.T))
+        breakpoint()
+        filename = first_camera.filename
+        filepath = Path(self.image_folder, filename)
+
+        R_correction = np.array([[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]])
+        # Used to avoid introducing other dependencies
+        img = plt.imread(filepath)
+        R = torch.Tensor(np.array([R_correction @ transform[:3, :3]]))
+        print(R)
+        T = torch.Tensor([transform[:3, 3]])
+        # T = torch.Tensor([[10.0, 10.0, 60.0]])
+        breakpoint()
 
         cameras = FoVPerspectiveCameras(device=self.device, R=R, T=T)
 
@@ -151,7 +154,9 @@ class Pytorch3DMesh:
         # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
         # the difference between naive and coarse-to-fine rasterization.
         raster_settings = RasterizationSettings(
-            image_size=512, blur_radius=0.0, faces_per_pixel=1,
+            image_size=512,
+            blur_radius=0.0,
+            faces_per_pixel=1,
         )
 
         # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
@@ -167,7 +172,8 @@ class Pytorch3DMesh:
         )
 
         images = renderer(self.pytorch_mesh)
-        plt.figure(figsize=(10, 10))
-        plt.imshow(images[0, ..., :3].cpu().numpy())
+        f, ax = plt.subplots(1, 2)
+        ax[0].imshow(images[0, ..., :3].cpu().numpy())
+        ax[1].imshow(img * 4)
         plt.axis("off")
         plt.show()
