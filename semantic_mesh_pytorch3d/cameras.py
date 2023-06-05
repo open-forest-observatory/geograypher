@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import numpy as np
 import pyvista as pv
-import xml.dom.minidom
 
 
 class MetashapeCamera:
@@ -24,14 +23,31 @@ class MetashapeCamera:
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
     def vis(self, plotter: pv.Plotter):
-        zero_vector = np.array([[0, 0, 0, 1]]).T
-        projected_zero_vector = self.transform @ zero_vector
-        rescaled_projected_zero_vector = (
-            projected_zero_vector[:3, 0] / projected_zero_vector[3, 0]
+        vertices = np.array(
+            [
+                [0, 0, 0, 1],
+                [0.5, 0.5, 1, 1],
+                [0.5, -0.5, 1, 1],
+                [-0.5, -0.5, 1, 1],
+                [-0.5, 0.5, 1, 1],
+            ]
+        ).T
+        projected_vertices = self.transform @ vertices
+        rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
+        rescaled_projected_vertices = rescaled_projected_vertices.T
+        # mesh faces
+        faces = np.hstack(
+            [
+                [0, 1, 2],
+                [0, 2, 3],
+                [0, 3, 4],
+                [0, 4, 1],
+                [1, 2, 3],
+                [3, 4, 1],
+            ]  # square  # triangle  # triangle
         )
-        camera_loc = pv.PolyData(np.expand_dims(rescaled_projected_zero_vector, axis=0))
-        print(rescaled_projected_zero_vector)
-        plotter.add_mesh(camera_loc)
+        surf = pv.PolyData(rescaled_projected_vertices, faces)
+        plotter.add_mesh(surf)
 
 
 class MetashapeCameraSet:
@@ -142,3 +158,15 @@ class MetashapeCameraSet:
             filenames.append(camera.attrib["label"])
             transforms.append(transform)
         return filenames, transforms, f, cx, cy, global_scale, width, height
+
+
+if __name__ == "__main__":
+    plotter = pv.Plotter(off_screen=True)
+    plotter.add_axes()
+    camera_set = MetashapeCameraSet(
+        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml"
+    )
+    camera_set.vis(plotter)
+    # plotter.add_mesh(self.pyvista_mesh, rgb=True)
+    plotter.show(screenshot="data/render.png")
+
