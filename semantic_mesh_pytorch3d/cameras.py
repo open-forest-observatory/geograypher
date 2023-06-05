@@ -9,15 +9,12 @@ REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 
 class MetashapeCamera:
-    def __init__(
-        self, filename, transform, f, cx, cy, scale, image_width, image_height
-    ):
+    def __init__(self, filename, transform, f, cx, cy, image_width, image_height):
         self.filename = filename
         self.transform = transform
         self.f = f
         self.cx = cx
         self.cy = cy
-        self.scale = scale
         self.image_width = image_width
         self.image_height = image_height
 
@@ -27,16 +24,44 @@ class MetashapeCamera:
         """
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
-    def vis(self, plotter: pv.Plotter):
-        vertices = np.array(
-            [
-                [0, 0, 0, 1],
-                [0.5, 0.5, 1, 1],
-                [0.5, -0.5, 1, 1],
-                [-0.5, -0.5, 1, 1],
-                [-0.5, 0.5, 1, 1],
-            ]
-        ).T
+    def vis(self, plotter: pv.Plotter, vis_scale=1):
+
+        scaled_halfwidth = self.image_width / (self.f * 2)
+        scaled_halfheight = self.image_height / (self.f * 2)
+        scaled_cx = self.cx / self.f
+        scaled_cy = self.cx / self.f
+
+        vertices = np.vstack(
+            (
+                np.array(
+                    [
+                        [0, 0, 0],
+                        [
+                            scaled_cx + scaled_halfwidth,
+                            scaled_cy + scaled_halfheight,
+                            1,
+                        ],
+                        [
+                            scaled_cx + scaled_halfwidth,
+                            scaled_cy - scaled_halfheight,
+                            1,
+                        ],
+                        [
+                            scaled_cx - scaled_halfwidth,
+                            scaled_cy - scaled_halfheight,
+                            1,
+                        ],
+                        [
+                            scaled_cx - scaled_halfwidth,
+                            scaled_cy + scaled_halfheight,
+                            1,
+                        ],
+                    ]
+                ).T
+                * vis_scale,
+                np.ones((1, 5)),
+            )
+        )
         projected_vertices = self.transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
         ## mesh faces
@@ -56,17 +81,18 @@ class MetashapeCamera:
 
 
 class MetashapeCameraSet:
-    def __init__(self, camera_file):
+    def __init__(self, camera_file_base):
         (
-            self.filenames,
-            self.transforms,
             self.f,
             self.cx,
             self.cy,
-            self.scale,
             self.image_width,
             self.image_height,
-        ) = self.parse_txt_cam_file(camera_file)
+        ) = self.parse_metashape_cam_file(camera_file=camera_file_base + ".xml")
+
+        self.filenames, self.transforms = self.parse_txt_cam_file(
+            camera_file_base + ".txt"
+        )
 
         self.cameras = []
 
@@ -77,7 +103,6 @@ class MetashapeCameraSet:
                 self.f,
                 self.cx,
                 self.cy,
-                self.scale,
                 self.image_width,
                 self.image_height,
             )
@@ -113,6 +138,15 @@ class MetashapeCameraSet:
         return transform
 
     def parse_metashape_cam_file(self, camera_file):
+        """Parse intrinsic params from metashape xml output format. Note that the
+        positions contained within this output look broken
+
+        Args:
+            camera_file (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         # Load the xml file
         # Taken from here https://rowelldionicio.com/parsing-xml-with-python-minidom/
         tree = ET.parse(camera_file)
@@ -121,17 +155,6 @@ class MetashapeCameraSet:
         chunk = root[0]
         # second level
         sensors = chunk[0]
-        cameras = chunk[2]
-        transform = chunk[3]
-        region = chunk[6]
-
-        # transform info
-        global_rotation = transform[0].text
-        global_translation = transform[1].text
-        global_scale = transform[2].text
-        global_transform = self.make_4x4_transform(
-            global_rotation, global_translation, 1
-        )
 
         # sensors info
         sensor = sensors[0]
@@ -142,42 +165,17 @@ class MetashapeCameraSet:
 
         width = float(calibration[0].get("width"))
         height = float(calibration[0].get("height"))
-
-        # region info
-        region_translation = region[0].text
-        # size = np.fromstring(region[1].text, sep=" ")
-        region_rotation = region[2].text
-        region_transform = self.make_4x4_transform(
-            region_rotation, region_translation, global_scale
-        )
-
-        filenames = []
-        transforms = []
-
-        print(f"global transform: {global_transform}")
-        print(f"region transform: {region_transform}")
-
-        for camera in cameras:
-            # Print the filename
-            # Get the transform as a (16,) vector
-            transform = camera[0].text
-            if transform is None:
-                continue
-            transform = np.fromstring(transform, sep=" ")
-            transform = transform.reshape((4, 4))
-
-            # The next two transforms are suggested by the following
-            # https://github.com/EnricoAhlers/agi2nerf/blob/f10c758a710e691807578bea40bbccc24bbd43c2/agi2nerf.py
-
-            # transform = region_transform @ transform
-            # transform = transform[[2, 0, 1, 3], :]
-            # reflect z and Y axes
-            # transform = REFLECT_Z @ transform
-            filenames.append(camera.attrib["label"])
-            transforms.append(transform)
-        return filenames, transforms, f, cx, cy, global_scale, width, height
+        return f, cx, cy, width, height
 
     def parse_txt_cam_file(self, camera_file):
+        """Parse filenames and transforms from <TODO metashape output> format
+
+        Args:
+            camera_file (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         df = pd.read_csv(
             camera_file,
             sep="\t",
@@ -213,15 +211,14 @@ class MetashapeCameraSet:
             transform[:3, 3] = l
             transforms.append(transform)
 
-        f, cx, cy, global_scale, width, height = None, None, None, None, None, None
-        return filenames, transforms, f, cx, cy, global_scale, width, height
+        return filenames, transforms
 
 
 if __name__ == "__main__":
     plotter = pv.Plotter()
     plotter.add_axes()
     camera_set = MetashapeCameraSet(
-        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.txt"
+        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera"
     )
     camera_set.vis(plotter)
     mesh = pv.read(
@@ -230,7 +227,5 @@ if __name__ == "__main__":
     mesh["RGB"] = mesh["RGB"] * 4
     plotter.add_mesh(mesh, rgb=True)
     camera_set.add_orientation_cube(plotter)
-    # sphere = pv.Sphere()
-    # plotter.add_mesh(sphere)
     plotter.show()
 
