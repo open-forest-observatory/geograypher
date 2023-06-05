@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pyvista as pv
 from pyvista import demos
+import pandas as pd
 
 REFLECT_Z = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
@@ -65,7 +66,7 @@ class MetashapeCameraSet:
             self.scale,
             self.image_width,
             self.image_height,
-        ) = self.parse_cam_file(camera_file)
+        ) = self.parse_txt_cam_file(camera_file)
 
         self.cameras = []
 
@@ -111,7 +112,7 @@ class MetashapeCameraSet:
         transform[3, 3] = 1 / scale
         return transform
 
-    def parse_cam_file(self, camera_file):
+    def parse_metashape_cam_file(self, camera_file):
         # Load the xml file
         # Taken from here https://rowelldionicio.com/parsing-xml-with-python-minidom/
         tree = ET.parse(camera_file)
@@ -168,7 +169,7 @@ class MetashapeCameraSet:
             # The next two transforms are suggested by the following
             # https://github.com/EnricoAhlers/agi2nerf/blob/f10c758a710e691807578bea40bbccc24bbd43c2/agi2nerf.py
 
-            transform = region_transform @ transform
+            # transform = region_transform @ transform
             # transform = transform[[2, 0, 1, 3], :]
             # reflect z and Y axes
             # transform = REFLECT_Z @ transform
@@ -176,18 +177,58 @@ class MetashapeCameraSet:
             transforms.append(transform)
         return filenames, transforms, f, cx, cy, global_scale, width, height
 
+    def parse_txt_cam_file(self, camera_file):
+        df = pd.read_csv(
+            camera_file,
+            sep="\t",
+            skiprows=2,
+            names=(
+                "PhotoID",
+                "X",
+                "Y",
+                "Z",
+                "Omega",
+                "Phi",
+                "Kappa",
+                "r11",
+                "r12",
+                "r13",
+                "r21",
+                "r22",
+                "r23",
+                "r31",
+                "r32",
+                "r33",
+            ),
+        )
+        filenames = df["PhotoID"].tolist()
+        Rs = df.iloc[:, 7:].to_numpy()
+        locs = df.iloc[:, 1:4].to_numpy()
+        transforms = []
+
+        for R, l in zip(Rs, locs):
+            transform = np.eye(4)
+            # Unsure why the negation is needed
+            transform[:3, :3] = -np.reshape(R, (3, 3))
+            transform[:3, 3] = l
+            transforms.append(transform)
+
+        f, cx, cy, global_scale, width, height = None, None, None, None, None, None
+        return filenames, transforms, f, cx, cy, global_scale, width, height
+
 
 if __name__ == "__main__":
     plotter = pv.Plotter()
     plotter.add_axes()
     camera_set = MetashapeCameraSet(
-        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml"
+        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.txt"
     )
     camera_set.vis(plotter)
     mesh = pv.read(
         "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_low_res_local.ply"
     )
-    plotter.add_mesh(mesh)
+    mesh["RGB"] = mesh["RGB"] * 4
+    plotter.add_mesh(mesh, rgb=True)
     camera_set.add_orientation_cube(plotter)
     # sphere = pv.Sphere()
     # plotter.add_mesh(sphere)
