@@ -10,7 +10,7 @@ def parse_args():
     )
     parser.add_argument(
         "--camera-file",
-        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera.xml",
+        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera",
     )
     parser.add_argument("--image-folder")
     args = parser.parse_args()

@@ -2,7 +2,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pyvista as pv
 from pyvista import demos
-import pandas as pd
+import csv
 
 REFLECT_Z = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
@@ -25,7 +25,6 @@ class MetashapeCamera:
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
     def vis(self, plotter: pv.Plotter, vis_scale=1):
-
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)
         scaled_cx = self.cx / self.f
@@ -176,40 +175,23 @@ class MetashapeCameraSet:
         Returns:
             _type_: _description_
         """
-        df = pd.read_csv(
-            camera_file,
-            sep="\t",
-            skiprows=2,
-            names=(
-                "PhotoID",
-                "X",
-                "Y",
-                "Z",
-                "Omega",
-                "Phi",
-                "Kappa",
-                "r11",
-                "r12",
-                "r13",
-                "r21",
-                "r22",
-                "r23",
-                "r31",
-                "r32",
-                "r33",
-            ),
-        )
-        filenames = df["PhotoID"].tolist()
-        Rs = df.iloc[:, 7:].to_numpy()
-        locs = df.iloc[:, 1:4].to_numpy()
-        transforms = []
+        with open(camera_file) as csvfile:
+            csv_reader = csv.reader(csvfile, delimiter="\t")
+            # Discard headers
+            for _ in range(2):
+                next(csv_reader)
 
-        for R, l in zip(Rs, locs):
-            transform = np.eye(4)
-            # Unsure why the negation is needed
-            transform[:3, :3] = -np.reshape(R, (3, 3))
-            transform[:3, 3] = l
-            transforms.append(transform)
+            filenames = []
+            transforms = []
+            for line in csv_reader:
+                filenames.append(line[0])
+                transform = np.eye(4)
+                R = np.array(line[-9:]).astype(float)
+                loc = np.array(line[1:4]).astype(float)
+                # Unsure why the negation is needed
+                transform[:3, :3] = -np.reshape(R, (3, 3))
+                transform[:3, 3] = loc
+                transforms.append(transform)
 
         return filenames, transforms
 
@@ -228,4 +210,3 @@ if __name__ == "__main__":
     plotter.add_mesh(mesh, rgb=True)
     camera_set.add_orientation_cube(plotter)
     plotter.show()
-
