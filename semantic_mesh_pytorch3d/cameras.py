@@ -24,6 +24,18 @@ class MetashapeCamera:
         """
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
+    def get_pytorch3d_camera(self, device):
+        import torch
+        from pytorch3d.renderer import FoVPerspectiveCameras
+        # Invert this because it's cam to world and we need world to cam
+        transform_4x4_world_to_cam = np.linalg.inv(self.transform)
+
+        R = torch.Tensor(np.array([transform_4x4_world_to_cam[:3, :3].T]))
+        T = torch.Tensor([transform_4x4_world_to_cam[:3, 3]])
+
+        cameras = FoVPerspectiveCameras(device=device, R=R, T=T)
+        return cameras 
+
     def vis(self, plotter: pv.Plotter, vis_scale=1):
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)

@@ -128,25 +128,11 @@ class Pytorch3DMesh:
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
-        first_camera = self.camera_set.cameras[200]
-        transform_4x4 = first_camera.transform
         
-        # Invert this because it's cam to world and we need world to cam
-        #transform_pytorch = Transform3d(matrix=torch.Tensor(np.linalg.inv(transform_4x4)))
-        transform_4x4_world_to_cam = np.linalg.inv(transform_4x4)
-        filename = first_camera.filename
+        filename = self.camera_set.cameras[200].filename
         filepath = Path(self.image_folder, filename)
-
-        R_correction = np.array([[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]])
-        # Used to avoid introducing other dependencies
         img = plt.imread(filepath)
-        R = torch.Tensor(np.array([transform_4x4_world_to_cam[:3, :3].T]))
-        print(transform_4x4_world_to_cam)
-        print(R)
-        T = torch.Tensor([transform_4x4_world_to_cam[:3, 3]])
-        # T = torch.Tensor([[10.0, 10.0, 60.0]])
-
-        cameras = FoVPerspectiveCameras(device=self.device, R=R, T=T)
+        cameras = self.camera_set.cameras[200].get_pytorch3d_camera(self.device)
 
         # Define the settings for rasterization and shading. Here we set the output image to be of size
         # 512x512. As we are rendering images for visualization purposes only we will set faces_per_pixel=1
