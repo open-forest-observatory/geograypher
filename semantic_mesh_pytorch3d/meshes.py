@@ -140,8 +140,9 @@ class Pytorch3DMesh:
         # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for
         # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
         # the difference between naive and coarse-to-fine rasterization.
+        image_size = tuple(img.shape[:2])
         raster_settings = RasterizationSettings(
-            image_size=512,
+            image_size=image_size,
             blur_radius=0.0,
             faces_per_pixel=1,
         )
@@ -162,5 +163,7 @@ class Pytorch3DMesh:
         f, ax = plt.subplots(1, 2)
         ax[0].imshow(images[0, ..., :3].cpu().numpy())
         ax[1].imshow(img * 4)
+        ax[0].set_title("Rendered image")
+        ax[1].set_title("Real image")
         plt.axis("off")
         plt.show()
