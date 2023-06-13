@@ -123,47 +123,71 @@ class Pytorch3DMesh:
         self.camera_set.vis(plotter)
         plotter.show(screenshot="vis/render.png")
 
+    def render_geometric(self):
+        # Initialize a camera.
+        # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
+        # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
+        # TODO figure out what this should actually be
+        inds = np.arange(len(self.camera_set.cameras))
+        np.random.shuffle(inds)
+        for i in inds:
+            filename = self.camera_set.cameras[i].filename
+            filepath = Path(self.image_folder, filename)
+            img = plt.imread(filepath)
+            colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
+                self.pyvista_mesh.points, img
+            )
+
     def render(self):
         # Initialize a camera.
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
-        
-        filename = self.camera_set.cameras[200].filename
-        filepath = Path(self.image_folder, filename)
-        img = plt.imread(filepath)
-        cameras = self.camera_set.cameras[200].get_pytorch3d_camera(self.device)
+        inds = np.arange(len(self.camera_set.cameras))
+        np.random.shuffle(inds)
+        for i in inds:
+            filename = self.camera_set.cameras[i].filename
+            filepath = Path(self.image_folder, filename)
+            img = plt.imread(filepath)
+            cameras = self.camera_set.cameras[i].get_pytorch3d_camera(self.device)
 
-        # Define the settings for rasterization and shading. Here we set the output image to be of size
-        # 512x512. As we are rendering images for visualization purposes only we will set faces_per_pixel=1
-        # and blur_radius=0.0. We also set bin_size and max_faces_per_bin to None which ensure that
-        # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for
-        # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
-        # the difference between naive and coarse-to-fine rasterization.
-        image_size = tuple(img.shape[:2])
-        raster_settings = RasterizationSettings(
-            image_size=image_size,
-            blur_radius=0.0,
-            faces_per_pixel=1,
-        )
+            # Define the settings for rasterization and shading. Here we set the output image to be of size
+            # 512x512. As we are rendering images for visualization purposes only we will set faces_per_pixel=1
+            # and blur_radius=0.0. We also set bin_size and max_faces_per_bin to None which ensure that
+            # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for
+            # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
+            # the difference between naive and coarse-to-fine rasterization.
+            image_size = (img.shape[0], img.shape[1])
+            raster_settings = RasterizationSettings(
+                image_size=image_size,
+                blur_radius=0.0,
+                faces_per_pixel=1,
+            )
 
-        # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
-        # -z direction.
-        lights = PointLights(device=self.device, location=[[0.0, 0.0, -3.0]])
+            # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
+            # -z direction.
+            lights = PointLights(device=self.device, location=[[0.0, 0.0, -3.0]])
 
-        # Create a Phong renderer by composing a rasterizer and a shader. The textured Phong shader will
-        # interpolate the texture uv coordinates for each vertex, sample from a texture image and
-        # apply the Phong lighting model
-        renderer = MeshRenderer(
-            rasterizer=MeshRasterizer(cameras=cameras, raster_settings=raster_settings),
-            shader=SoftPhongShader(device=self.device, cameras=cameras, lights=lights),
-        )
+            # Create a Phong renderer by composing a rasterizer and a shader. The textured Phong shader will
+            # interpolate the texture uv coordinates for each vertex, sample from a texture image and
+            # apply the Phong lighting model
+            renderer = MeshRenderer(
+                rasterizer=MeshRasterizer(
+                    cameras=cameras, raster_settings=raster_settings
+                ),
+                shader=SoftPhongShader(
+                    device=self.device, cameras=cameras, lights=lights
+                ),
+            )
 
-        images = renderer(self.pytorch_mesh)
-        f, ax = plt.subplots(1, 2)
-        ax[0].imshow(images[0, ..., :3].cpu().numpy())
-        ax[1].imshow(img * 4)
-        ax[0].set_title("Rendered image")
-        ax[1].set_title("Real image")
-        plt.axis("off")
-        plt.show()
+            images = renderer(self.pytorch_mesh)
+            f, ax = plt.subplots(1, 2)
+            rendered = images[0, ..., :3].cpu().numpy()
+            ax[0].imshow(rendered)
+            ax[1].imshow(img * 4)
+            ax[0].set_title("Rendered image")
+            ax[1].set_title("Real image")
+            plt.axis("off")
+            print(i)
+            plt.savefig(f"vis/pred_{i:03d}.png")
+            plt.close()
