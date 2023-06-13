@@ -130,13 +130,30 @@ class Pytorch3DMesh:
         # TODO figure out what this should actually be
         inds = np.arange(len(self.camera_set.cameras))
         np.random.shuffle(inds)
+        summed_values = ma.array(
+            data=np.zeros((self.pyvista_mesh.points.shape[0], 3)),
+            mask=np.ones((self.pyvista_mesh.points.shape[0], 3)).astype(bool),
+        )
+        counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
+        num_complete = 0
         for i in inds:
+            print(num_complete)
+            num_complete += 1
             filename = self.camera_set.cameras[i].filename
             filepath = Path(self.image_folder, filename)
             img = plt.imread(filepath)
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
                 self.pyvista_mesh.points, img
             )
+            all_values = ma.stack((summed_values, colors_per_vertex), axis=2)
+            summed_values = all_values.sum(axis=2)
+            counts[np.logical_not(colors_per_vertex.mask)] = (
+                counts[np.logical_not(colors_per_vertex.mask)] + 1
+            )
+        mean_colors = summed_values / counts
+        plotter = pv.Plotter()
+        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors / 50, rgb=True)
+        plotter.show()
 
     def render(self):
         # Initialize a camera.
