@@ -3,6 +3,9 @@ import numpy as np
 import pyvista as pv
 from pyvista import demos
 import csv
+from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy.ma as ma
 
 
 class MetashapeCamera:
@@ -21,6 +24,61 @@ class MetashapeCamera:
         """
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
+    def check_valid_in_image(self, projected_verts, image_size):
+        image_space_verts = projected_verts[:2] / projected_verts[2:3]
+        image_space_verts = image_space_verts.T
+
+        in_front_of_cam = projected_verts[2] > 0
+
+        img_width, image_height = image_size
+        valid_verts_bool = np.logical_and.reduce(
+            (
+                image_space_verts[:, 0] > 0,
+                image_space_verts[:, 1] > 0,
+                image_space_verts[:, 0] < img_width,
+                image_space_verts[:, 1] < image_height,
+                in_front_of_cam,
+            )
+        )
+        valid_image_space_verts = image_space_verts[valid_verts_bool, :].astype(int)
+        return valid_verts_bool, valid_image_space_verts
+
+    def extract_colors(self, valid_bool, valid_locs, img):
+        colors_per_vertex = np.zeros((valid_bool.shape[0], img.shape[2]))
+        mask = np.ones((valid_bool.shape[0], img.shape[2])).astype(bool)
+        valid_inds = np.where(valid_bool)[0]
+        # Set the entries which are valid
+        mask[valid_inds, :] = False
+
+        i_locs = valid_locs[:, 1]
+        j_locs = valid_locs[:, 0]
+        valid_color_samples = img[i_locs, j_locs, :]
+        colors_per_vertex[valid_inds, :] = valid_color_samples
+        masked_color_per_vertex = ma.array(colors_per_vertex, mask=mask)
+        return masked_color_per_vertex
+
+    def splat_mesh_verts(self, mesh_verts, img):
+        transform_4x4_world_to_cam = np.linalg.inv(self.transform)
+        K = np.eye(3)
+        K[0, 0] = self.f
+        K[1, 1] = self.f
+        K[0, 2] = self.cx + self.image_width / 2.0
+        K[1, 2] = self.cy + self.image_height / 2.0
+        breakpoint()
+        homogenous_mesh_verts = np.concatenate(
+            (mesh_verts, np.ones((mesh_verts.shape[0], 1))), axis=1
+        ).T
+        camera_frame_mesh_verts = transform_4x4_world_to_cam @ homogenous_mesh_verts
+        camera_frame_mesh_verts = camera_frame_mesh_verts[:3]
+        # TODO review terminology
+        projected_verts = K @ camera_frame_mesh_verts
+        valid_bool, valid_locs = self.check_valid_in_image(
+            projected_verts=projected_verts,
+            image_size=(self.image_width, self.image_height),
+        )
+        colors_per_vertex = self.extract_colors(valid_bool, valid_locs, img)
+        return colors_per_vertex
+
     def get_pytorch3d_camera(self, device):
         import torch
         from pytorch3d.renderer import PerspectiveCameras
@@ -30,9 +88,21 @@ class MetashapeCamera:
 
         R = torch.Tensor(np.array([transform_4x4_world_to_cam[:3, :3].T]))
         T = torch.Tensor([transform_4x4_world_to_cam[:3, 3]])
-        focal_length = self.f / np.array((self.image_width, self.image_height))
-        focal_length = torch.Tensor([focal_length])
-        cameras = PerspectiveCameras(focal_length=focal_length, device=device, R=R, T=T)
+        # See https://pytorch3d.org/docs/cameras
+        image_size = ((self.image_height, self.image_width),)
+        fcl_screen = (self.f,)
+        prc_points_screen = (
+            (self.cx + self.image_width / 2, self.cy + self.image_height / 2),
+        )
+        cameras = PerspectiveCameras(
+            R=R,
+            T=T,
+            focal_length=fcl_screen,
+            principal_point=prc_points_screen,
+            device=device,
+            in_ndc=False,
+            image_size=image_size,
+        )
         return cameras
 
     def vis(self, plotter: pv.Plotter, vis_scale=0.5):
