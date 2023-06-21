@@ -4,9 +4,6 @@ import pyvista as pv
 from pyvista import demos
 import csv
 
-REFLECT_Z = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-
 
 class MetashapeCamera:
     def __init__(self, filename, transform, f, cx, cy, image_width, image_height):
@@ -27,6 +24,7 @@ class MetashapeCamera:
     def get_pytorch3d_camera(self, device):
         import torch
         from pytorch3d.renderer import PerspectiveCameras
+
         # Invert this because it's cam to world and we need world to cam
         transform_4x4_world_to_cam = np.linalg.inv(self.transform)
 
@@ -35,9 +33,9 @@ class MetashapeCamera:
         focal_length = self.f / np.array((self.image_width, self.image_height))
         focal_length = torch.Tensor([focal_length])
         cameras = PerspectiveCameras(focal_length=focal_length, device=device, R=R, T=T)
-        return cameras 
+        return cameras
 
-    def vis(self, plotter: pv.Plotter, vis_scale=1):
+    def vis(self, plotter: pv.Plotter, vis_scale=0.5):
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)
         scaled_cx = self.cx / self.f
@@ -74,6 +72,9 @@ class MetashapeCamera:
                 np.ones((1, 5)),
             )
         )
+        colors = np.array(
+            [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
+        ).astype(float)
         projected_vertices = self.transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
         ## mesh faces
@@ -88,8 +89,9 @@ class MetashapeCamera:
             ]  # square  # triangle  # triangle
         )
         frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
+        frustum["RGB"] = colors
         frustum.triangulate()
-        plotter.add_mesh(frustum)
+        plotter.add_mesh(frustum, scalars="RGB", rgb=True)
 
 
 class MetashapeCameraSet:
@@ -188,6 +190,11 @@ class MetashapeCameraSet:
         Returns:
             _type_: _description_
         """
+        REFLECT_Z = np.eye(3)
+        REFLECT_Z[2, 2] = -1
+        REFLECT_Y = np.eye(3)
+        REFLECT_Y[1, 1] = -1
+
         with open(camera_file) as csvfile:
             csv_reader = csv.reader(csvfile, delimiter="\t")
             # Discard headers
@@ -201,8 +208,13 @@ class MetashapeCameraSet:
                 transform = np.eye(4)
                 R = np.array(line[-9:]).astype(float)
                 loc = np.array(line[1:4]).astype(float)
-                # Unsure why the negation is needed
-                transform[:3, :3] = -np.reshape(R, (3, 3))
+                R = np.reshape(R, (3, 3))
+                # Reflect as suggested
+                # https://github.com/EnricoAhlers/agi2nerf/blob/main/agi2nerf.py
+                R = REFLECT_Z @ R
+                R = REFLECT_Y @ R
+
+                transform[:3, :3] = R
                 transform[:3, 3] = loc
                 transforms.append(transform)
 
