@@ -82,6 +82,7 @@ class Pytorch3DMesh:
         target_number=1000000,
         reload=False,
         reduction_frac=0.5,
+        brightness_multiplier=8.0,
         standardize=True,
     ):
         if not reload:
@@ -103,6 +104,10 @@ class Pytorch3DMesh:
             self.pyvista_mesh = pv.read("data/decimated.ply")
             print("loaded mesh")
 
+        if brightness_multiplier != 1:
+            self.pyvista_mesh["RGB"] = (
+                self.pyvista_mesh["RGB"] * brightness_multiplier
+            ).astype(np.uint8)
         verts = self.pyvista_mesh.points
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
@@ -111,7 +116,7 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 20, axis=0)).to(
+        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
             self.device
         )  # (1, V, 3)
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
@@ -119,8 +124,9 @@ class Pytorch3DMesh:
         self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
-        plotter = pv.Plotter(off_screen=True)
+        plotter = pv.Plotter(off_screen=False)
         self.camera_set.vis(plotter)
+        plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
     def render(self):
@@ -128,7 +134,7 @@ class Pytorch3DMesh:
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
-        
+
         filename = self.camera_set.cameras[200].filename
         filepath = Path(self.image_folder, filename)
         img = plt.imread(filepath)
@@ -142,9 +148,7 @@ class Pytorch3DMesh:
         # the difference between naive and coarse-to-fine rasterization.
         image_size = tuple(img.shape[:2])
         raster_settings = RasterizationSettings(
-            image_size=image_size,
-            blur_radius=0.0,
-            faces_per_pixel=1,
+            image_size=image_size, blur_radius=0.0, faces_per_pixel=1,
         )
 
         # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
