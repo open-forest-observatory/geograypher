@@ -10,9 +10,12 @@ import numpy.ma as ma
 
 class MetashapeCamera:
     def __init__(self, filename, transform, f, cx, cy, image_width, image_height):
+        """
+        TODO define units
+        """
         self.filename = filename
         self.transform = transform
-        self.f = f
+        self.f = f 
         self.cx = cx
         self.cy = cy
         self.image_width = image_width
@@ -64,7 +67,6 @@ class MetashapeCamera:
         K[1, 1] = self.f
         K[0, 2] = self.cx + self.image_width / 2.0
         K[1, 2] = self.cy + self.image_height / 2.0
-        breakpoint()
         homogenous_mesh_verts = np.concatenate(
             (mesh_verts, np.ones((mesh_verts.shape[0], 1))), axis=1
         ).T
@@ -105,9 +107,14 @@ class MetashapeCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, vis_scale=0.5):
-        scaled_halfwidth = self.image_width / (self.f * 2)
-        scaled_halfheight = self.image_height / (self.f * 2)
+    def vis(self, plotter: pv.Plotter, vis_scale=0.1, pixel_focal=False):
+        if pixel_focal:
+            scaled_halfwidth = self.image_width / (self.f * 2)
+            scaled_halfheight = self.image_height / (self.f * 2)
+        else:
+            # TODO
+            scaled_halfwidth = 0.7#self.image_width / (self.f * 2)
+            scaled_halfheight = 0.5#self.image_height / (self.f * 2)
         scaled_cx = self.cx / self.f
         scaled_cy = self.cx / self.f
 
@@ -172,11 +179,9 @@ class MetashapeCameraSet:
             self.cy,
             self.image_width,
             self.image_height,
+            self.filenames,
+            self.transforms,
         ) = self.parse_metashape_cam_file(camera_file=camera_file_base + ".xml")
-
-        self.filenames, self.transforms = self.parse_txt_cam_file(
-            camera_file_base + ".txt"
-        )
 
         self.cameras = []
 
@@ -209,8 +214,9 @@ class MetashapeCameraSet:
     def vis(self, plotter: pv.Plotter):
         for camera in self.cameras:
             camera.vis(plotter)
+        #self.add_orientation_cube(plotter=plotter)
 
-    def make_4x4_transform(self, rotation_str, translation_str, scale_str):
+    def make_4x4_transform(self, rotation_str, translation_str, scale_str="1"):
         rotation_np = np.fromstring(rotation_str, sep=" ")
         rotation_np = np.reshape(rotation_np, (3, 3))
         translation_np = np.fromstring(translation_str, sep=" ")
@@ -242,14 +248,37 @@ class MetashapeCameraSet:
 
         # sensors info
         sensor = sensors[0]
-        calibration = sensor[4]
-        f = float(calibration[1].text)
-        cx = float(calibration[2].text)
-        cy = float(calibration[3].text)
+        width = int(sensor[0].get("width"))
+        height = int(sensor[0].get("height"))
+        pixel_width = float(sensor[1].get("value"))
+        pixel_height = float(sensor[2].get("value"))
+        focal_length = float(sensor[3].get("value"))
 
-        width = float(calibration[0].get("width"))
-        height = float(calibration[0].get("height"))
-        return f, cx, cy, width, height
+        # Try to parse the filenames and transforms
+        #component = chunk[1][0]
+        #transform = component[0]
+        #region = component[0]
+
+        #transform_4x4 = self.make_4x4_transform(
+        #    rotation_str=str(transform[0].text),
+        #    translation_str=str(transform[1].text),
+        #    scale_str=str(transform[2].text),
+        #)
+
+        #transform_4x4 = self.make_4x4_transform(
+        #    rotation_str=str(region[2].text),
+        #    translation_str=str(region[0].text),
+        #)
+
+        cameras = chunk[2]
+
+        labels = []
+        camera_transforms = []
+        for camera in cameras:
+            labels.append(camera.get("label"))
+            camera_transforms.append(np.fromstring(camera[0].text, sep=" ").reshape(4,4))
+
+        return focal_length, pixel_width, pixel_height, width, height, labels, camera_transforms
 
     def parse_txt_cam_file(self, camera_file):
         """Parse filenames and transforms from <TODO metashape output> format

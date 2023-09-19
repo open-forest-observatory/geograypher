@@ -82,17 +82,12 @@ class Pytorch3DMesh:
         device=None,
         target_number=1000000,
         reload=False,
-        reduction_frac=0.5,
         brightness_multiplier=8.0,
         standardize=True,
     ):
         if not reload:
             print("about to load")
             pyvista_mesh = pv.read(self.mesh_filename)
-
-            while pyvista_mesh.points.shape[0] > target_number:
-                pyvista_mesh = pyvista_mesh.decimate(target_reduction=0.5)
-                print(f"number of points is {pyvista_mesh.points.shape[0]}")
 
             if standardize:
                 mean = np.expand_dims(np.mean(pyvista_mesh.points, axis=0), axis=0)
@@ -105,10 +100,12 @@ class Pytorch3DMesh:
             self.pyvista_mesh = pv.read("data/decimated.ply")
             print("loaded mesh")
 
-        if brightness_multiplier != 1:
-            self.pyvista_mesh["RGB"] = (
-                self.pyvista_mesh["RGB"] * brightness_multiplier
-            ).astype(np.uint8)
+        #if brightness_multiplier != 1:
+        #    breakpoint()
+            #self.pyvista_mesh["RGB"] = (
+            #    self.pyvista_mesh["RGB"] * brightness_multiplier
+            #).astype(np.uint8)
+        print(self.pyvista_mesh.points)
         verts = self.pyvista_mesh.points
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
@@ -117,12 +114,12 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
-            self.device
-        )  # (1, V, 3)
-        textures = TexturesVertex(verts_features=verts_rgb.to(device))
+        #verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
+        #    self.device
+        #)  # (1, V, 3)
+        #textures = TexturesVertex(verts_features=verts_rgb.to(device))
 
-        self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+        #self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -176,7 +173,7 @@ class Pytorch3DMesh:
         np.random.shuffle(inds)
         for i in inds:
             filename = self.camera_set.cameras[i].filename
-            filepath = Path(self.image_folder, filename)
+            filepath = list(Path(self.image_folder).glob(filename+"*"))[0] # Assume there's only one file with that extension
             img = plt.imread(filepath)
             cameras = self.camera_set.cameras[i].get_pytorch3d_camera(self.device)
 
@@ -188,7 +185,9 @@ class Pytorch3DMesh:
             # the difference between naive and coarse-to-fine rasterization.
             image_size = (img.shape[0], img.shape[1])
             raster_settings = RasterizationSettings(
-                image_size=image_size, blur_radius=0.0, faces_per_pixel=1,
+                image_size=image_size,
+                blur_radius=0.0,
+                faces_per_pixel=1,
             )
 
             # Place a point light in front of the object. As mentioned above, the front of the cow is facing the

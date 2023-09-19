@@ -8,15 +8,29 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
         "--mesh-file",
-        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","9-image-reconstruction.obj")),
+        default=str(
+            Path(
+                DATA_FOLDER,
+                "9-image-emerald-point-reconstruction",
+                "9-image-reconstruction.ply",
+            )
+        ),
     )
     parser.add_argument(
         "--camera-file",
-        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","9-image-reconstruction")),
+        default=str(
+            Path(
+                DATA_FOLDER,
+                "9-image-emerald-point-reconstruction",
+                "9-image-reconstruction",
+            )
+        ),
     )
     parser.add_argument(
         "--image-folder",
-        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","images")),
+        default=str(
+            Path(DATA_FOLDER, "9-image-emerald-point-reconstruction", "images")
+        ),
     )
     args = parser.parse_args()
     return args
@@ -24,7 +38,7 @@ def parse_args():
 
 def main(mesh_file, camera_file, image_folder):
     mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
-    # mesh.vis_pv()
+    mesh.vis_pv()
     mesh.render()
     mesh.render_geometric()
 
