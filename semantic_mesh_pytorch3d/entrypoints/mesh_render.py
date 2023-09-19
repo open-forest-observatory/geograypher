@@ -1,20 +1,22 @@
+from semantic_mesh_pytorch3d.config import DATA_FOLDER
 from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 from argparse import ArgumentParser
+from pathlib import Path
 
 
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
         "--mesh-file",
-        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_low_res_local.ply",
+        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","9-image-reconstruction.obj")),
     )
     parser.add_argument(
         "--camera-file",
-        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera",
+        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","9-image-reconstruction")),
     )
     parser.add_argument(
         "--image-folder",
-        default="/ofo-share/repos-david/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_01/images/left_camera_0.5",
+        default=str(Path(DATA_FOLDER,"9-image-emerald-point-reconstruction","images")),
     )
     args = parser.parse_args()
     return args
