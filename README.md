@@ -47,3 +47,5 @@ poetry install
 ```
 
 Data for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive and you must have access to this [folder](https://drive.google.com/drive/folders/1vnnodshTUeZ6zXPdSdr9OPpYTU1dVdzk). If you are a collaborator and need the data, contact <djrussell@ucdavis.edu>.
+
+The website provides a good overview of how to use `dvc`. In most cases, all you need to do is `dvc pull <filename>` to obtain the data. 

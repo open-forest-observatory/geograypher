@@ -107,14 +107,10 @@ class MetashapeCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, vis_scale=0.1, pixel_focal=False):
-        if pixel_focal:
-            scaled_halfwidth = self.image_width / (self.f * 2)
-            scaled_halfheight = self.image_height / (self.f * 2)
-        else:
-            # TODO
-            scaled_halfwidth = 0.7  # self.image_width / (self.f * 2)
-            scaled_halfheight = 0.5  # self.image_height / (self.f * 2)
+    def vis(self, plotter: pv.Plotter, frustum_scale=0.5):
+        scaled_halfwidth = self.image_width / (self.f * 2)
+        scaled_halfheight = self.image_height / (self.f * 2)
+
         scaled_cx = self.cx / self.f
         scaled_cy = self.cx / self.f
 
@@ -145,13 +141,14 @@ class MetashapeCamera:
                         ],
                     ]
                 ).T
-                * vis_scale,
+                * frustum_scale,
                 np.ones((1, 5)),
             )
         )
         colors = np.array(
             [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
         ).astype(float)
+
         projected_vertices = self.transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
         ## mesh faces
@@ -281,19 +278,3 @@ class MetashapeCameraSet:
             labels,
             camera_transforms,
         )
-
-
-if __name__ == "__main__":
-    plotter = pv.Plotter()
-    plotter.add_axes()
-    camera_set = MetashapeCameraSet(
-        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_camera"
-    )
-    camera_set.vis(plotter)
-    mesh = pv.read(
-        "/home/david/data/Safeforest_CMU_data_dvc/data/site_Gascola/04_27_23/collect_05/processed_02/metashape/left_camera_automated/exports/example-run-001_20230517T1827_low_res_local.ply"
-    )
-    mesh["RGB"] = mesh["RGB"] * 4
-    plotter.add_mesh(mesh, rgb=True)
-    camera_set.add_orientation_cube(plotter)
-    plotter.show()
