@@ -37,8 +37,8 @@ def parse_args():
 
 def main(mesh_file, camera_file, image_folder):
     mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
-    mesh.vis_pv()
-    mesh.aggregate_numpy()
+    #mesh.vis_pv()
+    #mesh.aggregate_numpy()
     mesh.render_pytorch3d()
 
 

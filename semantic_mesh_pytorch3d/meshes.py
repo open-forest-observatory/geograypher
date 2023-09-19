@@ -6,6 +6,7 @@ import numpy.ma as ma
 import pyvista as pv
 import torch
 from pytorch3d.io import load_objs_as_meshes
+from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     MeshRasterizer,
     MeshRenderer,
@@ -50,8 +51,8 @@ class Pytorch3DMesh:
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
 
-        verts = torch.Tensor(verts.copy()).to(self.device)
-        faces = torch.Tensor(faces.copy()).to(self.device)
+        self.verts = torch.Tensor(verts.copy()).to(self.device)
+        self.faces = torch.Tensor(faces.copy()).to(self.device)
 
         # Convert RGB values to [0,1] and format correctly
         verts_rgb = torch.Tensor(np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)).to(
@@ -60,7 +61,32 @@ class Pytorch3DMesh:
         # Create a texture from the colors
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
 
-        self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+        self.create_dummy_texture()
+        #self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+
+    def create_dummy_texture(self, use_colorseg=True):
+        green = [34,139,34]
+        orange = [255,165,0]
+        RGB_values = self.pyvista_mesh["RGB"]
+        if use_colorseg:
+            test_values = np.array([green,orange])
+            dists = cdist(RGB_values, test_values)
+            inds = np.argmin(dists,axis=1)
+        else:
+            XYZ_values = self.pyvista_mesh.points
+            center = np.mean(XYZ_values, axis=0, keepdims=True)
+            dists_to_center = np.linalg.norm(XYZ_values[:,:2] - center[:,:2], axis=1)
+            cutoff_value = np.quantile(dists_to_center, [0.1])
+            inds = (dists_to_center > cutoff_value).astype(int)
+        dummy_RGB_values = np.zeros_like(RGB_values)
+        dummy_RGB_values[inds==0] = np.array(green)
+        dummy_RGB_values[inds==1] = np.array(orange)
+        verts_rgb = torch.Tensor(np.expand_dims(dummy_RGB_values / 255, axis=0)).to(
+            self.device
+        )  # (1, V, 3)
+        textures = TexturesVertex(verts_features=verts_rgb.to(self.device))
+        self.pytorch_mesh = Meshes(verts=[self.verts], faces=[self.faces], textures=textures)
+
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -96,7 +122,10 @@ class Pytorch3DMesh:
     def render_pytorch3d(self):
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
-        for i in tqdm(range(len(self.camera_set.cameras))):
+        inds = np.arange(len(self.camera_set.cameras))
+        np.random.shuffle(inds)
+
+        for i in tqdm(inds):
             # Create a camera from the metashape parameters
             cameras = self.camera_set.cameras[i].get_pytorch3d_camera(self.device)
 
