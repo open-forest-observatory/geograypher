@@ -2,6 +2,7 @@ from pytorch3d.io import load_objs_as_meshes
 import torch
 import pyvista as pv
 import numpy as np
+import numpy.ma as ma
 import matplotlib.pyplot as plt
 from pathlib import Path
 
@@ -82,6 +83,7 @@ class Pytorch3DMesh:
         target_number=1000000,
         reload=False,
         reduction_frac=0.5,
+        brightness_multiplier=8.0,
         standardize=True,
     ):
         if not reload:
@@ -103,6 +105,10 @@ class Pytorch3DMesh:
             self.pyvista_mesh = pv.read("data/decimated.ply")
             print("loaded mesh")
 
+        if brightness_multiplier != 1:
+            self.pyvista_mesh["RGB"] = (
+                self.pyvista_mesh["RGB"] * brightness_multiplier
+            ).astype(np.uint8)
         verts = self.pyvista_mesh.points
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
@@ -111,7 +117,7 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 20, axis=0)).to(
+        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
             self.device
         )  # (1, V, 3)
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
@@ -119,24 +125,47 @@ class Pytorch3DMesh:
         self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
-        plotter = pv.Plotter(off_screen=True)
+        plotter = pv.Plotter(off_screen=False)
         self.camera_set.vis(plotter)
+        plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
-    def render_geometric(self):
+    def render_geometric(self, n_cameras=200):
         # Initialize a camera.
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
         inds = np.arange(len(self.camera_set.cameras))
-        np.random.shuffle(inds)
+        inds = inds[:1]
+        # np.random.shuffle(inds)
+        # if n_cameras is not None:
+        #    inds = np.random.choice(inds, n_cameras)
+        summed_values = ma.array(
+            data=np.zeros((self.pyvista_mesh.points.shape[0], 3)),
+            mask=np.ones((self.pyvista_mesh.points.shape[0], 3)).astype(bool),
+        )
+        counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
+        num_complete = 0
         for i in inds:
+            print(num_complete)
+            num_complete += 1
             filename = self.camera_set.cameras[i].filename
             filepath = Path(self.image_folder, filename)
             img = plt.imread(filepath)
+            plt.imshow(img)
+            plt.show()
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
                 self.pyvista_mesh.points, img
             )
+            all_values = ma.stack((summed_values, colors_per_vertex), axis=2)
+            summed_values = all_values.sum(axis=2)
+            counts[np.logical_not(colors_per_vertex.mask)] = (
+                counts[np.logical_not(colors_per_vertex.mask)] + 1
+            )
+        mean_colors = summed_values / counts
+        plotter = pv.Plotter()
+        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors / 50, rgb=True)
+        plotter.show()
 
     def render(self):
         # Initialize a camera.
@@ -159,9 +188,7 @@ class Pytorch3DMesh:
             # the difference between naive and coarse-to-fine rasterization.
             image_size = (img.shape[0], img.shape[1])
             raster_settings = RasterizationSettings(
-                image_size=image_size,
-                blur_radius=0.0,
-                faces_per_pixel=1,
+                image_size=image_size, blur_radius=0.0, faces_per_pixel=1,
             )
 
             # Place a point light in front of the object. As mentioned above, the front of the cow is facing the
@@ -183,6 +210,7 @@ class Pytorch3DMesh:
             images = renderer(self.pytorch_mesh)
             f, ax = plt.subplots(1, 2)
             rendered = images[0, ..., :3].cpu().numpy()
+            rendered = np.flip(rendered, (0, 1))
             ax[0].imshow(rendered)
             ax[1].imshow(img * 4)
             ax[0].set_title("Rendered image")

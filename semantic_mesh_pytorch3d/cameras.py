@@ -7,9 +7,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy.ma as ma
 
-REFLECT_Z = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
-REFLECT_Y = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-
 
 class MetashapeCamera:
     def __init__(self, filename, transform, f, cx, cy, image_width, image_height):
@@ -67,6 +64,7 @@ class MetashapeCamera:
         K[1, 1] = self.f
         K[0, 2] = self.cx + self.image_width / 2.0
         K[1, 2] = self.cy + self.image_height / 2.0
+        breakpoint()
         homogenous_mesh_verts = np.concatenate(
             (mesh_verts, np.ones((mesh_verts.shape[0], 1))), axis=1
         ).T
@@ -90,43 +88,24 @@ class MetashapeCamera:
 
         R = torch.Tensor(np.array([transform_4x4_world_to_cam[:3, :3].T]))
         T = torch.Tensor([transform_4x4_world_to_cam[:3, 3]])
-        # DEBUG
-        s = min(self.image_height, self.image_width)
-        fx_ndc = self.f * 2.0 / s
-        fy_ndc = self.f * 2.0 / s
-        px_ndc = -(self.cx - self.image_width / 2.0) * 2.0 / s
-        py_ndc = -(self.cy - self.image_height / 2.0) * 2.0 / s
-
-        # focal_length = self.f
-        focal_length = torch.Tensor([[fx_ndc, fy_ndc]])
-        principal_point = torch.Tensor([[px_ndc, py_ndc]])
-        image_size = torch.Tensor([[self.image_height, self.image_width]])
-        K = np.eye(4)
-        K[0, 0] = self.f
-        K[1, 1] = self.f
-        K[0, 2] = self.image_width / 2
-        K[1, 2] = self.image_height / 2
-        K = torch.Tensor([K])
-
-        # cameras = PerspectiveCameras(
-        #    K=K,
-        #    in_ndc=False,
-        #    image_size=image_size,
-        #    R=R,
-        #    T=T,
-        #    device=device,
-        # )
+        # See https://pytorch3d.org/docs/cameras
+        image_size = ((self.image_height, self.image_width),)
+        fcl_screen = (self.f,)
+        prc_points_screen = (
+            (self.cx + self.image_width / 2, self.cy + self.image_height / 2),
+        )
         cameras = PerspectiveCameras(
-            focal_length=focal_length,
-            principal_point=principal_point,
             R=R,
             T=T,
+            focal_length=fcl_screen,
+            principal_point=prc_points_screen,
             device=device,
+            in_ndc=False,
             image_size=image_size,
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, vis_scale=1):
+    def vis(self, plotter: pv.Plotter, vis_scale=0.5):
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)
         scaled_cx = self.cx / self.f
@@ -163,6 +142,9 @@ class MetashapeCamera:
                 np.ones((1, 5)),
             )
         )
+        colors = np.array(
+            [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
+        ).astype(float)
         projected_vertices = self.transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
         ## mesh faces
@@ -177,8 +159,9 @@ class MetashapeCamera:
             ]  # square  # triangle  # triangle
         )
         frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
+        frustum["RGB"] = colors
         frustum.triangulate()
-        plotter.add_mesh(frustum)
+        plotter.add_mesh(frustum, scalars="RGB", rgb=True)
 
 
 class MetashapeCameraSet:
@@ -277,6 +260,11 @@ class MetashapeCameraSet:
         Returns:
             _type_: _description_
         """
+        REFLECT_Z = np.eye(3)
+        REFLECT_Z[2, 2] = -1
+        REFLECT_Y = np.eye(3)
+        REFLECT_Y[1, 1] = -1
+
         with open(camera_file) as csvfile:
             csv_reader = csv.reader(csvfile, delimiter="\t")
             # Discard headers
@@ -290,8 +278,13 @@ class MetashapeCameraSet:
                 transform = np.eye(4)
                 R = np.array(line[-9:]).astype(float)
                 loc = np.array(line[1:4]).astype(float)
-                # Unsure why the negation is needed
-                transform[:3, :3] = -np.reshape(R, (3, 3))
+                R = np.reshape(R, (3, 3))
+                # Reflect as suggested
+                # https://github.com/EnricoAhlers/agi2nerf/blob/main/agi2nerf.py
+                R = REFLECT_Z @ R
+                R = REFLECT_Y @ R
+
+                transform[:3, :3] = R
                 transform[:3, 3] = loc
                 transforms.append(transform)
 
