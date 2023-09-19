@@ -1,26 +1,28 @@
-from pytorch3d.io import load_objs_as_meshes
-import torch
-import pyvista as pv
-import numpy as np
-import numpy.ma as ma
-import matplotlib.pyplot as plt
 from pathlib import Path
 
-from pytorch3d.structures import Meshes
-from pytorch3d.transforms import Transform3d
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.ma as ma
+import pyvista as pv
+import torch
+from pytorch3d.io import load_objs_as_meshes
 from pytorch3d.renderer import (
-    look_at_view_transform,
-    FoVPerspectiveCameras,
-    PointLights,
     DirectionalLights,
+    FoVPerspectiveCameras,
     Materials,
-    RasterizationSettings,
-    MeshRenderer,
     MeshRasterizer,
+    MeshRenderer,
+    PointLights,
+    RasterizationSettings,
     SoftPhongShader,
     TexturesUV,
     TexturesVertex,
+    look_at_view_transform,
 )
+from pytorch3d.structures import Meshes
+from pytorch3d.transforms import Transform3d
+from tqdm import tqdm
+
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
@@ -32,7 +34,6 @@ class Pytorch3DMesh:
 
         self.pyvista_mesh = None
         self.pyvista_mesh = None
-        # self.test_render()
 
         self.device = None
         if torch.cuda.is_available():
@@ -41,7 +42,7 @@ class Pytorch3DMesh:
         else:
             self.device = torch.device("cpu")
 
-        self.camera_set = MetashapeCameraSet(camera_filename)
+        self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
         self.camera_set.rescale(self.scale_factor)
         self.load_mesh()
 
@@ -80,9 +81,8 @@ class Pytorch3DMesh:
     def load_mesh(
         self,
         device=None,
-        target_number=1000000,
         reload=False,
-        brightness_multiplier=8.0,
+        brightness_multiplier=1.0,
         standardize=True,
     ):
         if not reload:
@@ -100,11 +100,10 @@ class Pytorch3DMesh:
             self.pyvista_mesh = pv.read("data/decimated.ply")
             print("loaded mesh")
 
-        #if brightness_multiplier != 1:
-        #    breakpoint()
-            #self.pyvista_mesh["RGB"] = (
-            #    self.pyvista_mesh["RGB"] * brightness_multiplier
-            #).astype(np.uint8)
+        if brightness_multiplier != 1:
+            self.pyvista_mesh["RGB"] = (
+                self.pyvista_mesh["RGB"] * brightness_multiplier
+            ).astype(np.uint8)
         print(self.pyvista_mesh.points)
         verts = self.pyvista_mesh.points
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
@@ -114,12 +113,12 @@ class Pytorch3DMesh:
         faces = torch.Tensor(faces.copy()).to(self.device)
 
         # White texture from here https://github.com/facebookresearch/pytorch3d/issues/51
-        #verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
-        #    self.device
-        #)  # (1, V, 3)
-        #textures = TexturesVertex(verts_features=verts_rgb.to(device))
+        verts_rgb = torch.Tensor(np.expand_dims(pyvista_mesh["RGB"] / 255, axis=0)).to(
+            self.device
+        )  # (1, V, 3)
+        textures = TexturesVertex(verts_features=verts_rgb.to(device))
 
-        #self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+        self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -127,30 +126,26 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
-    def render_geometric(self, n_cameras=200):
+    def render_geometric(self, subset_num=200):
         # Initialize a camera.
         # With world coordinates +Y up, +X left and +Z in, the front of the cow is facing the -Z direction.
         # So we move the camera by 180 in the azimuth direction so it is facing the front of the cow.
         # TODO figure out what this should actually be
-        inds = np.arange(len(self.camera_set.cameras))
-        inds = inds[:1]
-        # np.random.shuffle(inds)
-        # if n_cameras is not None:
-        #    inds = np.random.choice(inds, n_cameras)
+        n_cameras = len(self.camera_set.cameras)
+
+        # Get inds for all cameras or a subset of a chosen size
+        inds = np.random.choice(n_cameras, size=min(subset_num, n_cameras))
+
         summed_values = ma.array(
             data=np.zeros((self.pyvista_mesh.points.shape[0], 3)),
             mask=np.ones((self.pyvista_mesh.points.shape[0], 3)).astype(bool),
         )
+
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-        num_complete = 0
-        for i in inds:
-            print(num_complete)
-            num_complete += 1
+        for i in tqdm(inds):
             filename = self.camera_set.cameras[i].filename
             filepath = Path(self.image_folder, filename)
             img = plt.imread(filepath)
-            plt.imshow(img)
-            plt.show()
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
                 self.pyvista_mesh.points, img
             )
@@ -159,9 +154,9 @@ class Pytorch3DMesh:
             counts[np.logical_not(colors_per_vertex.mask)] = (
                 counts[np.logical_not(colors_per_vertex.mask)] + 1
             )
-        mean_colors = summed_values / counts
+        mean_colors = (summed_values / counts).astype(np.uint8)
         plotter = pv.Plotter()
-        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors / 50, rgb=True)
+        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
     def render(self):
@@ -171,10 +166,9 @@ class Pytorch3DMesh:
         # TODO figure out what this should actually be
         inds = np.arange(len(self.camera_set.cameras))
         np.random.shuffle(inds)
-        for i in inds:
+        for i in tqdm(inds):
             filename = self.camera_set.cameras[i].filename
-            filepath = list(Path(self.image_folder).glob(filename+"*"))[0] # Assume there's only one file with that extension
-            img = plt.imread(filepath)
+            img = plt.imread(filename)
             cameras = self.camera_set.cameras[i].get_pytorch3d_camera(self.device)
 
             # Define the settings for rasterization and shading. Here we set the output image to be of size
@@ -209,12 +203,11 @@ class Pytorch3DMesh:
             images = renderer(self.pytorch_mesh)
             f, ax = plt.subplots(1, 2)
             rendered = images[0, ..., :3].cpu().numpy()
-            rendered = np.flip(rendered, (0, 1))
+            rendered = np.flip(rendered, axis=(0, 1))
             ax[0].imshow(rendered)
-            ax[1].imshow(img * 4)
+            ax[1].imshow(img)
             ax[0].set_title("Rendered image")
             ax[1].set_title("Real image")
             plt.axis("off")
-            print(i)
             plt.savefig(f"vis/pred_{i:03d}.png")
             plt.close()

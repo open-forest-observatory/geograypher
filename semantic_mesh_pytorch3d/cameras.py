@@ -1,11 +1,14 @@
-import xml.etree.ElementTree as ET
-import numpy as np
-import pyvista as pv
-from pyvista import demos
 import csv
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
 import numpy.ma as ma
+import pyvista as pv
+import torch
+from pytorch3d.renderer import PerspectiveCameras
+from pyvista import demos
 
 
 class MetashapeCamera:
@@ -15,7 +18,7 @@ class MetashapeCamera:
         """
         self.filename = filename
         self.transform = transform
-        self.f = f 
+        self.f = f
         self.cx = cx
         self.cy = cy
         self.image_width = image_width
@@ -82,14 +85,11 @@ class MetashapeCamera:
         return colors_per_vertex
 
     def get_pytorch3d_camera(self, device):
-        import torch
-        from pytorch3d.renderer import PerspectiveCameras
-
         # Invert this because it's cam to world and we need world to cam
         transform_4x4_world_to_cam = np.linalg.inv(self.transform)
 
-        R = torch.Tensor(np.array([transform_4x4_world_to_cam[:3, :3].T]))
-        T = torch.Tensor([transform_4x4_world_to_cam[:3, 3]])
+        R = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, :3].T, axis=0))
+        T = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, 3], axis=0))
         # See https://pytorch3d.org/docs/cameras
         image_size = ((self.image_height, self.image_width),)
         fcl_screen = (self.f,)
@@ -113,8 +113,8 @@ class MetashapeCamera:
             scaled_halfheight = self.image_height / (self.f * 2)
         else:
             # TODO
-            scaled_halfwidth = 0.7#self.image_width / (self.f * 2)
-            scaled_halfheight = 0.5#self.image_height / (self.f * 2)
+            scaled_halfwidth = 0.7  # self.image_width / (self.f * 2)
+            scaled_halfheight = 0.5  # self.image_height / (self.f * 2)
         scaled_cx = self.cx / self.f
         scaled_cy = self.cx / self.f
 
@@ -172,7 +172,7 @@ class MetashapeCamera:
 
 
 class MetashapeCameraSet:
-    def __init__(self, camera_file_base):
+    def __init__(self, camera_file_base, image_folder):
         (
             self.f,
             self.cx,
@@ -183,6 +183,10 @@ class MetashapeCameraSet:
             self.transforms,
         ) = self.parse_metashape_cam_file(camera_file=camera_file_base + ".xml")
 
+        self.filenames = [
+            str(list(Path(image_folder).glob(filename + "*"))[0])
+            for filename in self.filenames
+        ]  # Assume there's only one file with that extension
         self.cameras = []
 
         for filename, transform in zip(self.filenames, self.transforms):
@@ -214,7 +218,7 @@ class MetashapeCameraSet:
     def vis(self, plotter: pv.Plotter):
         for camera in self.cameras:
             camera.vis(plotter)
-        #self.add_orientation_cube(plotter=plotter)
+        # self.add_orientation_cube(plotter=plotter)
 
     def make_4x4_transform(self, rotation_str, translation_str, scale_str="1"):
         rotation_np = np.fromstring(rotation_str, sep=" ")
@@ -227,12 +231,11 @@ class MetashapeCameraSet:
         transform[3, 3] = 1 / scale
         return transform
 
-    def parse_metashape_cam_file(self, camera_file):
-        """Parse intrinsic params from metashape xml output format. Note that the
-        positions contained within this output look broken
+    def parse_metashape_cam_file(self, camera_file: str):
+        """Extract camera intrinsics and extrnisics from a metashape .xml file
 
         Args:
-            camera_file (_type_): _description_
+            camera_file str: The full filepath to exported file
 
         Returns:
             _type_: _description_
@@ -250,25 +253,14 @@ class MetashapeCameraSet:
         sensor = sensors[0]
         width = int(sensor[0].get("width"))
         height = int(sensor[0].get("height"))
-        pixel_width = float(sensor[1].get("value"))
-        pixel_height = float(sensor[2].get("value"))
-        focal_length = float(sensor[3].get("value"))
 
-        # Try to parse the filenames and transforms
-        #component = chunk[1][0]
-        #transform = component[0]
-        #region = component[0]
-
-        #transform_4x4 = self.make_4x4_transform(
-        #    rotation_str=str(transform[0].text),
-        #    translation_str=str(transform[1].text),
-        #    scale_str=str(transform[2].text),
-        #)
-
-        #transform_4x4 = self.make_4x4_transform(
-        #    rotation_str=str(region[2].text),
-        #    translation_str=str(region[0].text),
-        #)
+        if len(sensor) > 7:
+            calibration = sensor[7]
+            f = float(calibration[1].text)
+            cx = float(calibration[2].text)
+            cy = float(calibration[3].text)
+        else:
+            raise ValueError("No calibration provided")
 
         cameras = chunk[2]
 
@@ -276,48 +268,19 @@ class MetashapeCameraSet:
         camera_transforms = []
         for camera in cameras:
             labels.append(camera.get("label"))
-            camera_transforms.append(np.fromstring(camera[0].text, sep=" ").reshape(4,4))
+            camera_transforms.append(
+                np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
+            )
 
-        return focal_length, pixel_width, pixel_height, width, height, labels, camera_transforms
-
-    def parse_txt_cam_file(self, camera_file):
-        """Parse filenames and transforms from <TODO metashape output> format
-
-        Args:
-            camera_file (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        REFLECT_Z = np.eye(3)
-        REFLECT_Z[2, 2] = -1
-        REFLECT_Y = np.eye(3)
-        REFLECT_Y[1, 1] = -1
-
-        with open(camera_file) as csvfile:
-            csv_reader = csv.reader(csvfile, delimiter="\t")
-            # Discard headers
-            for _ in range(2):
-                next(csv_reader)
-
-            filenames = []
-            transforms = []
-            for line in csv_reader:
-                filenames.append(line[0])
-                transform = np.eye(4)
-                R = np.array(line[-9:]).astype(float)
-                loc = np.array(line[1:4]).astype(float)
-                R = np.reshape(R, (3, 3))
-                # Reflect as suggested
-                # https://github.com/EnricoAhlers/agi2nerf/blob/main/agi2nerf.py
-                R = REFLECT_Z @ R
-                R = REFLECT_Y @ R
-
-                transform[:3, :3] = R
-                transform[:3, 3] = loc
-                transforms.append(transform)
-
-        return filenames, transforms
+        return (
+            f,
+            cx,
+            cy,
+            width,
+            height,
+            labels,
+            camera_transforms,
+        )
 
 
 if __name__ == "__main__":

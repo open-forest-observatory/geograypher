@@ -1,7 +1,8 @@
-from semantic_mesh_pytorch3d.config import DATA_FOLDER
-from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 from argparse import ArgumentParser
 from pathlib import Path
+
+from semantic_mesh_pytorch3d.config import DATA_FOLDER
+from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
 def parse_args():
@@ -11,8 +12,8 @@ def parse_args():
         default=str(
             Path(
                 DATA_FOLDER,
-                "9-image-emerald-point-reconstruction",
-                "9-image-reconstruction.ply",
+                "2023-08-23_1027_QR_F1_rgb_100m",
+                "2023-08-23_1027_QR_F1_rgb_100m.ply",
             )
         ),
     )
@@ -21,16 +22,14 @@ def parse_args():
         default=str(
             Path(
                 DATA_FOLDER,
-                "9-image-emerald-point-reconstruction",
-                "9-image-reconstruction",
+                "2023-08-23_1027_QR_F1_rgb_100m",
+                "2023-08-23_1027_QR_F1_rgb_100m",
             )
         ),
     )
     parser.add_argument(
         "--image-folder",
-        default=str(
-            Path(DATA_FOLDER, "9-image-emerald-point-reconstruction", "images")
-        ),
+        default=str(Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m", "images")),
     )
     args = parser.parse_args()
     return args
