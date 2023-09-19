@@ -1,0 +1,6 @@
+outs:
+- md5: 02f265b665bb71b65ff1fdc70a324c84.dir
+  size: 167729107
+  nfiles: 23
+  hash: md5
+  path: 9-image-emerald-point-reconstruction
