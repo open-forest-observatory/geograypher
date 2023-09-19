@@ -45,3 +45,5 @@ python -c "import pyvista; print(pyvista.__version__)"
 ```
 poetry install
 ```
+
+Data for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive and you must have access to this [folder](https://drive.google.com/drive/folders/1vnnodshTUeZ6zXPdSdr9OPpYTU1dVdzk). If you are a collaborator and need the data, contact <djrussell@ucdavis.edu>.
