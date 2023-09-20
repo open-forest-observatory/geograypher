@@ -12,8 +12,9 @@ def parse_args():
         default=str(
             Path(
                 DATA_FOLDER,
-                "2023-08-23_1027_QR_F1_rgb_100m",
-                "2023-08-23_1027_QR_F1_rgb_100m.ply",
+                "2023-08-23_1027_QR_F1_rgb_100m_25_img",
+                "exports",
+                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_model.ply",
             )
         ),
     )
@@ -22,14 +23,15 @@ def parse_args():
         default=str(
             Path(
                 DATA_FOLDER,
-                "2023-08-23_1027_QR_F1_rgb_100m",
-                "2023-08-23_1027_QR_F1_rgb_100m",
+                "2023-08-23_1027_QR_F1_rgb_100m_25_img",
+                "exports",
+                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_cameras",
             )
         ),
     )
     parser.add_argument(
         "--image-folder",
-        default=str(Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m", "images")),
+        default=str(Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m_25_img", "images")),
     )
     args = parser.parse_args()
     return args
@@ -37,8 +39,8 @@ def parse_args():
 
 def main(mesh_file, camera_file, image_folder):
     mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
-    #mesh.vis_pv()
-    #mesh.aggregate_numpy()
+    mesh.vis_pv()
+    mesh.aggregate_numpy()
     mesh.render_pytorch3d()
 
 
