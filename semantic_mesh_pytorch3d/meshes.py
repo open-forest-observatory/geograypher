@@ -55,38 +55,41 @@ class Pytorch3DMesh:
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
         # Convert RGB values to [0,1] and format correctly
-        verts_rgb = torch.Tensor(np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)).to(
+        verts_rgb = torch.Tensor(
+            np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
+        ).to(
             self.device
         )  # (1, V, 3)
         # Create a texture from the colors
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
 
         self.create_dummy_texture()
-        #self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+        # self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
 
-    def create_dummy_texture(self, use_colorseg=True):
-        green = [34,139,34]
-        orange = [255,165,0]
+    def create_dummy_texture(self, use_colorseg=False):
+        green = [34, 139, 34]
+        orange = [255, 165, 0]
         RGB_values = self.pyvista_mesh["RGB"]
         if use_colorseg:
-            test_values = np.array([green,orange])
+            test_values = np.array([green, orange])
             dists = cdist(RGB_values, test_values)
-            inds = np.argmin(dists,axis=1)
+            inds = np.argmin(dists, axis=1)
         else:
             XYZ_values = self.pyvista_mesh.points
             center = np.mean(XYZ_values, axis=0, keepdims=True)
-            dists_to_center = np.linalg.norm(XYZ_values[:,:2] - center[:,:2], axis=1)
+            dists_to_center = np.linalg.norm(XYZ_values[:, :2] - center[:, :2], axis=1)
             cutoff_value = np.quantile(dists_to_center, [0.1])
             inds = (dists_to_center > cutoff_value).astype(int)
         dummy_RGB_values = np.zeros_like(RGB_values)
-        dummy_RGB_values[inds==0] = np.array(green)
-        dummy_RGB_values[inds==1] = np.array(orange)
+        dummy_RGB_values[inds == 0] = np.array(green)
+        dummy_RGB_values[inds == 1] = np.array(orange)
         verts_rgb = torch.Tensor(np.expand_dims(dummy_RGB_values / 255, axis=0)).to(
             self.device
         )  # (1, V, 3)
         textures = TexturesVertex(verts_features=verts_rgb.to(self.device))
-        self.pytorch_mesh = Meshes(verts=[self.verts], faces=[self.faces], textures=textures)
-
+        self.pytorch_mesh = Meshes(
+            verts=[self.verts], faces=[self.faces], textures=textures
+        )
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -102,10 +105,9 @@ class Pytorch3DMesh:
         )
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-        for i in tqdm(range( len(self.camera_set.cameras))):
+        for i in tqdm(range(len(self.camera_set.cameras))):
             filename = self.camera_set.cameras[i].filename
-            filepath = Path(self.image_folder, filename)
-            img = plt.imread(filepath)
+            img = plt.imread(filename)
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
                 self.pyvista_mesh.points, img
             )

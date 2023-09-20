@@ -25,25 +25,48 @@ def parse_args():
                 DATA_FOLDER,
                 "2023-08-23_1027_QR_F1_rgb_100m_25_img",
                 "exports",
-                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_cameras",
+                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_cameras.xml",
             )
         ),
     )
     parser.add_argument(
         "--image-folder",
-        default=str(Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m_25_img", "images")),
+        default=str(
+            Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m_25_img", "images")
+        ),
+    )
+    parser.add_argument(
+        "--run-vis", action="store_true", help="Run mesh and cameras visualization"
+    )
+    parser.add_argument(
+        "--run-aggregation",
+        action="store_true",
+        help="Aggregate color from multiple viewpoints",
+    )
+    parser.add_argument(
+        "--run-render", action="store_true", help="Render out viewpoints"
     )
     args = parser.parse_args()
     return args
 
 
-def main(mesh_file, camera_file, image_folder):
+def main(mesh_file, camera_file, image_folder, run_vis, run_aggregation, run_render):
     mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
-    mesh.vis_pv()
-    mesh.aggregate_numpy()
-    mesh.render_pytorch3d()
+    if run_vis:
+        mesh.vis_pv()
+    if run_aggregation:
+        mesh.aggregate_numpy()
+    if run_render:
+        mesh.render_pytorch3d()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args.mesh_file, args.camera_file, args.image_folder)
+    main(
+        args.mesh_file,
+        args.camera_file,
+        args.image_folder,
+        args.run_vis,
+        args.run_aggregation,
+        args.run_render,
+    )

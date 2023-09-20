@@ -169,7 +169,7 @@ class MetashapeCamera:
 
 
 class MetashapeCameraSet:
-    def __init__(self, camera_file_base, image_folder):
+    def __init__(self, camera_file, image_folder):
         (
             self.f,
             self.cx,
@@ -178,7 +178,7 @@ class MetashapeCameraSet:
             self.image_height,
             self.filenames,
             self.transforms,
-        ) = self.parse_metashape_cam_file(camera_file=camera_file_base + ".xml")
+        ) = self.parse_metashape_cam_file(camera_file=camera_file)
 
         self.filenames = [
             str(list(Path(image_folder).glob(filename + "*"))[0])
@@ -264,6 +264,9 @@ class MetashapeCameraSet:
         labels = []
         camera_transforms = []
         for camera in cameras:
+            if len(camera) < 5:
+                print("skipping unaligned camera")
+                continue
             labels.append(camera.get("label"))
             camera_transforms.append(
                 np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
