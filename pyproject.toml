@@ -8,6 +8,8 @@ packages = [{include = "semantic_mesh_pytorch3d"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+geopandas = "^0.14.0"
+numpy = "1.23.1"
 
 
 [build-system]
