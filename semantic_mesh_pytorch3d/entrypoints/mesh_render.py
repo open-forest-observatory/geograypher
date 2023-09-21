@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+import argparse
 from pathlib import Path
 
 from semantic_mesh_pytorch3d.config import DATA_FOLDER
@@ -6,7 +6,9 @@ from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
 def parse_args():
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--mesh-file",
         default=str(

@@ -265,7 +265,7 @@ class MetashapeCameraSet:
         camera_transforms = []
         for camera in cameras:
             if len(camera) < 5:
-                print("skipping unaligned camera")
+                # skipping unaligned camera
                 continue
             labels.append(camera.get("label"))
             camera_transforms.append(

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.ma as ma
@@ -17,6 +15,7 @@ from pytorch3d.renderer import (
 )
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
+import geopandas as gpd
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
@@ -41,7 +40,7 @@ class Pytorch3DMesh:
 
     def load_mesh(
         self,
-        device=None,
+        texture_enum=0,
     ):
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
@@ -57,16 +56,27 @@ class Pytorch3DMesh:
         # Convert RGB values to [0,1] and format correctly
         verts_rgb = torch.Tensor(
             np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
-        ).to(
-            self.device
-        )  # (1, V, 3)
-        # Create a texture from the colors
-        textures = TexturesVertex(verts_features=verts_rgb.to(device))
+        ).to(self.device)
 
-        self.create_dummy_texture()
-        # self.pytorch_mesh = Meshes(verts=[verts], faces=[faces], textures=textures)
+        if texture_enum == 0:
+            # Create a texture from the colors
+            textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
+            self.pytorch_mesh = Meshes(
+                verts=[self.verts], faces=[self.faces], textures=textures
+            )
+            self.pytorch_mesh = self.pytorch_mesh.to(self.device)
+        elif texture_enum == 1:
+            # Create a dummy texture
+            self.create_dummy_texture()
+        elif texture_enum == 2:
+            # Create a texture from a geofile
+            self.texture_from_geodata(
+                "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg"
+            )
+        else:
+            raise ValueError(f"Invalide texture enum {texture_enum}")
 
-    def create_dummy_texture(self, use_colorseg=False):
+    def create_dummy_texture(self, use_colorseg=True):
         green = [34, 139, 34]
         orange = [255, 165, 0]
         RGB_values = self.pyvista_mesh["RGB"]
@@ -90,6 +100,11 @@ class Pytorch3DMesh:
         self.pytorch_mesh = Meshes(
             verts=[self.verts], faces=[self.faces], textures=textures
         )
+
+    def texture_from_geodata(self, geodata_file):
+        raise NotImplementedError()
+        # TODO
+        gdf = gpd.read_file(geodata_file)
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -152,11 +167,11 @@ class Pytorch3DMesh:
             renderer = MeshRenderer(
                 rasterizer=MeshRasterizer(
                     cameras=cameras, raster_settings=raster_settings
-                ),
+                ).to(self.device),
                 shader=HardGouraudShader(
                     device=self.device, cameras=cameras, lights=lights
                 ),
-            )
+            ).to(self.device)
 
             images = renderer(self.pytorch_mesh)
             f, ax = plt.subplots(1, 2)
