@@ -16,6 +16,8 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
@@ -40,7 +42,7 @@ class Pytorch3DMesh:
 
     def load_mesh(
         self,
-        texture_enum=0,
+        texture_enum=2,
     ):
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
@@ -101,10 +103,48 @@ class Pytorch3DMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def texture_from_geodata(self, geodata_file):
-        raise NotImplementedError()
-        # TODO
-        gdf = gpd.read_file(geodata_file)
+    def texture_from_geodata(
+        self,
+        geo_data_file="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg",
+        geo_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef.obj",
+        local_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_local_reset.obj",
+    ):
+        # Read the data
+        gdf = gpd.read_file(geo_data_file)
+        # convert to lat, lon so it matches the mesh
+        gdf = gdf.to_crs("EPSG:4326")
+
+        # Load the mesh, assumed to be lat, lon
+        g_mesh = pv.read(geo_mesh)
+        # Note that lat, lon convention doesn't correspond to how it's said
+        lat = np.array(g_mesh.points[:, 1])
+        lon = np.array(g_mesh.points[:, 0])
+        # Normalize this axis since it's in meters and the rest are lat-lon
+        g_mesh.points[:, 2] = g_mesh.points[:, 2] / 111119
+
+        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
+        # Convert lat-lon points to GeoDataFrame
+        df = pd.DataFrame({"lon": lon, "lat": lat})
+        df["coords"] = list(zip(df["lon"], df["lat"]))
+        df["coords"] = df["coords"].apply(Point)
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=gdf.crs)
+
+        # Add an index column because the normal index will not be preserved
+        points["id"] = df.index
+
+        # Select points that are within the polygons
+        pointInPolyws = gpd.tools.overlay(points, gdf, how="intersection")
+        # Create an array corresponding to all the points
+        polygon_IDs = np.full(shape=points.shape[0], fill_value=np.nan)
+        # Assign points that are inside a given tree with that tree's ID
+        polygon_IDs[pointInPolyws["id"].to_numpy()] = pointInPolyws["treeID"].to_numpy()
+
+        # These points are within a tree
+        g_mesh["is_tree"] = np.isfinite(polygon_IDs)
+        # Read the local mesh, because that's what we need for rendering
+        local_mesh = pv.read(local_mesh)
+        local_mesh["is_tree"] = g_mesh["is_tree"]
+        local_mesh.plot()
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
