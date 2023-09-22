@@ -55,13 +55,12 @@ class Pytorch3DMesh:
         self.verts = torch.Tensor(verts.copy()).to(self.device)
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
-        # Convert RGB values to [0,1] and format correctly
-        verts_rgb = torch.Tensor(
-            np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
-        ).to(self.device)
-
         if texture_enum == 0:
             # Create a texture from the colors
+            # Convert RGB values to [0,1] and format correctly
+            verts_rgb = torch.Tensor(
+                np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
+            ).to(self.device)
             textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
             self.pytorch_mesh = Meshes(
                 verts=[self.verts], faces=[self.faces], textures=textures
@@ -107,7 +106,6 @@ class Pytorch3DMesh:
         self,
         geo_data_file="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg",
         geo_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef.obj",
-        local_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_local_reset.obj",
     ):
         # Read the data
         gdf = gpd.read_file(geo_data_file)
@@ -140,11 +138,26 @@ class Pytorch3DMesh:
         polygon_IDs[pointInPolyws["id"].to_numpy()] = pointInPolyws["treeID"].to_numpy()
 
         # These points are within a tree
-        g_mesh["is_tree"] = np.isfinite(polygon_IDs)
-        # Read the local mesh, because that's what we need for rendering
-        local_mesh = pv.read(local_mesh)
-        local_mesh["is_tree"] = g_mesh["is_tree"]
-        local_mesh.plot()
+        is_tree = torch.Tensor(np.isfinite(polygon_IDs)).to(self.device).to(torch.bool)
+
+        # Fill the colors with the background color
+        colors = (
+            (torch.Tensor([[175, 128, 79]]) / 255.0)
+            .repeat(g_mesh.points.shape[0], 1)
+            .to(self.device)
+        )
+        # create the forgound color
+        forground_color = (torch.Tensor([[34, 139, 34]]) / 255).to(self.device)
+        # Set the indexed points to the forground color
+        colors[is_tree] = forground_color
+
+        # Add singleton batch dimension so it is (1, n_verts, 3)
+        colors = torch.unsqueeze(colors, 0)
+
+        textures = TexturesVertex(verts_features=colors.to(self.device))
+        self.pytorch_mesh = Meshes(
+            verts=[self.verts], faces=[self.faces], textures=textures
+        )
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -214,12 +227,10 @@ class Pytorch3DMesh:
             ).to(self.device)
 
             images = renderer(self.pytorch_mesh)
-            f, ax = plt.subplots(1, 2)
             rendered = images[0, ..., :3].cpu().numpy()
             rendered = np.flip(rendered, axis=(0, 1))
-            ax[0].imshow(rendered)
-            ax[1].imshow(img)
-            ax[0].set_title("Rendered image")
-            ax[1].set_title("Real image")
-            plt.savefig(f"vis/pred_{i:03d}.png")
-            plt.close()
+            img = img / 255
+            composite = np.clip(
+                np.concatenate((img, rendered, (img + rendered) / 2.0)), 0.0, 1.0
+            )
+            plt.imsave(f"vis/pred_{i:03d}.png", composite)
