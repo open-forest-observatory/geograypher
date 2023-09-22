@@ -3,7 +3,7 @@ import numpy as np
 import numpy.ma as ma
 import pyvista as pv
 import torch
-from pytorch3d.io import load_objs_as_meshes
+from imageio import imread, imwrite
 from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     MeshRasterizer,
@@ -23,7 +23,7 @@ from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
 class Pytorch3DMesh:
-    def __init__(self, mesh_filename, camera_filename, image_folder):
+    def __init__(self, mesh_filename, camera_filename, image_folder, texture_enum=0):
         self.mesh_filename = mesh_filename
         self.image_folder = image_folder
 
@@ -38,11 +38,11 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh()
+        self.load_mesh(texture_enum)
 
     def load_mesh(
         self,
-        texture_enum=2,
+        texture_enum,
     ):
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
@@ -165,22 +165,19 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
-    def aggregate_numpy(self):
+    def aggregate_viewpoints(self):
         # Initialize a masked array to record values
-        summed_values = ma.array(
-            data=np.zeros((self.pyvista_mesh.points.shape[0], 3)),
-            mask=np.ones((self.pyvista_mesh.points.shape[0], 3)).astype(bool),
-        )
+        summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(self.camera_set.cameras))):
             filename = self.camera_set.cameras[i].filename
-            img = plt.imread(filename)
+            # This is actually the bottleneck in the whole process
+            img = imread(filename)
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
-                self.pyvista_mesh.points, img
+                self.pyvista_mesh.points, img, device=self.device
             )
-            all_values = ma.stack((summed_values, colors_per_vertex), axis=2)
-            summed_values = all_values.sum(axis=2)
+            summed_values = summed_values + colors_per_vertex.data
             counts[np.logical_not(colors_per_vertex.mask)] = (
                 counts[np.logical_not(colors_per_vertex.mask)] + 1
             )
@@ -201,7 +198,7 @@ class Pytorch3DMesh:
 
             # Load the image
             filename = self.camera_set.cameras[i].filename
-            img = plt.imread(filename)
+            img = imread(filename)
 
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
@@ -233,4 +230,4 @@ class Pytorch3DMesh:
             composite = np.clip(
                 np.concatenate((img, rendered, (img + rendered) / 2.0)), 0.0, 1.0
             )
-            plt.imsave(f"vis/pred_{i:03d}.png", composite)
+            imwrite(f"vis/pred_{i:03d}.png", composite)
