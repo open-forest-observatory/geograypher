@@ -3,7 +3,7 @@ import numpy as np
 import numpy.ma as ma
 import pyvista as pv
 import torch
-from pytorch3d.io import load_objs_as_meshes
+from imageio import imread, imwrite
 from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     MeshRasterizer,
@@ -16,12 +16,14 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
 
 
 class Pytorch3DMesh:
-    def __init__(self, mesh_filename, camera_filename, image_folder):
+    def __init__(self, mesh_filename, camera_filename, image_folder, texture_enum=0):
         self.mesh_filename = mesh_filename
         self.image_folder = image_folder
 
@@ -36,11 +38,11 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh()
+        self.load_mesh(texture_enum)
 
     def load_mesh(
         self,
-        texture_enum=0,
+        texture_enum,
     ):
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
@@ -53,13 +55,12 @@ class Pytorch3DMesh:
         self.verts = torch.Tensor(verts.copy()).to(self.device)
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
-        # Convert RGB values to [0,1] and format correctly
-        verts_rgb = torch.Tensor(
-            np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
-        ).to(self.device)
-
         if texture_enum == 0:
             # Create a texture from the colors
+            # Convert RGB values to [0,1] and format correctly
+            verts_rgb = torch.Tensor(
+                np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
+            ).to(self.device)
             textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
             self.pytorch_mesh = Meshes(
                 verts=[self.verts], faces=[self.faces], textures=textures
@@ -101,10 +102,62 @@ class Pytorch3DMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def texture_from_geodata(self, geodata_file):
-        raise NotImplementedError()
-        # TODO
-        gdf = gpd.read_file(geodata_file)
+    def texture_from_geodata(
+        self,
+        geo_data_file="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg",
+        geo_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef.obj",
+    ):
+        # Read the data
+        gdf = gpd.read_file(geo_data_file)
+        # convert to lat, lon so it matches the mesh
+        gdf = gdf.to_crs("EPSG:4326")
+
+        # Load the mesh, assumed to be lat, lon
+        g_mesh = pv.read(geo_mesh)
+        # Note that lat, lon convention doesn't correspond to how it's said
+        lat = np.array(g_mesh.points[:, 1])
+        lon = np.array(g_mesh.points[:, 0])
+        # Normalize this axis since it's in meters and the rest are lat-lon
+        g_mesh.points[:, 2] = g_mesh.points[:, 2] / 111119
+
+        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
+        # Convert lat-lon points to GeoDataFrame
+        df = pd.DataFrame({"lon": lon, "lat": lat})
+        df["coords"] = list(zip(df["lon"], df["lat"]))
+        df["coords"] = df["coords"].apply(Point)
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=gdf.crs)
+
+        # Add an index column because the normal index will not be preserved
+        points["id"] = df.index
+
+        # Select points that are within the polygons
+        pointInPolyws = gpd.tools.overlay(points, gdf, how="intersection")
+        # Create an array corresponding to all the points
+        polygon_IDs = np.full(shape=points.shape[0], fill_value=np.nan)
+        # Assign points that are inside a given tree with that tree's ID
+        polygon_IDs[pointInPolyws["id"].to_numpy()] = pointInPolyws["treeID"].to_numpy()
+
+        # These points are within a tree
+        is_tree = torch.Tensor(np.isfinite(polygon_IDs)).to(self.device).to(torch.bool)
+
+        # Fill the colors with the background color
+        colors = (
+            (torch.Tensor([[175, 128, 79]]) / 255.0)
+            .repeat(g_mesh.points.shape[0], 1)
+            .to(self.device)
+        )
+        # create the forgound color
+        forground_color = (torch.Tensor([[34, 139, 34]]) / 255).to(self.device)
+        # Set the indexed points to the forground color
+        colors[is_tree] = forground_color
+
+        # Add singleton batch dimension so it is (1, n_verts, 3)
+        colors = torch.unsqueeze(colors, 0)
+
+        textures = TexturesVertex(verts_features=colors.to(self.device))
+        self.pytorch_mesh = Meshes(
+            verts=[self.verts], faces=[self.faces], textures=textures
+        )
 
     def vis_pv(self):
         plotter = pv.Plotter(off_screen=False)
@@ -112,22 +165,19 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
-    def aggregate_numpy(self):
+    def aggregate_viewpoints(self):
         # Initialize a masked array to record values
-        summed_values = ma.array(
-            data=np.zeros((self.pyvista_mesh.points.shape[0], 3)),
-            mask=np.ones((self.pyvista_mesh.points.shape[0], 3)).astype(bool),
-        )
+        summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(self.camera_set.cameras))):
             filename = self.camera_set.cameras[i].filename
-            img = plt.imread(filename)
+            # This is actually the bottleneck in the whole process
+            img = imread(filename)
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
-                self.pyvista_mesh.points, img
+                self.pyvista_mesh.points, img, device=self.device
             )
-            all_values = ma.stack((summed_values, colors_per_vertex), axis=2)
-            summed_values = all_values.sum(axis=2)
+            summed_values = summed_values + colors_per_vertex.data
             counts[np.logical_not(colors_per_vertex.mask)] = (
                 counts[np.logical_not(colors_per_vertex.mask)] + 1
             )
@@ -148,7 +198,7 @@ class Pytorch3DMesh:
 
             # Load the image
             filename = self.camera_set.cameras[i].filename
-            img = plt.imread(filename)
+            img = imread(filename)
 
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
@@ -174,12 +224,10 @@ class Pytorch3DMesh:
             ).to(self.device)
 
             images = renderer(self.pytorch_mesh)
-            f, ax = plt.subplots(1, 2)
             rendered = images[0, ..., :3].cpu().numpy()
             rendered = np.flip(rendered, axis=(0, 1))
-            ax[0].imshow(rendered)
-            ax[1].imshow(img)
-            ax[0].set_title("Rendered image")
-            ax[1].set_title("Real image")
-            plt.savefig(f"vis/pred_{i:03d}.png")
-            plt.close()
+            img = img / 255
+            composite = np.clip(
+                np.concatenate((img, rendered, (img + rendered) / 2.0)), 0.0, 1.0
+            )
+            imwrite(f"vis/pred_{i:03d}.png", composite)

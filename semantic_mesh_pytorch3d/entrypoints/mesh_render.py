@@ -38,6 +38,12 @@ def parse_args():
         ),
     )
     parser.add_argument(
+        "--texture-type",
+        default=0,
+        type=int,
+        help="Enum for texture. 0: default texture, 1: dummy texture, 2: geofile texture",
+    )
+    parser.add_argument(
         "--run-vis", action="store_true", help="Run mesh and cameras visualization"
     )
     parser.add_argument(
@@ -52,12 +58,22 @@ def parse_args():
     return args
 
 
-def main(mesh_file, camera_file, image_folder, run_vis, run_aggregation, run_render):
-    mesh = Pytorch3DMesh(mesh_file, camera_file, image_folder=image_folder)
+def main(
+    mesh_file,
+    camera_file,
+    image_folder,
+    run_vis,
+    run_aggregation,
+    run_render,
+    texture_type,
+):
+    mesh = Pytorch3DMesh(
+        mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
+    )
     if run_vis:
         mesh.vis_pv()
     if run_aggregation:
-        mesh.aggregate_numpy()
+        mesh.aggregate_viewpoints()
     if run_render:
         mesh.render_pytorch3d()
 
@@ -71,4 +87,5 @@ if __name__ == "__main__":
         args.run_vis,
         args.run_aggregation,
         args.run_render,
+        args.texture_type,
     )

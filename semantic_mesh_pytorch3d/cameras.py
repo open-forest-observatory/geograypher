@@ -1,8 +1,6 @@
-import csv
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import numpy.ma as ma
 import pyvista as pv
@@ -37,17 +35,16 @@ class MetashapeCamera:
         in_front_of_cam = projected_verts[2] > 0
 
         img_width, image_height = image_size
-        valid_verts_bool = np.logical_and.reduce(
-            (
-                image_space_verts[:, 0] > 0,
-                image_space_verts[:, 1] > 0,
-                image_space_verts[:, 0] < img_width,
-                image_space_verts[:, 1] < image_height,
-                in_front_of_cam,
-            )
+        # Pytorch doesn't have a reduce operator, so this is the equivilent using boolean multiplication
+        valid_verts_bool = (
+            (image_space_verts[:, 0] > 0)
+            * (image_space_verts[:, 1] > 0)
+            * (image_space_verts[:, 0] < img_width)
+            * (image_space_verts[:, 1] < image_height)
+            * in_front_of_cam
         )
-        valid_image_space_verts = image_space_verts[valid_verts_bool, :].astype(int)
-        return valid_verts_bool, valid_image_space_verts
+        valid_image_space_verts = image_space_verts[valid_verts_bool, :].to(torch.int)
+        return valid_verts_bool.cpu().numpy(), valid_image_space_verts.cpu().numpy()
 
     def extract_colors(self, valid_bool, valid_locs, img):
         colors_per_vertex = np.zeros((valid_bool.shape[0], img.shape[2]))
@@ -63,15 +60,22 @@ class MetashapeCamera:
         masked_color_per_vertex = ma.array(colors_per_vertex, mask=mask)
         return masked_color_per_vertex
 
-    def splat_mesh_verts(self, mesh_verts, img):
-        transform_4x4_world_to_cam = np.linalg.inv(self.transform)
+    def splat_mesh_verts(self, mesh_verts, img, device):
+        transform_4x4_world_to_cam = torch.Tensor(np.linalg.inv(self.transform)).to(
+            device
+        )
         K = np.eye(3)
         K[0, 0] = self.f
         K[1, 1] = self.f
         K[0, 2] = self.cx + self.image_width / 2.0
         K[1, 2] = self.cy + self.image_height / 2.0
-        homogenous_mesh_verts = np.concatenate(
-            (mesh_verts, np.ones((mesh_verts.shape[0], 1))), axis=1
+        K = torch.Tensor(K).to(device)
+        homogenous_mesh_verts = torch.concatenate(
+            (
+                torch.Tensor(mesh_verts).to(device),
+                torch.ones((mesh_verts.shape[0], 1)).to(device),
+            ),
+            axis=1,
         ).T
         camera_frame_mesh_verts = transform_4x4_world_to_cam @ homogenous_mesh_verts
         camera_frame_mesh_verts = camera_frame_mesh_verts[:3]
