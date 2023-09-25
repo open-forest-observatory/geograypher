@@ -244,15 +244,15 @@ class MetashapeCameraSet:
 
         # sensors info
         sensor = sensors[0]
-        self.width = int(sensor[0].get("width"))
-        self.height = int(sensor[0].get("height"))
+        self.image_width = int(sensor[0].get("width"))
+        self.image_height = int(sensor[0].get("height"))
 
         if len(sensor) > 8:
             calibration = sensor[7]
             self.f = float(calibration[1].text)
             self.cx = float(calibration[2].text)
             self.cy = float(calibration[3].text)
-            if None in (f, cx, cy):
+            if None in (self.f, self.cx, self.cy):
                 ValueError("Incomplete calibration provided")
 
             # Get potentially-empty dict of distortion parameters
@@ -266,13 +266,11 @@ class MetashapeCameraSet:
 
         cameras = chunk[2]
 
-        self.labels = []
-        self.camera_transforms = []
+        self.filenames = []
+        self.transforms = []
         for camera in cameras:
             if len(camera) < 5:
                 # skipping unaligned camera
                 continue
-            self.labels.append(camera.get("label"))
-            self.camera_transforms.append(
-                np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
-            )
+            self.filenames.append(camera.get("label"))
+            self.transforms.append(np.fromstring(camera[0].text, sep=" ").reshape(4, 4))
