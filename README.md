@@ -1,4 +1,10 @@
-# semantic-mesh-pytorch3d
+# multiview-prediction-toolkit
+This tools is designed for multi-view image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tools is designed to be generalizable.
+
+In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrametry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrametry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image. 
+
+One task that this can support is multi-view classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transfered to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averging scheme to come up with a final land cover prediction for that location. The other task is task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
+
 
 ## Installation
 
