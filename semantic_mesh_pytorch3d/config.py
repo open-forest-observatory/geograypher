@@ -16,9 +16,9 @@ DEFAULT_LOCAL_MESH = str(
 DEFAULT_GEOREF_MESH = str(
     Path(
         DATA_FOLDER,
-        "emerald_point_fresh_start",
+        "emerald_point_oblique_subset",
         "exports",
-        "example-run-001_20230922T1655_model_georeferenced.ply",
+        "emerald_point_oblique_subset_20230925T1512_model_georeferenced.ply",
     )
 )
 
