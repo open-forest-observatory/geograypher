@@ -20,6 +20,7 @@ import pandas as pd
 from shapely.geometry import Point
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
+from semantic_mesh_pytorch3d.config import DEFAULT_GEOREF_MESH, DEFAULT_GEOFILE
 
 
 class Pytorch3DMesh:
@@ -71,9 +72,7 @@ class Pytorch3DMesh:
             self.create_dummy_texture()
         elif texture_enum == 2:
             # Create a texture from a geofile
-            self.texture_from_geodata(
-                "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg"
-            )
+            self.texture_from_geodata()
         else:
             raise ValueError(f"Invalide texture enum {texture_enum}")
 
@@ -104,8 +103,8 @@ class Pytorch3DMesh:
 
     def texture_from_geodata(
         self,
-        geo_data_file="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg",
-        geo_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef.obj",
+        geo_data_file=DEFAULT_GEOFILE,
+        geo_mesh=DEFAULT_GEOREF_MESH,
     ):
         # Read the data
         gdf = gpd.read_file(geo_data_file)
