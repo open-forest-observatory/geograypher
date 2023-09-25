@@ -174,15 +174,7 @@ class MetashapeCamera:
 
 class MetashapeCameraSet:
     def __init__(self, camera_file, image_folder):
-        (
-            self.f,
-            self.cx,
-            self.cy,
-            self.image_width,
-            self.image_height,
-            self.filenames,
-            self.transforms,
-        ) = self.parse_metashape_cam_file(camera_file=camera_file)
+        self.parse_metashape_cam_file(camera_file=camera_file)
 
         self.filenames = [
             str(list(Path(image_folder).glob(filename + "*"))[0])
@@ -252,36 +244,35 @@ class MetashapeCameraSet:
 
         # sensors info
         sensor = sensors[0]
-        width = int(sensor[0].get("width"))
-        height = int(sensor[0].get("height"))
+        self.width = int(sensor[0].get("width"))
+        self.height = int(sensor[0].get("height"))
 
-        if len(sensor) > 7:
+        if len(sensor) > 8:
             calibration = sensor[7]
-            f = float(calibration[1].text)
-            cx = float(calibration[2].text)
-            cy = float(calibration[3].text)
+            self.f = float(calibration[1].text)
+            self.cx = float(calibration[2].text)
+            self.cy = float(calibration[3].text)
+            if None in (f, cx, cy):
+                ValueError("Incomplete calibration provided")
+
+            # Get potentially-empty dict of distortion parameters
+            self.distortion_dict = {
+                calibration[i].tag: float(calibration[i].text)
+                for i in range(3, len(calibration))
+            }
+
         else:
             raise ValueError("No calibration provided")
 
         cameras = chunk[2]
 
-        labels = []
-        camera_transforms = []
+        self.labels = []
+        self.camera_transforms = []
         for camera in cameras:
             if len(camera) < 5:
                 # skipping unaligned camera
                 continue
-            labels.append(camera.get("label"))
-            camera_transforms.append(
+            self.labels.append(camera.get("label"))
+            self.camera_transforms.append(
                 np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
             )
-
-        return (
-            f,
-            cx,
-            cy,
-            width,
-            height,
-            labels,
-            camera_transforms,
-        )
