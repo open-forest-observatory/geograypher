@@ -224,8 +224,6 @@ class Pytorch3DMesh:
                 flat_i_inds = inds[0].flatten()
                 flat_j_inds = inds[1].flatten()
 
-            # The pytorch convention is flipped
-            img = np.flip(img, axis=(0, 1))
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
             new_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
             new_colors[pix_to_face] = img[flat_i_inds, flat_j_inds]
@@ -260,7 +258,6 @@ class Pytorch3DMesh:
 
             # Extract and save images
             rendered = images[0, ..., :3].cpu().numpy() * 255
-            rendered = np.flip(rendered, axis=(0, 1))
             composite = np.clip(
                 np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 255
             ).astype(np.uint8)

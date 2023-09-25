@@ -91,14 +91,22 @@ class MetashapeCamera:
     def get_pytorch3d_camera(self, device):
         # Invert this because it's cam to world and we need world to cam
         transform_4x4_world_to_cam = np.linalg.inv(self.transform)
+        rotation_about_z = np.array(
+            [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        )
+        # Rotate about the Z axis because the NDC coordinates are defined X: left, Y: up and we use X: right, Y: down
+        # See https://pytorch3d.org/docs/cameras
+        transform_4x4_world_to_cam = rotation_about_z @ transform_4x4_world_to_cam
 
         R = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, :3].T, axis=0))
         T = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, 3], axis=0))
-        # See https://pytorch3d.org/docs/cameras
+
+        # The image size is height, width which completely disreguards any other conventions they use...
         image_size = ((self.image_height, self.image_width),)
         fcl_screen = (self.f,)
+
         prc_points_screen = (
-            (self.cx + self.image_width / 2, self.cy + self.image_height / 2),
+            (self.image_width / 2 + self.cx, self.image_height / 2 + self.cy),
         )
         cameras = PerspectiveCameras(
             R=R,
