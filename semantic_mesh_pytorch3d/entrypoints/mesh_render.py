@@ -73,7 +73,8 @@ def main(
     if run_vis:
         mesh.vis_pv()
     if run_aggregation:
-        mesh.aggregate_viewpoints()
+        mesh.aggregate_viepoints_pytorch3d()
+        # mesh.aggregate_viewpoints_naive()
     if run_render:
         mesh.render_pytorch3d()
 

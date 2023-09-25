@@ -106,7 +106,7 @@ class MetashapeCamera:
             focal_length=fcl_screen,
             principal_point=prc_points_screen,
             device=device,
-            in_ndc=False,
+            in_ndc=False,  # screen coords
             image_size=image_size,
         )
         return cameras
