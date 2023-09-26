@@ -39,14 +39,23 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh(texture_enum)
+        self.load_mesh(texture_enum, 0.05)
 
     def load_mesh(
         self,
         texture_enum,
+        downsample_target=1.0,
     ):
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
+        # Downsample mesh if needed
+        if downsample_target != 1.0:
+            # TODO try decimate_pro and compare quality and runtime
+            # TODO see if there's a way to preserve the mesh colors
+            # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
+            self.pyvista_mesh = self.pyvista_mesh.decimate(
+                target_reduction=(1 - downsample_target)
+            )
 
         # Extract the vertices and faces
         verts = self.pyvista_mesh.points
@@ -59,9 +68,16 @@ class Pytorch3DMesh:
         if texture_enum == 0:
             # Create a texture from the colors
             # Convert RGB values to [0,1] and format correctly
-            verts_rgb = torch.Tensor(
-                np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
-            ).to(self.device)
+            if "RGB" in self.pyvista_mesh.array_names:
+                verts_rgb = torch.Tensor(
+                    np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
+                ).to(self.device)
+            else:
+                # Default gray color
+                print(self.pyvista_mesh.array_names)
+                verts_rgb = torch.Tensor(
+                    np.full((1, self.pyvista_mesh.n_points, 3), 0.5)
+                ).to(self.device)
             textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
             self.pytorch_mesh = Meshes(
                 verts=[self.verts], faces=[self.faces], textures=textures
@@ -230,11 +246,10 @@ class Pytorch3DMesh:
             face_colors = face_colors + new_colors
             unique_faces = np.unique(pix_to_face)
             counts[unique_faces] = counts[unique_faces] + 1
-            if i % 10 == 9:
-                self.pyvista_mesh["face_colors"] = (
-                    face_colors / np.expand_dims(counts, 1)
-                ).astype(np.uint8)
-                self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
+        self.pyvista_mesh["face_colors"] = (
+            face_colors / np.expand_dims(counts, 1)
+        ).astype(np.uint8)
+        self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
     def render_pytorch3d(self):
         # Render each image individually.
