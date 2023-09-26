@@ -91,14 +91,22 @@ class MetashapeCamera:
     def get_pytorch3d_camera(self, device):
         # Invert this because it's cam to world and we need world to cam
         transform_4x4_world_to_cam = np.linalg.inv(self.transform)
+        rotation_about_z = np.array(
+            [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        )
+        # Rotate about the Z axis because the NDC coordinates are defined X: left, Y: up and we use X: right, Y: down
+        # See https://pytorch3d.org/docs/cameras
+        transform_4x4_world_to_cam = rotation_about_z @ transform_4x4_world_to_cam
 
         R = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, :3].T, axis=0))
         T = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, 3], axis=0))
-        # See https://pytorch3d.org/docs/cameras
+
+        # The image size is height, width which completely disreguards any other conventions they use...
         image_size = ((self.image_height, self.image_width),)
         fcl_screen = (self.f,)
+
         prc_points_screen = (
-            (self.cx + self.image_width / 2, self.cy + self.image_height / 2),
+            (self.image_width / 2 + self.cx, self.image_height / 2 + self.cy),
         )
         cameras = PerspectiveCameras(
             R=R,
@@ -106,7 +114,7 @@ class MetashapeCamera:
             focal_length=fcl_screen,
             principal_point=prc_points_screen,
             device=device,
-            in_ndc=False,
+            in_ndc=False,  # screen coords
             image_size=image_size,
         )
         return cameras
@@ -174,15 +182,7 @@ class MetashapeCamera:
 
 class MetashapeCameraSet:
     def __init__(self, camera_file, image_folder):
-        (
-            self.f,
-            self.cx,
-            self.cy,
-            self.image_width,
-            self.image_height,
-            self.filenames,
-            self.transforms,
-        ) = self.parse_metashape_cam_file(camera_file=camera_file)
+        self.parse_metashape_cam_file(camera_file=camera_file)
 
         self.filenames = [
             str(list(Path(image_folder).glob(filename + "*"))[0])
@@ -252,36 +252,33 @@ class MetashapeCameraSet:
 
         # sensors info
         sensor = sensors[0]
-        width = int(sensor[0].get("width"))
-        height = int(sensor[0].get("height"))
+        self.image_width = int(sensor[0].get("width"))
+        self.image_height = int(sensor[0].get("height"))
 
-        if len(sensor) > 7:
+        if len(sensor) > 8:
             calibration = sensor[7]
-            f = float(calibration[1].text)
-            cx = float(calibration[2].text)
-            cy = float(calibration[3].text)
+            self.f = float(calibration[1].text)
+            self.cx = float(calibration[2].text)
+            self.cy = float(calibration[3].text)
+            if None in (self.f, self.cx, self.cy):
+                ValueError("Incomplete calibration provided")
+
+            # Get potentially-empty dict of distortion parameters
+            self.distortion_dict = {
+                calibration[i].tag: float(calibration[i].text)
+                for i in range(3, len(calibration))
+            }
+
         else:
             raise ValueError("No calibration provided")
 
         cameras = chunk[2]
 
-        labels = []
-        camera_transforms = []
+        self.filenames = []
+        self.transforms = []
         for camera in cameras:
             if len(camera) < 5:
                 # skipping unaligned camera
                 continue
-            labels.append(camera.get("label"))
-            camera_transforms.append(
-                np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
-            )
-
-        return (
-            f,
-            cx,
-            cy,
-            width,
-            height,
-            labels,
-            camera_transforms,
-        )
+            self.filenames.append(camera.get("label"))
+            self.transforms.append(np.fromstring(camera[0].text, sep=" ").reshape(4, 4))

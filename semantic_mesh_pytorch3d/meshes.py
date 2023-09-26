@@ -20,6 +20,7 @@ import pandas as pd
 from shapely.geometry import Point
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
+from semantic_mesh_pytorch3d.config import DEFAULT_GEOREF_MESH, DEFAULT_GEOFILE
 
 
 class Pytorch3DMesh:
@@ -71,9 +72,7 @@ class Pytorch3DMesh:
             self.create_dummy_texture()
         elif texture_enum == 2:
             # Create a texture from a geofile
-            self.texture_from_geodata(
-                "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg"
-            )
+            self.texture_from_geodata()
         else:
             raise ValueError(f"Invalide texture enum {texture_enum}")
 
@@ -104,8 +103,8 @@ class Pytorch3DMesh:
 
     def texture_from_geodata(
         self,
-        geo_data_file="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_20230520T0519/composite_20230520T0519_crowns.gpkg",
-        geo_mesh="/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef.obj",
+        geo_data_file=DEFAULT_GEOFILE,
+        geo_mesh=DEFAULT_GEOREF_MESH,
     ):
         # Read the data
         gdf = gpd.read_file(geo_data_file)
@@ -165,7 +164,7 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
-    def aggregate_viewpoints(self):
+    def aggregate_viewpoints_naive(self):
         # Initialize a masked array to record values
         summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
 
@@ -186,6 +185,57 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
+    def get_intermediate_rendering_results(self, camera_ind):
+        # Create a camera from the metashape parameters
+        camera = self.camera_set.cameras[camera_ind].get_pytorch3d_camera(self.device)
+
+        # Load the image
+        filename = self.camera_set.cameras[camera_ind].filename
+        img = imread(filename)
+
+        # Set up the rasterizer
+        image_size = img.shape[:2]
+        raster_settings = RasterizationSettings(
+            image_size=image_size,
+            blur_radius=0.0,
+            faces_per_pixel=1,
+        )
+
+        # Don't wrap this in a MeshRenderer like normal because we need intermediate results
+        rasterizer = MeshRasterizer(cameras=camera, raster_settings=raster_settings).to(
+            self.device
+        )
+
+        fragments = rasterizer(self.pytorch_mesh)
+        return camera, fragments, img
+
+    def aggregate_viepoints_pytorch3d(self):
+        # This is where the colors will be aggregated
+        # This should be big enough to not overflow
+        face_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
+        counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint8)
+        for i in tqdm(range(len(self.camera_set.cameras))):
+            _, fragments, img = self.get_intermediate_rendering_results(i)
+            # Set up inds
+            if i == 0:
+                inds = np.meshgrid(
+                    np.arange(img.shape[0]), np.arange(img.shape[1]), indexing="ij"
+                )
+                flat_i_inds = inds[0].flatten()
+                flat_j_inds = inds[1].flatten()
+
+            pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
+            new_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
+            new_colors[pix_to_face] = img[flat_i_inds, flat_j_inds]
+            face_colors = face_colors + new_colors
+            unique_faces = np.unique(pix_to_face)
+            counts[unique_faces] = counts[unique_faces] + 1
+            if i % 10 == 9:
+                self.pyvista_mesh["face_colors"] = (
+                    face_colors / np.expand_dims(counts, 1)
+                ).astype(np.uint8)
+                self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
+
     def render_pytorch3d(self):
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
@@ -193,41 +243,22 @@ class Pytorch3DMesh:
         np.random.shuffle(inds)
 
         for i in tqdm(inds):
-            # Create a camera from the metashape parameters
-            cameras = self.camera_set.cameras[i].get_pytorch3d_camera(self.device)
-
-            # Load the image
-            filename = self.camera_set.cameras[i].filename
-            img = imread(filename)
+            # This part is shared across many tasks
+            camera, fragments, img = self.get_intermediate_rendering_results(i)
 
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
-
-            # Set up the rasterizer
-            image_size = img.shape[:2]
-            raster_settings = RasterizationSettings(
-                image_size=image_size,
-                blur_radius=0.0,
-                faces_per_pixel=1,
+            # Create a shader
+            shader = HardGouraudShader(
+                device=self.device, cameras=camera, lights=lights
             )
 
-            # Create a Phong renderer by composing a rasterizer and a shader. The textured Phong shader will
-            # interpolate the texture uv coordinates for each vertex, sample from a texture image and
-            # apply the Phong lighting model
-            renderer = MeshRenderer(
-                rasterizer=MeshRasterizer(
-                    cameras=cameras, raster_settings=raster_settings
-                ).to(self.device),
-                shader=HardGouraudShader(
-                    device=self.device, cameras=cameras, lights=lights
-                ),
-            ).to(self.device)
+            # Render te images using the shader
+            images = shader(fragments, self.pytorch_mesh)
 
-            images = renderer(self.pytorch_mesh)
-            rendered = images[0, ..., :3].cpu().numpy()
-            rendered = np.flip(rendered, axis=(0, 1))
-            img = img / 255
+            # Extract and save images
+            rendered = images[0, ..., :3].cpu().numpy() * 255
             composite = np.clip(
-                np.concatenate((img, rendered, (img + rendered) / 2.0)), 0.0, 1.0
-            )
+                np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 255
+            ).astype(np.uint8)
             imwrite(f"vis/pred_{i:03d}.png", composite)

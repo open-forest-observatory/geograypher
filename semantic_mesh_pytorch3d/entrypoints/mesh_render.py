@@ -1,7 +1,11 @@
 import argparse
 from pathlib import Path
 
-from semantic_mesh_pytorch3d.config import DATA_FOLDER
+from semantic_mesh_pytorch3d.config import (
+    DEFAULT_CAM_FILE,
+    DEFAULT_IMAGES_FOLDER,
+    DEFAULT_LOCAL_MESH,
+)
 from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
@@ -9,34 +13,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument(
-        "--mesh-file",
-        default=str(
-            Path(
-                DATA_FOLDER,
-                "2023-08-23_1027_QR_F1_rgb_100m_25_img",
-                "exports",
-                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_model.ply",
-            )
-        ),
-    )
-    parser.add_argument(
-        "--camera-file",
-        default=str(
-            Path(
-                DATA_FOLDER,
-                "2023-08-23_1027_QR_F1_rgb_100m_25_img",
-                "exports",
-                "2023-08-23_1027_QR_F1_rgb_100m_25_img_20230920T1527_cameras.xml",
-            )
-        ),
-    )
-    parser.add_argument(
-        "--image-folder",
-        default=str(
-            Path(DATA_FOLDER, "2023-08-23_1027_QR_F1_rgb_100m_25_img", "images")
-        ),
-    )
+    parser.add_argument("--mesh-file", default=DEFAULT_LOCAL_MESH)
+    parser.add_argument("--camera-file", default=DEFAULT_CAM_FILE)
+    parser.add_argument("--image-folder", default=DEFAULT_IMAGES_FOLDER)
     parser.add_argument(
         "--texture-type",
         default=0,
@@ -73,7 +52,8 @@ def main(
     if run_vis:
         mesh.vis_pv()
     if run_aggregation:
-        mesh.aggregate_viewpoints()
+        mesh.aggregate_viepoints_pytorch3d()
+        # mesh.aggregate_viewpoints_naive()
     if run_render:
         mesh.render_pytorch3d()
 
