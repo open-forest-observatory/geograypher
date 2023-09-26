@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Union
 
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 
@@ -31,3 +32,5 @@ DEFAULT_CAM_FILE = str(
 DEFAULT_GEOFILE = str(
     Path(DATA_FOLDER, "composite_20230520T0519", "composite_20230520T0519_crowns.gpkg")
 )
+
+PATH_TYPE = Union[str, Path]

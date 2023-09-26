@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import numpy.ma as ma
@@ -8,11 +9,30 @@ import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 
+from semantic_mesh_pytorch3d.config import PATH_TYPE
+
 
 class MetashapeCamera:
-    def __init__(self, filename, transform, f, cx, cy, image_width, image_height):
-        """
-        TODO define units
+    def __init__(
+        self,
+        filename: PATH_TYPE,
+        transform: np.ndarray,
+        f: float,
+        cx: float,
+        cy: float,
+        image_width: int,
+        image_height: int,
+    ):
+        """_summary_
+
+        Args:
+            filename (PATH_TYPE): _description_
+            transform (np.ndarray): _description_
+            f (float): _description_
+            cx (float): _description_
+            cy (float): _description_
+            image_width (int): _description_
+            image_height (int): _description_
         """
         self.filename = filename
         self.transform = transform
@@ -23,12 +43,25 @@ class MetashapeCamera:
         self.image_height = image_height
 
     def rescale(self, scale: float):
-        """
-        Rescale transform in place
+        """_summary_
+
+        Args:
+            scale (float): _description_
         """
         self.transform[:3, 3] = self.transform[:3, 3] * scale
 
-    def check_valid_in_image(self, projected_verts, image_size):
+    def validate_projected_in_image(
+        self, projected_verts: np.ndarray, image_size: Tuple[int, int]
+    ):
+        """_summary_
+
+        Args:
+            projected_verts (np.ndarray): _description_
+            image_size (Tuple[int, int]): _description_
+
+        Returns:
+            _type_: _description_
+        """
         image_space_verts = projected_verts[:2] / projected_verts[2:3]
         image_space_verts = image_space_verts.T
 
@@ -46,7 +79,19 @@ class MetashapeCamera:
         valid_image_space_verts = image_space_verts[valid_verts_bool, :].to(torch.int)
         return valid_verts_bool.cpu().numpy(), valid_image_space_verts.cpu().numpy()
 
-    def extract_colors(self, valid_bool, valid_locs, img):
+    def extract_colors(
+        self, valid_bool: np.ndarray, valid_locs: np.ndarray, img: np.ndarray
+    ):
+        """_summary_
+
+        Args:
+            valid_bool (np.ndarray): _description_
+            valid_locs (np.ndarray): _description_
+            img (np.ndarray): _description_
+
+        Returns:
+            _type_: _description_
+        """
         colors_per_vertex = np.zeros((valid_bool.shape[0], img.shape[2]))
         mask = np.ones((valid_bool.shape[0], img.shape[2])).astype(bool)
         valid_inds = np.where(valid_bool)[0]
@@ -60,10 +105,15 @@ class MetashapeCamera:
         masked_color_per_vertex = ma.array(colors_per_vertex, mask=mask)
         return masked_color_per_vertex
 
-    def splat_mesh_verts(self, mesh_verts, img, device):
+    def splat_mesh_verts(self, mesh_verts: np.ndarray, img: np.ndarray, device: str):
         transform_4x4_world_to_cam = torch.Tensor(np.linalg.inv(self.transform)).to(
             device
         )
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         K = np.eye(3)
         K[0, 0] = self.f
         K[1, 1] = self.f
@@ -81,14 +131,22 @@ class MetashapeCamera:
         camera_frame_mesh_verts = camera_frame_mesh_verts[:3]
         # TODO review terminology
         projected_verts = K @ camera_frame_mesh_verts
-        valid_bool, valid_locs = self.check_valid_in_image(
+        valid_bool, valid_locs = self.validate_projected_in_image(
             projected_verts=projected_verts,
             image_size=(self.image_width, self.image_height),
         )
         colors_per_vertex = self.extract_colors(valid_bool, valid_locs, img)
         return colors_per_vertex
 
-    def get_pytorch3d_camera(self, device):
+    def get_pytorch3d_camera(self, device: str):
+        """_summary_
+
+        Args:
+            device (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
         # Invert this because it's cam to world and we need world to cam
         transform_4x4_world_to_cam = np.linalg.inv(self.transform)
         rotation_about_z = np.array(
@@ -119,7 +177,13 @@ class MetashapeCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, frustum_scale=0.5):
+    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.5):
+        """_summary_
+
+        Args:
+            plotter (pv.Plotter): _description_
+            frustum_scale (float, optional): _description_. Defaults to 0.5.
+        """
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)
 
@@ -181,7 +245,13 @@ class MetashapeCamera:
 
 
 class MetashapeCameraSet:
-    def __init__(self, camera_file, image_folder):
+    def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
+        """_summary_
+
+        Args:
+            camera_file (PATH_TYPE): _description_
+            image_folder (PATH_TYPE): _description_
+        """
         self.parse_metashape_cam_file(camera_file=camera_file)
 
         self.filenames = [
@@ -202,26 +272,48 @@ class MetashapeCameraSet:
             )
             self.cameras.append(new_camera)
 
-    def rescale(self, scale):
+    def rescale(self, scale: float):
+        """_summary_
+
+        Args:
+            scale (float): _description_
+        """
         for camera in self.cameras:
             camera.rescale(scale)
 
-    def add_orientation_cube(self, plotter):
-        ocube = demos.orientation_cube()
-        plotter.add_mesh(ocube["cube"], show_edges=True)
-        plotter.add_mesh(ocube["x_p"], color="blue")
-        plotter.add_mesh(ocube["x_n"], color="blue")
-        plotter.add_mesh(ocube["y_p"], color="green")
-        plotter.add_mesh(ocube["y_n"], color="green")
-        plotter.add_mesh(ocube["z_p"], color="red")
-        plotter.add_mesh(ocube["z_n"], color="red")
+    def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
+        """_summary_
 
-    def vis(self, plotter: pv.Plotter):
+        Args:
+            plotter (pv.Plotter): _description_
+            add_orientation_cube (bool, optional): _description_. Defaults to False.
+        """
         for camera in self.cameras:
             camera.vis(plotter)
-        # self.add_orientation_cube(plotter=plotter)
+        if add_orientation_cube:
+            # TODO Consider adding to a freestanding vis module
+            ocube = demos.orientation_cube()
+            plotter.add_mesh(ocube["cube"], show_edges=True)
+            plotter.add_mesh(ocube["x_p"], color="blue")
+            plotter.add_mesh(ocube["x_n"], color="blue")
+            plotter.add_mesh(ocube["y_p"], color="green")
+            plotter.add_mesh(ocube["y_n"], color="green")
+            plotter.add_mesh(ocube["z_p"], color="red")
+            plotter.add_mesh(ocube["z_n"], color="red")
 
-    def make_4x4_transform(self, rotation_str, translation_str, scale_str="1"):
+    def make_4x4_transform(
+        self, rotation_str: str, translation_str: str, scale_str: str = "1"
+    ):
+        """_summary_
+
+        Args:
+            rotation_str (str): _description_
+            translation_str (str): _description_
+            scale_str (str, optional): _description_. Defaults to "1".
+
+        Returns:
+            _type_: _description_
+        """
         rotation_np = np.fromstring(rotation_str, sep=" ")
         rotation_np = np.reshape(rotation_np, (3, 3))
         translation_np = np.fromstring(translation_str, sep=" ")
@@ -233,13 +325,13 @@ class MetashapeCameraSet:
         return transform
 
     def parse_metashape_cam_file(self, camera_file: str):
-        """Extract camera intrinsics and extrnisics from a metashape .xml file
+        """_summary_
 
         Args:
-            camera_file str: The full filepath to exported file
+            camera_file (str): _description_
 
-        Returns:
-            _type_: _description_
+        Raises:
+            ValueError: _description_
         """
         # Load the xml file
         # Taken from here https://rowelldionicio.com/parsing-xml-with-python-minidom/

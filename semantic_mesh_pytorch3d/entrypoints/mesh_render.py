@@ -4,11 +4,17 @@ from semantic_mesh_pytorch3d.config import (
     DEFAULT_CAM_FILE,
     DEFAULT_IMAGES_FOLDER,
     DEFAULT_LOCAL_MESH,
+    PATH_TYPE,
 )
 from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
 def parse_args():
+    """_summary_
+
+    Returns:
+        _type_: _description_
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -37,14 +43,25 @@ def parse_args():
 
 
 def main(
-    mesh_file,
-    camera_file,
-    image_folder,
-    run_vis,
-    run_aggregation,
-    run_render,
-    texture_type,
+    mesh_file: PATH_TYPE,
+    camera_file: PATH_TYPE,
+    image_folder: PATH_TYPE,
+    run_vis: bool,
+    run_aggregation: bool,
+    run_render: bool,
+    texture_type: int,
 ):
+    """_summary_
+
+    Args:
+        mesh_file (PATH_TYPE): _description_
+        camera_file (PATH_TYPE): _description_
+        image_folder (PATH_TYPE): _description_
+        run_vis (bool): _description_
+        run_aggregation (bool): _description_
+        run_render (bool): _description_
+        texture_type (int): _description_
+    """
     mesh = Pytorch3DMesh(
         mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
     )
