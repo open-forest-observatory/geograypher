@@ -19,6 +19,7 @@ DEFAULT_GEOREF_MESH = str(
         "composite_georef.ply",
     )
 )
+DEFAULT_GEOREF_MESH = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/2023-08-23_1027_QR_F1_rgb_100m_25_img/exports/2023-08-23_1027_QR_F1_rgb_100m_10_img_20230926T1520_model_georeferenced_manual_export.ply"
 
 DEFAULT_CAM_FILE = str(
     Path(

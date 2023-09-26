@@ -4,6 +4,7 @@ import numpy.ma as ma
 import pyvista as pv
 import torch
 from imageio import imread, imwrite
+import pyproj
 from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     MeshRasterizer,
@@ -39,7 +40,7 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh(texture_enum, 0.05)
+        self.load_mesh(texture_enum, 1.0)
 
     def load_mesh(
         self,
@@ -124,23 +125,32 @@ class Pytorch3DMesh:
     ):
         # Read the data
         gdf = gpd.read_file(geo_data_file)
-        # convert to lat, lon so it matches the mesh
-        gdf = gdf.to_crs("EPSG:4326")
 
-        # Load the mesh, assumed to be lat, lon
-        g_mesh = pv.read(geo_mesh)
-        # Note that lat, lon convention doesn't correspond to how it's said
-        lat = np.array(g_mesh.points[:, 1])
-        lon = np.array(g_mesh.points[:, 0])
-        # Normalize this axis since it's in meters and the rest are lat-lon
-        g_mesh.points[:, 2] = g_mesh.points[:, 2] / 111119
+        homogenous_local_points = np.vstack(
+            (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.n_points))
+        )
+        transformed_local_points = (
+            self.camera_set.local_to_epgs_4978_transform @ homogenous_local_points
+        )
+        transformed_local_points = transformed_local_points[:3].T
+
+        # The mesh points are defined in EPGS:4978, the earth-centered, earth-fixed coordinate system
+        input_CRS = pyproj.CRS.from_epsg(4978)
+        output_CRS = gdf.crs
+        transformer = pyproj.Transformer.from_crs(input_CRS, output_CRS)
+        output = transformer.transform(
+            xx=transformed_local_points[:, 0],
+            yy=transformed_local_points[:, 1],
+            zz=transformed_local_points[:, 2],
+        )
+        output = np.vstack(output).T
 
         # Taken from https://www.matecdev.com/posts/point-in-polygon.html
         # Convert lat-lon points to GeoDataFrame
-        df = pd.DataFrame({"lon": lon, "lat": lat})
-        df["coords"] = list(zip(df["lon"], df["lat"]))
+        df = pd.DataFrame({"east": output[:, 0], "north": output[:, 1]})
+        df["coords"] = list(zip(df["east"], df["north"]))
         df["coords"] = df["coords"].apply(Point)
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=gdf.crs)
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=output_CRS)
 
         # Add an index column because the normal index will not be preserved
         points["id"] = df.index
@@ -158,7 +168,7 @@ class Pytorch3DMesh:
         # Fill the colors with the background color
         colors = (
             (torch.Tensor([[175, 128, 79]]) / 255.0)
-            .repeat(g_mesh.points.shape[0], 1)
+            .repeat(self.pyvista_mesh.points.shape[0], 1)
             .to(self.device)
         )
         # create the forgound color

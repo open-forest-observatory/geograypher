@@ -227,9 +227,8 @@ class MetashapeCameraSet:
         translation_np = np.fromstring(translation_str, sep=" ")
         scale = float(scale_str)
         transform = np.eye(4)
-        transform[:3, :3] = rotation_np
+        transform[:3, :3] = rotation_np * scale
         transform[:3, 3] = translation_np
-        transform[3, 3] = 1 / scale
         return transform
 
     def parse_metashape_cam_file(self, camera_file: str):
@@ -271,6 +270,16 @@ class MetashapeCameraSet:
 
         else:
             raise ValueError("No calibration provided")
+
+        # Get the transform relating the arbitrary local coordinate system
+        # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape
+        transform = chunk[1][0][0]
+        rotation = transform[0].text
+        translation = transform[1].text
+        scale = transform[2].text
+        self.local_to_epgs_4978_transform = self.make_4x4_transform(
+            rotation, translation, scale
+        )
 
         cameras = chunk[2]
 
