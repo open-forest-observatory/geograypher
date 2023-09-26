@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 from semantic_mesh_pytorch3d.config import (
     DEFAULT_CAM_FILE,

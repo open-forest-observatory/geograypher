@@ -1,26 +1,23 @@
-import matplotlib.pyplot as plt
+import geopandas as gpd
 import numpy as np
-import numpy.ma as ma
+import pandas as pd
 import pyvista as pv
 import torch
 from imageio import imread, imwrite
-from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
-    MeshRasterizer,
-    MeshRenderer,
-    RasterizationSettings,
-    HardGouraudShader,
     AmbientLights,
+    HardGouraudShader,
+    MeshRasterizer,
+    RasterizationSettings,
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from tqdm import tqdm
-import geopandas as gpd
-import pandas as pd
+from scipy.spatial.distance import cdist
 from shapely.geometry import Point
+from tqdm import tqdm
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import DEFAULT_GEOREF_MESH, DEFAULT_GEOFILE
+from semantic_mesh_pytorch3d.config import DEFAULT_GEOFILE, DEFAULT_GEOREF_MESH
 
 
 class Pytorch3DMesh:
