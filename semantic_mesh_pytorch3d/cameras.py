@@ -15,7 +15,7 @@ from semantic_mesh_pytorch3d.config import PATH_TYPE
 class MetashapeCamera:
     def __init__(
         self,
-        filename: PATH_TYPE,
+        image_filename: PATH_TYPE,
         transform: np.ndarray,
         f: float,
         cx: float,
@@ -26,7 +26,7 @@ class MetashapeCamera:
         """_summary_
 
         Args:
-            filename (PATH_TYPE): _description_
+            image_filename (PATH_TYPE): _description_
             transform (np.ndarray): _description_
             f (float): _description_
             cx (float): _description_
@@ -34,7 +34,7 @@ class MetashapeCamera:
             image_width (int): _description_
             image_height (int): _description_
         """
-        self.filename = filename
+        self.image_filename = image_filename
         self.transform = transform
         self.f = f
         self.cx = cx
