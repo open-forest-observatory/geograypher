@@ -216,7 +216,7 @@ class Pytorch3DMesh:
 
         # Fill the colors with the background color
         colors = (
-            (torch.Tensor([COLORS["ground"]]) / 255.0)
+            (torch.Tensor([COLORS["earth"]]) / 255.0)
             .repeat(self.pyvista_mesh.points.shape[0], 1)
             .to(self.device)
         )
