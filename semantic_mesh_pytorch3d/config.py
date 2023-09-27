@@ -13,14 +13,6 @@ DEFAULT_LOCAL_MESH = str(
     )
 )
 
-DEFAULT_GEOREF_MESH = str(
-    Path(
-        DATA_FOLDER,
-        "composite_georef",
-        "composite_georef.ply",
-    )
-)
-
 DEFAULT_CAM_FILE = str(
     Path(
         DATA_FOLDER,
@@ -29,8 +21,12 @@ DEFAULT_CAM_FILE = str(
     )
 )
 
-DEFAULT_GEOFILE = str(
+DEFAULT_GEOPOLYGON_FILE = str(
     Path(DATA_FOLDER, "composite_20230520T0519", "composite_20230520T0519_crowns.gpkg")
 )
 
 PATH_TYPE = Union[str, Path]
+COLORS = {
+    "canopy": [[34, 139, 34]],
+    "earth": [[175, 128, 79]],
+}

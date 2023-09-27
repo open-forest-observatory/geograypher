@@ -4,7 +4,8 @@ import pandas as pd
 import pyvista as pv
 import torch
 from imageio import imread, imwrite
-from matplotlib.pylab import f
+import pyproj
+from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     AmbientLights,
     HardGouraudShader,
@@ -18,11 +19,7 @@ from shapely.geometry import Point
 from tqdm import tqdm
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import (
-    DEFAULT_GEOFILE,
-    DEFAULT_GEOREF_MESH,
-    PATH_TYPE,
-)
+from semantic_mesh_pytorch3d.config import COLORS, DEFAULT_GEOPOLYGON_FILE, PATH_TYPE
 
 
 class Pytorch3DMesh:
@@ -55,7 +52,7 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh(texture_enum, 0.05)
+        self.load_mesh(texture_enum, 1.0)
 
     def load_mesh(
         self,
@@ -117,6 +114,23 @@ class Pytorch3DMesh:
         else:
             raise ValueError(f"Invalide texture enum {texture_enum}")
 
+    def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
+        """_summary_
+
+        Args:
+            transform_4x4 (np.ndarray): _description_
+            in_place (bool): _description_
+        """
+        homogenous_local_points = np.vstack(
+            (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.n_points))
+        )
+        transformed_local_points = transform_4x4 @ homogenous_local_points
+        transformed_local_points = transformed_local_points[:3].T
+
+        if in_place:
+            self.pyvista_mesh.points = transformed_local_points.copy()
+        return transformed_local_points
+
     def dummy_texture(self, use_colorseg: bool = True):
         """_summary_
 
@@ -149,62 +163,75 @@ class Pytorch3DMesh:
 
     def geodata_texture(
         self,
-        geo_data_file: PATH_TYPE = DEFAULT_GEOFILE,
-        geo_mesh: PATH_TYPE = DEFAULT_GEOREF_MESH,
+        geo_polygon_file=DEFAULT_GEOPOLYGON_FILE,
+        vis=False,
     ):
-        """_summary_
+        # Read the polygon data about the tree crown segmentation
+        gdf = gpd.read_file(geo_polygon_file)
 
-        Args:
-            geo_data_file (PATH_TYPE, optional): _description_. Defaults to DEFAULT_GEOFILE.
-            geo_mesh (PATH_TYPE, optional): _description_. Defaults to DEFAULT_GEOREF_MESH.
-        """
-        # Read the data
-        gdf = gpd.read_file(geo_data_file)
-        # convert to lat, lon so it matches the mesh
-        gdf = gdf.to_crs("EPSG:4326")
+        # The mesh points are defined in EPGS:4978, the earth-centered, earth-fixed coordinate system
+        epgs4978_verts = self.transform_vertices(
+            self.camera_set.local_to_epgs_4978_transform
+        )
+        input_CRS = pyproj.CRS.from_epsg(4978)
 
-        # Load the mesh, assumed to be lat, lon
-        g_mesh = pv.read(geo_mesh)
-        # Note that lat, lon convention doesn't correspond to how it's said
-        lat = np.array(g_mesh.points[:, 1])
-        lon = np.array(g_mesh.points[:, 0])
-        # Normalize this axis since it's in meters and the rest are lat-lon
-        g_mesh.points[:, 2] = g_mesh.points[:, 2] / 111119
+        geo_polygon_CRS = gdf.crs
+        transformer = pyproj.Transformer.from_crs(input_CRS, geo_polygon_CRS)
+
+        # Actually transform the coordinates
+        verts_in_geopolygon_crs = transformer.transform(
+            xx=epgs4978_verts[:, 0],
+            yy=epgs4978_verts[:, 1],
+            zz=epgs4978_verts[:, 2],
+        )
+        verts_in_geopolygon_crs = np.vstack(verts_in_geopolygon_crs).T
 
         # Taken from https://www.matecdev.com/posts/point-in-polygon.html
-        # Convert lat-lon points to GeoDataFrame
-        df = pd.DataFrame({"lon": lon, "lat": lat})
-        df["coords"] = list(zip(df["lon"], df["lat"]))
+        # Convert points into georeferenced dataframe
+        # TODO consider removing this line since it's not strictly needed
+        df = pd.DataFrame(
+            {
+                "east": verts_in_geopolygon_crs[:, 0],
+                "north": verts_in_geopolygon_crs[:, 1],
+            }
+        )
+        df["coords"] = list(zip(df["east"], df["north"]))
         df["coords"] = df["coords"].apply(Point)
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=gdf.crs)
-
-        # Add an index column because the normal index will not be preserved
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=geo_polygon_CRS)
+        # Add an index column because the normal index will not be preserved in future operations
         points["id"] = df.index
 
         # Select points that are within the polygons
-        pointInPolyws = gpd.tools.overlay(points, gdf, how="intersection")
-        # Create an array corresponding to all the points
+        points_in_polygons = gpd.tools.overlay(points, gdf, how="intersection")
+        # Create an array corresponding to all the points and initialize to NaN
         polygon_IDs = np.full(shape=points.shape[0], fill_value=np.nan)
         # Assign points that are inside a given tree with that tree's ID
-        polygon_IDs[pointInPolyws["id"].to_numpy()] = pointInPolyws["treeID"].to_numpy()
+        polygon_IDs[points_in_polygons["id"].to_numpy()] = points_in_polygons[
+            "treeID"
+        ].to_numpy()
 
         # These points are within a tree
+        # TODO, in the future we might want to do something more sophisticated than tree/not tree
         is_tree = torch.Tensor(np.isfinite(polygon_IDs)).to(self.device).to(torch.bool)
 
         # Fill the colors with the background color
         colors = (
-            (torch.Tensor([[175, 128, 79]]) / 255.0)
-            .repeat(g_mesh.points.shape[0], 1)
+            (torch.Tensor([COLORS["ground"]]) / 255.0)
+            .repeat(self.pyvista_mesh.points.shape[0], 1)
             .to(self.device)
         )
         # create the forgound color
-        forground_color = (torch.Tensor([[34, 139, 34]]) / 255).to(self.device)
+        forground_color = (torch.Tensor([COLORS["canopy"]]) / 255).to(self.device)
         # Set the indexed points to the forground color
         colors[is_tree] = forground_color
+        if vis:
+            self.pyvista_mesh["colors"] = colors.cpu().numpy()
+            self.pyvista_mesh.plot(rgb=True, scalars="colors")
 
         # Add singleton batch dimension so it is (1, n_verts, 3)
         colors = torch.unsqueeze(colors, 0)
 
+        # Create a pytorch3d texture and add it to the mesh
         textures = TexturesVertex(verts_features=colors.to(self.device))
         self.pytorch_mesh = Meshes(
             verts=[self.verts], faces=[self.faces], textures=textures
