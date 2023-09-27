@@ -251,9 +251,8 @@ class Pytorch3DMesh:
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(self.camera_set.cameras))):
-            filename = self.camera_set.cameras[i].filename
             # This is actually the bottleneck in the whole process
-            img = imread(filename)
+            img = imread(self.camera_set.cameras[i].image_filename)
             colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
                 self.pyvista_mesh.points, img, device=self.device
             )
@@ -279,8 +278,7 @@ class Pytorch3DMesh:
         camera = self.camera_set.cameras[camera_ind].get_pytorch3d_camera(self.device)
 
         # Load the image
-        filename = self.camera_set.cameras[camera_ind].filename
-        img = imread(filename)
+        img = imread(self.camera_set.cameras[camera_ind].image_filename)
 
         # Set up the rasterizer
         image_size = img.shape[:2]

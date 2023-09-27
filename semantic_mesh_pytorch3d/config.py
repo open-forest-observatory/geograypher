@@ -27,6 +27,6 @@ DEFAULT_GEOPOLYGON_FILE = str(
 
 PATH_TYPE = Union[str, Path]
 COLORS = {
-    "canopy": [[34, 139, 34]],
-    "earth": [[175, 128, 79]],
+    "canopy": [34, 139, 34],
+    "earth": [175, 128, 79],
 }
