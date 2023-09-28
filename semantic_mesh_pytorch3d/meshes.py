@@ -1,11 +1,10 @@
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 import pyvista as pv
 import torch
 from imageio import imread, imwrite
-import pyproj
-from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
     AmbientLights,
     HardGouraudShader,

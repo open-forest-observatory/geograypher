@@ -10,10 +10,10 @@ from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
 def parse_args():
-    """_summary_
+    """Parse and return arguements
 
     Returns:
-        _type_: _description_
+        argparse.Namespace: Arguments
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
