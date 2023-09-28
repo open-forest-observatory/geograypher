@@ -11,7 +11,7 @@ python = ">=3.9,<3.13"
 geopandas = "^0.14.0"
 pyvista = "^0.42.2"
 scipy = "^1.11.2"
-imageio = "^2.31.3"
+scikit-image = "^0.21.0"
 
 
 [build-system]
