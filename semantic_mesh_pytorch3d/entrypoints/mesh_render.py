@@ -51,16 +51,16 @@ def main(
     run_render: bool,
     texture_type: int,
 ):
-    """_summary_
+    """Entrypoint
 
     Args:
-        mesh_file (PATH_TYPE): _description_
-        camera_file (PATH_TYPE): _description_
-        image_folder (PATH_TYPE): _description_
-        run_vis (bool): _description_
-        run_aggregation (bool): _description_
-        run_render (bool): _description_
-        texture_type (int): _description_
+        mesh_file (PATH_TYPE): Path to mesh in local metashape coordinates, with .ply extension
+        camera_file (PATH_TYPE): Path to camera file from metashape with .xml extension
+        image_folder (PATH_TYPE): Path to image folder
+        run_vis (bool): Should the mesh be visualized
+        run_aggregation (bool): Should data from different viewpoints be aggregated onto the mesh
+        run_render (bool): Should images from the camera poses be rendered
+        texture_type (int): How should the mesh be textured
     """
     mesh = Pytorch3DMesh(
         mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
@@ -69,7 +69,6 @@ def main(
         mesh.vis_pv()
     if run_aggregation:
         mesh.aggregate_viepoints_pytorch3d()
-        # mesh.aggregate_viewpoints_naive()
     if run_render:
         mesh.render_pytorch3d()
 
