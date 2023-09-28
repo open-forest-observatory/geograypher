@@ -1,15 +1,20 @@
 import argparse
-from pathlib import Path
 
 from semantic_mesh_pytorch3d.config import (
     DEFAULT_CAM_FILE,
     DEFAULT_IMAGES_FOLDER,
     DEFAULT_LOCAL_MESH,
+    PATH_TYPE,
 )
 from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
 
 
 def parse_args():
+    """Parse and return arguements
+
+    Returns:
+        argparse.Namespace: Arguments
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -38,14 +43,25 @@ def parse_args():
 
 
 def main(
-    mesh_file,
-    camera_file,
-    image_folder,
-    run_vis,
-    run_aggregation,
-    run_render,
-    texture_type,
+    mesh_file: PATH_TYPE,
+    camera_file: PATH_TYPE,
+    image_folder: PATH_TYPE,
+    run_vis: bool,
+    run_aggregation: bool,
+    run_render: bool,
+    texture_type: int,
 ):
+    """Entrypoint
+
+    Args:
+        mesh_file (PATH_TYPE): Path to mesh in local metashape coordinates, with .ply extension
+        camera_file (PATH_TYPE): Path to camera file from metashape with .xml extension
+        image_folder (PATH_TYPE): Path to image folder
+        run_vis (bool): Should the mesh be visualized
+        run_aggregation (bool): Should data from different viewpoints be aggregated onto the mesh
+        run_render (bool): Should images from the camera poses be rendered
+        texture_type (int): How should the mesh be textured
+    """
     mesh = Pytorch3DMesh(
         mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
     )
@@ -53,7 +69,6 @@ def main(
         mesh.vis_pv()
     if run_aggregation:
         mesh.aggregate_viepoints_pytorch3d()
-        # mesh.aggregate_viewpoints_naive()
     if run_render:
         mesh.render_pytorch3d()
 

@@ -1,31 +1,43 @@
-import matplotlib.pyplot as plt
+import geopandas as gpd
 import numpy as np
-import numpy.ma as ma
+import pandas as pd
+import pyproj
 import pyvista as pv
 import torch
 from imageio import imread, imwrite
-import pyproj
-from scipy.spatial.distance import cdist
 from pytorch3d.renderer import (
-    MeshRasterizer,
-    MeshRenderer,
-    RasterizationSettings,
-    HardGouraudShader,
     AmbientLights,
+    HardGouraudShader,
+    MeshRasterizer,
+    RasterizationSettings,
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from tqdm import tqdm
-import geopandas as gpd
-import pandas as pd
+from scipy.spatial.distance import cdist
 from shapely.geometry import Point
+from tqdm import tqdm
 
 from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import COLORS, DEFAULT_GEOPOLYGON_FILE
+from semantic_mesh_pytorch3d.config import COLORS, DEFAULT_GEOPOLYGON_FILE, PATH_TYPE
 
 
 class Pytorch3DMesh:
-    def __init__(self, mesh_filename, camera_filename, image_folder, texture_enum=0):
+    def __init__(
+        self,
+        mesh_filename: PATH_TYPE,
+        camera_filename: PATH_TYPE,
+        image_folder: PATH_TYPE,
+        texture_enum: int = 0,
+    ):
+        """This object handles most of the high-level operations in this project
+
+        Args:
+            mesh_filename (PATH_TYPE): Path to mesh in metashape's local coordinate system, .ply type
+            camera_filename (PATH_TYPE): Path to the .xml metashape camera output
+            image_folder (PATH_TYPE): Path to the folders used for reconstruction
+            texture_enum (int, optional): Which type of texture to use. 0 is the real color,
+                                          1 is a dummy texture, and 2 is from a geofile. Defaults to 0.
+        """
         self.mesh_filename = mesh_filename
         self.image_folder = image_folder
 
@@ -44,9 +56,19 @@ class Pytorch3DMesh:
 
     def load_mesh(
         self,
-        texture_enum,
-        downsample_target=1.0,
+        texture_enum: int,
+        downsample_target: float = 1.0,
     ):
+        """Load the pyvista mesh and create the pytorch3d texture
+
+        Args:
+            texture_enum (int): Which type of texture to use
+            downsample_target (float, optional):
+                What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
+
+        Raises:
+            ValueError: Invalid texture enum
+        """
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
         # Downsample mesh if needed
@@ -86,19 +108,19 @@ class Pytorch3DMesh:
             self.pytorch_mesh = self.pytorch_mesh.to(self.device)
         elif texture_enum == 1:
             # Create a dummy texture
-            self.create_dummy_texture()
+            self.dummy_texture()
         elif texture_enum == 2:
             # Create a texture from a geofile
-            self.texture_from_geodata()
+            self.geodata_texture()
         else:
             raise ValueError(f"Invalide texture enum {texture_enum}")
 
     def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
-        """_summary_
+        """Apply a transform to the vertex coordinates
 
         Args:
-            transform_4x4 (np.ndarray): _description_
-            in_place (bool): _description_
+            transform_4x4 (np.ndarray): Transform to be applied
+            in_place (bool): Should the vertices be updated
         """
         homogenous_local_points = np.vstack(
             (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.n_points))
@@ -110,7 +132,14 @@ class Pytorch3DMesh:
             self.pyvista_mesh.points = transformed_local_points.copy()
         return transformed_local_points
 
-    def create_dummy_texture(self, use_colorseg=True):
+    def dummy_texture(self, use_colorseg: bool = True):
+        """Create a dummy texture for debuging
+
+        Args:
+            use_colorseg (bool, optional):
+                Segment based on color into two classes
+                Otherwise, segment based on a centered circle. Defaults to True.
+        """
         green = [34, 139, 34]
         orange = [255, 165, 0]
         RGB_values = self.pyvista_mesh["RGB"]
@@ -135,11 +164,18 @@ class Pytorch3DMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def texture_from_geodata(
+    def geodata_texture(
         self,
-        geo_polygon_file=DEFAULT_GEOPOLYGON_FILE,
-        vis=False,
+        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
+        vis: bool = False,
     ):
+        """Create a texture from a geofile containing polygons
+
+        Args:
+            geo_polygon_file (PATH_TYPE, optional):
+                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
+            vis (bool, optional): Show the texture. Defaults to False.
+        """
         # Read the polygon data about the tree crown segmentation
         gdf = gpd.read_file(geo_polygon_file)
 
@@ -190,7 +226,7 @@ class Pytorch3DMesh:
 
         # Fill the colors with the background color
         colors = (
-            (torch.Tensor([COLORS["ground"]]) / 255.0)
+            (torch.Tensor([COLORS["earth"]]) / 255.0)
             .repeat(self.pyvista_mesh.points.shape[0], 1)
             .to(self.device)
         )
@@ -211,22 +247,26 @@ class Pytorch3DMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def vis_pv(self):
+    def vis(self):
+        """Show the mesh and cameras"""
         plotter = pv.Plotter(off_screen=False)
         self.camera_set.vis(plotter)
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
     def aggregate_viewpoints_naive(self):
+        """
+        Aggregate the information from all images onto the mesh without considering occlusion
+        or distortion parameters
+        """
         # Initialize a masked array to record values
         summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(self.camera_set.cameras))):
-            filename = self.camera_set.cameras[i].filename
             # This is actually the bottleneck in the whole process
-            img = imread(filename)
-            colors_per_vertex = self.camera_set.cameras[i].splat_mesh_verts(
+            img = imread(self.camera_set.cameras[i].image_filename)
+            colors_per_vertex = self.camera_set.cameras[i].project_mesh_verts(
                 self.pyvista_mesh.points, img, device=self.device
             )
             summed_values = summed_values + colors_per_vertex.data
@@ -238,13 +278,21 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
-    def get_intermediate_rendering_results(self, camera_ind):
+    def get_rasterization_results(self, camera_ind: int):
+        """Use pytorch3d to get correspondences between pixels and vertices
+
+        Args:
+            camera_ind (int): Which camera to evaluate
+
+        Returns:
+            pytorch3d.PerspectiveCamera: The camera corresponding to the index
+            pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+        """
         # Create a camera from the metashape parameters
         camera = self.camera_set.cameras[camera_ind].get_pytorch3d_camera(self.device)
 
         # Load the image
-        filename = self.camera_set.cameras[camera_ind].filename
-        img = imread(filename)
+        img = imread(self.camera_set.cameras[camera_ind].image_filename)
 
         # Set up the rasterizer
         image_size = img.shape[:2]
@@ -263,6 +311,10 @@ class Pytorch3DMesh:
         return camera, fragments, img
 
     def aggregate_viepoints_pytorch3d(self):
+        """
+        Aggregate information from different viepoints onto the mesh faces using pytorch3d.
+        This considers occlusions but is fairly slow
+        """
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         face_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
@@ -289,6 +341,7 @@ class Pytorch3DMesh:
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
     def render_pytorch3d(self):
+        """Render an image from the viewpoint of each camera"""
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
         inds = np.arange(len(self.camera_set.cameras))
