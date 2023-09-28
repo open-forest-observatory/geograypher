@@ -173,7 +173,13 @@ class Pytorch3DMesh:
 
         return verts_in_output_CRS
 
-    def color_with_binary_mask(self, binary_mask: np.ndarray, color_true: list, color_false:list, vis: bool=False):
+    def color_with_binary_mask(
+        self,
+        binary_mask: np.ndarray,
+        color_true: list,
+        color_false: list,
+        vis: bool = False,
+    ):
         """Color the pyvista and pytorch3d meshes based on a binary mask and two colors
 
         Args:
