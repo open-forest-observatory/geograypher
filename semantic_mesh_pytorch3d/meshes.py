@@ -120,7 +120,7 @@ class Pytorch3DMesh:
             self.geodata_texture()
         elif texture_enum == 3:
             # Create a texture from a geofile
-            self.DEM_texture()
+            self.height_threshold()
         else:
             raise ValueError(f"Invalide texture enum {texture_enum}")
 
@@ -173,7 +173,15 @@ class Pytorch3DMesh:
 
         return verts_in_output_CRS
 
-    def color_with_binary_mask(self, binary_mask, color_true, color_false, vis=False):
+    def color_with_binary_mask(self, binary_mask: np.ndarray, color_true: list, color_false:list, vis: bool=False):
+        """Color the pyvista and pytorch3d meshes based on a binary mask and two colors
+
+        Args:
+            binary_mask (np.ndarray): Mask to differentiate the two colors
+            color_true (list): Color for points corresponding to "true" in the mask
+            color_false (list): Color for points corresponding to "false" in the mask
+            vis (bool, optional): Show the colored mesh. Defaults to False.
+        """
         # Fill the colors with the background color
         colors_tensor = (
             (torch.Tensor([color_false]))
@@ -275,7 +283,13 @@ class Pytorch3DMesh:
 
         # These points are within a tree
         # TODO, in the future we might want to do something more sophisticated than tree/not tree
-        is_tree = torch.Tensor(np.isfinite(polygon_IDs)).to(self.device).to(torch.bool)
+        inside_tree_polygon = np.isfinite(polygon_IDs)
+        above_ground = self.get_height_above_ground() > 2
+        is_tree = (
+            torch.Tensor(np.logical_and(inside_tree_polygon, above_ground))
+            .to(self.device)
+            .to(torch.bool)
+        )
 
         self.color_with_binary_mask(
             is_tree,
@@ -283,7 +297,15 @@ class Pytorch3DMesh:
             color_false=np.array(COLORS["earth"]) / 255.0,
         )
 
-    def DEM_texture(self, DEM_file: PATH_TYPE = DEFAULT_DEM, threshold=2):
+    def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM):
+        """Compute the height above groun for each point on the mesh
+
+        Args:
+            DEM_file (PATH_TYPE, optional): The path the the DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
+
+        Returns:
+            np.ndarray: Heights above the ground for each point, aranged in the same order as mesh points (meters)
+        """
         # Open the DEM file
         DEM = rio.open(DEM_file)
         # Get the mesh points in the coordinate reference system of the DEM
@@ -298,9 +320,21 @@ class Pytorch3DMesh:
 
         # We want to find a height about the ground by subtracting the DEM from the
         # mesh points
-        # Then threshold them based on the difference
         height_above_ground = point_elevation_meters - DEM_elevation_meters
+        return height_above_ground
+
+    def height_threshold(self, DEM_file: PATH_TYPE = DEFAULT_DEM, threshold=2):
+        """Texture by thresholding the height above groun
+
+        Args:
+            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
+            threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
+        """
+        # Get the height of each mesh point above the ground
+        height_above_ground = self.get_height_above_ground(DEM_file=DEM_file)
+        # Threshold to dermine if it's ground or not
         ground_points = height_above_ground < threshold
+        # Color the mesh with this mask
         self.color_with_binary_mask(
             ground_points,
             color_true=np.array(COLORS["earth"]) / 255.0,
