@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pyvista as pv
+import skimage
 import torch
-from imageio import imread, imwrite
 from pytorch3d.renderer import (
     AmbientLights,
     HardGouraudShader,
@@ -52,7 +52,7 @@ class Pytorch3DMesh:
             self.device = torch.device("cpu")
 
         self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh(texture_enum, 1.0)
+        self.load_mesh(texture_enum, 0.25)
 
     def load_mesh(
         self,
@@ -250,7 +250,7 @@ class Pytorch3DMesh:
     def vis(self):
         """Show the mesh and cameras"""
         plotter = pv.Plotter(off_screen=False)
-        self.camera_set.vis(plotter)
+        self.camera_set.vis(plotter, add_orientation_cube=True)
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         plotter.show(screenshot="vis/render.png")
 
@@ -265,7 +265,7 @@ class Pytorch3DMesh:
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(self.camera_set.cameras))):
             # This is actually the bottleneck in the whole process
-            img = imread(self.camera_set.cameras[i].image_filename)
+            img = skimage.io.imread(self.camera_set.cameras[i].image_filename)
             colors_per_vertex = self.camera_set.cameras[i].project_mesh_verts(
                 self.pyvista_mesh.points, img, device=self.device
             )
@@ -278,11 +278,12 @@ class Pytorch3DMesh:
         plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
-    def get_rasterization_results(self, camera_ind: int):
+    def get_rasterization_results(self, camera_ind: int, image_scale: float = 1.0):
         """Use pytorch3d to get correspondences between pixels and vertices
 
         Args:
             camera_ind (int): Which camera to evaluate
+            img_scale (float): How much to resize the image by
 
         Returns:
             pytorch3d.PerspectiveCamera: The camera corresponding to the index
@@ -292,7 +293,14 @@ class Pytorch3DMesh:
         camera = self.camera_set.cameras[camera_ind].get_pytorch3d_camera(self.device)
 
         # Load the image
-        img = imread(self.camera_set.cameras[camera_ind].image_filename)
+        img = skimage.io.imread(self.camera_set.cameras[camera_ind].image_filename)
+        if img.dtype == np.unit8:
+            img = img / 255.0
+
+        if image_scale != 1.0:
+            img = skimage.transform.resize(
+                img, (int(img.shape[0] * image_scale), int(img.shape[1] * image_scale))
+            )
 
         # Set up the rasterizer
         image_size = img.shape[:2]
@@ -340,7 +348,7 @@ class Pytorch3DMesh:
         ).astype(np.uint8)
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
-    def render_pytorch3d(self):
+    def render_pytorch3d(self, image_scale=1.0):
         """Render an image from the viewpoint of each camera"""
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
@@ -349,7 +357,9 @@ class Pytorch3DMesh:
 
         for i in tqdm(inds):
             # This part is shared across many tasks
-            camera, fragments, img = self.get_intermediate_rendering_results(i)
+            camera, fragments, img = self.get_rasterization_results(
+                i, image_scale=image_scale
+            )
 
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
@@ -362,8 +372,9 @@ class Pytorch3DMesh:
             images = shader(fragments, self.pytorch_mesh)
 
             # Extract and save images
-            rendered = images[0, ..., :3].cpu().numpy() * 255
-            composite = np.clip(
-                np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 255
+            rendered = images[0, ..., :3].cpu().numpy()
+            composite = (
+                np.clip(np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 1)
+                * 255
             ).astype(np.uint8)
-            imwrite(f"vis/pred_{i:03d}.png", composite)
+            skimage.io.imsave(f"vis/pred_{i:03d}.png", composite)

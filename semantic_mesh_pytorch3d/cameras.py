@@ -324,6 +324,7 @@ class MetashapeCameraSet:
             plotter.add_mesh(ocube["y_n"], color="green")
             plotter.add_mesh(ocube["z_p"], color="red")
             plotter.add_mesh(ocube["z_n"], color="red")
+            plotter.show_axes()
 
     def make_4x4_transform(
         self, rotation_str: str, translation_str: str, scale_str: str = "1"
