@@ -173,13 +173,14 @@ class TexturedPhotogrammetryMesh:
             vis (bool, optional): Show the colored mesh. Defaults to False.
         """
         # Fill the colors with the background color
+        # Wrap the color in a numpy array to avoid warning about "tensor from list of arrays is slow"
         colors_tensor = (
-            (torch.Tensor([color_false]))
+            (torch.Tensor(np.array([color_false])))
             .repeat(self.pyvista_mesh.points.shape[0], 1)
             .to(self.device)
         )
         # create the forgound color
-        true_color_tensor = (torch.Tensor([color_true])).to(self.device)
+        true_color_tensor = (torch.Tensor(np.array([color_true]))).to(self.device)
         # Set the indexed points to the forground color
         colors_tensor[binary_mask] = true_color_tensor
         if vis:
@@ -198,14 +199,22 @@ class TexturedPhotogrammetryMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def vis(self, camera_set: PhotogrammetryCameraSet = None, screenshot_filename: PATH_TYPE=None):
+    def vis(
+        self,
+        interactive=False,
+        camera_set: PhotogrammetryCameraSet = None,
+        screenshot_filename: PATH_TYPE = None,
+    ):
         """Show the mesh and cameras
 
         Args:
+            off_screen (bool, optional): Show offscreen
             camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
         """
-        plotter = pv.Plotter(off_screen=(screenshot_filename is not None))
+        plotter = pv.Plotter(
+            off_screen=(not interactive) or (screenshot_filename is None)
+        )
 
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         if camera_set is not None:
@@ -309,21 +318,29 @@ class TexturedPhotogrammetryMesh:
         ).astype(np.uint8)
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
-    def render_pytorch3d(self, camera_set: PhotogrammetryCameraSet, image_scale=1.0):
+    def render_pytorch3d(
+        self,
+        camera_set: PhotogrammetryCameraSet,
+        image_scale=1.0,
+        camera_indices=None,
+        render_folder="mesh",
+    ):
         """Render an image from the viewpoint of each camera
 
         Args:
             camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
             image_scale (float, optional):
-                Multiplier on the real image scale to obtain size for rendering. Lower values 
+                Multiplier on the real image scale to obtain size for rendering. Lower values
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
+            camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
         """
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
-        inds = np.arange(len(camera_set.cameras))
-        np.random.shuffle(inds)
+        if camera_indices is None:
+            camera_indices = np.arange(len(camera_set.n_cameras()))
+            np.random.shuffle(camera_indices)
 
-        for i in tqdm(inds):
+        for i in tqdm(camera_indices):
             # This part is shared across many tasks
             pg_camera = camera_set.get_camera_by_index(i)
 
@@ -347,4 +364,4 @@ class TexturedPhotogrammetryMesh:
                 np.clip(np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 1)
                 * 255
             ).astype(np.uint8)
-            skimage.io.imsave(f"vis/pred_{i:03d}.png", composite)
+            skimage.io.imsave(f"vis/{render_folder}/render_{i:03d}.png", composite)

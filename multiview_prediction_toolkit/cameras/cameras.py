@@ -44,7 +44,9 @@ class PhotogrammetryCamera:
         self.image_height = image_height
 
         self.image = None
-        self.cache_image = False # Only set to true if you can hold all images in memory
+        self.cache_image = (
+            False  # Only set to true if you can hold all images in memory
+        )
 
     def load_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -341,6 +343,10 @@ class PhotogrammetryCameraSet:
             image_folder (PATH_TYPE): Path to the root of the image folder
         """
         raise NotImplementedError("Abstract base class")
+
+    def n_cameras(self) -> int:
+        """Return the number of cameras"""
+        return len(self.cameras)
 
     def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
         if index >= len(self.cameras):

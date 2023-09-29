@@ -32,7 +32,7 @@ DEFAULT_GEOPOLYGON_FILE = str(
     Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_crowns.gpkg")
 )
 # Example digital elevation model
-DEFAULT_DEM = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
+DEFAULT_DEM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
 
 ## Misc constants
 # Colors to be used across the project

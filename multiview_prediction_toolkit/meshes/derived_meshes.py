@@ -10,7 +10,7 @@ from shapely import Point
 
 from multiview_prediction_toolkit.config import (
     COLORS,
-    DEFAULT_DEM,
+    DEFAULT_DEM_FILE,
     DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
@@ -69,11 +69,11 @@ class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
 
 class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
-    def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM):
+    def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM_FILE):
         """Compute the height above groun for each point on the mesh
 
         Args:
-            DEM_file (PATH_TYPE, optional): The path the the DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
+            DEM_file (PATH_TYPE, optional): The path the the DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
 
         Returns:
             np.ndarray: Heights above the ground for each point, aranged in the same order as mesh points (meters)
@@ -97,14 +97,14 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
     def create_texture_height_threshold(
         self,
-        DEM_file: PATH_TYPE = DEFAULT_DEM,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
         ground_height_threshold=2,
         vis: bool = False,
     ):
         """Texture by thresholding the height above groun
 
         Args:
-            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
+            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
             threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
         """
         # Get the height of each mesh point above the ground
@@ -120,8 +120,8 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
     def create_texture_geopolygon(
         self,
-        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
-        DEM_file: PATH_TYPE = DEFAULT_DEM,
+        geo_polygon_file: PATH_TYPE = None,
+        DEM_file: PATH_TYPE = None,
         ground_height_threshold=2,
         vis: bool = False,
     ):
@@ -188,7 +188,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def create_texture(
         self,
         geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
-        DEM_file: PATH_TYPE = DEFAULT_DEM,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
         ground_height_threshold=2,
         vis: bool = False,
     ):
