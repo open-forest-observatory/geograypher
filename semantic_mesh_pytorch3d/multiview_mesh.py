@@ -1,9 +1,6 @@
-import geopandas as gpd
 import numpy as np
-import pandas as pd
 import pyproj
 import pyvista as pv
-import rasterio as rio
 import skimage
 import torch
 from pytorch3d.renderer import (
@@ -14,26 +11,14 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from scipy.spatial.distance import cdist
-from shapely.geometry import Point
 from tqdm import tqdm
 
-from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import (
-    COLORS,
-    DEFAULT_DEM,
-    DEFAULT_GEOPOLYGON_FILE,
-    PATH_TYPE,
-)
+from semantic_mesh_pytorch3d.config import PATH_TYPE
 
 
-class Pytorch3DMesh:
+class MultiviewMesh:
     def __init__(
-        self,
-        mesh_filename: PATH_TYPE,
-        camera_filename: PATH_TYPE,
-        image_folder: PATH_TYPE,
-        texture_enum: int = 0,
+        self, mesh_filename: PATH_TYPE, downsample_target: float = 1.0, **kwargs
     ):
         """This object handles most of the high-level operations in this project
 
@@ -45,30 +30,29 @@ class Pytorch3DMesh:
                                           1 is a dummy texture, and 2 is from a geofile. Defaults to 0.
         """
         self.mesh_filename = mesh_filename
-        self.image_folder = image_folder
+        self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
-        self.pyvista_mesh = None
+        self.pytorch_mesh = None
+        self.verts = None
+        self.faces = None
 
-        self.device = None
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
             torch.cuda.set_device(self.device)
         else:
             self.device = torch.device("cpu")
 
-        self.camera_set = MetashapeCameraSet(camera_filename, image_folder)
-        self.load_mesh(texture_enum, 0.25)
+        self.load_mesh(downsample_target=downsample_target)
+        self.create_texture(**kwargs)
 
     def load_mesh(
         self,
-        texture_enum: int,
         downsample_target: float = 1.0,
     ):
         """Load the pyvista mesh and create the pytorch3d texture
 
         Args:
-            texture_enum (int): Which type of texture to use
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
 
@@ -85,7 +69,6 @@ class Pytorch3DMesh:
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-
         # Extract the vertices and faces
         verts = self.pyvista_mesh.points
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
@@ -94,35 +77,9 @@ class Pytorch3DMesh:
         self.verts = torch.Tensor(verts.copy()).to(self.device)
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
-        if texture_enum == 0:
-            # Create a texture from the colors
-            # Convert RGB values to [0,1] and format correctly
-            if "RGB" in self.pyvista_mesh.array_names:
-                verts_rgb = torch.Tensor(
-                    np.expand_dims(self.pyvista_mesh["RGB"] / 255, axis=0)
-                ).to(self.device)
-            else:
-                # Default gray color
-                print(self.pyvista_mesh.array_names)
-                verts_rgb = torch.Tensor(
-                    np.full((1, self.pyvista_mesh.n_points, 3), 0.5)
-                ).to(self.device)
-            textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
-            self.pytorch_mesh = Meshes(
-                verts=[self.verts], faces=[self.faces], textures=textures
-            )
-            self.pytorch_mesh = self.pytorch_mesh.to(self.device)
-        elif texture_enum == 1:
-            # Create a dummy texture
-            self.dummy_texture()
-        elif texture_enum == 2:
-            # Create a texture from a geofile
-            self.geodata_texture()
-        elif texture_enum == 3:
-            # Create a texture from a geofile
-            self.height_threshold()
-        else:
-            raise ValueError(f"Invalide texture enum {texture_enum}")
+    def create_texture(self):
+        # Abstract method
+        raise NotImplementedError()
 
     def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
         """Apply a transform to the vertex coordinates
@@ -174,7 +131,7 @@ class Pytorch3DMesh:
 
         return verts_in_output_CRS
 
-    def color_with_binary_mask(
+    def texture_with_binary_mask(
         self,
         binary_mask: np.ndarray,
         color_true: list,
@@ -215,140 +172,7 @@ class Pytorch3DMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def dummy_texture(self, use_colorseg: bool = True):
-        """Create a dummy texture for debuging
-
-        Args:
-            use_colorseg (bool, optional):
-                Segment based on color into two classes
-                Otherwise, segment based on a centered circle. Defaults to True.
-        """
-        green = [34, 139, 34]
-        orange = [255, 165, 0]
-        RGB_values = self.pyvista_mesh["RGB"]
-        if use_colorseg:
-            test_values = np.array([green, orange])
-            dists = cdist(RGB_values, test_values)
-            inds = np.argmin(dists, axis=1)
-        else:
-            XYZ_values = self.pyvista_mesh.points
-            center = np.mean(XYZ_values, axis=0, keepdims=True)
-            dists_to_center = np.linalg.norm(XYZ_values[:, :2] - center[:, :2], axis=1)
-            cutoff_value = np.quantile(dists_to_center, [0.1])
-            inds = (dists_to_center > cutoff_value).astype(int)
-        dummy_RGB_values = np.zeros_like(RGB_values)
-        dummy_RGB_values[inds == 0] = np.array(green)
-        dummy_RGB_values[inds == 1] = np.array(orange)
-        verts_rgb = torch.Tensor(np.expand_dims(dummy_RGB_values / 255, axis=0)).to(
-            self.device
-        )  # (1, V, 3)
-        textures = TexturesVertex(verts_features=verts_rgb.to(self.device))
-        self.pytorch_mesh = Meshes(
-            verts=[self.verts], faces=[self.faces], textures=textures
-        )
-
-    def geodata_texture(
-        self,
-        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
-        vis: bool = False,
-    ):
-        """Create a texture from a geofile containing polygons
-
-        Args:
-            geo_polygon_file (PATH_TYPE, optional):
-                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
-            vis (bool, optional): Show the texture. Defaults to False.
-        """
-        # Read the polygon data about the tree crown segmentation
-        geo_polygons = gpd.read_file(geo_polygon_file)
-        # Get the vertices in the same CRS as the geofile
-        verts_in_geopolygon_crs = self.get_vertices_in_CRS(geo_polygons.crs)
-
-        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
-        # Convert points into georeferenced dataframe
-        # TODO consider removing this line since it's not strictly needed
-        df = pd.DataFrame(
-            {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
-            }
-        )
-        df["coords"] = list(zip(df["east"], df["north"]))
-        df["coords"] = df["coords"].apply(Point)
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=geo_polygons.crs)
-        # Add an index column because the normal index will not be preserved in future operations
-        points["id"] = df.index
-
-        # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(points, geo_polygons, how="intersection")
-        # Create an array corresponding to all the points and initialize to NaN
-        polygon_IDs = np.full(shape=points.shape[0], fill_value=np.nan)
-        # Assign points that are inside a given tree with that tree's ID
-        polygon_IDs[points_in_polygons["id"].to_numpy()] = points_in_polygons[
-            "treeID"
-        ].to_numpy()
-
-        # These points are within a tree
-        # TODO, in the future we might want to do something more sophisticated than tree/not tree
-        inside_tree_polygon = np.isfinite(polygon_IDs)
-        above_ground = self.get_height_above_ground() > 2
-        is_tree = (
-            torch.Tensor(np.logical_and(inside_tree_polygon, above_ground))
-            .to(self.device)
-            .to(torch.bool)
-        )
-
-        self.color_with_binary_mask(
-            is_tree,
-            color_true=np.array(COLORS["canopy"]) / 255.0,
-            color_false=np.array(COLORS["earth"]) / 255.0,
-        )
-
-    def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM):
-        """Compute the height above groun for each point on the mesh
-
-        Args:
-            DEM_file (PATH_TYPE, optional): The path the the DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
-
-        Returns:
-            np.ndarray: Heights above the ground for each point, aranged in the same order as mesh points (meters)
-        """
-        # Open the DEM file
-        DEM = rio.open(DEM_file)
-        # Get the mesh points in the coordinate reference system of the DEM
-        verts_in_DEM_crs = self.get_vertices_in_CRS(DEM.crs)
-
-        x_points = verts_in_DEM_crs[:, 1].tolist()
-        y_points = verts_in_DEM_crs[:, 0].tolist()
-        point_elevation_meters = verts_in_DEM_crs[:, 2]
-
-        zipped_points = zip(x_points, y_points)
-        DEM_elevation_meters = np.squeeze(np.array(list(DEM.sample(zipped_points))))
-
-        # We want to find a height about the ground by subtracting the DEM from the
-        # mesh points
-        height_above_ground = point_elevation_meters - DEM_elevation_meters
-        return height_above_ground
-
-    def height_threshold(self, DEM_file: PATH_TYPE = DEFAULT_DEM, threshold=2):
-        """Texture by thresholding the height above groun
-
-        Args:
-            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM.
-            threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
-        """
-        # Get the height of each mesh point above the ground
-        height_above_ground = self.get_height_above_ground(DEM_file=DEM_file)
-        # Threshold to dermine if it's ground or not
-        ground_points = height_above_ground < threshold
-        # Color the mesh with this mask
-        self.color_with_binary_mask(
-            ground_points,
-            color_true=np.array(COLORS["earth"]) / 255.0,
-            color_false=np.array(COLORS["canopy"]) / 255.0,
-        )
-
-    def vis(self, show_cameras: bool=False, filename=None):
+    def vis(self, show_cameras: bool = False, filename=None):
         """Show the mesh and cameras"""
         plotter = pv.Plotter(off_screen=(filename is not None))
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
@@ -420,7 +244,7 @@ class Pytorch3DMesh:
         fragments = rasterizer(self.pytorch_mesh)
         return camera, fragments, img
 
-    def aggregate_viepoints_pytorch3d(self):
+    def aggregate_viewpoints_pytorch3d(self):
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
         This considers occlusions but is fairly slow
