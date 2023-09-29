@@ -14,7 +14,7 @@ from skimage.transform import resize
 from multiview_prediction_toolkit.config import PATH_TYPE
 
 
-class MetashapeCamera:
+class PhotogrammetryCamera:
     def __init__(
         self,
         image_filename: PATH_TYPE,
@@ -25,7 +25,7 @@ class MetashapeCamera:
         image_width: int,
         image_height: int,
     ):
-        """Represents the information about one camera location/image as determined by Metashape
+        """Represents the information about one camera location/image as determined by photogrammetry
 
         Args:
             image_filename (PATH_TYPE): The image used for reconstruction
@@ -50,7 +50,7 @@ class MetashapeCamera:
 
     def load_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
-        if self.image is not None:
+        if self.image is None:
             image = imread(self.image_filename)
             if image.dtype == np.uint8:
                 image = image / 255.0
@@ -300,7 +300,7 @@ class MetashapeCamera:
         plotter.add_mesh(frustum, scalars="RGB", rgb=True)
 
 
-class MetashapeCameraSet:
+class PhotogrammetryCameraSet:
     def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """
         Create a camera set from a metashape .xml camera file and the path to the image folder
@@ -321,7 +321,7 @@ class MetashapeCameraSet:
         for image_filename, cam_to_world_transform in zip(
             self.image_filenames, self.cam_to_world_transforms
         ):
-            new_camera = MetashapeCamera(
+            new_camera = PhotogrammetryCamera(
                 image_filename,
                 cam_to_world_transform,
                 self.f,
@@ -332,7 +332,7 @@ class MetashapeCameraSet:
             )
             self.cameras.append(new_camera)
 
-    def get_camera_by_index(self, index: int) -> MetashapeCamera:
+    def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
         if index >= len(self.cameras):
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]

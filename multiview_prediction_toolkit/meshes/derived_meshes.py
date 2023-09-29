@@ -14,10 +14,12 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
-from multiview_prediction_toolkit.meshes import MultiviewMesh
+from multiview_prediction_toolkit.meshes.multiview_mesh import (
+    TexturedPhotogrammetryMesh,
+)
 
 
-class ColorMultiviewMesh(MultiviewMesh):
+class ColorPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def create_texture(self):
         # Create a texture from the colors
         # Convert RGB values to [0,1] and format correctly
@@ -40,7 +42,7 @@ class ColorMultiviewMesh(MultiviewMesh):
         self.pytorch_mesh = self.pytorch_mesh.to(self.device)
 
 
-class DummyMultiviewMesh(MultiviewMesh):
+class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def create_texture(self, use_colorseg: bool = True):
         """Create a dummy texture for debuging
 
@@ -49,32 +51,26 @@ class DummyMultiviewMesh(MultiviewMesh):
                 Segment based on color into two classes
                 Otherwise, segment based on a centered circle. Defaults to True.
         """
-        green = [34, 139, 34]
-        orange = [255, 165, 0]
+        CANOPY_COLOR = COLORS["canopy"]
+        EARTH_COLOR = COLORS["earth"]
         RGB_values = self.pyvista_mesh["RGB"]
         if use_colorseg:
-            test_values = np.array([green, orange])
+            test_values = np.array([CANOPY_COLOR, EARTH_COLOR])
             dists = cdist(RGB_values, test_values)
-            inds = np.argmin(dists, axis=1)
+            mask = np.argmin(dists, axis=1).astype(bool)
         else:
             XYZ_values = self.pyvista_mesh.points
             center = np.mean(XYZ_values, axis=0, keepdims=True)
             dists_to_center = np.linalg.norm(XYZ_values[:, :2] - center[:, :2], axis=1)
             cutoff_value = np.quantile(dists_to_center, [0.1])
-            inds = (dists_to_center > cutoff_value).astype(int)
-        dummy_RGB_values = np.zeros_like(RGB_values)
-        dummy_RGB_values[inds == 0] = np.array(green)
-        dummy_RGB_values[inds == 1] = np.array(orange)
-        verts_rgb = torch.Tensor(np.expand_dims(dummy_RGB_values / 255, axis=0)).to(
-            self.device
-        )  # (1, V, 3)
-        textures = TexturesVertex(verts_features=verts_rgb.to(self.device))
-        self.pytorch_mesh = Meshes(
-            verts=[self.verts], faces=[self.faces], textures=textures
+            mask = dists_to_center > cutoff_value
+
+        self.texture_with_binary_mask(
+            mask, color_true=EARTH_COLOR, color_false=CANOPY_COLOR
         )
 
 
-class GeodataMultiviewMesh(MultiviewMesh):
+class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM):
         """Compute the height above groun for each point on the mesh
 

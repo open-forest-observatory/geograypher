@@ -15,11 +15,14 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.cameras import MetashapeCamera, MetashapeCameraSet
+from multiview_prediction_toolkit.cameras import (
+    PhotogrammetryCamera,
+    PhotogrammetryCameraSet,
+)
 from multiview_prediction_toolkit.config import PATH_TYPE
 
 
-class MultiviewMesh:
+class TexturedPhotogrammetryMesh:
     def __init__(
         self, mesh_filename: PATH_TYPE, downsample_target: float = 1.0, **kwargs
     ):
@@ -199,11 +202,11 @@ class MultiviewMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def vis(self, camera_set: MetashapeCameraSet = None, screenshot_filename=None):
+    def vis(self, camera_set: PhotogrammetryCameraSet = None, screenshot_filename=None):
         """Show the mesh and cameras
 
         Args:
-            camera_set (MetashapeCameraSet, optional): _description_. Defaults to None.
+            camera_set (PhotogrammetryCameraSet, optional): _description_. Defaults to None.
             screenshot_filename (_type_, optional): _description_. Defaults to None.
         """
         plotter = pv.Plotter(off_screen=(screenshot_filename is not None))
@@ -213,13 +216,13 @@ class MultiviewMesh:
             camera_set.vis(plotter, add_orientation_cube=True)
         plotter.show(screenshot=screenshot_filename)
 
-    def aggregate_viewpoints_naive(self, camera_set: MetashapeCameraSet):
+    def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """
         Aggregate the information from all images onto the mesh without considering occlusion
         or distortion parameters
 
         Args:
-            camera_set (MetashapeCameraSet): _description_
+            camera_set (PhotogrammetryCameraSet): _description_
         """
         # Initialize a masked array to record values
         summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
@@ -241,12 +244,12 @@ class MultiviewMesh:
         plotter.show()
 
     def get_rasterization_results(
-        self, camera: MetashapeCamera, image_scale: float = 1.0
+        self, camera: PhotogrammetryCamera, image_scale: float = 1.0
     ):
         """Use pytorch3d to get correspondences between pixels and vertices
 
         Args:
-            camera (MetashapeCamera): Camera to get raster for
+            camera (PhotogrammetryCamera): Camera to get raster for
             img_scale (float): How much to resize the image by
 
         Returns:
@@ -273,13 +276,13 @@ class MultiviewMesh:
         fragments = rasterizer(self.pytorch_mesh)
         return p3d_camera, fragments, image
 
-    def aggregate_viewpoints_pytorch3d(self, camera_set: MetashapeCameraSet):
+    def aggregate_viewpoints_pytorch3d(self, camera_set: PhotogrammetryCamera):
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
         This considers occlusions but is fairly slow
 
         Args:
-            camera_set (MetashapeCameraSet): Set of cameras to aggregate
+            camera_set (PhotogrammetryCamera): Set of cameras to aggregate
         """
         # TODO add an option to do this with a lower-res image
         # TODO make this return something meaningful rather than side effects/in place ops
@@ -310,11 +313,11 @@ class MultiviewMesh:
         ).astype(np.uint8)
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
-    def render_pytorch3d(self, camera_set: MetashapeCameraSet, image_scale=1.0):
+    def render_pytorch3d(self, camera_set: PhotogrammetryCameraSet, image_scale=1.0):
         """Render an image from the viewpoint of each camera
 
         Args:
-            camera_set (MetashapeCameraSet): _description_
+            camera_set (PhotogrammetryCameraSet): _description_
             image_scale (float, optional): _description_. Defaults to 1.0.
         """
         # Render each image individually.
@@ -324,10 +327,10 @@ class MultiviewMesh:
 
         for i in tqdm(inds):
             # This part is shared across many tasks
-            sfm_camera = camera_set.get_camera_by_index(i)
+            pg_camera = camera_set.get_camera_by_index(i)
 
             p3d_camera, fragments, img = self.get_rasterization_results(
-                sfm_camera, image_scale=image_scale
+                pg_camera, image_scale=image_scale
             )
 
             # Create ambient light so it doesn't effect the color
