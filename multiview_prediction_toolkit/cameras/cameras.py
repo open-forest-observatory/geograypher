@@ -367,25 +367,3 @@ class PhotogrammetryCameraSet:
             plotter.add_mesh(ocube["z_p"], color="red")
             plotter.add_mesh(ocube["z_n"], color="red")
             plotter.show_axes()
-
-    def make_4x4_transform(
-        self, rotation_str: str, translation_str: str, scale_str: str = "1"
-    ):
-        """Convenience function to make a 4x4 matrix from the string format used by Metashape
-
-        Args:
-            rotation_str (str): Row major with 9 entries
-            translation_str (str): 3 entries
-            scale_str (str, optional): single value. Defaults to "1".
-
-        Returns:
-            np.ndarray: (4, 4) A homogenous transform mapping from cam to world
-        """
-        rotation_np = np.fromstring(rotation_str, sep=" ")
-        rotation_np = np.reshape(rotation_np, (3, 3))
-        translation_np = np.fromstring(translation_str, sep=" ")
-        scale = float(scale_str)
-        transform = np.eye(4)
-        transform[:3, :3] = rotation_np * scale
-        transform[:3, 3] = translation_np
-        return transform
