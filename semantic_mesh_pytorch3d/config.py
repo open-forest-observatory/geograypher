@@ -16,7 +16,7 @@ DEFAULT_LOCAL_MESH = str(
     Path(
         DATA_FOLDER,
         "composite_georef",
-        "composite_local_reset.ply",
+        "composite_georef_low_res_20230928T1604_model_local.ply",
     )
 )
 # Exported metashape cameras for example project

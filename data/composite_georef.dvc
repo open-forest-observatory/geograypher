@@ -1,6 +1,6 @@
 outs:
-- md5: 097a1c3127dcb839eea3a6b4b4dfa1c7.dir
-  size: 22027121246
-  nfiles: 233
+- md5: ae3b917cc56b734ebc59ec77cbd20fe6.dir
+  size: 7287601467
+  nfiles: 933
   hash: md5
   path: composite_georef
