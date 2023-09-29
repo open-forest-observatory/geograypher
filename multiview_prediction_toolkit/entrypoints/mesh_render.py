@@ -1,6 +1,6 @@
 import argparse
 
-from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
+from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
     DEFAULT_CAM_FILE,
     DEFAULT_IMAGES_FOLDER,
@@ -63,8 +63,9 @@ def main(
         run_render (bool): Should images from the camera poses be rendered
         texture_type (int): How should the mesh be textured
     """
+    # Load this first because it's fast
+    camera_set = MetashapeCameraSet(camera_file, image_folder)
     mesh = GeodataPhotogrammetryMesh(mesh_file)
-    camera_set = PhotogrammetryCameraSet(camera_file, image_folder)
 
     if run_vis:
         mesh.vis(screenshot_filename="vis/mesh_render.png")

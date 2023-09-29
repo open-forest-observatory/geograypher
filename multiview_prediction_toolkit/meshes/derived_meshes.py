@@ -14,9 +14,7 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
-from multiview_prediction_toolkit.meshes.meshes import (
-    TexturedPhotogrammetryMesh,
-)
+from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
 
 
 class ColorPhotogrammetryMesh(TexturedPhotogrammetryMesh):

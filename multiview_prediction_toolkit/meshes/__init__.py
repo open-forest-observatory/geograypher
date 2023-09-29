@@ -3,6 +3,4 @@ from multiview_prediction_toolkit.meshes.derived_meshes import (
     DummyPhotogrammetryMesh,
     GeodataPhotogrammetryMesh,
 )
-from multiview_prediction_toolkit.meshes.meshes import (
-    TexturedPhotogrammetryMesh,
-)
+from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh

@@ -1,5 +1,3 @@
-import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import Tuple
 
 import numpy as np
@@ -46,7 +44,7 @@ class PhotogrammetryCamera:
         self.image_height = image_height
 
         self.image = None
-        self.cache_image = True
+        self.cache_image = False # Only set to true if you can hold all images in memory
 
     def load_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -301,7 +299,13 @@ class PhotogrammetryCamera:
 
 
 class PhotogrammetryCameraSet:
-    def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
+    f = None
+    cx = None
+    cy = None
+    image_width = None
+    image_height = None
+
+    def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, **kwargs):
         """
         Create a camera set from a metashape .xml camera file and the path to the image folder
 
@@ -310,12 +314,9 @@ class PhotogrammetryCameraSet:
             camera_file (PATH_TYPE): Path to the .xml camera export from Metashape
             image_folder (PATH_TYPE): Path to the folder of images used by Metashape
         """
-        self.parse_metashape_cam_file(camera_file=camera_file)
 
-        self.image_filenames = [
-            str(list(Path(image_folder).glob(filename + "*"))[0])
-            for filename in self.image_filenames
-        ]  # Assume there's only one file with that extension
+        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
+
         self.cameras = []
 
         for image_filename, cam_to_world_transform in zip(
@@ -331,6 +332,15 @@ class PhotogrammetryCameraSet:
                 self.image_height,
             )
             self.cameras.append(new_camera)
+
+    def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
+        """Parse the software-specific camera files and populate required member fields
+
+        Args:
+            camera_file (PATH_TYPE): Path to the camera file
+            image_folder (PATH_TYPE): Path to the root of the image folder
+        """
+        raise NotImplementedError("Abstract base class")
 
     def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
         if index >= len(self.cameras):
@@ -379,66 +389,3 @@ class PhotogrammetryCameraSet:
         transform[:3, :3] = rotation_np * scale
         transform[:3, 3] = translation_np
         return transform
-
-    def parse_metashape_cam_file(self, camera_file: str):
-        """Parse the information about the camera intrinsics and extrinsics
-
-        Args:
-            camera_file (str): Path to metashape .xml export
-
-        Raises:
-            ValueError: If camera calibration does not contain the f, cx, and cy params
-        """
-        # Load the xml file
-        # Taken from here https://rowelldionicio.com/parsing-xml-with-python-minidom/
-        tree = ET.parse(camera_file)
-        root = tree.getroot()
-        # first level
-        chunk = root[0]
-        # second level
-        sensors = chunk[0]
-
-        # sensors info
-        sensor = sensors[0]
-        self.image_width = int(sensor[0].get("width"))
-        self.image_height = int(sensor[0].get("height"))
-
-        if len(sensor) > 8:
-            calibration = sensor[7]
-            self.f = float(calibration[1].text)
-            self.cx = float(calibration[2].text)
-            self.cy = float(calibration[3].text)
-            if None in (self.f, self.cx, self.cy):
-                ValueError("Incomplete calibration provided")
-
-            # Get potentially-empty dict of distortion parameters
-            self.distortion_dict = {
-                calibration[i].tag: float(calibration[i].text)
-                for i in range(3, len(calibration))
-            }
-
-        else:
-            raise ValueError("No calibration provided")
-
-        # Get the transform relating the arbitrary local coordinate system
-        # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape
-        transform = chunk[1][0][0]
-        rotation = transform[0].text
-        translation = transform[1].text
-        scale = transform[2].text
-        self.local_to_epgs_4978_transform = self.make_4x4_transform(
-            rotation, translation, scale
-        )
-
-        cameras = chunk[2]
-
-        self.image_filenames = []
-        self.cam_to_world_transforms = []
-        for camera in cameras:
-            if len(camera) < 5:
-                # skipping unaligned camera
-                continue
-            self.image_filenames.append(camera.get("label"))
-            self.cam_to_world_transforms.append(
-                np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
-            )
