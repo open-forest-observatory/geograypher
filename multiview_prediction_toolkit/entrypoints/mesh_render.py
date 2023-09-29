@@ -1,12 +1,13 @@
 import argparse
 
-from semantic_mesh_pytorch3d.config import (
+from multiview_prediction_toolkit.cameras import MetashapeCameraSet
+from multiview_prediction_toolkit.config import (
     DEFAULT_CAM_FILE,
     DEFAULT_IMAGES_FOLDER,
     DEFAULT_LOCAL_MESH,
     PATH_TYPE,
 )
-from semantic_mesh_pytorch3d.meshes import Pytorch3DMesh
+from multiview_prediction_toolkit.meshes import GeodataPhotogrammetryMesh
 
 
 def parse_args():
@@ -62,15 +63,16 @@ def main(
         run_render (bool): Should images from the camera poses be rendered
         texture_type (int): How should the mesh be textured
     """
-    mesh = Pytorch3DMesh(
-        mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
-    )
+    # Load this first because it's fast
+    camera_set = MetashapeCameraSet(camera_file, image_folder)
+    mesh = GeodataPhotogrammetryMesh(mesh_file)
+
     if run_vis:
-        mesh.vis(filename="vis/mesh_render.png")
+        mesh.vis(screenshot_filename="vis/mesh_render.png")
     if run_aggregation:
-        mesh.aggregate_viepoints_pytorch3d()
+        mesh.aggregate_viewpoints_pytorch3d(camera_set)
     if run_render:
-        mesh.render_pytorch3d(image_scale=0.25)
+        mesh.render_pytorch3d(camera_set, image_scale=0.25)
 
 
 if __name__ == "__main__":
