@@ -11,7 +11,7 @@ from pyvista import demos
 from skimage.io import imread
 from skimage.transform import resize
 
-from semantic_mesh_pytorch3d.config import PATH_TYPE
+from multiview_prediction_toolkit.config import PATH_TYPE
 
 
 class MetashapeCamera:

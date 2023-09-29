@@ -1,13 +1,13 @@
 import argparse
 
-from semantic_mesh_pytorch3d.cameras import MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import (
+from multiview_prediction_toolkit.cameras import MetashapeCameraSet
+from multiview_prediction_toolkit.config import (
     DEFAULT_CAM_FILE,
     DEFAULT_IMAGES_FOLDER,
     DEFAULT_LOCAL_MESH,
     PATH_TYPE,
 )
-from semantic_mesh_pytorch3d.derived_meshes import GeodataMultiviewMesh
+from multiview_prediction_toolkit.meshes import GeodataMultiviewMesh
 
 
 def parse_args():

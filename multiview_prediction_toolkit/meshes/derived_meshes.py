@@ -8,13 +8,13 @@ from pytorch3d.structures import Meshes
 from scipy.spatial.distance import cdist
 from shapely import Point
 
-from semantic_mesh_pytorch3d.config import (
+from multiview_prediction_toolkit.config import (
     COLORS,
     DEFAULT_DEM,
     DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
-from semantic_mesh_pytorch3d.multiview_mesh import MultiviewMesh
+from multiview_prediction_toolkit.meshes import MultiviewMesh
 
 
 class ColorMultiviewMesh(MultiviewMesh):

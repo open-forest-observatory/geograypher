@@ -15,8 +15,8 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 
-from semantic_mesh_pytorch3d.cameras import MetashapeCamera, MetashapeCameraSet
-from semantic_mesh_pytorch3d.config import PATH_TYPE
+from multiview_prediction_toolkit.cameras import MetashapeCamera, MetashapeCameraSet
+from multiview_prediction_toolkit.config import PATH_TYPE
 
 
 class MultiviewMesh:
