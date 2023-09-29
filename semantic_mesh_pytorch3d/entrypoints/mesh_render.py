@@ -66,7 +66,7 @@ def main(
         mesh_file, camera_file, image_folder=image_folder, texture_enum=texture_type
     )
     if run_vis:
-        mesh.vis()
+        mesh.vis(filename="vis/mesh_render.png")
     if run_aggregation:
         mesh.aggregate_viepoints_pytorch3d()
     if run_render:

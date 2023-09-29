@@ -137,6 +137,7 @@ class Pytorch3DMesh:
         transformed_local_points = transform_4x4 @ homogenous_local_points
         transformed_local_points = transformed_local_points[:3].T
 
+        # Overwrite existing vertices
         if in_place:
             self.pyvista_mesh.points = transformed_local_points.copy()
         return transformed_local_points
@@ -347,12 +348,13 @@ class Pytorch3DMesh:
             color_false=np.array(COLORS["canopy"]) / 255.0,
         )
 
-    def vis(self):
+    def vis(self, show_cameras: bool=False, filename=None):
         """Show the mesh and cameras"""
-        plotter = pv.Plotter(off_screen=False)
-        self.camera_set.vis(plotter, add_orientation_cube=True)
+        plotter = pv.Plotter(off_screen=(filename is not None))
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
-        plotter.show(screenshot="vis/render.png")
+        if show_cameras:
+            self.camera_set.vis(plotter, add_orientation_cube=True)
+        plotter.show(screenshot=filename)
 
     def aggregate_viewpoints_naive(self):
         """
