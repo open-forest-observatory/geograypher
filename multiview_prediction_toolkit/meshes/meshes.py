@@ -104,12 +104,8 @@ class TexturedPhotogrammetryMesh:
         self.verts = torch.Tensor(verts.copy()).to(self.device)
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
-    def create_texture(self):
-        """_summary_
-
-        Raises:
-            NotImplementedError: _description_
-        """
+    def create_texture(self, **kwargs):
+        """Texture the mesh, potentially with other information"""
         # Abstract method
         raise NotImplementedError()
 
@@ -202,12 +198,12 @@ class TexturedPhotogrammetryMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def vis(self, camera_set: PhotogrammetryCameraSet = None, screenshot_filename=None):
+    def vis(self, camera_set: PhotogrammetryCameraSet = None, screenshot_filename: PATH_TYPE=None):
         """Show the mesh and cameras
 
         Args:
-            camera_set (PhotogrammetryCameraSet, optional): _description_. Defaults to None.
-            screenshot_filename (_type_, optional): _description_. Defaults to None.
+            camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
+            screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
         """
         plotter = pv.Plotter(off_screen=(screenshot_filename is not None))
 
@@ -222,7 +218,7 @@ class TexturedPhotogrammetryMesh:
         or distortion parameters
 
         Args:
-            camera_set (PhotogrammetryCameraSet): _description_
+            camera_set (PhotogrammetryCameraSet): Camera set to use for aggregation
         """
         # Initialize a masked array to record values
         summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
@@ -317,8 +313,10 @@ class TexturedPhotogrammetryMesh:
         """Render an image from the viewpoint of each camera
 
         Args:
-            camera_set (PhotogrammetryCameraSet): _description_
-            image_scale (float, optional): _description_. Defaults to 1.0.
+            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            image_scale (float, optional):
+                Multiplier on the real image scale to obtain size for rendering. Lower values 
+                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
         """
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
