@@ -8,6 +8,8 @@ import pyvista as pv
 import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
+from skimage.io import imread
+from skimage.transform import resize
 
 from semantic_mesh_pytorch3d.config import PATH_TYPE
 
@@ -42,6 +44,31 @@ class MetashapeCamera:
         self.cy = cy
         self.image_width = image_width
         self.image_height = image_height
+
+        self.image = None
+        self.cache_image = True
+
+    def load_image(self, image_scale: float = 1.0) -> np.ndarray:
+        # Check if the image is cached
+        if self.image is not None:
+            image = imread(self.image_filename)
+            if image.dtype == np.uint8:
+                image = image / 255.0
+
+            # Avoid unneccesary read if we have memory
+            if self.cache_image:
+                self.image = image
+        else:
+            image = self.image
+
+        # Resizing is never cached, consider revisiting
+        if image_scale != 1.0:
+            image = resize(
+                image,
+                (int(image.shape[0] * image_scale), int(image.shape[1] * image_scale)),
+            )
+
+        return image
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -304,6 +331,11 @@ class MetashapeCameraSet:
                 self.image_height,
             )
             self.cameras.append(new_camera)
+
+    def get_camera_by_index(self, index: int) -> MetashapeCamera:
+        if index >= len(self.cameras):
+            raise ValueError("Requested camera ind larger than list")
+        return self.cameras[index]
 
     def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
         """Visualize all the cameras

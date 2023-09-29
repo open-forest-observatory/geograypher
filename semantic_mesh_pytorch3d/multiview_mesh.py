@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pyproj
 import pyvista as pv
@@ -13,6 +15,7 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 
+from semantic_mesh_pytorch3d.cameras import MetashapeCamera, MetashapeCameraSet
 from semantic_mesh_pytorch3d.config import PATH_TYPE
 
 
@@ -29,13 +32,14 @@ class MultiviewMesh:
             texture_enum (int, optional): Which type of texture to use. 0 is the real color,
                                           1 is a dummy texture, and 2 is from a geofile. Defaults to 0.
         """
-        self.mesh_filename = mesh_filename
+        self.mesh_filename = Path(mesh_filename)
         self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
         self.pytorch_mesh = None
         self.verts = None
         self.faces = None
+        self.local_to_epgs_4978_transform = None
 
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
@@ -49,16 +53,36 @@ class MultiviewMesh:
     def load_mesh(
         self,
         downsample_target: float = 1.0,
+        require_transform=True,
     ):
         """Load the pyvista mesh and create the pytorch3d texture
 
         Args:
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
+            require_transform (bool): Does a local-to-global transform file need to be available
 
         Raises:
-            ValueError: Invalid texture enum
+            FileNotFoundError: Cannot find texture file
+            ValueError: Transform file doesn't have 4x4 matrix
         """
+        # First look for the transform file because this is fast
+        transform_filename = Path(
+            str(self.mesh_filename).replace(self.mesh_filename.suffix, "_transform.csv")
+        )
+        if transform_filename.is_file():
+            self.local_to_epgs_4978_transform = np.loadtxt(
+                transform_filename, delimiter=","
+            )
+            if self.local_to_epgs_4978_transform.shape != (4, 4):
+                raise ValueError(
+                    f"Transform should be (4,4) but is {self.local_to_epgs_4978_transform.shape}"
+                )
+        elif require_transform:
+            raise FileNotFoundError(
+                f"Required transform file {transform_filename} file could not be found"
+            )
+
         # Load the mesh using pyvista
         self.pyvista_mesh = pv.read(self.mesh_filename)
         # Downsample mesh if needed
@@ -78,6 +102,11 @@ class MultiviewMesh:
         self.faces = torch.Tensor(faces.copy()).to(self.device)
 
     def create_texture(self):
+        """_summary_
+
+        Raises:
+            NotImplementedError: _description_
+        """
         # Abstract method
         raise NotImplementedError()
 
@@ -110,9 +139,7 @@ class MultiviewMesh:
         """
         # The mesh points are defined in an arbitrary local coordinate system but we can transform them to EPGS:4978,
         # the earth-centered, earth-fixed coordinate system, using an included transform
-        epgs4978_verts = self.transform_vertices(
-            self.camera_set.local_to_epgs_4978_transform
-        )
+        epgs4978_verts = self.transform_vertices(self.local_to_epgs_4978_transform)
 
         output_CRS = pyproj.CRS.from_epsg(output_CRS.to_epsg())
         # Build a pyproj transfrormer from EPGS:4978 to the desired CRS
@@ -172,27 +199,36 @@ class MultiviewMesh:
             verts=[self.verts], faces=[self.faces], textures=textures
         )
 
-    def vis(self, show_cameras: bool = False, filename=None):
-        """Show the mesh and cameras"""
-        plotter = pv.Plotter(off_screen=(filename is not None))
-        plotter.add_mesh(self.pyvista_mesh, rgb=True)
-        if show_cameras:
-            self.camera_set.vis(plotter, add_orientation_cube=True)
-        plotter.show(screenshot=filename)
+    def vis(self, camera_set: MetashapeCameraSet = None, screenshot_filename=None):
+        """Show the mesh and cameras
 
-    def aggregate_viewpoints_naive(self):
+        Args:
+            camera_set (MetashapeCameraSet, optional): _description_. Defaults to None.
+            screenshot_filename (_type_, optional): _description_. Defaults to None.
+        """
+        plotter = pv.Plotter(off_screen=(screenshot_filename is not None))
+
+        plotter.add_mesh(self.pyvista_mesh, rgb=True)
+        if camera_set is not None:
+            camera_set.vis(plotter, add_orientation_cube=True)
+        plotter.show(screenshot=screenshot_filename)
+
+    def aggregate_viewpoints_naive(self, camera_set: MetashapeCameraSet):
         """
         Aggregate the information from all images onto the mesh without considering occlusion
         or distortion parameters
+
+        Args:
+            camera_set (MetashapeCameraSet): _description_
         """
         # Initialize a masked array to record values
         summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
 
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-        for i in tqdm(range(len(self.camera_set.cameras))):
+        for i in tqdm(range(len(camera_set.cameras))):
             # This is actually the bottleneck in the whole process
-            img = skimage.io.imread(self.camera_set.cameras[i].image_filename)
-            colors_per_vertex = self.camera_set.cameras[i].project_mesh_verts(
+            img = camera_set.get_camera_by_index(i).load_image()
+            colors_per_vertex = camera_set.cameras[i].project_mesh_verts(
                 self.pyvista_mesh.points, img, device=self.device
             )
             summed_values = summed_values + colors_per_vertex.data
@@ -204,32 +240,25 @@ class MultiviewMesh:
         plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
-    def get_rasterization_results(self, camera_ind: int, image_scale: float = 1.0):
+    def get_rasterization_results(
+        self, camera: MetashapeCamera, image_scale: float = 1.0
+    ):
         """Use pytorch3d to get correspondences between pixels and vertices
 
         Args:
-            camera_ind (int): Which camera to evaluate
+            camera (MetashapeCamera): Camera to get raster for
             img_scale (float): How much to resize the image by
 
         Returns:
             pytorch3d.PerspectiveCamera: The camera corresponding to the index
             pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+            np.ndarray: The loaded image
         """
         # Create a camera from the metashape parameters
-        camera = self.camera_set.cameras[camera_ind].get_pytorch3d_camera(self.device)
-
-        # Load the image
-        img = skimage.io.imread(self.camera_set.cameras[camera_ind].image_filename)
-        if img.dtype == np.uint8:
-            img = img / 255.0
-
-        if image_scale != 1.0:
-            img = skimage.transform.resize(
-                img, (int(img.shape[0] * image_scale), int(img.shape[1] * image_scale))
-            )
-
+        p3d_camera = camera.get_pytorch3d_camera(self.device)
+        image = camera.load_image(image_scale=image_scale)
         # Set up the rasterizer
-        image_size = img.shape[:2]
+        image_size = image.shape[:2]
         raster_settings = RasterizationSettings(
             image_size=image_size,
             blur_radius=0.0,
@@ -237,25 +266,32 @@ class MultiviewMesh:
         )
 
         # Don't wrap this in a MeshRenderer like normal because we need intermediate results
-        rasterizer = MeshRasterizer(cameras=camera, raster_settings=raster_settings).to(
-            self.device
-        )
+        rasterizer = MeshRasterizer(
+            cameras=p3d_camera, raster_settings=raster_settings
+        ).to(self.device)
 
         fragments = rasterizer(self.pytorch_mesh)
-        return camera, fragments, img
+        return p3d_camera, fragments, image
 
-    def aggregate_viewpoints_pytorch3d(self):
+    def aggregate_viewpoints_pytorch3d(self, camera_set: MetashapeCameraSet):
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
         This considers occlusions but is fairly slow
+
+        Args:
+            camera_set (MetashapeCameraSet): Set of cameras to aggregate
         """
+        # TODO add an option to do this with a lower-res image
+        # TODO make this return something meaningful rather than side effects/in place ops
+
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         face_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
         counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint8)
-        for i in tqdm(range(len(self.camera_set.cameras))):
+
+        for i in tqdm(range(len(camera_set.cameras))):
             _, fragments, img = self.get_intermediate_rendering_results(i)
-            # Set up inds
+            # Set up indices for indexing into the image
             if i == 0:
                 inds = np.meshgrid(
                     np.arange(img.shape[0]), np.arange(img.shape[1]), indexing="ij"
@@ -274,24 +310,31 @@ class MultiviewMesh:
         ).astype(np.uint8)
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
-    def render_pytorch3d(self, image_scale=1.0):
-        """Render an image from the viewpoint of each camera"""
+    def render_pytorch3d(self, camera_set: MetashapeCameraSet, image_scale=1.0):
+        """Render an image from the viewpoint of each camera
+
+        Args:
+            camera_set (MetashapeCameraSet): _description_
+            image_scale (float, optional): _description_. Defaults to 1.0.
+        """
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
-        inds = np.arange(len(self.camera_set.cameras))
+        inds = np.arange(len(camera_set.cameras))
         np.random.shuffle(inds)
 
         for i in tqdm(inds):
             # This part is shared across many tasks
-            camera, fragments, img = self.get_rasterization_results(
-                i, image_scale=image_scale
+            sfm_camera = camera_set.get_camera_by_index(i)
+
+            p3d_camera, fragments, img = self.get_rasterization_results(
+                sfm_camera, image_scale=image_scale
             )
 
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
             # Create a shader
             shader = HardGouraudShader(
-                device=self.device, cameras=camera, lights=lights
+                device=self.device, cameras=p3d_camera, lights=lights
             )
 
             # Render te images using the shader
