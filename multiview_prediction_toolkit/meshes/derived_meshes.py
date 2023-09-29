@@ -14,7 +14,7 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
-from multiview_prediction_toolkit.meshes.multiview_mesh import (
+from multiview_prediction_toolkit.meshes.meshes import (
     TexturedPhotogrammetryMesh,
 )
 

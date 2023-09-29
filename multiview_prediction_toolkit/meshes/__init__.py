@@ -3,6 +3,6 @@ from multiview_prediction_toolkit.meshes.derived_meshes import (
     DummyPhotogrammetryMesh,
     GeodataPhotogrammetryMesh,
 )
-from multiview_prediction_toolkit.meshes.multiview_mesh import (
+from multiview_prediction_toolkit.meshes.meshes import (
     TexturedPhotogrammetryMesh,
 )
