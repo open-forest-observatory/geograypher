@@ -10,8 +10,8 @@ from torch import NoneType
 
 
 class Segmentor:
-    def __init__(self):
-        pass
+    def __init__(self, num_classes=None):
+        self.num_classes = num_classes
 
     def setup(self, **kwargs) -> None:
         """This is for things like loading a model. It's fine to not override it if there's no setup"""
@@ -54,17 +54,20 @@ class Segmentor:
             np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False
         """
         max_ind = int(np.max(inds_image))
-        num_classes = num_classes if num_classes is not None else max_ind+1
+        num_classes = num_classes if num_classes is not None else max_ind + 1
 
-        one_hot_array = np.zeros((inds_image.shape[0], inds_image.shape[1], num_classes), dtype=bool)
+        one_hot_array = np.zeros(
+            (inds_image.shape[0], inds_image.shape[1], num_classes), dtype=bool
+        )
         # Iterate up to max ind, not num_classes to avoid wasted computation when there won't be matches
-        for i in range(max_ind+1):
+        for i in range(max_ind + 1):
             # TODO determine if there are any more efficient ways to do this
             # Maybe create all these slices and then concatenate
             # Or test equality with an array that has all the values in it
             one_hot_array[..., i] = inds_image == i
 
         return one_hot_array
+
 
 # class SegmentorPhotogrammetryCamera(PhotogrammetryCamera):
 #    def __init__(self, base_camera: PhotogrammetryCamera, segmentor: Segmentor):
@@ -144,3 +147,6 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
         return self.base_camera_set.get_image_by_index(
             index=index, image_scale=image_scale
         )
+
+    def n_image_channels(self) -> int:
+        return self.segmentor.num_classes

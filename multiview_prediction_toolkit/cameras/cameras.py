@@ -372,6 +372,9 @@ class PhotogrammetryCameraSet:
         """Return the number of cameras"""
         return len(self.cameras)
 
+    def n_image_channels(self) -> int:
+        return 3
+
     def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
         if index >= len(self.cameras):
             raise ValueError("Requested camera ind larger than list")

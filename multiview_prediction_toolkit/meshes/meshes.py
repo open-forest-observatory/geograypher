@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pyproj
 import pyvista as pv
+from scipy.datasets import face
 import skimage
 import torch
 from pytorch3d.renderer import (
@@ -104,8 +105,11 @@ class TexturedPhotogrammetryMesh:
 
     def create_texture(self, **kwargs):
         """Texture the mesh, potentially with other information"""
-        # Abstract method
-        raise NotImplementedError()
+        self.pytorch_mesh = Meshes(
+            verts=[self.verts],
+            faces=[self.faces],
+        )
+        self.pytorch_mesh = self.pytorch_mesh.to(self.device)
 
     def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
         """Apply a transform to the vertex coordinates
@@ -278,41 +282,93 @@ class TexturedPhotogrammetryMesh:
         fragments = rasterizer(self.pytorch_mesh)
         return p3d_camera, fragments
 
-    def aggregate_viewpoints_pytorch3d(self, camera_set: PhotogrammetryCamera):
+    def aggregate_viewpoints_pytorch3d(
+        self,
+        camera_set: PhotogrammetryCameraSet,
+        camera_inds=None,
+        image_scale: float = 1.0,
+    ):
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
         This considers occlusions but is fairly slow
 
         Args:
             camera_set (PhotogrammetryCamera): Set of cameras to aggregate
+            camera_inds: What images to use
+            image_scale (float): Scale images
         """
         # TODO add an option to do this with a lower-res image
         # TODO make this return something meaningful rather than side effects/in place ops
 
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
-        face_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
-        counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint8)
+        n_channels = camera_set.n_image_channels()
+        face_colors = np.zeros((self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32)
+        counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint16)
 
-        for i in tqdm(range(len(camera_set.cameras))):
-            _, fragments, img = self.get_intermediate_rendering_results(i)
-            # Set up indices for indexing into the image
-            if i == 0:
-                inds = np.meshgrid(
-                    np.arange(img.shape[0]), np.arange(img.shape[1]), indexing="ij"
-                )
-                flat_i_inds = inds[0].flatten()
-                flat_j_inds = inds[1].flatten()
+        # Set up indices for indexing into the image
+        img_shape = camera_set.get_camera_by_index(0).get_image_size(
+            image_scale=image_scale
+        )
+        inds = np.meshgrid(
+            np.arange(img_shape[0]), np.arange(img_shape[1]), indexing="ij"
+        )
+        flat_i_inds = inds[0].flatten()
+        flat_j_inds = inds[1].flatten()
 
+        if camera_inds is None:
+            # If camera inds are not defined, do them all in a random order
+            camera_inds = np.arange(len(camera_set.cameras))
+            np.random.shuffle(camera_inds)
+
+        for i in tqdm(camera_inds):
+            # Get the photogrammetry camera
+            pg_camera = camera_set.get_camera_by_index(i)
+            # Do the expensive step to get pixel-to-vertex correspondences
+            _, fragments = self.get_rasterization_results(
+                camera=pg_camera, image_scale=image_scale
+            )
+            # Load the image
+            img = camera_set.get_image_by_index(i, image_scale=image_scale)
+
+            ## Aggregate image information using the correspondences
+            # Extract the correspondences as a flat array
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-            new_colors = np.zeros((self.pyvista_mesh.n_faces, 3), dtype=np.uint32)
+            # Build an array to store the new colors
+            new_colors = np.zeros(
+                (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
+            )
+            # Index the image to fill this array
+            # TODO find a way to do this better if there are multiple pixels per face
+            # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
             new_colors[pix_to_face] = img[flat_i_inds, flat_j_inds]
+            # Update the face colors
             face_colors = face_colors + new_colors
+            # Find unique face indices because we can't increment multiple times like ths
             unique_faces = np.unique(pix_to_face)
             counts[unique_faces] = counts[unique_faces] + 1
-        self.pyvista_mesh["face_colors"] = (
-            face_colors / np.expand_dims(counts, 1)
-        ).astype(np.uint8)
+
+        normalized_face_colors = face_colors / np.expand_dims(counts, 1)
+        return normalized_face_colors, face_colors, counts
+
+    def show_face_textures(self, face_textures):
+        if face_textures is None:
+            raise ValueError("No face textures")
+
+        if len(face_textures.shape) == 1:
+            self.pyvista_mesh["face_colors"] = face_textures
+            self.pyvista_mesh.plot(scalars="face_colors", rgb=False)
+            return
+
+        if face_textures.shape[1] > 3:
+            face_colors = face_textures[:, :3]
+        else:
+            padding_array = np.zeros(
+                (face_textures.shape[0], 3 - face_textures.shape[1])
+            )
+            face_colors = np.concatenate((face_textures, padding_array), axis=1)
+
+        self.pyvista_mesh["face_colors"] = face_colors
         self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
 
     def render_pytorch3d(
