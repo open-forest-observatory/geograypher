@@ -65,4 +65,6 @@ Note that the CyVerse WebDav server is not particularly powerful so they request
 The website provides a good overview of how to use `dvc`. In most cases, all you need to do is `dvc pull <filename>` to obtain the data.
 
 ### Running
-Currently the only entrypoint is `semantic_mesh_pytorch3d/entrypoints/mesh_render.py`. The command line interface provides several options that are described there.
+One entrypoint is `multiview_prediction_toolkit/entrypoints/mesh_render.py`. The command line interface provides several options that are described there.
+
+There are also scripts in `dev`. The aim of these is to for prototyping specific tasks in a way that is more specific or less generic. Ideally, after sufficient development, these scripts will be moved into `entrypoints` or deleted in unnecessary. 
