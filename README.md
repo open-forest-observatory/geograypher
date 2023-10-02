@@ -50,7 +50,17 @@ ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/bin/../lib/
 ```
 
 ### Example data
-Data for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive and you must have access to this [folder](https://drive.google.com/drive/folders/1vnnodshTUeZ6zXPdSdr9OPpYTU1dVdzk). If you are a collaborator and need the data, contact <djrussell@ucdavis.edu>.
+Data for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on the CyVerse Data Store and you must have access to this [folder](https://de.cyverse.org/data/ds/iplant/home/shared/ofo/internal/DVC_test/multiview_prediction_toolkit_DVC). If you are a collaborator and need the data, contact <djrussell@ucdavis.edu>.
+
+Then you need to add your account credentials with
+```
+dvc remote modify --local cyverse user <cyverse username>
+dvc remote modify --local cyverse password <cyverse password>
+```
+
+Note that the local flag adds this information to a the `.dvc/config.local` file. Your password is now stored in plaintext on your machine, so use caution. This file is not tracked by git, or else you'd expose your passwords to the outside world.
+
+Note that the CyVerse WebDav server is not particularly powerful so they requested we keep the number of workers to 5. This is the `jobs` field in the `.dvc/config` file.
 
 The website provides a good overview of how to use `dvc`. In most cases, all you need to do is `dvc pull <filename>` to obtain the data.
 
