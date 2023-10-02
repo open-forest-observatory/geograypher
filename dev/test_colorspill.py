@@ -38,13 +38,13 @@ mesh_wout_colorspill.vis(
     title="without colorspill",
 )
 
-mesh_w_colorspill.render_pytorch3d(
+mesh_w_colorspill.visualize_renders_pytorch3d(
     camera_set=camera_set,
     image_scale=IMAGE_SCALE,
     camera_indices=CAMERA_INDICES,
     render_folder="colorspill",
 )
-mesh_wout_colorspill.render_pytorch3d(
+mesh_wout_colorspill.visualize_renders_pytorch3d(
     camera_set=camera_set,
     image_scale=IMAGE_SCALE,
     camera_indices=CAMERA_INDICES,

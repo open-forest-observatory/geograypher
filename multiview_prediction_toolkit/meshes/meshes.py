@@ -19,7 +19,7 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
 
 
 class TexturedPhotogrammetryMesh:
@@ -259,13 +259,11 @@ class TexturedPhotogrammetryMesh:
         Returns:
             pytorch3d.PerspectiveCamera: The camera corresponding to the index
             pytorch3d.Fragments: The rendering results from the rasterer, before the shader
-            np.ndarray: The loaded image
         """
+
         # Create a camera from the metashape parameters
         p3d_camera = camera.get_pytorch3d_camera(self.device)
-        image = camera.load_image(image_scale=image_scale)
-        # Set up the rasterizer
-        image_size = image.shape[:2]
+        image_size = camera.get_image_size(image_scale=image_scale)
         raster_settings = RasterizationSettings(
             image_size=image_size,
             blur_radius=0.0,
@@ -278,7 +276,7 @@ class TexturedPhotogrammetryMesh:
         ).to(self.device)
 
         fragments = rasterizer(self.pytorch_mesh)
-        return p3d_camera, fragments, image
+        return p3d_camera, fragments
 
     def aggregate_viewpoints_pytorch3d(self, camera_set: PhotogrammetryCamera):
         """
@@ -320,11 +318,10 @@ class TexturedPhotogrammetryMesh:
     def render_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
-        image_scale=1.0,
-        camera_indices=None,
-        render_folder="mesh",
+        image_scale: float = 1.0,
+        camera_index=None,
     ):
-        """Render an image from the viewpoint of each camera
+        """Render an image from the viewpoint of a single camera
 
         Args:
             camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
@@ -333,34 +330,62 @@ class TexturedPhotogrammetryMesh:
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
         """
+        # Get the photogrametery camera
+        pg_camera = camera_set.get_camera_by_index(camera_index)
+
+        # This part is shared across many tasks
+        p3d_camera, fragments = self.get_rasterization_results(
+            pg_camera, image_scale=image_scale
+        )
+
+        # Create ambient light so it doesn't effect the color
+        lights = AmbientLights(device=self.device)
+        # Create a shader
+        shader = HardGouraudShader(
+            device=self.device, cameras=p3d_camera, lights=lights
+        )
+
+        # Render te images using the shader
+        images = shader(fragments, self.pytorch_mesh)
+
+        # Extract the image
+        rendered = images[0].cpu().numpy()
+        return rendered
+
+    def visualize_renders_pytorch3d(
+        self,
+        camera_set: PhotogrammetryCameraSet,
+        image_scale=1.0,
+        camera_indices=None,
+        render_folder="renders",
+    ):
+        """Render an image from the viewpoint of each specified camera and save a composite
+
+        Args:
+            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            image_scale (float, optional):
+                Multiplier on the real image scale to obtain size for rendering. Lower values
+                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
+            camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
+            render_folder (PATH_TYPE, optional): Save images to this folder within vis. Default "renders"
+        """
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
         if camera_indices is None:
             camera_indices = np.arange(len(camera_set.n_cameras()))
             np.random.shuffle(camera_indices)
 
+        save_folder = Path(VIS_FOLDER, render_folder)
+        save_folder.mkdir(parents=True, exist_ok=True)
+
         for i in tqdm(camera_indices):
-            # This part is shared across many tasks
-            pg_camera = camera_set.get_camera_by_index(i)
-
-            p3d_camera, fragments, img = self.get_rasterization_results(
-                pg_camera, image_scale=image_scale
+            rendered = self.render_pytorch3d(
+                camera_set=camera_set, image_scale=image_scale, camera_index=i
             )
-
-            # Create ambient light so it doesn't effect the color
-            lights = AmbientLights(device=self.device)
-            # Create a shader
-            shader = HardGouraudShader(
-                device=self.device, cameras=p3d_camera, lights=lights
-            )
-
-            # Render te images using the shader
-            images = shader(fragments, self.pytorch_mesh)
-
-            # Extract and save images
-            rendered = images[0, ..., :3].cpu().numpy()
+            img = camera_set.get_camera_by_index(i).get_image(image_scale=image_scale)
+            rendered = rendered[..., : img.shape[-1]]
             composite = (
                 np.clip(np.concatenate((img, rendered, (img + rendered) / 2.0)), 0, 1)
                 * 255
             ).astype(np.uint8)
-            skimage.io.imsave(f"vis/{render_folder}/render_{i:03d}.png", composite)
+            skimage.io.imsave(f"{save_folder}/render_{i:03d}.png", composite)

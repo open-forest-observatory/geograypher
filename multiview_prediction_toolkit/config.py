@@ -8,6 +8,9 @@ PATH_TYPE = Union[str, Path]
 ## Path constants
 # Where all the data is stored
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
+# Where to save vis data
+VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
+
 # Images for one metashape project used as an example
 DEFAULT_IMAGES_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "images"))
 

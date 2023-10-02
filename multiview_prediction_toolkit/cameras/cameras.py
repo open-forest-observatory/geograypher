@@ -43,12 +43,13 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
 
+        self.image_size = (image_height, image_width)
         self.image = None
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
 
-    def load_image(self, image_scale: float = 1.0) -> np.ndarray:
+    def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
         if self.image is None:
             image = imread(self.image_filename)
@@ -69,6 +70,29 @@ class PhotogrammetryCamera:
             )
 
         return image
+
+    def get_image_size(self, image_scale=1.0):
+        """Return image size, potentially scaled
+
+        Args:
+            image_scale (float, optional): How much to scale by. Defaults to 1.0.
+
+        Returns:
+            tuple[int]: (h, w) in pixels
+        """
+        # We should never have to deal with other cases if the reported size is accurate
+        if self.image_size is not None:
+            pass
+        elif self.image is not None:
+            self.image_size = self.image.shape[:2]
+        else:
+            image = self.get_image()
+            self.image_size = image.shape[:2]
+
+        return (
+            int(self.image_size[0] * image_scale),
+            int(self.image_size[1] * image_scale),
+        )
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
