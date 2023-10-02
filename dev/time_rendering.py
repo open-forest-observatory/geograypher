@@ -12,7 +12,7 @@ from pathlib import Path
 import time
 
 IMAGE_SCALES = np.geomspace(0.05, 1, num=20)
-SAVEFILE = Path(VIS_FOLDER, "image_scale_timing.png") 
+SAVEFILE = Path(VIS_FOLDER, "image_scale_timing.png")
 
 camera_set = MetashapeCameraSet(
     camera_file=DEFAULT_CAM_FILE, image_folder=DEFAULT_IMAGES_FOLDER
@@ -33,6 +33,6 @@ for image_scale in IMAGE_SCALES:
     times_taken.append(float(time.time() - start_time))
     plt.xlabel("image scale")
     plt.ylabel(f"Time (s) taken to render {len(CAMERA_INDICES)} images")
-    plt.plot(IMAGE_SCALES[:len(times_taken)], times_taken)
+    plt.plot(IMAGE_SCALES[: len(times_taken)], times_taken)
     plt.savefig(SAVEFILE)
     plt.clf()

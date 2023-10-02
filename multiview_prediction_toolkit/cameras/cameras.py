@@ -377,6 +377,9 @@ class PhotogrammetryCameraSet:
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]
 
+    def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
+        return self.get_camera_by_index(index).get_image(image_scale=image_scale)
+
     def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
         """Visualize all the cameras
 
