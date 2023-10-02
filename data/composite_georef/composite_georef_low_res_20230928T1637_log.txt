@@ -1,0 +1,109 @@
+Project; composite_georef_low_res_20230928T1637
+Agisoft Metashape Professional Version; 2.0.0
+Processing started; 20230928T1638
+Node; dev-07-derek-9-david-1
+CPU; x86_64
+Number of GPUs Found; 1
+GPU Model; GRID A100X-10C
+GPU Mask; 4294967295
+Build DEM; 38.6
+Run Completed; 20230928T1639
+
+
+### CONFIGURATION ###
+addGCPs:
+  enabled: false
+  gcp_crs: EPSG::26910
+  marker_location_accuracy: 0.1
+  marker_projection_accuracy: 8
+  optimize_w_gcps_only: true
+alignPhotos:
+  adaptive_fitting: true
+  downscale: 2
+  enabled: false
+  export: true
+  generic_preselection: true
+  keep_keypoints: true
+  reference_preselection: true
+  reference_preselection_mode: Metashape.ReferencePreselectionSource
+  reset_alignment: false
+buildDem:
+  classify_ground_points: false
+  enabled: true
+  export: true
+  nodata: -32767
+  tiff_big: true
+  tiff_overviews: true
+  tiff_tiled: false
+  type: both
+buildDepthMap:
+  downscale: 2
+  enabled: false
+  filter_mode: Metashape.ModerateFiltering
+  max_neighbors: 100
+  reuse_depth: false
+buildModel:
+  enabled: false
+  export_extension: ply
+  export_georeferenced: true
+  export_local: true
+  face_count: Metashape.MediumFaceCount
+  face_count_custom: 100000
+buildOrthomosaic:
+  blending: Metashape.MosaicBlending
+  enabled: false
+  export: true
+  fill_holes: true
+  nodata: -32767
+  refine_seamlines: true
+  surface: DTMandDSM
+  tiff_big: true
+  tiff_overviews: true
+  tiff_tiled: false
+  usgs_dem_crs: EPSG::4269
+  usgs_dem_path: dem_usgs/dem_usgs.tif
+buildPointCloud:
+  classes: ALL
+  classify_ground_points: true
+  downscale: 2
+  enabled: false
+  export: true
+  filter_mode: Metashape.ModerateFiltering
+  keep_depth: false
+  max_neighbors: 100
+  reuse_depth: false
+calibrateReflectance:
+  enabled: false
+  panel_filename: RP04-1923118-OB.csv
+  use_reflectance_panels: true
+  use_sun_sensor: true
+classifyGroundPoints:
+  cell_size: 50.0
+  max_angle: 15.0
+  max_distance: 1.0
+filterPointsUSGS:
+  enabled: false
+  proj_thresh_absolute: 2
+  proj_thresh_percent: 30
+  rec_thresh_absolute: 15
+  rec_thresh_percent: 20
+  reproj_thresh_absolute: 0.3
+  reproj_thresh_percent: 5
+fix_accuracy: 3
+gpu_multiplier: 2
+load_project: /ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_20230520T0519_david_georef.psx
+multispectral: false
+nofix_accuracy: 25
+optimizeCameras:
+  adaptive_fitting: true
+  enabled: false
+  export: true
+output_path: /ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef
+photo_path: /ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/images
+project_crs: EPSG::4326
+project_path: /ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef
+run_name: composite_georef_low_res
+subdivide_task: true
+use_cuda: true
+use_rtk: true
+### END CONFIGURATION ###
