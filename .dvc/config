@@ -1,5 +1,6 @@
 [core]
     autostage = true
-    remote = gdrive
-['remote "gdrive"']
-    url = gdrive://1vnnodshTUeZ6zXPdSdr9OPpYTU1dVdzk
+    remote = cyverse
+['remote "cyverse"']
+    url = webdavs://data.cyverse.org/dav/iplant/projects/ofo/internal/DVC_test/multiview_prediction_toolkit_DVC
+    jobs = 5

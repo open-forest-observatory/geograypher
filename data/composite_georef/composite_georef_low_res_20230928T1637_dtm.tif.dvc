@@ -1,0 +1,5 @@
+outs:
+- md5: f12558abee81cfa4ed8893d9c64d3e34
+  size: 74137132
+  hash: md5
+  path: composite_georef_low_res_20230928T1637_dtm.tif

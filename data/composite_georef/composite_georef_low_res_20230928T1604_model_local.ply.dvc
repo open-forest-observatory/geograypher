@@ -1,0 +1,5 @@
+outs:
+- md5: 8afd30e1c8b01984419a0ae53150347d
+  size: 95771458
+  hash: md5
+  path: composite_georef_low_res_20230928T1604_model_local.ply
