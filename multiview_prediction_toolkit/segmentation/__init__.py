@@ -1,0 +1,1 @@
+from multiview_prediction_toolkit.segmentation.segmentor import Segmentor
