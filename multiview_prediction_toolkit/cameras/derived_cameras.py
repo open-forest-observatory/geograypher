@@ -77,7 +77,6 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             for filename in self.image_filenames
         ]  # Assume there's only one file with that extension
 
-
     def make_4x4_transform(
         self, rotation_str: str, translation_str: str, scale_str: str = "1"
     ):
