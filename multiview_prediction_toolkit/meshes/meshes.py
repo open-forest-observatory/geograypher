@@ -26,14 +26,11 @@ class TexturedPhotogrammetryMesh:
     def __init__(
         self, mesh_filename: PATH_TYPE, downsample_target: float = 1.0, **kwargs
     ):
-        """This object handles most of the high-level operations in this project
+        """_summary_
 
         Args:
-            mesh_filename (PATH_TYPE): Path to mesh in metashape's local coordinate system, .ply type
-            camera_filename (PATH_TYPE): Path to the .xml metashape camera output
-            image_folder (PATH_TYPE): Path to the folders used for reconstruction
-            texture_enum (int, optional): Which type of texture to use. 0 is the real color,
-                                          1 is a dummy texture, and 2 is from a geofile. Defaults to 0.
+            mesh_filename (PATH_TYPE): Path to the mesh, in a format pyvista can read
+            downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
         """
         self.mesh_filename = Path(mesh_filename)
         self.downsample_target = downsample_target
@@ -87,6 +84,7 @@ class TexturedPhotogrammetryMesh:
             )
 
         # Load the mesh using pyvista
+        # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
         self.pyvista_mesh = pv.read(self.mesh_filename)
         # Downsample mesh if needed
         if downsample_target != 1.0:
@@ -204,6 +202,7 @@ class TexturedPhotogrammetryMesh:
         interactive=False,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
+        **plotter_kwargs,
     ):
         """Show the mesh and cameras
 
@@ -219,7 +218,7 @@ class TexturedPhotogrammetryMesh:
         plotter.add_mesh(self.pyvista_mesh, rgb=True)
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
-        plotter.show(screenshot=screenshot_filename)
+        plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """

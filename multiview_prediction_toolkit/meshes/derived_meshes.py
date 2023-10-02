@@ -176,7 +176,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 .to(torch.bool)
             )
         else:
-            is_tree = inside_tree_polygon.to(self.device).to(torch.bool)
+            is_tree = torch.Tensor(inside_tree_polygon).to(self.device).to(torch.bool)
 
         self.texture_with_binary_mask(
             is_tree,
@@ -188,7 +188,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def create_texture(
         self,
         geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
-        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
+        DEM_file: PATH_TYPE = None,
         ground_height_threshold=2,
         vis: bool = False,
     ):

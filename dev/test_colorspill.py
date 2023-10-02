@@ -1,5 +1,3 @@
-from numpy import arange
-
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
     DEFAULT_CAM_FILE,
@@ -27,9 +25,17 @@ mesh_wout_colorspill = GeodataPhotogrammetryMesh(
     ground_height_threshold=2,
 )
 
-mesh_w_colorspill.vis(interactive=True, screenshot_filename="vis/colorspill_mesh.png")
+mesh_w_colorspill.vis(
+    interactive=True,
+    screenshot_filename="vis/colorspill_mesh.png",
+    window_size=(2000, 1600),
+    title="colorspill",
+)
 mesh_wout_colorspill.vis(
-    interactive=True, screenshot_filename="vis/no_colorspill_mesh.png"
+    interactive=True,
+    screenshot_filename="vis/no_colorspill_mesh.png",
+    window_size=(2000, 1600),
+    title="without colorspill",
 )
 
 mesh_w_colorspill.render_pytorch3d(
