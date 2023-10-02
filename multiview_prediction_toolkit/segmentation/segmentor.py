@@ -40,7 +40,7 @@ class Segmentor:
             segmentations.append(segmentation)
         return segmentations
 
-    @abstractmethod
+    @staticmethod
     def inds_to_one_hot(
         inds_image: np.ndarray, num_classes: typing.Union[int, NoneType] = None
     ) -> np.ndarray:
@@ -51,10 +51,20 @@ class Segmentor:
             num_classes (int, NoneType): The number of classes. If None, computed as the max index provided. Default None
 
         Returns:
-            np.ndarray: (m, n, num_classes) array with one channel filled with a 1, all else 0
+            np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False
         """
-        raise NotImplementedError()
+        max_ind = int(np.max(inds_image))
+        num_classes = num_classes if num_classes is not None else max_ind+1
 
+        one_hot_array = np.zeros((inds_image.shape[0], inds_image.shape[1], num_classes), dtype=bool)
+        # Iterate up to max ind, not num_classes to avoid wasted computation when there won't be matches
+        for i in range(max_ind+1):
+            # TODO determine if there are any more efficient ways to do this
+            # Maybe create all these slices and then concatenate
+            # Or test equality with an array that has all the values in it
+            one_hot_array[..., i] = inds_image == i
+
+        return one_hot_array
 
 # class SegmentorPhotogrammetryCamera(PhotogrammetryCamera):
 #    def __init__(self, base_camera: PhotogrammetryCamera, segmentor: Segmentor):
@@ -127,7 +137,7 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
 
     def get_image_by_index(self, index: int, image_scale: float = 1) -> np.ndarray:
         raw_image = self.base_camera_set.get_image_by_index(index, image_scale)
-        segmented_image = self.segmentor(raw_image)
+        segmented_image = self.segmentor.segment_image(raw_image)
         return segmented_image
 
     def get_raw_image_by_index(self, index: int, image_scale: float = 1) -> np.ndarray:
