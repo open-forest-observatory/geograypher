@@ -31,15 +31,19 @@ segmentation_camera_set = SegmentorPhotogrammetryCameraSet(
 )
 
 # Use every fifth camera for texturing
-camera_inds = np.arange(0, base_camera_set.n_cameras(), 10)
+camera_inds = np.arange(0, base_camera_set.n_cameras(), 2)
 # Actually perform the texturing process, which returns three quantities
 normalized_face_colors, face_colors, counts = mesh.aggregate_viewpoints_pytorch3d(
     segmentation_camera_set, image_scale=IMAGE_SCALE, camera_inds=camera_inds
 )
 # Show the normalized face color (two color)
-mesh.show_face_textures(normalized_face_colors, screenshot_file="vis/two_class_segmentation.png")
+mesh.show_face_textures(
+    normalized_face_colors, screenshot_file="vis/two_class_segmentation.png"
+)
 # Show the first channel of the normalized fact colors (scalar)
-mesh.show_face_textures(normalized_face_colors[:, 0], screenshot_file="vis/one_class_segmentation.png")
+mesh.show_face_textures(
+    normalized_face_colors[:, 0], screenshot_file="vis/one_class_segmentation.png"
+)
 # Show the number of times each location was observed (scalar)
 mesh.show_face_textures(counts, screenshot_file="vis/view_counts.png")
 

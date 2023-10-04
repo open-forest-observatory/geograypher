@@ -378,7 +378,7 @@ class TexturedPhotogrammetryMesh:
                 rgb=False,
                 full_screen=True,
                 screenshot=screenshot_file,
-                off_screen=off_screen ,
+                off_screen=off_screen,
             )
             return
 
