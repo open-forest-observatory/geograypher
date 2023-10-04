@@ -351,15 +351,38 @@ class TexturedPhotogrammetryMesh:
         normalized_face_colors = face_colors / np.expand_dims(counts, 1)
         return normalized_face_colors, face_colors, counts
 
-    def show_face_textures(self, face_textures):
+    def show_face_textures(
+        self,
+        face_textures: np.ndarray,
+        screenshot_file: str = None,
+        off_screen: bool = False,
+    ):
+        """Plot the mesh with a given face texturing
+
+        Args:
+            face_textures (np.ndarray): (n_faces, n_channels) or (n_faces,) array of values from (0,1)
+
+        Raises:
+            ValueError: Face textures are None
+        """
         if face_textures is None:
             raise ValueError("No face textures")
 
+        off_screen = off_screen or (screenshot_file is not None)
+
+        # If it's a scalar plot as such
         if len(face_textures.shape) == 1:
             self.pyvista_mesh["face_colors"] = face_textures
-            self.pyvista_mesh.plot(scalars="face_colors", rgb=False)
+            self.pyvista_mesh.plot(
+                scalars="face_colors",
+                rgb=False,
+                full_screen=True,
+                screenshot=screenshot_file,
+                off_screen=off_screen ,
+            )
             return
 
+        # Else, clip or pad to three channels
         if face_textures.shape[1] > 3:
             face_colors = face_textures[:, :3]
         else:
@@ -368,8 +391,16 @@ class TexturedPhotogrammetryMesh:
             )
             face_colors = np.concatenate((face_textures, padding_array), axis=1)
 
+        # Set the face colors
         self.pyvista_mesh["face_colors"] = face_colors
-        self.pyvista_mesh.plot(scalars="face_colors", rgb=True)
+        # Plot
+        self.pyvista_mesh.plot(
+            scalars="face_colors",
+            rgb=True,
+            full_screen=True,
+            screenshot=screenshot_file,
+            off_screen=off_screen,
+        )
 
     def render_pytorch3d(
         self,
