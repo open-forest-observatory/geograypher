@@ -13,6 +13,7 @@ from pytorch3d.renderer import (
     RasterizationSettings,
     TexturesVertex,
 )
+from collections import Counter
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 
@@ -100,8 +101,8 @@ class TexturedPhotogrammetryMesh:
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
 
-        self.verts = torch.Tensor(verts.copy()).to(self.device)
-        self.faces = torch.Tensor(faces.copy()).to(self.device)
+        self.verts = verts.copy()
+        self.faces = faces.copy()
 
     def create_texture(self, **kwargs):
         """Texture the mesh, potentially with other information"""
@@ -198,7 +199,9 @@ class TexturedPhotogrammetryMesh:
         # Create a pytorch3d texture and add it to the mesh
         textures = TexturesVertex(verts_features=colors_tensor)
         self.pytorch_mesh = Meshes(
-            verts=[self.verts], faces=[self.faces], textures=textures
+            verts=[torch.Tensor(self.verts).to(self.device)],
+            faces=[torch.Tensor(self.faces).to(self.device)],
+            textures=textures,
         )
 
     def vis(
@@ -223,6 +226,41 @@ class TexturedPhotogrammetryMesh:
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
         plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
+
+    def face_to_vert_IDs(self, face_IDs):
+        """_summary_
+
+        Args:
+            face_IDs (np.array): (n_faces,) The integer IDs of the faces
+        """
+        # TODO figure how to have a NaN class that
+        for i in tqdm(range(self.verts.shape[0])):
+            # Find which faces are using this vertex
+            matching = np.sum(self.faces==i, axis=1)
+            #matching_inds = np.where(matching)[0]
+            #matching_IDs = face_IDs[matching_inds]
+            #most_common_ind = Counter(matching_IDs).most_common(1)
+
+
+    def vert_to_face_IDs(self, vert_IDs):
+        # Each row contains the IDs of each vertex
+        IDs_per_face = vert_IDs[self.faces]
+        # Now we need to "vote" for the best one
+        max_ID = np.max(vert_IDs)
+        # TODO consider using unique if these indices are sparse
+        counts_per_class_per_face = np.array(
+            [np.sum(IDs_per_face == i, axis=1) for i in range(max_ID + 1)]
+        ).T
+        # We want to fairly tiebreak since np.argmax will always take th first index
+        # This is hard to do in a vectorized way, so we just add a small random value
+        # independently to each element
+        counts_per_class_per_face = (
+            counts_per_class_per_face
+            + np.random.random(counts_per_class_per_face.shape) * 0.5
+        )
+        most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
+
+        return most_common_class_per_face
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """

@@ -34,6 +34,8 @@ DEFAULT_CAM_FILE = str(
 DEFAULT_GEOPOLYGON_FILE = str(
     Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_crowns.gpkg")
 )
+# Example field reference data
+DEFAULT_GEO_POINTS_FILE = str(Path(DATA_FOLDER, "ept_trees_01_rectified_inclSmall.geojson"))
 # Example digital elevation model
 DEFAULT_DEM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
 

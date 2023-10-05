@@ -134,7 +134,22 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         """
         # Read the polygon data about the tree crown segmentation
         geo_polygons = gpd.read_file(geo_polygon_file)
+        geo_polygons.plot()
+
+        split_by_species = list(geo_polygons.groupby("Species", axis=0))
+        species_multipolygons = []
+        for species_code, species_df in split_by_species:
+            species_df["circle"] = species_df["geometry"].buffer(1)
+            species_multipolygons.append(species_df.dissolve())
+        breakpoint()
+        # Create a circle from each of these points
+        # Group each set into a multi-polygon 
+        # Find the intersection of any pair
+        # Exclude this 
+        # Or just let things get overridden
+
         # Get the vertices in the same CRS as the geofile
+        breakpoint()
         verts_in_geopolygon_crs = self.get_vertices_in_CRS(geo_polygons.crs)
 
         # Taken from https://www.matecdev.com/posts/point-in-polygon.html
@@ -177,6 +192,8 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             )
         else:
             is_tree = torch.Tensor(inside_tree_polygon).to(self.device).to(torch.bool)
+
+        self.vert_to_face_IDs(is_tree.cpu().numpy().astype(int))
 
         self.texture_with_binary_mask(
             is_tree,
