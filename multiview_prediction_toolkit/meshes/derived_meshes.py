@@ -1,12 +1,19 @@
 import geopandas as gpd
+from matplotlib import legend
+from networkx import union
 import numpy as np
 import pandas as pd
 import rasterio as rio
 import torch
+import matplotlib.pyplot as plt
 from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
 from scipy.spatial.distance import cdist
-from shapely import Point
+from shapely import Point, MultiPolygon
+from shapely.validation import make_valid
+from shapely import difference
+from geopandas import GeoDataFrame
+
 
 from multiview_prediction_toolkit.config import (
     COLORS,
@@ -15,6 +22,10 @@ from multiview_prediction_toolkit.config import (
     PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
+from multiview_prediction_toolkit.meshes.utils import (
+    find_union_of_intersections,
+    get_projected_CRS,
+)
 
 
 class ColorPhotogrammetryMesh(TexturedPhotogrammetryMesh):
@@ -118,6 +129,38 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             color_false=np.array(COLORS["canopy"]) / 255.0,
         )
 
+    def create_texture_geopoints(self, geopoints_file, radius_meters=1):
+        geopoints = gpd.read_file(geopoints_file)
+        first_point = geopoints["geometry"][0]
+        projected_CRS = get_projected_CRS(first_point.y, first_point.x)
+        # transfrom to a projective CRS
+        geopoints = geopoints.to_crs(crs=projected_CRS)
+        geopolygons = geopoints
+        geopolygons["geometry"] = geopoints["geometry"].buffer(radius_meters)
+
+        # geopolygons.plot(column="Species", legend=True)
+        # plt.show()
+
+        split_by_species = list(geopolygons.groupby("Species", axis=0))
+        species_multipolygon_dict = {
+            species_ID: make_valid(species_df.unary_union)
+            for species_ID, species_df in split_by_species
+        }
+        union_of_intrsections = find_union_of_intersections(
+            list(species_multipolygon_dict.values()), crs=projected_CRS
+        )
+        species_multipolygon_dict = {
+            species_ID: difference(species_multipolygon, union_of_intrsections)
+            for species_ID, species_multipolygon in species_multipolygon_dict.items()
+        }
+        if True:
+            geopandas_all_species = GeoDataFrame(
+                geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
+            )
+            geopandas_all_species["species"] = list(species_multipolygon_dict.keys())
+            geopandas_all_species.plot("species", legend=True)
+            plt.show()
+
     def create_texture_geopolygon(
         self,
         geo_polygon_file: PATH_TYPE = None,
@@ -132,20 +175,14 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
             vis (bool, optional): Show the texture. Defaults to False.
         """
+        self.create_texture_geopoints(geopoints_file=geo_polygon_file)
         # Read the polygon data about the tree crown segmentation
         geo_polygons = gpd.read_file(geo_polygon_file)
-        geo_polygons.plot()
 
-        split_by_species = list(geo_polygons.groupby("Species", axis=0))
-        species_multipolygons = []
-        for species_code, species_df in split_by_species:
-            species_df["circle"] = species_df["geometry"].buffer(1)
-            species_multipolygons.append(species_df.dissolve())
-        breakpoint()
         # Create a circle from each of these points
-        # Group each set into a multi-polygon 
+        # Group each set into a multi-polygon
         # Find the intersection of any pair
-        # Exclude this 
+        # Exclude this
         # Or just let things get overridden
 
         # Get the vertices in the same CRS as the geofile

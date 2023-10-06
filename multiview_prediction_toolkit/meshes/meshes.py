@@ -236,11 +236,10 @@ class TexturedPhotogrammetryMesh:
         # TODO figure how to have a NaN class that
         for i in tqdm(range(self.verts.shape[0])):
             # Find which faces are using this vertex
-            matching = np.sum(self.faces==i, axis=1)
-            #matching_inds = np.where(matching)[0]
-            #matching_IDs = face_IDs[matching_inds]
-            #most_common_ind = Counter(matching_IDs).most_common(1)
-
+            matching = np.sum(self.faces == i, axis=1)
+            # matching_inds = np.where(matching)[0]
+            # matching_IDs = face_IDs[matching_inds]
+            # most_common_ind = Counter(matching_IDs).most_common(1)
 
     def vert_to_face_IDs(self, vert_IDs):
         # Each row contains the IDs of each vertex
