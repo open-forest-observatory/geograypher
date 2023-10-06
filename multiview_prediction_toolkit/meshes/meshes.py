@@ -219,7 +219,7 @@ class TexturedPhotogrammetryMesh:
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
         """
         plotter = pv.Plotter(
-            off_screen=(not interactive) or (screenshot_filename is None)
+            off_screen=(not interactive) or (screenshot_filename is not None)
         )
 
         plotter.add_mesh(self.pyvista_mesh, rgb=True)

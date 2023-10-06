@@ -80,6 +80,43 @@ class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
 
 class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
+    def get_verts_geodataframe(self, crs, east_is_first=True):
+        # Get the vertices in the same CRS as the geofile
+        verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
+
+        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
+        # Convert points into georeferenced dataframe
+        # TODO consider removing this line since it's not strictly needed
+        df = pd.DataFrame(
+            {
+                "east": verts_in_geopolygon_crs[:, 0],
+                "north": verts_in_geopolygon_crs[:, 1],
+            }
+        )
+        df["coords"] = list(zip(df["east"], df["north"]))
+        df["coords"] = df["coords"].apply(Point)
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=crs)
+
+        # Add an index column because the normal index will not be preserved in future operations
+        points["id"] = df.index
+
+        return points
+
+    def get_values_from_geopandas(
+        self, geopandas_df: GeoDataFrame, geopandas_column: str
+    ):
+        points = self.get_verts_geodataframe(geopandas_df.crs)
+
+        # Select points that are within the polygons
+        points_in_polygons = gpd.tools.overlay(points, geopandas_df, how="intersection")
+        # Create an array corresponding to all the points and initialize to NaN
+        values = np.full(shape=points.shape[0], fill_value=np.nan)
+        # Assign points that are inside a given tree with that tree's ID
+        values[points_in_polygons["id"].to_numpy()] = points_in_polygons[
+            geopandas_column
+        ].to_numpy()
+        return values
+
     def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM_FILE):
         """Compute the height above groun for each point on the mesh
 
@@ -129,18 +166,29 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             color_false=np.array(COLORS["canopy"]) / 255.0,
         )
 
-    def create_texture_geopoints(self, geopoints_file, radius_meters=1):
+    def create_texture_geopoints(
+        self, geopoints_file: PATH_TYPE, radius_meters: float = 1, vis: bool = True
+    ):
+        """_summary_
+
+        Args:
+            geopoints_file (PATH_TYPE): _description_
+            radius_meters (float, optional): _description_. Defaults to 1.
+            vis (bool, optional): _description_. Defaults to True.
+        """
+        # Read in the data
         geopoints = gpd.read_file(geopoints_file)
+        # Determine the projective CRS for the region since many operation don't work on geographic CRS
         first_point = geopoints["geometry"][0]
         projected_CRS = get_projected_CRS(first_point.y, first_point.x)
+
         # transfrom to a projective CRS
         geopoints = geopoints.to_crs(crs=projected_CRS)
+        # Now create circles around each point
         geopolygons = geopoints
         geopolygons["geometry"] = geopoints["geometry"].buffer(radius_meters)
 
-        # geopolygons.plot(column="Species", legend=True)
-        # plt.show()
-
+        # Split
         split_by_species = list(geopolygons.groupby("Species", axis=0))
         species_multipolygon_dict = {
             species_ID: make_valid(species_df.unary_union)
@@ -153,13 +201,22 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             species_ID: difference(species_multipolygon, union_of_intrsections)
             for species_ID, species_multipolygon in species_multipolygon_dict.items()
         }
-        if True:
-            geopandas_all_species = GeoDataFrame(
-                geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
-            )
-            geopandas_all_species["species"] = list(species_multipolygon_dict.keys())
+        geopandas_all_species = GeoDataFrame(
+            geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
+        )
+        geopandas_all_species["species"] = list(species_multipolygon_dict.keys())
+        # The normal index won't be preserved in future operations
+        # This might be faster than returning a string type?
+        geopandas_all_species["species_int_ID"] = geopandas_all_species.index
+        if vis:
             geopandas_all_species.plot("species", legend=True)
             plt.show()
+            breakpoint()
+
+        species_int_IDs = self.get_values_from_geopandas(
+            geopandas_all_species, "species_int_ID"
+        )
+        breakpoint()
 
     def create_texture_geopolygon(
         self,
@@ -175,47 +232,14 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
             vis (bool, optional): Show the texture. Defaults to False.
         """
-        self.create_texture_geopoints(geopoints_file=geo_polygon_file)
         # Read the polygon data about the tree crown segmentation
         geo_polygons = gpd.read_file(geo_polygon_file)
 
-        # Create a circle from each of these points
-        # Group each set into a multi-polygon
-        # Find the intersection of any pair
-        # Exclude this
-        # Or just let things get overridden
-
-        # Get the vertices in the same CRS as the geofile
-        breakpoint()
-        verts_in_geopolygon_crs = self.get_vertices_in_CRS(geo_polygons.crs)
-
-        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
-        # Convert points into georeferenced dataframe
-        # TODO consider removing this line since it's not strictly needed
-        df = pd.DataFrame(
-            {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
-            }
-        )
-        df["coords"] = list(zip(df["east"], df["north"]))
-        df["coords"] = df["coords"].apply(Point)
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=geo_polygons.crs)
-        # Add an index column because the normal index will not be preserved in future operations
-        points["id"] = df.index
-
-        # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(points, geo_polygons, how="intersection")
-        # Create an array corresponding to all the points and initialize to NaN
-        polygon_IDs = np.full(shape=points.shape[0], fill_value=np.nan)
-        # Assign points that are inside a given tree with that tree's ID
-        polygon_IDs[points_in_polygons["id"].to_numpy()] = points_in_polygons[
-            "treeID"
-        ].to_numpy()
+        tree_IDs = self.get_values_from_geopandas(geo_polygons, "treeID")
 
         # These points are within a tree
         # TODO, in the future we might want to do something more sophisticated than tree/not tree
-        inside_tree_polygon = np.isfinite(polygon_IDs)
+        inside_tree_polygon = np.isfinite(tree_IDs)
 
         if DEM_file is not None:
             above_ground = (
@@ -241,7 +265,8 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
     def create_texture(
         self,
-        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
+        geo_polygon_file: PATH_TYPE = None,
+        geo_point_file: PATH_TYPE = None,
         DEM_file: PATH_TYPE = None,
         ground_height_threshold=2,
         vis: bool = False,
@@ -253,6 +278,8 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 ground_height_threshold=ground_height_threshold,
                 vis=vis,
             )
+        elif geo_point_file is not None:
+            self.create_texture_geopoints(geopoints_file=geo_point_file)
         else:
             self.create_texture_height_threshold(
                 DEM_file=DEM_file,
