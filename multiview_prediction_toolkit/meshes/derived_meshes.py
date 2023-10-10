@@ -25,6 +25,7 @@ from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMes
 from multiview_prediction_toolkit.meshes.utils import (
     find_union_of_intersections,
     get_projected_CRS,
+    to_float,
 )
 
 
@@ -167,12 +168,16 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         )
 
     def create_texture_geopoints(
-        self, geopoints_file: PATH_TYPE, radius_meters: float = 1, vis: bool = True
+        self,
+        geopoints_file: PATH_TYPE,
+        radius_meters: float = 3,
+        vis: bool = True,
+        ground_height_threshold: float = 2,
     ):
-        """_summary_
+        """Creates a classification texture from a circle around each point in a file
 
         Args:
-            geopoints_file (PATH_TYPE): _description_
+            geopoints_file (PATH_TYPE): Path to a geofile that can be read by geopandas
             radius_meters (float, optional): _description_. Defaults to 1.
             vis (bool, optional): _description_. Defaults to True.
         """
@@ -184,9 +189,24 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
         # transfrom to a projective CRS
         geopoints = geopoints.to_crs(crs=projected_CRS)
+        # Get the size of the trees
+        crown_width_1 = geopoints["Crown_width_1"].to_numpy()
+        crown_width_2 = geopoints["Crown_width_2"].to_numpy()
+        crown_width_1 = np.array([to_float(x, "NA") for x in crown_width_1])
+        crown_width_2 = np.array([to_float(x, "NA") for x in crown_width_2])
+        null_value = 1000
+        min_width = np.ones_like(crown_width_1) * null_value
+        radius = np.nanmin(
+            np.vstack((crown_width_1, crown_width_2, min_width)).T, axis=1
+        )
+        null_entries = radius == null_value
+        radius = radius * 0.75
+        radius = np.clip(radius, 0, 20)
+        radius[null_entries] = radius_meters
+
         # Now create circles around each point
         geopolygons = geopoints
-        geopolygons["geometry"] = geopoints["geometry"].buffer(radius_meters)
+        geopolygons["geometry"] = geopoints["geometry"].buffer(radius)
 
         # Split
         split_by_species = list(geopolygons.groupby("Species", axis=0))
@@ -194,11 +214,15 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             species_ID: make_valid(species_df.unary_union)
             for species_ID, species_df in split_by_species
         }
-        union_of_intrsections = find_union_of_intersections(
-            list(species_multipolygon_dict.values()), crs=projected_CRS
-        )
+        # union_of_intrsections = find_union_of_intersections(
+        #    list(species_multipolygon_dict.values()), crs=projected_CRS
+        # )
+        # species_multipolygon_dict = {
+        #    species_ID: difference(species_multipolygon, union_of_intrsections)
+        #    for species_ID, species_multipolygon in species_multipolygon_dict.items()
+        # }
         species_multipolygon_dict = {
-            species_ID: difference(species_multipolygon, union_of_intrsections)
+            species_ID: species_multipolygon
             for species_ID, species_multipolygon in species_multipolygon_dict.items()
         }
         geopandas_all_species = GeoDataFrame(
@@ -211,12 +235,20 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         if vis:
             geopandas_all_species.plot("species", legend=True)
             plt.show()
-            breakpoint()
 
-        species_int_IDs = self.get_values_from_geopandas(
-            geopandas_all_species, "species_int_ID"
+        species_int_IDs = np.load("vis/species_int_IDs.npy")
+        species_int_IDs = np.nan_to_num(species_int_IDs, nan=-1).astype(int)
+
+        ground_points = self.get_height_above_ground() < ground_height_threshold
+        species_int_IDs[ground_points] = -1
+
+        self.vertex_IDs = species_int_IDs
+
+        self.pytorch_mesh = Meshes(
+            verts=[torch.Tensor(self.verts).to(self.device)],
+            faces=[torch.Tensor(self.faces).to(self.device)],
         )
-        breakpoint()
+        self.pytorch_mesh = self.pytorch_mesh.to(self.device)
 
     def create_texture_geopolygon(
         self,
@@ -254,7 +286,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         else:
             is_tree = torch.Tensor(inside_tree_polygon).to(self.device).to(torch.bool)
 
-        self.vert_to_face_IDs(is_tree.cpu().numpy().astype(int))
+        self.vert_to_face_IDs(is_tree.cpu().numpy())
 
         self.texture_with_binary_mask(
             is_tree,

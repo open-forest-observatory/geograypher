@@ -2,6 +2,7 @@ import pyproj
 from shapely import intersection, union, MultiPolygon
 import matplotlib.pyplot as plt
 from geopandas import GeoDataFrame
+import numpy as np
 
 
 def get_projected_CRS(lat, lon):
@@ -24,3 +25,10 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
         geopandas_all_intersections.plot()
         plt.show()
     return all_intersections
+
+
+def to_float(x, nan_string):
+    if x == nan_string:
+        return np.nan
+    else:
+        return float(x)
