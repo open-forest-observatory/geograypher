@@ -41,6 +41,8 @@ class TexturedPhotogrammetryMesh:
         self.pytorch_mesh = None
         self.verts = None
         self.faces = None
+        self.vertex_IDs = None
+        self.face_IDs = None
         self.local_to_epgs_4978_transform = None
 
         if torch.cuda.is_available():
@@ -209,6 +211,7 @@ class TexturedPhotogrammetryMesh:
         interactive=False,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
+        cmap=None,
         **plotter_kwargs,
     ):
         """Show the mesh and cameras
@@ -222,7 +225,12 @@ class TexturedPhotogrammetryMesh:
             off_screen=(not interactive) or (screenshot_filename is not None)
         )
 
-        plotter.add_mesh(self.pyvista_mesh, rgb=True)
+        plotter.add_mesh(
+            self.pyvista_mesh,
+            scalars=self.vertex_IDs,
+            rgb=(len(self.vertex_IDs.shape) > 1),
+            cmap=cmap,
+        )
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
         plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
@@ -250,6 +258,9 @@ class TexturedPhotogrammetryMesh:
         counts_per_class_per_face = np.array(
             [np.sum(IDs_per_face == i, axis=1) for i in range(max_ID + 1)]
         ).T
+        # Check which entires had no classes reported and mask them out
+        # TODO consider removing these rows beforehand
+        zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
         # We want to fairly tiebreak since np.argmax will always take th first index
         # This is hard to do in a vectorized way, so we just add a small random value
         # independently to each element
@@ -258,6 +269,7 @@ class TexturedPhotogrammetryMesh:
             + np.random.random(counts_per_class_per_face.shape) * 0.5
         )
         most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
+        most_common_class_per_face[zeros_mask] = -1
 
         return most_common_class_per_face
 
@@ -454,27 +466,30 @@ class TexturedPhotogrammetryMesh:
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
         """
+        # Check to make sure required data is available
+        if self.face_IDs is not None and self.face_IDs.shape[0] == self.faces.shape[0]:
+            pass
+        if (
+            self.vertex_IDs is not None
+            and self.vertex_IDs.shape[0] == self.verts.shape[0]
+        ):
+            self.face_IDs = self.vert_to_face_IDs(self.vertex_IDs)
+        else:
+            raise ValueError("No texture for rendering")
+
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
 
         # This part is shared across many tasks
-        p3d_camera, fragments = self.get_rasterization_results(
+        _, fragments = self.get_rasterization_results(
             pg_camera, image_scale=image_scale
         )
+        pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
+        pix_to_label = self.face_IDs[pix_to_face]
+        img_size = pg_camera.get_image_size(image_scale=image_scale)
+        label_img = np.reshape(pix_to_label, img_size)
 
-        # Create ambient light so it doesn't effect the color
-        lights = AmbientLights(device=self.device)
-        # Create a shader
-        shader = HardGouraudShader(
-            device=self.device, cameras=p3d_camera, lights=lights
-        )
-
-        # Render te images using the shader
-        images = shader(fragments, self.pytorch_mesh)
-
-        # Extract the image
-        rendered = images[0].cpu().numpy()
-        return rendered
+        return label_img
 
     def visualize_renders_pytorch3d(
         self,
