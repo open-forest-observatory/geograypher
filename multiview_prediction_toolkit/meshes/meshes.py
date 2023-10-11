@@ -109,8 +109,8 @@ class TexturedPhotogrammetryMesh:
     def create_texture(self, **kwargs):
         """Texture the mesh, potentially with other information"""
         self.pytorch_mesh = Meshes(
-            verts=[self.verts],
-            faces=[self.faces],
+            verts=[torch.Tensor(self.verts).to(self.device)],
+            faces=[torch.Tensor(self.faces).to(self.device)],
         )
         self.pytorch_mesh = self.pytorch_mesh.to(self.device)
 
@@ -208,9 +208,10 @@ class TexturedPhotogrammetryMesh:
 
     def vis(
         self,
-        interactive=False,
+        interactive=True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
+        vis_scalars=None,
         cmap=None,
         **plotter_kwargs,
     ):
@@ -224,11 +225,14 @@ class TexturedPhotogrammetryMesh:
         plotter = pv.Plotter(
             off_screen=(not interactive) or (screenshot_filename is not None)
         )
-
+        if vis_scalars is None:
+            vis_scalars = self.vertex_IDs.copy().astype(float)
+            vis_scalars[vis_scalars < 0] = np.nan
+        vis_scalars[0] = 9
         plotter.add_mesh(
             self.pyvista_mesh,
-            scalars=self.vertex_IDs,
-            rgb=(len(self.vertex_IDs.shape) > 1),
+            scalars=vis_scalars,
+            rgb=(len(vis_scalars.shape) > 1),
             cmap=cmap,
         )
         if camera_set is not None:
