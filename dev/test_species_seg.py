@@ -21,13 +21,13 @@ IMAGES_FOLDER.mkdir(exist_ok=True, parents=True)
 RENDERS_FOLDER.mkdir(exist_ok=True)
 
 
+camera_set = MetashapeCameraSet(
+    camera_file=DEFAULT_CAM_FILE, image_folder=DEFAULT_IMAGES_FOLDER
+).get_subset_near_geofile(DEFAULT_GEO_POINTS_FILE)
 mesh = GeodataPhotogrammetryMesh(
     DEFAULT_LOCAL_MESH, geo_point_file=DEFAULT_GEO_POINTS_FILE
 )
-camera_set = MetashapeCameraSet(
-    camera_file=DEFAULT_CAM_FILE, image_folder=DEFAULT_IMAGES_FOLDER
-)
-mesh.vis(interactive=True,cmap="tab20")
+mesh.vis(interactive=True, cmap="tab20")
 for i in tqdm(range(camera_set.n_cameras())):
     image = camera_set.get_image_by_index(i, image_scale=IMAGE_SCALE)
     image_path = camera_set.get_camera_by_index(i).image_filename
@@ -36,9 +36,3 @@ for i in tqdm(range(camera_set.n_cameras())):
     )
     np.save(Path(RENDERS_FOLDER, f"{i:06d}.npy"), label_mask)
     os.symlink(image_path, Path(IMAGES_FOLDER, f"{i:06d}{Path(image_path).suffix}"))
-    #label_mask = label_mask.astype(float)
-    #label_mask[label_mask == -1] = np.nan
-    #f, ax = plt.subplots(1, 2)
-    #ax[0].imshow(image)
-    #ax[1].imshow(label_mask, vmin=0, vmax=9, cmap="tab10")
-    #plt.show()
