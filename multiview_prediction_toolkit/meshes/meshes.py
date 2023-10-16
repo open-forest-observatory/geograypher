@@ -3,12 +3,11 @@ from pathlib import Path
 import numpy as np
 import pyproj
 import pyvista as pv
-from scipy.datasets import face
 import skimage
 import torch
+import typing
+import matplotlib.pyplot as plt
 from pytorch3d.renderer import (
-    AmbientLights,
-    HardGouraudShader,
     MeshRasterizer,
     RasterizationSettings,
     TexturesVertex,
@@ -21,6 +20,8 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
+from shapely import Polygon
+import geopandas as gpd
 from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
 
 
@@ -83,9 +84,10 @@ class TexturedPhotogrammetryMesh:
                     f"Transform should be (4,4) but is {self.local_to_epgs_4978_transform.shape}"
                 )
         elif require_transform:
-            raise FileNotFoundError(
+            print(
                 f"Required transform file {transform_filename} file could not be found"
             )
+            self.local_to_epgs_4978_transform = np.eye(4)
 
         # Load the mesh using pyvista
         # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
@@ -276,6 +278,79 @@ class TexturedPhotogrammetryMesh:
         most_common_class_per_face[zeros_mask] = -1
 
         return most_common_class_per_face
+
+    def export_face_labels_geofile(
+        self,
+        face_labels: np.ndarray,
+        export_file: PATH_TYPE = None,
+        export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
+        label_names: typing.Tuple = None,
+        drop_na: bool = True,
+        vis: bool = True,
+        vis_kwargs: typing.Dict = {"cmap": "tab10", "vmin": -0.5, "vmax": 9.5},
+    ) -> gpd.GeoDataFrame:
+        """Export the labels for each face as a on-per-class multipolygon
+
+        Args:
+            face_labels (np.ndarray): Array of integer labels and potentially nan
+            export_file (PATH_TYPE, optional):
+                Where to export. The extension must be a filetype that geopandas can write.
+                Defaults to None, if unset, nothing will be written.
+            export_crs (pyproj.CRS, optional): What CRS to export in.. Defaults to pyproj.CRS.from_epsg(4326), lat lon.
+            label_names (typing.Tuple, optional): Optional names, that are indexed by the labels. Defaults to None.
+            drop_na (bool, optional): Should the faces with the nan class be discarded. Defaults to True.
+            vis: should the result be visualzed
+            vis_kwargs: keyword argmument dict for visualization
+
+        Raises:
+            ValueError: If the wrong number of faces labels are provided
+
+        Returns:
+            gpd.GeoDataFrame: Merged data
+        """
+        # Check that the correct number of labels are provided
+        if len(face_labels) != self.faces.shape[0]:
+            raise ValueError()
+
+        # Get the mesh vertices in the desired export CRS
+        verts_in_crs = self.get_vertices_in_CRS(export_crs)
+        # Get a triangle in geospatial coords for each face
+        # Only report the x, y values and not z
+        face_polygons = [
+            Polygon(verts_in_crs[face_IDs][:, :2]) for face_IDs in self.faces
+        ]
+        # Create a geodata frame from these polygons
+        individual_polygons_df = gpd.GeoDataFrame(
+            {"labels": face_labels}, geometry=face_polygons, crs=export_crs
+        )
+        # Merge these triangles into a multipolygon for each class
+        # This is the expensive step
+        aggregated_df = individual_polygons_df.dissolve(
+            by="labels", as_index=False, dropna=drop_na
+        )
+
+        # Add names if present
+        if label_names is not None:
+            names = [
+                (label_names[int(label)] if label is not np.nan else np.nan)
+                for label in aggregated_df["labels"].tolist()
+            ]
+            aggregated_df["names"] = names
+
+        # Export if a file is provided
+        if export_file is not None:
+            aggregated_df.to_file(export_file)
+
+        # Vis if requested
+        if vis:
+            aggregated_df.plot(
+                column="names" if label_names is not None else "labels",
+                aspect=1,
+                **vis_kwargs,
+            )
+            plt.show()
+
+        return aggregated_df
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """

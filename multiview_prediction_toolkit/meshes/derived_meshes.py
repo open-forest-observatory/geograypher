@@ -161,7 +161,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         # Threshold to dermine if it's ground or not
         ground_points = height_above_ground < ground_height_threshold
         # Color the mesh with this mask
-        self.color_with_binary_mask(
+        self.texture_with_binary_mask(
             ground_points,
             color_true=np.array(COLORS["earth"]) / 255.0,
             color_false=np.array(COLORS["canopy"]) / 255.0,
