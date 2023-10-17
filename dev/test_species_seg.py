@@ -1,8 +1,6 @@
-from sqlite3 import DatabaseError
 from multiview_prediction_toolkit.cameras.derived_cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.meshes import (
     GeodataPhotogrammetryMesh,
-    TexturedPhotogrammetryMesh,
 )
 from multiview_prediction_toolkit.config import (
     DATA_FOLDER,
@@ -13,9 +11,7 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_GEO_POINTS_FILE,
 )
 import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
-from imageio import imwrite
 from tqdm import tqdm
 import os
 
@@ -46,7 +42,6 @@ if CREATE_LABELS:
         geo_point_file=DEFAULT_GEO_POINTS_FILE,
     )
     geodata_mesh.vis(cmap="tab10")
-    breakpoint()
 
     for i in tqdm(range(camera_set.n_cameras())):
         image = camera_set.get_image_by_index(i, image_scale=IMAGE_SCALE)
