@@ -214,8 +214,8 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
-        cmap=None,
-        **plotter_kwargs,
+        mesh_kwargs: typing.Dict = {},
+        plotter_kwargs: typing.Dict = {},
     ):
         """Show the mesh and cameras
 
@@ -223,22 +223,31 @@ class TexturedPhotogrammetryMesh:
             off_screen (bool, optional): Show offscreen
             camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
+            vis_scalars: Scalars to show
+            mesh_kwargs: dict of keyword arguments for the mesh
+            plotter_kwargs: dict of keyword arguments for the plotter
         """
+        # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(
             off_screen=(not interactive) or (screenshot_filename is not None)
         )
+
+        # If the vis scalars are None, use the vertex IDs
         if vis_scalars is None:
             vis_scalars = self.vertex_IDs.copy().astype(float)
             vis_scalars[vis_scalars < 0] = np.nan
-        vis_scalars[0] = 9
+
+        # Add the mesh
         plotter.add_mesh(
             self.pyvista_mesh,
             scalars=vis_scalars,
             rgb=(len(vis_scalars.shape) > 1),
-            cmap=cmap,
+            **mesh_kwargs,
         )
+        # If the camera set is provided, show this too
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
+        # Show
         plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
 
     def face_to_vert_IDs(self, face_IDs):
@@ -287,7 +296,7 @@ class TexturedPhotogrammetryMesh:
         label_names: typing.Tuple = None,
         drop_na: bool = True,
         vis: bool = True,
-        vis_kwargs: typing.Dict = {"cmap": "tab10", "vmin": 0, "vmax": 9},
+        vis_kwargs: typing.Dict = {},
     ) -> gpd.GeoDataFrame:
         """Export the labels for each face as a on-per-class multipolygon
 
@@ -346,6 +355,7 @@ class TexturedPhotogrammetryMesh:
             aggregated_df.plot(
                 column="names" if label_names is not None else "labels",
                 aspect=1,
+                legend=True,
                 **vis_kwargs,
             )
             plt.show()

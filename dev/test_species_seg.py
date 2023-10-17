@@ -105,4 +105,8 @@ else:
             "TSME",
         ),
     )
-    mesh.vis(vis_scalars=most_common_species_ID, cmap="tab10", interactive=True)
+    mesh.vis(
+        vis_scalars=most_common_species_ID,
+        interactive=True,
+        mesh_kwargs={"cmap": "tab10", "clim": [0, 9]},
+    )

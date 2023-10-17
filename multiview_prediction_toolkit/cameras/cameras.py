@@ -101,6 +101,7 @@ class PhotogrammetryCamera:
         )
 
     def get_lon_lat(self):
+        """Return the lon, lat tuple, reading from exif metadata if neccessary"""
         if None in self.lon_lat:
             self.lon_lat = get_GPS_exif(self.image_filename)
         return self.lon_lat
@@ -384,6 +385,7 @@ class PhotogrammetryCameraSet:
         return len(self.cameras)
 
     def n_image_channels(self) -> int:
+        """Return the number of channels in the image"""
         return 3
 
     def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
@@ -395,24 +397,38 @@ class PhotogrammetryCameraSet:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
 
     def get_GPS_coords(self):
+        """Returns a list of GPS coords for each camera"""
         return list(map(lambda x: x.get_lon_lat(), self.cameras))
 
-    def get_subset_near_geofile(self, geofile, buffer_radius_meters=50):
-        # TODO
+    def get_subset_near_geofile(
+        self, geofile: PATH_TYPE, buffer_radius_meters: float = 50
+    ):
+        """Return cameras that are within a radius of the provided geometry
+
+        Args:
+            geofile (PATH_TYPE): Path to a geofile readable by geopandas
+            buffer_radius_meters (float, optional): Return points within this buffer of the geometry. Defaults to 50.
+        """
+        # Read in the geofile
         geodata = gpd.read_file(geofile)
+        # Transform to the local Cartesian CRS if it's lat lon
         if geodata.crs == pyproj.CRS.from_epsg(4326):
             point = geodata["geometry"][0].centroid
             geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
             geodata.to_crs(geometric_crs, inplace=True)
+        # Expand the geometry of the shape by the buffer
+        # TODO is it better to merge first? Maybe?
         geodata["geometry"] = geodata.buffer(buffer_radius_meters)
-        image_points = list(map(lambda x: Point(x[0], x[1]), self.get_GPS_coords()))
+        # Read the locations of all the points
+        image_points = list(map(lambda x: Point(*x), self.get_GPS_coords()))
+        # Create a dataframe
         image_points_df = gpd.GeoDataFrame(geometry=image_points)
+        # Add an index row because the normal index will be removed in subsequent operations
         image_points_df["index"] = image_points_df.index
 
         points_in_field_buffer = gpd.tools.overlay(
             image_points, geodata, how="intersection"
         )
-        breakpoint()
 
     def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
         """Visualize all the cameras

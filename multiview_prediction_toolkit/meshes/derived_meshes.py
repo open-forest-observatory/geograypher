@@ -1,6 +1,5 @@
 import geopandas as gpd
-from matplotlib import legend
-from networkx import union
+import pyproj
 import numpy as np
 import pandas as pd
 import rasterio as rio
@@ -9,16 +8,14 @@ import matplotlib.pyplot as plt
 from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
 from scipy.spatial.distance import cdist
-from shapely import Point, MultiPolygon
+from shapely import Point, difference
 from shapely.validation import make_valid
-from shapely import difference
 from geopandas import GeoDataFrame
 
 
 from multiview_prediction_toolkit.config import (
     COLORS,
     DEFAULT_DEM_FILE,
-    DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
@@ -81,7 +78,16 @@ class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
 
 class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
-    def get_verts_geodataframe(self, crs, east_is_first=True):
+    def get_verts_geodataframe(self, crs: pyproj.CRS) -> gpd.GeoDataFrame:
+        """Obtain the vertices as a dataframe
+
+        Args:
+            crs (pyproj.CRS): The CRS to use
+
+        Returns:
+            gpd.GeoDataFrame: A dataframe with all the vertices
+        """
+
         # Get the vertices in the same CRS as the geofile
         verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
 
@@ -94,8 +100,8 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 "north": verts_in_geopolygon_crs[:, 1],
             }
         )
-        df["coords"] = list(zip(df["east"], df["north"]))
-        df["coords"] = df["coords"].apply(Point)
+        # Create a column of Point objects to use as the geometry
+        df["coords"] = [Point(xy) for xy in zip(df["east"], df["north"])]
         points = gpd.GeoDataFrame(df, geometry="coords", crs=crs)
 
         # Add an index column because the normal index will not be preserved in future operations
@@ -103,15 +109,27 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
 
         return points
 
-    def get_values_from_geopandas(
+    def get_values_for_verts_from_geopandas(
         self, geopandas_df: GeoDataFrame, geopandas_column: str
-    ):
-        points = self.get_verts_geodataframe(geopandas_df.crs)
+    ) -> np.ndarray:
+        """Get the value from a dataframe for each vertex
+
+        Args:
+            geopandas_df (GeoDataFrame): Data to use
+            geopandas_column (str): Which column to obtain data from
+
+        Returns:
+            np.ndarray: Array of values for each vertex
+        """
+        # Get a dataframe of vertices
+        verts_df = self.get_verts_geodataframe(geopandas_df.crs)
 
         # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(points, geopandas_df, how="intersection")
+        points_in_polygons = gpd.tools.overlay(
+            verts_df, geopandas_df, how="intersection"
+        )
         # Create an array corresponding to all the points and initialize to NaN
-        values = np.full(shape=points.shape[0], fill_value=np.nan)
+        values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
         # Assign points that are inside a given tree with that tree's ID
         values[points_in_polygons["id"].to_numpy()] = points_in_polygons[
             geopandas_column
@@ -173,13 +191,16 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         radius_meters: float = 3,
         vis: bool = True,
         ground_height_threshold: float = 2,
+        discard_overlapping: bool = False,
     ):
         """Creates a classification texture from a circle around each point in a file
 
         Args:
             geopoints_file (PATH_TYPE): Path to a geofile that can be read by geopandas
-            radius_meters (float, optional): _description_. Defaults to 1.
-            vis (bool, optional): _description_. Defaults to True.
+            radius_meters (float, optional): Radius around each point to use. Defaults to 1.
+            vis (bool, optional): Visualize. Defaults to True.
+            ground_height_threshold (float, optional): Points under this height are considered ground
+            discard_overlapping (bool, optional): Discard regions where two classes disagree
         """
         # Read in the data
         geopoints = gpd.read_file(geopoints_file)
@@ -214,17 +235,19 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             species_ID: make_valid(species_df.unary_union)
             for species_ID, species_df in split_by_species
         }
-        # union_of_intrsections = find_union_of_intersections(
-        #    list(species_multipolygon_dict.values()), crs=projected_CRS
-        # )
-        # species_multipolygon_dict = {
-        #    species_ID: difference(species_multipolygon, union_of_intrsections)
-        #    for species_ID, species_multipolygon in species_multipolygon_dict.items()
-        # }
-        species_multipolygon_dict = {
-            species_ID: species_multipolygon
-            for species_ID, species_multipolygon in species_multipolygon_dict.items()
-        }
+        if discard_overlapping:
+            union_of_intrsections = find_union_of_intersections(
+                list(species_multipolygon_dict.values()), crs=projected_CRS
+            )
+            species_multipolygon_dict = {
+                species_ID: difference(species_multipolygon, union_of_intrsections)
+                for species_ID, species_multipolygon in species_multipolygon_dict.items()
+            }
+        else:
+            species_multipolygon_dict = {
+                species_ID: species_multipolygon
+                for species_ID, species_multipolygon in species_multipolygon_dict.items()
+            }
         geopandas_all_species = GeoDataFrame(
             geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
         )
@@ -267,7 +290,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         # Read the polygon data about the tree crown segmentation
         geo_polygons = gpd.read_file(geo_polygon_file)
 
-        tree_IDs = self.get_values_from_geopandas(geo_polygons, "treeID")
+        tree_IDs = self.get_values_for_verts_from_geopandas(geo_polygons, "treeID")
 
         # These points are within a tree
         # TODO, in the future we might want to do something more sophisticated than tree/not tree
