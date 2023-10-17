@@ -481,6 +481,33 @@ class TexturedPhotogrammetryMesh:
 
         return sampled_raster_values
 
+    def get_height_above_ground(
+        self, DEM_file: PATH_TYPE, threshold: float = None
+    ) -> np.ndarray:
+        """Return height above ground for a points in the mesh and a given DEM
+
+        Args:
+            DEM_file (PATH_TYPE): Path to the DEM raster
+            threshold (float, optional):
+                If not None, return a boolean mask for points under this height. Defaults to None.
+
+        Returns:
+            np.ndarray: Either the height above ground or a boolean mask for ground points
+        """
+        # Get the height from the DEM and the points in the same CRS
+        DEM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
+            DEM_file, return_verts_in_CRS=True
+        )
+        # Subtract the two to get the height above ground
+        height_above_ground = verts_in_raster_CRS[:, 2] - DEM_heights
+
+        # If the threshold is not None, return a boolean mask that is true for ground points
+        if threshold is not None:
+            # Return boolean mask
+            return height_above_ground < threshold
+        # Return height above ground
+        return height_above_ground
+
     # Expensive pixel-to-vertex operations
 
     def get_rasterization_results_pytorch3d(

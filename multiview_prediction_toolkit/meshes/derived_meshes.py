@@ -72,6 +72,133 @@ class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         )
 
 
+class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
+        self,
+        mesh_filename: PATH_TYPE,
+        downsample_target: float = 1,
+        use_pytorch3d_mesh: bool = True,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
+        ground_height_threshold=2,
+        **kwargs
+    ):
+        """Texture by thresholding the height above groun
+
+        Args:
+            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
+            threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
+        """
+        super().__init__(mesh_filename, downsample_target, use_pytorch3d_mesh=False)
+        self.use_pytorch3d_mesh = use_pytorch3d_mesh
+
+        # Get the height of each mesh point above the ground
+        self.vertex_IDs = self.get_height_above_ground(
+            DEM_file=DEM_file, threshold=ground_height_threshold
+        ).astype(int)
+
+        self.create_pytorch_3d_mesh()
+
+
+class TreeSpeciesTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
+        self,
+        mesh_filename: PATH_TYPE,
+        geopoints_file: PATH_TYPE,
+        downsample_target: float = 1,
+        texture: np.ndarray = None,
+        use_pytorch3d_mesh: bool = True,
+        radius_meters: float = 3,
+        vis: bool = True,
+        ground_height_threshold: float = 2,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
+        discard_overlapping: bool = False,
+    ):
+        """Creates a classification texture from a circle around each point in a file
+
+        Args:
+            geopoints_file (PATH_TYPE): Path to a geofile that can be read by geopandas
+            radius_meters (float, optional): Radius around each point to use. Defaults to 1.
+            vis (bool, optional): Visualize. Defaults to True.
+            ground_height_threshold (float, optional): Points under this height are considered ground
+            DEM_file (PATH_TYPE, optional): The DEM file to use
+            discard_overlapping (bool, optional): Discard regions where two classes disagree
+        """
+        super().__init__(mesh_filename, downsample_target, texture, use_pytorch3d_mesh)
+        # Read in the data
+        geopoints = gpd.read_file(geopoints_file)
+        # Determine the projective CRS for the region since many operation don't work on geographic CRS
+        first_point = geopoints["geometry"][0]
+        projected_CRS = get_projected_CRS(first_point.y, first_point.x)
+
+        # transfrom to a projective CRS
+        geopoints = geopoints.to_crs(crs=projected_CRS)
+        # Get the size of the trees
+        radius = self.get_radius(geopoints=geopoints, radius=radius)
+
+        # Now create circles around each point
+        geopolygons = geopoints
+        geopolygons["geometry"] = geopoints["geometry"].buffer(radius)
+
+        # Split
+        split_by_species = list(geopolygons.groupby("Species", axis=0))
+        species_multipolygon_dict = {
+            species_ID: make_valid(species_df.unary_union)
+            for species_ID, species_df in split_by_species
+        }
+        # Should points regions with multiple different species be discarded?
+        if discard_overlapping:
+            union_of_intrsections = find_union_of_intersections(
+                list(species_multipolygon_dict.values()), crs=projected_CRS
+            )
+            species_multipolygon_dict = {
+                species_ID: difference(species_multipolygon, union_of_intrsections)
+                for species_ID, species_multipolygon in species_multipolygon_dict.items()
+            }
+        else:
+            species_multipolygon_dict = {
+                species_ID: species_multipolygon
+                for species_ID, species_multipolygon in species_multipolygon_dict.items()
+            }
+        geopandas_all_species = GeoDataFrame(
+            geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
+        )
+        geopandas_all_species["species"] = list(species_multipolygon_dict.keys())
+        # The normal index won't be preserved in future operations
+        # This might be faster than returning a string type?
+        geopandas_all_species["species_int_ID"] = geopandas_all_species.index
+        if vis:
+            geopandas_all_species.plot("species", legend=True)
+            plt.show()
+
+        species_int_IDs = self.get_values_for_verts_from_vector(
+            column_names="species_int_ID", geopandas_df=geopandas_all_species
+        )
+
+        ground_points = self.get_height_above_ground(
+            DEM_file, threshold=ground_height_threshold
+        )
+        species_int_IDs[ground_points] = -1
+
+        self.vertex_IDs = species_int_IDs
+
+    def get_radius(self, geopoints, radius_meters):
+        crown_width_1 = geopoints["Crown_width_1"].to_numpy()
+        crown_width_2 = geopoints["Crown_width_2"].to_numpy()
+        crown_width_1 = np.array([to_float(x, "NA") for x in crown_width_1])
+        crown_width_2 = np.array([to_float(x, "NA") for x in crown_width_2])
+        null_value = 1000
+        min_width = np.ones_like(crown_width_1) * null_value
+        radius = np.nanmin(
+            np.vstack((crown_width_1, crown_width_2, min_width)).T, axis=1
+        )
+        null_entries = radius == null_value
+        radius = radius * 0.75
+        radius = np.clip(radius, 0, 20)
+        radius[null_entries] = radius_meters
+
+        return radius
+
+
 class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def __init__(
         self,
@@ -107,136 +234,6 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 ground_height_threshold=ground_height_threshold,
                 vis=vis,
             )
-
-    def get_height_above_ground(
-        self, DEM_file: PATH_TYPE, threshold: float = None
-    ) -> np.ndarray:
-        """Return height above ground for a points in the mesh and a given DEM
-
-        Args:
-            DEM_file (PATH_TYPE): Path to the DEM raster
-            threshold (float, optional):
-                If not None, return a boolean mask for points under this height. Defaults to None.
-
-        Returns:
-            np.ndarray: Either the height above ground or a boolean mask for ground points
-        """
-        # Get the height from the DEM and the points in the same CRS
-        DEM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
-            DEM_file, return_verts_in_CRS=True
-        )
-        # Subtract the two to get the height above ground
-        height_above_ground = DEM_heights - verts_in_raster_CRS[:, 2]
-
-        # If the threshold is not None, return a boolean mask that is true for ground points
-        if threshold is not None:
-            # Return boolean mask
-            return height_above_ground < threshold
-        # Return height above ground
-        return height_above_ground
-
-    def create_texture_height_threshold(
-        self,
-        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
-        ground_height_threshold=2,
-    ):
-        """Texture by thresholding the height above groun
-
-        Args:
-            DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
-            threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
-        """
-        # Get the height of each mesh point above the ground
-        self.vertex_IDs = self.get_height_above_ground(
-            DEM_file=DEM_file, threshold=ground_height_threshold
-        ).astype(int)
-
-    def create_texture_geopoints(
-        self,
-        geopoints_file: PATH_TYPE,
-        radius_meters: float = 3,
-        vis: bool = True,
-        ground_height_threshold: float = 2,
-        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
-        discard_overlapping: bool = False,
-    ):
-        """Creates a classification texture from a circle around each point in a file
-
-        Args:
-            geopoints_file (PATH_TYPE): Path to a geofile that can be read by geopandas
-            radius_meters (float, optional): Radius around each point to use. Defaults to 1.
-            vis (bool, optional): Visualize. Defaults to True.
-            ground_height_threshold (float, optional): Points under this height are considered ground
-            DEM_file (PATH_TYPE, optional): The DEM file to use
-            discard_overlapping (bool, optional): Discard regions where two classes disagree
-        """
-        # Read in the data
-        geopoints = gpd.read_file(geopoints_file)
-        # Determine the projective CRS for the region since many operation don't work on geographic CRS
-        first_point = geopoints["geometry"][0]
-        projected_CRS = get_projected_CRS(first_point.y, first_point.x)
-
-        # transfrom to a projective CRS
-        geopoints = geopoints.to_crs(crs=projected_CRS)
-        # Get the size of the trees
-        crown_width_1 = geopoints["Crown_width_1"].to_numpy()
-        crown_width_2 = geopoints["Crown_width_2"].to_numpy()
-        crown_width_1 = np.array([to_float(x, "NA") for x in crown_width_1])
-        crown_width_2 = np.array([to_float(x, "NA") for x in crown_width_2])
-        null_value = 1000
-        min_width = np.ones_like(crown_width_1) * null_value
-        radius = np.nanmin(
-            np.vstack((crown_width_1, crown_width_2, min_width)).T, axis=1
-        )
-        null_entries = radius == null_value
-        radius = radius * 0.75
-        radius = np.clip(radius, 0, 20)
-        radius[null_entries] = radius_meters
-
-        # Now create circles around each point
-        geopolygons = geopoints
-        geopolygons["geometry"] = geopoints["geometry"].buffer(radius)
-
-        # Split
-        split_by_species = list(geopolygons.groupby("Species", axis=0))
-        species_multipolygon_dict = {
-            species_ID: make_valid(species_df.unary_union)
-            for species_ID, species_df in split_by_species
-        }
-        if discard_overlapping:
-            union_of_intrsections = find_union_of_intersections(
-                list(species_multipolygon_dict.values()), crs=projected_CRS
-            )
-            species_multipolygon_dict = {
-                species_ID: difference(species_multipolygon, union_of_intrsections)
-                for species_ID, species_multipolygon in species_multipolygon_dict.items()
-            }
-        else:
-            species_multipolygon_dict = {
-                species_ID: species_multipolygon
-                for species_ID, species_multipolygon in species_multipolygon_dict.items()
-            }
-        geopandas_all_species = GeoDataFrame(
-            geometry=list(species_multipolygon_dict.values()), crs=projected_CRS
-        )
-        geopandas_all_species["species"] = list(species_multipolygon_dict.keys())
-        # The normal index won't be preserved in future operations
-        # This might be faster than returning a string type?
-        geopandas_all_species["species_int_ID"] = geopandas_all_species.index
-        if vis:
-            geopandas_all_species.plot("species", legend=True)
-            plt.show()
-
-        species_int_IDs = self.get_values_for_verts_from_vector(
-            column_names="species_int_ID", geopandas_df=geopandas_all_species
-        )
-
-        ground_points = self.get_height_above_ground(
-            DEM_file, threshold=ground_height_threshold
-        )
-        species_int_IDs[ground_points] = -1
-
-        self.vertex_IDs = species_int_IDs
 
     def create_texture_geopolygon(
         self,
