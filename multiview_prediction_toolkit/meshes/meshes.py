@@ -366,8 +366,8 @@ class TexturedPhotogrammetryMesh:
             output_dict[column_name] = values
 
         # If only one name was requested, just return that
-        if len(column_name) == 1:
-            return output_dict.values()[0]
+        if len(column_names) == 1:
+            return list(output_dict.values())[0]
 
         return output_dict
 

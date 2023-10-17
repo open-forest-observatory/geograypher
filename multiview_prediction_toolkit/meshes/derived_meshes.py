@@ -15,6 +15,7 @@ from geopandas import GeoDataFrame
 from multiview_prediction_toolkit.config import (
     COLORS,
     DEFAULT_DEM_FILE,
+    DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
@@ -99,6 +100,46 @@ class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
         self.create_pytorch_3d_mesh()
 
 
+class TreeIDTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
+        self,
+        mesh_filename: PATH_TYPE,
+        downsample_target: float = 1,
+        texture: np.ndarray = None,
+        use_pytorch3d_mesh: bool = True,
+        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
+        ground_height_threshold=2,
+        collapse_IDs: bool = False,
+    ):
+        """Create a texture from a geofile containing polygons
+
+        Args:
+            geo_polygon_file (PATH_TYPE, optional):
+                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
+            collapse_IDs: report tree vs. not tree rather than tree IDs
+        """
+        super().__init__(
+            mesh_filename, downsample_target, texture, use_pytorch3d_mesh=False
+        )
+        self.use_pytorch3d_mesh = use_pytorch3d_mesh
+
+        # Get the tree IDs from the file
+        tree_IDs = self.get_values_for_verts_from_vector(
+            column_names="treeID", vector_file=geo_polygon_file
+        )
+
+        if collapse_IDs:
+            tree_IDs[np.isfinite(tree_IDs)] = 1.0
+
+        if DEM_file is not None:
+            ground_points = self.get_height_above_ground(
+                DEM_file=DEM_file, threshold=ground_height_threshold
+            )
+            tree_IDs[ground_points] = np.nan
+        self.vertex_IDs = tree_IDs
+
+
 class TreeSpeciesTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def __init__(
         self,
@@ -133,7 +174,7 @@ class TreeSpeciesTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         # transfrom to a projective CRS
         geopoints = geopoints.to_crs(crs=projected_CRS)
         # Get the size of the trees
-        radius = self.get_radius(geopoints=geopoints, radius=radius)
+        radius = self.get_radius(geopoints=geopoints, radius_meters=radius_meters)
 
         # Now create circles around each point
         geopolygons = geopoints
@@ -234,35 +275,3 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
                 ground_height_threshold=ground_height_threshold,
                 vis=vis,
             )
-
-    def create_texture_geopolygon(
-        self,
-        geo_polygon_file: PATH_TYPE = None,
-        DEM_file: PATH_TYPE = None,
-        ground_height_threshold=2,
-    ):
-        """Create a texture from a geofile containing polygons
-
-        Args:
-            geo_polygon_file (PATH_TYPE, optional):
-                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
-            vis (bool, optional): Show the texture. Defaults to False.
-        """
-        # Get the tree IDs from the file
-        tree_IDs = self.get_values_for_verts_from_vector(
-            column_names="treeID", vector_file=geo_polygon_file
-        )
-
-        # These points are within a tree
-        # TODO, in the future we might want to do something more sophisticated than tree/not tree
-        is_tree = np.isfinite(tree_IDs)
-
-        if DEM_file is not None:
-            above_ground = np.logical_not(
-                self.get_height_above_ground(
-                    DEM_file=DEM_file, threshold=ground_height_threshold
-                )
-            )
-            is_tree = np.logical_and(is_tree, above_ground)
-
-        self.vertex_IDs = is_tree

@@ -3,5 +3,6 @@ from multiview_prediction_toolkit.meshes.derived_meshes import (
     DummyPhotogrammetryMesh,
     GeodataPhotogrammetryMesh,
     HeightAboveGroundPhotogrammertryMesh,
+    TreeIDTexturedPhotogrammetryMesh,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
