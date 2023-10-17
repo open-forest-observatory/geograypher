@@ -12,6 +12,7 @@ from pytorch3d.renderer import (
     RasterizationSettings,
     TexturesVertex,
 )
+import rasterio as rio
 from collections import Counter
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
@@ -20,8 +21,9 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from shapely import Polygon
+from shapely import Polygon, Point
 import geopandas as gpd
+import pandas as pd
 from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
 
 
@@ -243,6 +245,37 @@ class TexturedPhotogrammetryMesh:
 
         return verts_in_output_CRS
 
+    def get_verts_geodataframe(self, crs: pyproj.CRS) -> gpd.GeoDataFrame:
+        """Obtain the vertices as a dataframe
+
+        Args:
+            crs (pyproj.CRS): The CRS to use
+
+        Returns:
+            gpd.GeoDataFrame: A dataframe with all the vertices
+        """
+
+        # Get the vertices in the same CRS as the geofile
+        verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
+
+        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
+        # Convert points into georeferenced dataframe
+        # TODO consider removing this line since it's not strictly needed
+        df = pd.DataFrame(
+            {
+                "east": verts_in_geopolygon_crs[:, 0],
+                "north": verts_in_geopolygon_crs[:, 1],
+            }
+        )
+        # Create a column of Point objects to use as the geometry
+        df["coords"] = [Point(xy) for xy in zip(df["east"], df["north"])]
+        points = gpd.GeoDataFrame(df, geometry="coords", crs=crs)
+
+        # Add an index column because the normal index will not be preserved in future operations
+        points["id"] = df.index
+
+        return points
+
     # Transform labels face<->vertex methods
 
     def face_to_vert_IDs(self, face_IDs):
@@ -284,8 +317,61 @@ class TexturedPhotogrammetryMesh:
 
         return most_common_class_per_face
 
-    # Operations on vector files
-    def export_face_labels_geofile(
+    # Operations on vector data
+    def get_values_for_verts_from_vector(
+        self,
+        column_names: typing.List[str],
+        vector_file: PATH_TYPE = None,
+        geopandas_df: gpd.GeoDataFrame = None,
+    ) -> np.ndarray:
+        """Get the value from a dataframe for each vertex
+
+        Args:
+            column_names (str): Which column to obtain data from
+            geopandas_df (GeoDataFrame, optional): Data to use.
+            vector_file (PATH_TYPE, optional): Path to data that can be loaded by geopandas
+
+        Returns:
+            np.ndarray: Array of values for each vertex if there is one column name or
+            dict[np.ndarray]: A dict mapping from column names to numpy arrays
+        """
+        if vector_file is None and geopandas_df is None:
+            raise ValueError("Must provide either vector_file or geopandas_df")
+
+        if geopandas_df is None:
+            geopandas_df = gpd.read_file(vector_file)
+
+        # Get a dataframe of vertices
+        verts_df = self.get_verts_geodataframe(geopandas_df.crs)
+
+        # Select points that are within the polygons
+        points_in_polygons = gpd.tools.overlay(
+            verts_df, geopandas_df, how="intersection"
+        )
+
+        # If it's one string, make it a one-length array
+        if isinstance(column_names, str):
+            column_names = [column_names]
+
+        # Get the index array
+        index_array = points_in_polygons["id"].to_numpy()
+
+        output_dict = {}
+        # Extract the data from each
+        for column_name in column_names:
+            # Create an array corresponding to all the points and initialize to NaN
+            values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
+            # Assign points that are inside a given tree with that tree's ID
+            values[index_array] = points_in_polygons[column_name].to_numpy()
+            output_dict[column_name] = values
+
+        # If only one name was requested, just return that
+        if len(column_name) == 1:
+            return output_dict.values()[0]
+
+        return output_dict
+
+    def export_face_labels_vector(
         self,
         face_labels: np.ndarray,
         export_file: PATH_TYPE = None,
@@ -358,6 +444,42 @@ class TexturedPhotogrammetryMesh:
             plt.show()
 
         return aggregated_df
+
+    # Operations on raster files
+
+    def get_vert_values_from_raster_file(
+        self, raster_file: PATH_TYPE, return_verts_in_CRS: bool = False
+    ):
+        """Compute the height above groun for each point on the mesh
+
+        Args:
+            raster_file (PATH_TYPE, optional): The path to the geospatial raster file.
+            return_verts_in_CRS (bool, optional): Return the vertices transformed into the raster CRS
+
+        Returns:
+            np.ndarray: samples from raster. Either (n_verts,) or (n_verts, n_raster_channels)
+            np.ndarray (optional): (n_verts, 3) the vertices in the raster CRS
+        """
+        # Open the DEM file
+        raster = rio.open(raster_file)
+        # Get the mesh points in the coordinate reference system of the DEM
+        verts_in_raster_CRS = self.get_vertices_in_CRS(raster.crs)
+
+        # Get the points as a list
+        x_points = verts_in_raster_CRS[:, 1].tolist()
+        y_points = verts_in_raster_CRS[:, 0].tolist()
+
+        # Zip them together
+        zipped_locations = zip(x_points, y_points)
+        # Sample the raster file and squeeze if single channel
+        sampled_raster_values = np.squeeze(
+            np.array(list(raster.sample(zipped_locations)))
+        )
+
+        if return_verts_in_CRS:
+            return sampled_raster_values, verts_in_raster_CRS
+
+        return sampled_raster_values
 
     # Expensive pixel-to-vertex operations
 
@@ -557,6 +679,9 @@ class TexturedPhotogrammetryMesh:
         # If the vis scalars are None, use the vertex IDs
         if vis_scalars is None and self.vertex_IDs is not None:
             vis_scalars = self.vertex_IDs.copy().astype(float)
+            vis_scalars[vis_scalars < 0] = np.nan
+        elif vis_scalars is None and self.face_IDs is not None:
+            vis_scalars = self.face_IDs.copy().astype(float)
             vis_scalars[vis_scalars < 0] = np.nan
 
         is_rgb = (
