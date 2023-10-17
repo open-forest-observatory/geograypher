@@ -287,7 +287,7 @@ class TexturedPhotogrammetryMesh:
         label_names: typing.Tuple = None,
         drop_na: bool = True,
         vis: bool = True,
-        vis_kwargs: typing.Dict = {"cmap": "tab10", "vmin": -0.5, "vmax": 9.5},
+        vis_kwargs: typing.Dict = {"cmap": "tab10", "vmin": 0, "vmax": 9},
     ) -> gpd.GeoDataFrame:
         """Export the labels for each face as a on-per-class multipolygon
 
