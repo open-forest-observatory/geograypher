@@ -256,6 +256,7 @@ class TexturedPhotogrammetryMesh:
         Args:
             face_IDs (np.array): (n_faces,) The integer IDs of the faces
         """
+        raise NotImplementedError()
         # TODO figure how to have a NaN class that
         for i in tqdm(range(self.verts.shape[0])):
             # Find which faces are using this vertex
