@@ -2,14 +2,19 @@ from typing import Tuple
 
 import numpy as np
 import numpy.ma as ma
+import pyproj
 import pyvista as pv
 import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from skimage.io import imread
 from skimage.transform import resize
+import geopandas as gpd
+from shapely import Point
 
 from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.utils.image import get_GPS_exif
+from multiview_prediction_toolkit.utils.utils import get_projected_CRS
 
 
 class PhotogrammetryCamera:
@@ -48,6 +53,7 @@ class PhotogrammetryCamera:
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
+        self.lon_lat = (None, None)
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -93,6 +99,12 @@ class PhotogrammetryCamera:
             int(self.image_size[0] * image_scale),
             int(self.image_size[1] * image_scale),
         )
+
+    def get_lon_lat(self):
+        """Return the lon, lat tuple, reading from exif metadata if neccessary"""
+        if None in self.lon_lat:
+            self.lon_lat = get_GPS_exif(self.image_filename)
+        return self.lon_lat
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -373,6 +385,7 @@ class PhotogrammetryCameraSet:
         return len(self.cameras)
 
     def n_image_channels(self) -> int:
+        """Return the number of channels in the image"""
         return 3
 
     def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
@@ -382,6 +395,40 @@ class PhotogrammetryCameraSet:
 
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
+
+    def get_GPS_coords(self):
+        """Returns a list of GPS coords for each camera"""
+        return list(map(lambda x: x.get_lon_lat(), self.cameras))
+
+    def get_subset_near_geofile(
+        self, geofile: PATH_TYPE, buffer_radius_meters: float = 50
+    ):
+        """Return cameras that are within a radius of the provided geometry
+
+        Args:
+            geofile (PATH_TYPE): Path to a geofile readable by geopandas
+            buffer_radius_meters (float, optional): Return points within this buffer of the geometry. Defaults to 50.
+        """
+        # Read in the geofile
+        geodata = gpd.read_file(geofile)
+        # Transform to the local Cartesian CRS if it's lat lon
+        if geodata.crs == pyproj.CRS.from_epsg(4326):
+            point = geodata["geometry"][0].centroid
+            geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
+            geodata.to_crs(geometric_crs, inplace=True)
+        # Expand the geometry of the shape by the buffer
+        # TODO is it better to merge first? Maybe?
+        geodata["geometry"] = geodata.buffer(buffer_radius_meters)
+        # Read the locations of all the points
+        image_points = list(map(lambda x: Point(*x), self.get_GPS_coords()))
+        # Create a dataframe
+        image_points_df = gpd.GeoDataFrame(geometry=image_points)
+        # Add an index row because the normal index will be removed in subsequent operations
+        image_points_df["index"] = image_points_df.index
+
+        points_in_field_buffer = gpd.tools.overlay(
+            image_points, geodata, how="intersection"
+        )
 
     def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
         """Visualize all the cameras

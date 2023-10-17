@@ -3,16 +3,16 @@ from pathlib import Path
 import numpy as np
 import pyproj
 import pyvista as pv
-from scipy.datasets import face
 import skimage
 import torch
+import typing
+import matplotlib.pyplot as plt
 from pytorch3d.renderer import (
-    AmbientLights,
-    HardGouraudShader,
     MeshRasterizer,
     RasterizationSettings,
     TexturesVertex,
 )
+from collections import Counter
 from pytorch3d.structures import Meshes
 from tqdm import tqdm
 
@@ -20,6 +20,8 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
+from shapely import Polygon
+import geopandas as gpd
 from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
 
 
@@ -40,6 +42,8 @@ class TexturedPhotogrammetryMesh:
         self.pytorch_mesh = None
         self.verts = None
         self.faces = None
+        self.vertex_IDs = None
+        self.face_IDs = None
         self.local_to_epgs_4978_transform = None
 
         if torch.cuda.is_available():
@@ -80,9 +84,10 @@ class TexturedPhotogrammetryMesh:
                     f"Transform should be (4,4) but is {self.local_to_epgs_4978_transform.shape}"
                 )
         elif require_transform:
-            raise FileNotFoundError(
+            print(
                 f"Required transform file {transform_filename} file could not be found"
             )
+            self.local_to_epgs_4978_transform = np.eye(4)
 
         # Load the mesh using pyvista
         # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
@@ -100,14 +105,14 @@ class TexturedPhotogrammetryMesh:
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4]
 
-        self.verts = torch.Tensor(verts.copy()).to(self.device)
-        self.faces = torch.Tensor(faces.copy()).to(self.device)
+        self.verts = verts.copy()
+        self.faces = faces.copy()
 
     def create_texture(self, **kwargs):
         """Texture the mesh, potentially with other information"""
         self.pytorch_mesh = Meshes(
-            verts=[self.verts],
-            faces=[self.faces],
+            verts=[torch.Tensor(self.verts).to(self.device)],
+            faces=[torch.Tensor(self.faces).to(self.device)],
         )
         self.pytorch_mesh = self.pytorch_mesh.to(self.device)
 
@@ -198,15 +203,19 @@ class TexturedPhotogrammetryMesh:
         # Create a pytorch3d texture and add it to the mesh
         textures = TexturesVertex(verts_features=colors_tensor)
         self.pytorch_mesh = Meshes(
-            verts=[self.verts], faces=[self.faces], textures=textures
+            verts=[torch.Tensor(self.verts).to(self.device)],
+            faces=[torch.Tensor(self.faces).to(self.device)],
+            textures=textures,
         )
 
     def vis(
         self,
-        interactive=False,
+        interactive=True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
-        **plotter_kwargs,
+        vis_scalars=None,
+        mesh_kwargs: typing.Dict = {},
+        plotter_kwargs: typing.Dict = {},
     ):
         """Show the mesh and cameras
 
@@ -214,15 +223,145 @@ class TexturedPhotogrammetryMesh:
             off_screen (bool, optional): Show offscreen
             camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
+            vis_scalars: Scalars to show
+            mesh_kwargs: dict of keyword arguments for the mesh
+            plotter_kwargs: dict of keyword arguments for the plotter
         """
+        # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(
-            off_screen=(not interactive) or (screenshot_filename is None)
+            off_screen=(not interactive) or (screenshot_filename is not None)
         )
 
-        plotter.add_mesh(self.pyvista_mesh, rgb=True)
+        # If the vis scalars are None, use the vertex IDs
+        if vis_scalars is None:
+            vis_scalars = self.vertex_IDs.copy().astype(float)
+            vis_scalars[vis_scalars < 0] = np.nan
+
+        # Add the mesh
+        plotter.add_mesh(
+            self.pyvista_mesh,
+            scalars=vis_scalars,
+            rgb=(len(vis_scalars.shape) > 1),
+            **mesh_kwargs,
+        )
+        # If the camera set is provided, show this too
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
+        # Show
         plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
+
+    def face_to_vert_IDs(self, face_IDs):
+        """_summary_
+
+        Args:
+            face_IDs (np.array): (n_faces,) The integer IDs of the faces
+        """
+        raise NotImplementedError()
+        # TODO figure how to have a NaN class that
+        for i in tqdm(range(self.verts.shape[0])):
+            # Find which faces are using this vertex
+            matching = np.sum(self.faces == i, axis=1)
+            # matching_inds = np.where(matching)[0]
+            # matching_IDs = face_IDs[matching_inds]
+            # most_common_ind = Counter(matching_IDs).most_common(1)
+
+    def vert_to_face_IDs(self, vert_IDs):
+        # Each row contains the IDs of each vertex
+        IDs_per_face = vert_IDs[self.faces]
+        # Now we need to "vote" for the best one
+        max_ID = np.max(vert_IDs)
+        # TODO consider using unique if these indices are sparse
+        counts_per_class_per_face = np.array(
+            [np.sum(IDs_per_face == i, axis=1) for i in range(max_ID + 1)]
+        ).T
+        # Check which entires had no classes reported and mask them out
+        # TODO consider removing these rows beforehand
+        zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
+        # We want to fairly tiebreak since np.argmax will always take th first index
+        # This is hard to do in a vectorized way, so we just add a small random value
+        # independently to each element
+        counts_per_class_per_face = (
+            counts_per_class_per_face
+            + np.random.random(counts_per_class_per_face.shape) * 0.5
+        )
+        most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
+        most_common_class_per_face[zeros_mask] = -1
+
+        return most_common_class_per_face
+
+    def export_face_labels_geofile(
+        self,
+        face_labels: np.ndarray,
+        export_file: PATH_TYPE = None,
+        export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
+        label_names: typing.Tuple = None,
+        drop_na: bool = True,
+        vis: bool = True,
+        vis_kwargs: typing.Dict = {},
+    ) -> gpd.GeoDataFrame:
+        """Export the labels for each face as a on-per-class multipolygon
+
+        Args:
+            face_labels (np.ndarray): Array of integer labels and potentially nan
+            export_file (PATH_TYPE, optional):
+                Where to export. The extension must be a filetype that geopandas can write.
+                Defaults to None, if unset, nothing will be written.
+            export_crs (pyproj.CRS, optional): What CRS to export in.. Defaults to pyproj.CRS.from_epsg(4326), lat lon.
+            label_names (typing.Tuple, optional): Optional names, that are indexed by the labels. Defaults to None.
+            drop_na (bool, optional): Should the faces with the nan class be discarded. Defaults to True.
+            vis: should the result be visualzed
+            vis_kwargs: keyword argmument dict for visualization
+
+        Raises:
+            ValueError: If the wrong number of faces labels are provided
+
+        Returns:
+            gpd.GeoDataFrame: Merged data
+        """
+        # Check that the correct number of labels are provided
+        if len(face_labels) != self.faces.shape[0]:
+            raise ValueError()
+
+        # Get the mesh vertices in the desired export CRS
+        verts_in_crs = self.get_vertices_in_CRS(export_crs)
+        # Get a triangle in geospatial coords for each face
+        # Only report the x, y values and not z
+        face_polygons = [
+            Polygon(verts_in_crs[face_IDs][:, :2]) for face_IDs in self.faces
+        ]
+        # Create a geodata frame from these polygons
+        individual_polygons_df = gpd.GeoDataFrame(
+            {"labels": face_labels}, geometry=face_polygons, crs=export_crs
+        )
+        # Merge these triangles into a multipolygon for each class
+        # This is the expensive step
+        aggregated_df = individual_polygons_df.dissolve(
+            by="labels", as_index=False, dropna=drop_na
+        )
+
+        # Add names if present
+        if label_names is not None:
+            names = [
+                (label_names[int(label)] if label is not np.nan else np.nan)
+                for label in aggregated_df["labels"].tolist()
+            ]
+            aggregated_df["names"] = names
+
+        # Export if a file is provided
+        if export_file is not None:
+            aggregated_df.to_file(export_file)
+
+        # Vis if requested
+        if vis:
+            aggregated_df.plot(
+                column="names" if label_names is not None else "labels",
+                aspect=1,
+                legend=True,
+                **vis_kwargs,
+            )
+            plt.show()
+
+        return aggregated_df
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """
@@ -417,27 +556,30 @@ class TexturedPhotogrammetryMesh:
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
         """
+        # Check to make sure required data is available
+        if self.face_IDs is not None and self.face_IDs.shape[0] == self.faces.shape[0]:
+            pass
+        if (
+            self.vertex_IDs is not None
+            and self.vertex_IDs.shape[0] == self.verts.shape[0]
+        ):
+            self.face_IDs = self.vert_to_face_IDs(self.vertex_IDs)
+        else:
+            raise ValueError("No texture for rendering")
+
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
 
         # This part is shared across many tasks
-        p3d_camera, fragments = self.get_rasterization_results(
+        _, fragments = self.get_rasterization_results(
             pg_camera, image_scale=image_scale
         )
+        pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
+        pix_to_label = self.face_IDs[pix_to_face]
+        img_size = pg_camera.get_image_size(image_scale=image_scale)
+        label_img = np.reshape(pix_to_label, img_size)
 
-        # Create ambient light so it doesn't effect the color
-        lights = AmbientLights(device=self.device)
-        # Create a shader
-        shader = HardGouraudShader(
-            device=self.device, cameras=p3d_camera, lights=lights
-        )
-
-        # Render te images using the shader
-        images = shader(fragments, self.pytorch_mesh)
-
-        # Extract the image
-        rendered = images[0].cpu().numpy()
-        return rendered
+        return label_img
 
     def visualize_renders_pytorch3d(
         self,
