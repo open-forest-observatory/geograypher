@@ -752,7 +752,7 @@ class TexturedPhotogrammetryMesh:
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
         if camera_indices is None:
-            camera_indices = np.arange(len(camera_set.n_cameras()))
+            camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
 
         save_folder = Path(VIS_FOLDER, render_folder)
@@ -766,6 +766,11 @@ class TexturedPhotogrammetryMesh:
                 real_img = camera_set.get_camera_by_index(i).get_image(
                     image_scale=image_scale
                 )
+
+                # Repeat channel if it's a single channel
+                if rendered.shape[-1] == 1:
+                    rendered = np.tile(rendered, (1, 1, real_img.shape[-1]))
+
                 rendered = (
                     np.clip(
                         np.concatenate(

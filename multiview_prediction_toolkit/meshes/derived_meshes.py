@@ -81,6 +81,7 @@ class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
         use_pytorch3d_mesh: bool = True,
         DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
         ground_height_threshold=2,
+        clip_height: float = 50,
         **kwargs
     ):
         """Texture by thresholding the height above groun
@@ -95,7 +96,13 @@ class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
         # Get the height of each mesh point above the ground
         self.vertex_IDs = self.get_height_above_ground(
             DEM_file=DEM_file, threshold=ground_height_threshold
-        ).astype(int)
+        )
+        # Convert to a binary mask
+        if ground_height_threshold is None:
+            self.vertex_IDs = np.clip(self.vertex_IDs, 0, clip_height) / clip_height
+
+        else:
+            self.vertex_IDs = self.vertex_IDs.astype(int)
 
         self.create_pytorch_3d_mesh()
 
@@ -109,15 +116,12 @@ class TreeIDTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         use_pytorch3d_mesh: bool = True,
         geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
         DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
-        ground_height_threshold=2,
+        ground_height_threshold=None,
         collapse_IDs: bool = False,
     ):
         """Create a texture from a geofile containing polygons
 
         Args:
-            geo_polygon_file (PATH_TYPE, optional):
-                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
-            collapse_IDs: report tree vs. not tree rather than tree IDs
         """
         super().__init__(
             mesh_filename, downsample_target, texture, use_pytorch3d_mesh=False
@@ -238,40 +242,3 @@ class TreeSpeciesTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         radius[null_entries] = radius_meters
 
         return radius
-
-
-class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
-    def __init__(
-        self,
-        mesh_filename: PATH_TYPE,
-        downsample_target: float = 1,
-        geo_polygon_file: PATH_TYPE = None,
-        geo_point_file: PATH_TYPE = None,
-        DEM_file: PATH_TYPE = None,
-        ground_height_threshold=2,
-        vis: bool = False,
-        **kwargs
-    ):
-        # Load and downsample the mesh
-        super().__init__(
-            mesh_filename=mesh_filename,
-            downsample_target=downsample_target,
-            use_pytorch3d_mesh=False,
-        )
-
-        # Add a texture
-        if geo_polygon_file is not None:
-            self.create_texture_geopolygon(
-                geo_polygon_file=geo_polygon_file,
-                DEM_file=DEM_file,
-                ground_height_threshold=ground_height_threshold,
-                vis=vis,
-            )
-        elif geo_point_file is not None:
-            self.create_texture_geopoints(geopoints_file=geo_point_file)
-        else:
-            self.create_texture_height_threshold(
-                DEM_file=DEM_file,
-                ground_height_threshold=ground_height_threshold,
-                vis=vis,
-            )

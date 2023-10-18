@@ -3,14 +3,14 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_LOCAL_MESH,
 )
 from multiview_prediction_toolkit.meshes import (
-    GeodataPhotogrammetryMesh,
     TexturedPhotogrammetryMesh,
     HeightAboveGroundPhotogrammertryMesh,
     TreeIDTexturedPhotogrammetryMesh,
+    TreeSpeciesTexturedPhotogrammetryMesh,
 )
 
 
-EXAMPLE_NUM = 4
+EXAMPLE_NUM = 3
 
 if EXAMPLE_NUM == 0:
     # Load a mesh at native resolution
@@ -31,19 +31,21 @@ elif EXAMPLE_NUM == 1:
 
 elif EXAMPLE_NUM == 2:
     # Load a mesh textured with geographic data from a point file
-    geodata_mesh = GeodataPhotogrammetryMesh(
+    geodata_mesh = TreeSpeciesTexturedPhotogrammetryMesh(
         DEFAULT_LOCAL_MESH,
         geo_point_file=DEFAULT_GEO_POINTS_FILE,
     )
     geodata_mesh.vis(mesh_kwargs={"cmap": "tab10", "vmin": 0, "vmax": 9})
 
 elif EXAMPLE_NUM == 3:
+    # Load a mesh textured with height above ground
     height_above_ground_mesh = HeightAboveGroundPhotogrammertryMesh(
-        mesh_filename=DEFAULT_LOCAL_MESH
+        mesh_filename=DEFAULT_LOCAL_MESH, ground_height_threshold=None
     )
     height_above_ground_mesh.vis()
 
 elif EXAMPLE_NUM == 4:
+    # Load a mesh textured with tree species
     tree_ID_mesh = TreeIDTexturedPhotogrammetryMesh(
         mesh_filename=DEFAULT_LOCAL_MESH, collapse_IDs=False
     )
