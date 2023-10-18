@@ -2,7 +2,6 @@ import geopandas as gpd
 import pyproj
 import numpy as np
 import pandas as pd
-import rasterio as rio
 import torch
 import matplotlib.pyplot as plt
 from pytorch3d.renderer import TexturesVertex
@@ -16,6 +15,7 @@ from geopandas import GeoDataFrame
 from multiview_prediction_toolkit.config import (
     COLORS,
     DEFAULT_DEM_FILE,
+    DEFAULT_GEOPOLYGON_FILE,
     PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
@@ -42,11 +42,7 @@ class ColorPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             verts_rgb = torch.Tensor(
                 np.full((1, self.pyvista_mesh.n_points, 3), 0.5)
             ).to(self.device)
-        textures = TexturesVertex(verts_features=verts_rgb).to(self.device)
-        self.pytorch_mesh = Meshes(
-            verts=[self.verts], faces=[self.faces], textures=textures
-        )
-        self.pytorch_mesh = self.pytorch_mesh.to(self.device)
+        self.create_pytorch_3d_mesh(vert_texture=verts_rgb)
 
 
 class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
@@ -77,96 +73,16 @@ class DummyPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         )
 
 
-class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
-    def get_verts_geodataframe(self, crs: pyproj.CRS) -> gpd.GeoDataFrame:
-        """Obtain the vertices as a dataframe
-
-        Args:
-            crs (pyproj.CRS): The CRS to use
-
-        Returns:
-            gpd.GeoDataFrame: A dataframe with all the vertices
-        """
-
-        # Get the vertices in the same CRS as the geofile
-        verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
-
-        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
-        # Convert points into georeferenced dataframe
-        # TODO consider removing this line since it's not strictly needed
-        df = pd.DataFrame(
-            {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
-            }
-        )
-        # Create a column of Point objects to use as the geometry
-        df["coords"] = [Point(xy) for xy in zip(df["east"], df["north"])]
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=crs)
-
-        # Add an index column because the normal index will not be preserved in future operations
-        points["id"] = df.index
-
-        return points
-
-    def get_values_for_verts_from_geopandas(
-        self, geopandas_df: GeoDataFrame, geopandas_column: str
-    ) -> np.ndarray:
-        """Get the value from a dataframe for each vertex
-
-        Args:
-            geopandas_df (GeoDataFrame): Data to use
-            geopandas_column (str): Which column to obtain data from
-
-        Returns:
-            np.ndarray: Array of values for each vertex
-        """
-        # Get a dataframe of vertices
-        verts_df = self.get_verts_geodataframe(geopandas_df.crs)
-
-        # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(
-            verts_df, geopandas_df, how="intersection"
-        )
-        # Create an array corresponding to all the points and initialize to NaN
-        values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
-        # Assign points that are inside a given tree with that tree's ID
-        values[points_in_polygons["id"].to_numpy()] = points_in_polygons[
-            geopandas_column
-        ].to_numpy()
-        return values
-
-    def get_height_above_ground(self, DEM_file: PATH_TYPE = DEFAULT_DEM_FILE):
-        """Compute the height above groun for each point on the mesh
-
-        Args:
-            DEM_file (PATH_TYPE, optional): The path the the DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
-
-        Returns:
-            np.ndarray: Heights above the ground for each point, aranged in the same order as mesh points (meters)
-        """
-        # Open the DEM file
-        DEM = rio.open(DEM_file)
-        # Get the mesh points in the coordinate reference system of the DEM
-        verts_in_DEM_crs = self.get_vertices_in_CRS(DEM.crs)
-
-        x_points = verts_in_DEM_crs[:, 1].tolist()
-        y_points = verts_in_DEM_crs[:, 0].tolist()
-        point_elevation_meters = verts_in_DEM_crs[:, 2]
-
-        zipped_points = zip(x_points, y_points)
-        DEM_elevation_meters = np.squeeze(np.array(list(DEM.sample(zipped_points))))
-
-        # We want to find a height about the ground by subtracting the DEM from the
-        # mesh points
-        height_above_ground = point_elevation_meters - DEM_elevation_meters
-        return height_above_ground
-
-    def create_texture_height_threshold(
+class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
         self,
+        mesh_filename: PATH_TYPE,
+        downsample_target: float = 1,
+        use_pytorch3d_mesh: bool = True,
         DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
         ground_height_threshold=2,
-        vis: bool = False,
+        clip_height: float = 50,
+        **kwargs
     ):
         """Texture by thresholding the height above groun
 
@@ -174,23 +90,74 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             DEM_file (PATH_TYPE, optional): Filepath for DEM/DTM file from metashape. Defaults to DEFAULT_DEM_FILE.
             threshold (int, optional): Height above gound to be considered not ground (meters). Defaults to 2.
         """
+        super().__init__(mesh_filename, downsample_target, use_pytorch3d_mesh=False)
+        self.use_pytorch3d_mesh = use_pytorch3d_mesh
+
         # Get the height of each mesh point above the ground
-        height_above_ground = self.get_height_above_ground(DEM_file=DEM_file)
-        # Threshold to dermine if it's ground or not
-        ground_points = height_above_ground < ground_height_threshold
-        # Color the mesh with this mask
-        self.texture_with_binary_mask(
-            ground_points,
-            color_true=np.array(COLORS["earth"]) / 255.0,
-            color_false=np.array(COLORS["canopy"]) / 255.0,
+        self.vertex_IDs = self.get_height_above_ground(
+            DEM_file=DEM_file, threshold=ground_height_threshold
+        )
+        # Convert to a binary mask
+        if ground_height_threshold is None:
+            self.vertex_IDs = np.clip(self.vertex_IDs, 0, clip_height) / clip_height
+            self.discrete_label = False
+            self.create_pytorch_3d_mesh(vert_texture=self.vertex_IDs)
+        else:
+            self.vertex_IDs = self.vertex_IDs.astype(int)
+            self.discrete_label = True
+            self.create_pytorch_3d_mesh()
+
+
+
+class TreeIDTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
+        self,
+        mesh_filename: PATH_TYPE,
+        downsample_target: float = 1,
+        texture: np.ndarray = None,
+        use_pytorch3d_mesh: bool = True,
+        geo_polygon_file: PATH_TYPE = DEFAULT_GEOPOLYGON_FILE,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
+        ground_height_threshold=None,
+        collapse_IDs: bool = False,
+    ):
+        """Create a texture from a geofile containing polygons
+
+        Args:
+        """
+        super().__init__(
+            mesh_filename, downsample_target, texture, use_pytorch3d_mesh=False
+        )
+        self.use_pytorch3d_mesh = use_pytorch3d_mesh
+
+        # Get the tree IDs from the file
+        tree_IDs = self.get_values_for_verts_from_vector(
+            column_names="treeID", vector_file=geo_polygon_file
         )
 
-    def create_texture_geopoints(
+        if collapse_IDs:
+            tree_IDs[np.isfinite(tree_IDs)] = 1.0
+
+        if DEM_file is not None:
+            ground_points = self.get_height_above_ground(
+                DEM_file=DEM_file, threshold=ground_height_threshold
+            )
+            tree_IDs[ground_points] = np.nan
+        self.vertex_IDs = tree_IDs
+
+
+class TreeSpeciesTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
+    def __init__(
         self,
+        mesh_filename: PATH_TYPE,
         geopoints_file: PATH_TYPE,
+        downsample_target: float = 1,
+        texture: np.ndarray = None,
+        use_pytorch3d_mesh: bool = True,
         radius_meters: float = 3,
         vis: bool = True,
         ground_height_threshold: float = 2,
+        DEM_file: PATH_TYPE = DEFAULT_DEM_FILE,
         discard_overlapping: bool = False,
     ):
         """Creates a classification texture from a circle around each point in a file
@@ -200,8 +167,10 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             radius_meters (float, optional): Radius around each point to use. Defaults to 1.
             vis (bool, optional): Visualize. Defaults to True.
             ground_height_threshold (float, optional): Points under this height are considered ground
+            DEM_file (PATH_TYPE, optional): The DEM file to use
             discard_overlapping (bool, optional): Discard regions where two classes disagree
         """
+        super().__init__(mesh_filename, downsample_target, texture, use_pytorch3d_mesh)
         # Read in the data
         geopoints = gpd.read_file(geopoints_file)
         # Determine the projective CRS for the region since many operation don't work on geographic CRS
@@ -211,19 +180,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
         # transfrom to a projective CRS
         geopoints = geopoints.to_crs(crs=projected_CRS)
         # Get the size of the trees
-        crown_width_1 = geopoints["Crown_width_1"].to_numpy()
-        crown_width_2 = geopoints["Crown_width_2"].to_numpy()
-        crown_width_1 = np.array([to_float(x, "NA") for x in crown_width_1])
-        crown_width_2 = np.array([to_float(x, "NA") for x in crown_width_2])
-        null_value = 1000
-        min_width = np.ones_like(crown_width_1) * null_value
-        radius = np.nanmin(
-            np.vstack((crown_width_1, crown_width_2, min_width)).T, axis=1
-        )
-        null_entries = radius == null_value
-        radius = radius * 0.75
-        radius = np.clip(radius, 0, 20)
-        radius[null_entries] = radius_meters
+        radius = self.get_radius(geopoints=geopoints, radius_meters=radius_meters)
 
         # Now create circles around each point
         geopolygons = geopoints
@@ -235,6 +192,7 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             species_ID: make_valid(species_df.unary_union)
             for species_ID, species_df in split_by_species
         }
+        # Should points regions with multiple different species be discarded?
         if discard_overlapping:
             union_of_intrsections = find_union_of_intersections(
                 list(species_multipolygon_dict.values()), crs=projected_CRS
@@ -259,85 +217,30 @@ class GeodataPhotogrammetryMesh(TexturedPhotogrammetryMesh):
             geopandas_all_species.plot("species", legend=True)
             plt.show()
 
-        species_int_IDs = np.load("vis/species_int_IDs.npy")
-        species_int_IDs = np.nan_to_num(species_int_IDs, nan=-1).astype(int)
+        species_int_IDs = self.get_values_for_verts_from_vector(
+            column_names="species_int_ID", geopandas_df=geopandas_all_species
+        )
 
-        ground_points = self.get_height_above_ground() < ground_height_threshold
+        ground_points = self.get_height_above_ground(
+            DEM_file, threshold=ground_height_threshold
+        )
         species_int_IDs[ground_points] = -1
 
         self.vertex_IDs = species_int_IDs
 
-        self.pytorch_mesh = Meshes(
-            verts=[torch.Tensor(self.verts).to(self.device)],
-            faces=[torch.Tensor(self.faces).to(self.device)],
+    def get_radius(self, geopoints, radius_meters):
+        crown_width_1 = geopoints["Crown_width_1"].to_numpy()
+        crown_width_2 = geopoints["Crown_width_2"].to_numpy()
+        crown_width_1 = np.array([to_float(x, "NA") for x in crown_width_1])
+        crown_width_2 = np.array([to_float(x, "NA") for x in crown_width_2])
+        null_value = 1000
+        min_width = np.ones_like(crown_width_1) * null_value
+        radius = np.nanmin(
+            np.vstack((crown_width_1, crown_width_2, min_width)).T, axis=1
         )
-        self.pytorch_mesh = self.pytorch_mesh.to(self.device)
+        null_entries = radius == null_value
+        radius = radius * 0.75
+        radius = np.clip(radius, 0, 20)
+        radius[null_entries] = radius_meters
 
-    def create_texture_geopolygon(
-        self,
-        geo_polygon_file: PATH_TYPE = None,
-        DEM_file: PATH_TYPE = None,
-        ground_height_threshold=2,
-        vis: bool = False,
-    ):
-        """Create a texture from a geofile containing polygons
-
-        Args:
-            geo_polygon_file (PATH_TYPE, optional):
-                Filepath to read from. Must be able to be opened by geopandas. Defaults to DEFAULT_GEOPOLYGON_FILE.
-            vis (bool, optional): Show the texture. Defaults to False.
-        """
-        # Read the polygon data about the tree crown segmentation
-        geo_polygons = gpd.read_file(geo_polygon_file)
-
-        tree_IDs = self.get_values_for_verts_from_geopandas(geo_polygons, "treeID")
-
-        # These points are within a tree
-        # TODO, in the future we might want to do something more sophisticated than tree/not tree
-        inside_tree_polygon = np.isfinite(tree_IDs)
-
-        if DEM_file is not None:
-            above_ground = (
-                self.get_height_above_ground(DEM_file=DEM_file)
-                > ground_height_threshold
-            )
-            is_tree = (
-                torch.Tensor(np.logical_and(inside_tree_polygon, above_ground))
-                .to(self.device)
-                .to(torch.bool)
-            )
-        else:
-            is_tree = torch.Tensor(inside_tree_polygon).to(self.device).to(torch.bool)
-
-        self.vert_to_face_IDs(is_tree.cpu().numpy())
-
-        self.texture_with_binary_mask(
-            is_tree,
-            color_true=np.array(COLORS["canopy"]) / 255.0,
-            color_false=np.array(COLORS["earth"]) / 255.0,
-            vis=vis,
-        )
-
-    def create_texture(
-        self,
-        geo_polygon_file: PATH_TYPE = None,
-        geo_point_file: PATH_TYPE = None,
-        DEM_file: PATH_TYPE = None,
-        ground_height_threshold=2,
-        vis: bool = False,
-    ):
-        if geo_polygon_file is not None:
-            self.create_texture_geopolygon(
-                geo_polygon_file=geo_polygon_file,
-                DEM_file=DEM_file,
-                ground_height_threshold=ground_height_threshold,
-                vis=vis,
-            )
-        elif geo_point_file is not None:
-            self.create_texture_geopoints(geopoints_file=geo_point_file)
-        else:
-            self.create_texture_height_threshold(
-                DEM_file=DEM_file,
-                ground_height_threshold=ground_height_threshold,
-                vis=vis,
-            )
+        return radius
