@@ -100,11 +100,13 @@ class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
         # Convert to a binary mask
         if ground_height_threshold is None:
             self.vertex_IDs = np.clip(self.vertex_IDs, 0, clip_height) / clip_height
-
+            self.discrete_label = False
+            self.create_pytorch_3d_mesh(vert_texture=self.vertex_IDs)
         else:
             self.vertex_IDs = self.vertex_IDs.astype(int)
+            self.discrete_label = True
+            self.create_pytorch_3d_mesh()
 
-        self.create_pytorch_3d_mesh()
 
 
 class TreeIDTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):

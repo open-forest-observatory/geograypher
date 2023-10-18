@@ -11,6 +11,8 @@ from pytorch3d.renderer import (
     MeshRasterizer,
     RasterizationSettings,
     TexturesVertex,
+    AmbientLights,
+    HardGouraudShader,
 )
 import rasterio as rio
 from collections import Counter
@@ -34,6 +36,7 @@ class TexturedPhotogrammetryMesh:
         downsample_target: float = 1.0,
         texture: np.ndarray = None,
         use_pytorch3d_mesh: bool = True,
+        discrete_label: bool = True,
     ):
         """_summary_
 
@@ -42,11 +45,13 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (np.ndarray): The texture to apply to the pytorch3d mesh
             use_pytorch3d_mesh (bool, optional): Set to False if unneeded or will be done later
+            discrete_label (bool, optional): Is the label quanity discrete or continous
         """
         self.mesh_filename = Path(mesh_filename)
         self.downsample_target = downsample_target
         self.texture = texture
         self.use_pytorch3d_mesh = use_pytorch3d_mesh
+        self.discrete_label = discrete_label
 
         self.pyvista_mesh = None
         self.pytorch_mesh = None
@@ -143,9 +148,10 @@ class TexturedPhotogrammetryMesh:
 
         # Create the texture object if provided
         if vert_texture is not None:
-            texture = TexturesVertex(
-                verts_features=torch.Tensor(vert_texture).to(self.device).unsqueeze(0)
-            ).to(self.device)
+            vert_texture = torch.Tensor(vert_texture).to(self.device).unsqueeze(0)
+            if len(vert_texture.shape) == 2:
+                vert_texture = vert_texture.unsqueeze(-1)
+            texture = TexturesVertex(verts_features=vert_texture).to(self.device)
         else:
             texture = None
 
@@ -640,41 +646,66 @@ class TexturedPhotogrammetryMesh:
     def render_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
+        camera_index: int,
         image_scale: float = 1.0,
-        camera_index=None,
+        shade_by_indexing: bool = None,
     ):
         """Render an image from the viewpoint of a single camera
         # TODO include an option to specify whether indexing or shading is used
 
         Args:
             camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            camera_index (int): which camera to render
             image_scale (float, optional):
                 Multiplier on the real image scale to obtain size for rendering. Lower values
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-            camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
+            shade_by_indexing (bool, optional): Use indexing rather than a pytorch3d shader. Useful for integer labels
         """
-        # Check to make sure required data is available
-        if self.face_IDs is not None and self.face_IDs.shape[0] == self.faces.shape[0]:
-            pass
-        if (
-            self.vertex_IDs is not None
-            and self.vertex_IDs.shape[0] == self.verts.shape[0]
-        ):
-            self.face_IDs = self.vert_to_face_IDs(self.vertex_IDs)
-        else:
-            raise ValueError("No texture for rendering")
+        if shade_by_indexing is None:
+            shade_by_indexing = self.discrete_label
 
+        # Check to make sure required data is available
+        if shade_by_indexing:
+            if (
+                self.face_IDs is not None
+                and self.face_IDs.shape[0] == self.faces.shape[0]
+            ):
+                pass
+            if (
+                self.vertex_IDs is not None
+                and self.vertex_IDs.shape[0] == self.verts.shape[0]
+            ):
+                self.face_IDs = self.vert_to_face_IDs(self.vertex_IDs)
+            else:
+                raise ValueError("No texture for rendering")
+        else:
+            if self.pytorch_mesh.textures is None:
+                self.create_pytorch_3d_mesh(self.vertex_IDs)
+
+        breakpoint()
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
 
-        # This part is shared across many tasks
-        _, fragments = self.get_rasterization_results_pytorch3d(
+        # Compute the pixel-to-vertex correspondences, this is expensive
+        p3d_camera, fragments = self.get_rasterization_results_pytorch3d(
             pg_camera, image_scale=image_scale
         )
-        pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-        pix_to_label = self.face_IDs[pix_to_face]
-        img_size = pg_camera.get_image_size(image_scale=image_scale)
-        label_img = np.reshape(pix_to_label, img_size)
+
+        if shade_by_indexing:
+            pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
+            pix_to_label = self.face_IDs[pix_to_face]
+            img_size = pg_camera.get_image_size(image_scale=image_scale)
+            label_img = np.reshape(pix_to_label, img_size)
+        else:
+            # Create ambient light so it doesn't effect the color
+            lights = AmbientLights(device=self.device)
+            # Create a shader
+            shader = HardGouraudShader(
+                device=self.device, cameras=p3d_camera, lights=lights
+            )
+
+            # Render te images using the shader
+            label_img = shader(fragments, self.pytorch_mesh)[0]
 
         return label_img
 
@@ -760,7 +791,9 @@ class TexturedPhotogrammetryMesh:
 
         for i in tqdm(camera_indices):
             rendered = self.render_pytorch3d(
-                camera_set=camera_set, image_scale=image_scale, camera_index=i
+                camera_set=camera_set,
+                camera_index=i,
+                image_scale=image_scale,
             )
             if make_composites:
                 real_img = camera_set.get_camera_by_index(i).get_image(
