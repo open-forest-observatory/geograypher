@@ -145,10 +145,9 @@ class TexturedPhotogrammetryMesh:
             force_creation is False
         ):
             return
-
         # Create the texture object if provided
         if vert_texture is not None:
-            vert_texture = torch.Tensor(vert_texture).to(self.device).unsqueeze(0)
+            vert_texture = torch.Tensor(vert_texture).to(float).to(self.device).unsqueeze(0)
             if len(vert_texture.shape) == 2:
                 vert_texture = vert_texture.unsqueeze(-1)
             texture = TexturesVertex(verts_features=vert_texture).to(self.device)
@@ -682,7 +681,6 @@ class TexturedPhotogrammetryMesh:
             if self.pytorch_mesh.textures is None:
                 self.create_pytorch_3d_mesh(self.vertex_IDs)
 
-        breakpoint()
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
 
@@ -705,7 +703,7 @@ class TexturedPhotogrammetryMesh:
             )
 
             # Render te images using the shader
-            label_img = shader(fragments, self.pytorch_mesh)[0]
+            label_img = shader(fragments, self.pytorch_mesh)[0].cpu().numpy()
 
         return label_img
 
