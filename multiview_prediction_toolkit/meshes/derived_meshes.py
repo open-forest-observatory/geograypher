@@ -108,7 +108,6 @@ class HeightAboveGroundPhotogrammertryMesh(TexturedPhotogrammetryMesh):
             self.create_pytorch_3d_mesh()
 
 
-
 class TreeIDTexturedPhotogrammetryMesh(TexturedPhotogrammetryMesh):
     def __init__(
         self,

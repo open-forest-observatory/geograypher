@@ -23,31 +23,33 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         tree = ET.parse(camera_file)
         root = tree.getroot()
         # first level
-        chunk = root[0]
+        chunk = root.find("chunk")
         # second level
-        sensors = chunk[0]
+        sensors = chunk.find("sensors")
 
         # sensors info
+        # TODO in the future we should support multiple sensors
+        # This would required parsing multiple sensor configs and figuring out
+        # which image each corresponds to
         sensor = sensors[0]
         self.image_width = int(sensor[0].get("width"))
         self.image_height = int(sensor[0].get("height"))
 
-        if len(sensor) > 8:
-            calibration = sensor[7]
-            self.f = float(calibration[1].text)
-            self.cx = float(calibration[2].text)
-            self.cy = float(calibration[3].text)
-            if None in (self.f, self.cx, self.cy):
-                ValueError("Incomplete calibration provided")
-
-            # Get potentially-empty dict of distortion parameters
-            self.distortion_dict = {
-                calibration[i].tag: float(calibration[i].text)
-                for i in range(3, len(calibration))
-            }
-
-        else:
+        calibration = sensor.find("calibration")
+        if calibration is None:
             raise ValueError("No calibration provided")
+
+        self.f = float(calibration.find("f").text)
+        self.cx = float(calibration.find("cx").text)
+        self.cy = float(calibration.find("cy").text)
+        if None in (self.f, self.cx, self.cy):
+            ValueError("Incomplete calibration provided")
+
+        # Get potentially-empty dict of distortion parameters
+        self.distortion_dict = {
+            calibration[i].tag: float(calibration[i].text)
+            for i in range(3, len(calibration))
+        }
 
         # Get the transform relating the arbitrary local coordinate system
         # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape

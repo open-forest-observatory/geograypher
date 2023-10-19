@@ -147,7 +147,9 @@ class TexturedPhotogrammetryMesh:
             return
         # Create the texture object if provided
         if vert_texture is not None:
-            vert_texture = torch.Tensor(vert_texture).to(float).to(self.device).unsqueeze(0)
+            vert_texture = (
+                torch.Tensor(vert_texture).to(torch.float).to(self.device).unsqueeze(0)
+            )
             if len(vert_texture.shape) == 2:
                 vert_texture = vert_texture.unsqueeze(-1)
             texture = TexturesVertex(verts_features=vert_texture).to(self.device)
@@ -259,22 +261,20 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: A dataframe with all the vertices
         """
-
         # Get the vertices in the same CRS as the geofile
         verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
 
-        # Taken from https://www.matecdev.com/posts/point-in-polygon.html
-        # Convert points into georeferenced dataframe
-        # TODO consider removing this line since it's not strictly needed
+        # Check if it's lat, lon which is y-first
+        is_lat_lon = int(crs == pyproj.CRS.from_epsg(4326))
         df = pd.DataFrame(
             {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
+                "east": verts_in_geopolygon_crs[:, 0 + is_lat_lon],
+                "north": verts_in_geopolygon_crs[:, 1 - is_lat_lon],
             }
         )
         # Create a column of Point objects to use as the geometry
-        df["coords"] = [Point(xy) for xy in zip(df["east"], df["north"])]
-        points = gpd.GeoDataFrame(df, geometry="coords", crs=crs)
+        df["geometry"] = gpd.points_from_xy(df["east"], df["north"])
+        points = gpd.GeoDataFrame(df, crs=crs)
 
         # Add an index column because the normal index will not be preserved in future operations
         points["id"] = df.index
@@ -328,6 +328,7 @@ class TexturedPhotogrammetryMesh:
         column_names: typing.List[str],
         vector_file: PATH_TYPE = None,
         geopandas_df: gpd.GeoDataFrame = None,
+        set_vertex_IDs: bool = False,
     ) -> np.ndarray:
         """Get the value from a dataframe for each vertex
 
@@ -335,6 +336,7 @@ class TexturedPhotogrammetryMesh:
             column_names (str): Which column to obtain data from
             geopandas_df (GeoDataFrame, optional): Data to use.
             vector_file (PATH_TYPE, optional): Path to data that can be loaded by geopandas
+            set_vertex_IDs (bool, optional): If True and only one column name is provided, set self.vertex_IDs to the result
 
         Returns:
             np.ndarray: Array of values for each vertex if there is one column name or
@@ -342,7 +344,6 @@ class TexturedPhotogrammetryMesh:
         """
         if vector_file is None and geopandas_df is None:
             raise ValueError("Must provide either vector_file or geopandas_df")
-
         if geopandas_df is None:
             geopandas_df = gpd.read_file(vector_file)
 
@@ -372,8 +373,11 @@ class TexturedPhotogrammetryMesh:
 
         # If only one name was requested, just return that
         if len(column_names) == 1:
-            return list(output_dict.values())[0]
-
+            output_values = list(output_dict.values())[0]
+            if set_vertex_IDs:
+                self.vertex_IDs = output_values
+            return output_values
+        # Else return a dict of all requested values
         return output_dict
 
     def export_face_labels_vector(
@@ -766,6 +770,7 @@ class TexturedPhotogrammetryMesh:
         camera_indices=None,
         render_folder: PATH_TYPE = "renders",
         make_composites: bool = False,
+        blend_composite: bool = True,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
@@ -777,6 +782,7 @@ class TexturedPhotogrammetryMesh:
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
             render_folder (PATH_TYPE, optional): Save images to this folder within vis. Default "renders"
             make_composites (bool, optional): Should a triple composite the original image be saved
+            blend_composite (bool, optional): Should the real and rendered image be saved, rather than inserting a channel of the render into the real
         """
         # Render each image individually.
         # TODO this could be accelerated by inteligent batching
@@ -792,26 +798,24 @@ class TexturedPhotogrammetryMesh:
                 camera_set=camera_set,
                 camera_index=i,
                 image_scale=image_scale,
-            )
+            )[..., :3]
+
             if make_composites:
                 real_img = camera_set.get_camera_by_index(i).get_image(
                     image_scale=image_scale
+                )[..., :3]
+
+                if blend_composite:
+                    combined = (real_img + rendered) / 2.0
+                else:
+                    combined = real_img.copy().astype(float)
+                    combined[..., 0] = rendered[..., 0]
+                rendered = np.clip(
+                    np.concatenate((real_img, rendered, combined), axis=1),
+                    0,
+                    1,
                 )
 
-                # Repeat channel if it's a single channel
-                if rendered.shape[-1] == 1:
-                    rendered = np.tile(rendered, (1, 1, real_img.shape[-1]))
-
-                rendered = (
-                    np.clip(
-                        np.concatenate(
-                            (real_img, rendered, (real_img + rendered) / 2.0)
-                        ),
-                        0,
-                        1,
-                    )
-                    * 255
-                ).astype(np.uint8)
-
+            rendered = (rendered * 255).astype(np.uint8)
             # Save the image
             skimage.io.imsave(f"{save_folder}/render_{i:03d}.png", rendered)
