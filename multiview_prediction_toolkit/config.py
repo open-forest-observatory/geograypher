@@ -14,6 +14,9 @@ VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 # Images for one metashape project used as an example
 DEFAULT_IMAGES_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "images"))
 
+# Images for one metashape project used as an example
+DEFAULT_LABELS_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "segmented"))
+
 # Mesh in local metashape coordinates for one metashape project used as an example
 DEFAULT_LOCAL_MESH = str(
     Path(
