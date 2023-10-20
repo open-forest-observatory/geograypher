@@ -350,10 +350,14 @@ class TexturedPhotogrammetryMesh:
         # Get a dataframe of vertices
         verts_df = self.get_verts_geodataframe(geopandas_df.crs)
 
-        # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(
-            verts_df, geopandas_df, how="intersection"
-        )
+        if len(geopandas_df) == 1:
+            intersection = verts_df.intersection(geopandas_df["geometry"][0])
+            breakpoint()
+        else:
+            # Select points that are within the polygons
+            points_in_polygons = gpd.tools.overlay(
+                verts_df, geopandas_df, how="intersection"
+            )
 
         # If it's one string, make it a one-length array
         if isinstance(column_names, str):

@@ -28,11 +28,11 @@ def parse_args():
     parser.add_argument("--mesh-file", default=DEFAULT_LOCAL_MESH)
     parser.add_argument("--camera-file", default=DEFAULT_CAM_FILE)
     parser.add_argument("--image-folder", default=DEFAULT_IMAGES_FOLDER)
-    parser.add_argument("--render-folder", default="data/gascola/renders_new")
+    parser.add_argument("--render-folder", default="vis/example_renders")
     parser.add_argument("--mesh-downsample", type=float, default=1)
     parser.add_argument("--image-downsample", type=float, default=0.25)
     parser.add_argument("--vector-file", default=DEFAULT_GEOPOLYGON_FILE)
-    parser.add_argument("--vector-file-column", default="treeID")
+    parser.add_argument("--vector-file-column", default="ID")
     parser.add_argument("--vis", action="store_true")
     parser.add_argument(
         "--screenshot-filename",
@@ -62,6 +62,7 @@ if __name__ == "__main__":
         args.mesh_file, downsample_target=args.mesh_downsample
     )
 
+    logging.info("Setting the mesh texture")
     mesh.get_values_for_verts_from_vector(
         column_names=args.vector_file_column,
         vector_file=args.vector_file,

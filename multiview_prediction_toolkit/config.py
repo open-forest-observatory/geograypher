@@ -35,7 +35,7 @@ DEFAULT_CAM_FILE = str(
 )
 # Example tree crown deliniation
 DEFAULT_GEOPOLYGON_FILE = str(
-    Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_crowns.gpkg")
+    Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_tree_mask.geojson")
 )
 # Example field reference data
 DEFAULT_GEO_POINTS_FILE = str(
