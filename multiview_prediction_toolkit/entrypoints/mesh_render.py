@@ -1,8 +1,12 @@
 import argparse
 import logging
+from tqdm import tqdm
+import numpy as np
+from pathlib import Path
 
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
+    DATA_FOLDER,
     DEFAULT_CAM_FILE,
     DEFAULT_GEOPOLYGON_FILE,
     DEFAULT_IMAGES_FOLDER,
@@ -24,7 +28,9 @@ def parse_args():
     parser.add_argument("--mesh-file", default=DEFAULT_LOCAL_MESH)
     parser.add_argument("--camera-file", default=DEFAULT_CAM_FILE)
     parser.add_argument("--image-folder", default=DEFAULT_IMAGES_FOLDER)
+    parser.add_argument("--render-folder", default="data/gascola/renders_new")
     parser.add_argument("--mesh-downsample", type=float, default=1)
+    parser.add_argument("--image-downsample", type=float, default=0.25)
     parser.add_argument("--vector-file", default=DEFAULT_GEOPOLYGON_FILE)
     parser.add_argument("--vector-file-column", default="treeID")
     parser.add_argument("--vis", action="store_true")
@@ -64,3 +70,21 @@ if __name__ == "__main__":
 
     if args.vis or args.screenshot_filename is not None:
         mesh.vis(screenshot_filename=args.screenshot_filename)
+
+    for i in tqdm(range(camera_set.n_cameras())):
+        image = camera_set.get_image_by_index(i, image_scale=args.image_downsample)
+        image_path = camera_set.get_camera_by_index(i).image_filename
+        label_mask = mesh.render_pytorch3d(
+            camera_set, image_scale=args.image_downsample, camera_index=i
+        )
+        savepath = Path(
+            DATA_FOLDER,
+            args.render_folder,
+            str(Path(image_path)).replace(".jpg", ".npy"),
+        )
+
+        savepath.parent.mkdir(parents=True, exist_ok=True)
+        np.save(
+            savepath,
+            label_mask,
+        )

@@ -35,7 +35,6 @@ class LookUpSegmentor(Segmentor):
             (int(image.shape[0] * image_scale), int(image.shape[1] * image_scale)),
             order=0,  # Nearest neighbor interpolation
         )
-        # print(np.min(image), np.max(image), np.min(resized_image), np.max(resized_image))
         one_hot_image = self.inds_to_one_hot(
             resized_image, num_classes=self.num_classes
         )

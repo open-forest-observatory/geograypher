@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument("--image-downsample", type=float, default=0.25)
     parser.add_argument("--ground-height-threshold", type=float, default=2)
     parser.add_argument("--label-names", nargs="+")
+    parser.add_argument("--num-classes", type=int, default=10)
     parser.add_argument(
         "--log-level",
         default="info",
@@ -60,7 +61,9 @@ if __name__ == "__main__":
     # Create a segmentor that looks up pre-processed images
     logging.info("Creating lookup segmentor")
     segmentor = LookUpSegmentor(
-        base_folder=args.image_folder, lookup_folder=args.label_folder
+        base_folder=args.image_folder,
+        lookup_folder=args.label_folder,
+        num_classes=args.num_classes,
     )
     # Make the camera set return segmented images instead of normal ones
     logging.info("Creating segmentor camera set")
@@ -88,9 +91,9 @@ if __name__ == "__main__":
 
     # Export the predictions
     logging.info("Exporting predictions to vector file")
-    mesh.export_face_labels_geofile(
-        most_common_label_ID,
-        args.export_file,
+    mesh.export_face_labels_vector(
+        face_labels=most_common_label_ID,
+        export_file=args.export_file,
         label_names=args.label_names,
     )
     # Visualize
