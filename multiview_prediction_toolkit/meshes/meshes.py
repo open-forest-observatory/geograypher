@@ -302,7 +302,7 @@ class TexturedPhotogrammetryMesh:
         # Each row contains the IDs of each vertex
         IDs_per_face = vert_IDs[self.faces]
         # Now we need to "vote" for the best one
-        max_ID = np.max(vert_IDs)
+        max_ID = int(np.nanmax(vert_IDs))
         # TODO consider using unique if these indices are sparse
         counts_per_class_per_face = np.array(
             [np.sum(IDs_per_face == i, axis=1) for i in range(max_ID + 1)]
@@ -350,15 +350,18 @@ class TexturedPhotogrammetryMesh:
         # Get a dataframe of vertices
         verts_df = self.get_verts_geodataframe(geopandas_df.crs)
 
-        # Select points that are within the polygons
-        points_in_polygons = gpd.tools.overlay(
-            verts_df, geopandas_df, how="intersection"
-        )
+        if len(geopandas_df) == 1:
+            # TODO benchmark if this is faster
+            points_in_polygons = verts_df.intersection(geopandas_df["geometry"][0])
+        else:
+            # Select points that are within the polygons
+            points_in_polygons = gpd.tools.overlay(
+                verts_df, geopandas_df, how="intersection"
+            )
 
         # If it's one string, make it a one-length array
         if isinstance(column_names, str):
             column_names = [column_names]
-
         # Get the index array
         index_array = points_in_polygons["id"].to_numpy()
 
@@ -731,10 +734,11 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs: dict of keyword arguments for the mesh
             plotter_kwargs: dict of keyword arguments for the plotter
         """
+        off_screen = (not interactive) or (screenshot_filename is not None)
+        if off_screen:
+            pv.start_xvfb()
         # Create the plotter which may be onscreen or off
-        plotter = pv.Plotter(
-            off_screen=(not interactive) or (screenshot_filename is not None)
-        )
+        plotter = pv.Plotter(off_screen=off_screen)
 
         # If the vis scalars are None, use the vertex IDs
         if vis_scalars is None and self.vertex_IDs is not None:
@@ -760,6 +764,7 @@ class TexturedPhotogrammetryMesh:
         # If the camera set is provided, show this too
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=True)
+
         # Show
         plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
 

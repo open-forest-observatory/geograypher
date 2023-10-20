@@ -66,18 +66,14 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         self.image_filenames = []
         self.cam_to_world_transforms = []
         for camera in cameras:
-            if len(camera) < 5:
+            transform = camera.find("transform")
+            if transform is None:
                 # skipping unaligned camera
                 continue
-            self.image_filenames.append(camera.get("label"))
+            self.image_filenames.append(Path(image_folder, camera.get("label")))
             self.cam_to_world_transforms.append(
-                np.fromstring(camera[0].text, sep=" ").reshape(4, 4)
+                np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
-
-        self.image_filenames = [
-            str(list(Path(image_folder).glob(filename + "*"))[0])
-            for filename in self.image_filenames
-        ]  # Assume there's only one file with that extension
 
     def make_4x4_transform(
         self, rotation_str: str, translation_str: str, scale_str: str = "1"

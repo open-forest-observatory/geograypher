@@ -42,25 +42,31 @@ class Segmentor:
 
     @staticmethod
     def inds_to_one_hot(
-        inds_image: np.ndarray, num_classes: typing.Union[int, NoneType] = None
+        inds_image: np.ndarray,
+        num_classes: typing.Union[int, NoneType] = None,
+        ignore_ind: int = 255,
     ) -> np.ndarray:
         """Convert an image of indices to a one-hot, one-per-channel encoding
 
         Args:
             inds_image (np.ndarray): Image of integer indices. (m, n)
             num_classes (int, NoneType): The number of classes. If None, computed as the max index provided. Default None
+            ignore_ind (inte, optional): This index is an ignored class
 
         Returns:
             np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False
         """
-        max_ind = int(np.max(inds_image))
-        num_classes = num_classes if num_classes is not None else max_ind + 1
+        if num_classes is None:
+            inds_image_copy = inds_image.copy()
+            # Mask out ignore ind so it's not used in computation
+            inds_image_copy[inds_image_copy == ignore_ind] == 0
+            num_classes = np.max(inds_image_copy) + 1
 
         one_hot_array = np.zeros(
             (inds_image.shape[0], inds_image.shape[1], num_classes), dtype=bool
         )
         # Iterate up to max ind, not num_classes to avoid wasted computation when there won't be matches
-        for i in range(max_ind + 1):
+        for i in range(num_classes):
             # TODO determine if there are any more efficient ways to do this
             # Maybe create all these slices and then concatenate
             # Or test equality with an array that has all the values in it

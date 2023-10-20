@@ -14,6 +14,9 @@ VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 # Images for one metashape project used as an example
 DEFAULT_IMAGES_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "images"))
 
+# Images for one metashape project used as an example
+DEFAULT_LABELS_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "segmented"))
+
 # Mesh in local metashape coordinates for one metashape project used as an example
 DEFAULT_LOCAL_MESH = str(
     Path(
@@ -32,7 +35,7 @@ DEFAULT_CAM_FILE = str(
 )
 # Example tree crown deliniation
 DEFAULT_GEOPOLYGON_FILE = str(
-    Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_crowns.gpkg")
+    Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_tree_mask.geojson")
 )
 # Example field reference data
 DEFAULT_GEO_POINTS_FILE = str(
