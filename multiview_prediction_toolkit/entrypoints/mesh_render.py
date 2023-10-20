@@ -11,7 +11,6 @@ from multiview_prediction_toolkit.config import (
     DEFAULT_GEOPOLYGON_FILE,
     DEFAULT_IMAGES_FOLDER,
     DEFAULT_LOCAL_MESH,
-    PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
 
@@ -25,22 +24,57 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("--mesh-file", default=DEFAULT_LOCAL_MESH)
-    parser.add_argument("--camera-file", default=DEFAULT_CAM_FILE)
-    parser.add_argument("--image-folder", default=DEFAULT_IMAGES_FOLDER)
-    parser.add_argument("--render-folder", default="vis/example_renders")
-    parser.add_argument("--mesh-downsample", type=float, default=1)
-    parser.add_argument("--image-downsample", type=float, default=0.25)
-    parser.add_argument("--vector-file", default=DEFAULT_GEOPOLYGON_FILE)
-    parser.add_argument("--vector-file-column", default="ID")
-    parser.add_argument("--vis", action="store_true")
     parser.add_argument(
-        "--screenshot-filename",
+        "--mesh-file",
+        default=DEFAULT_LOCAL_MESH,
+        help="Path to the Metashape-exported mesh file, with associated transform .csv",
+    )
+    parser.add_argument(
+        "--camera-file",
+        default=DEFAULT_CAM_FILE,
+        help="Path to the MetaShape-exported .xml camera file",
+    )
+    parser.add_argument(
+        "--image-folder",
+        default=DEFAULT_IMAGES_FOLDER,
+        help="Path to the folder of images used to create the mesh",
+    )
+    parser.add_argument(
+        "--render-folder",
+        default="vis/example_renders",
+        help="Path to save the rendered images. Will be created if not present",
+    )
+    parser.add_argument(
+        "--mesh-downsample",
+        type=float,
+        default=1,
+        help="Downsample the mesh to this fraction of vertices for increased performance but lower quality",
+    )
+    parser.add_argument(
+        "--image-downsample",
+        type=float,
+        default=0.25,
+        help="Downsample the images to this fraction of the size for increased performance but lower quality",
+    )
+    parser.add_argument(
+        "--vector-file",
+        default=DEFAULT_GEOPOLYGON_FILE,
+        help="Vector file to load texture information from. Must be open-able by geopandas",
+    )
+    parser.add_argument(
+        "--vector-file-column",
+        default="ID",
+        help="Column to use in vector file for texture information",
+    )
+    parser.add_argument("--vis", action="store_true", help="Show mesh")
+    parser.add_argument(
+        "--screenshot-filename", help="If provided, save mesh render to this file"
     )
     parser.add_argument(
         "--log-level",
         default="info",
         choices=list(logging._nameToLevel.keys()),
+        help="Verbosity of printouts",
     )
 
     args = parser.parse_args()

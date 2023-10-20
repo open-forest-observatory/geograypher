@@ -12,8 +12,8 @@ One task that this can support is multi-view classification. For example, if you
 Pytorch3D is a bit challenging to install, so we do it manually first. Begin by following the instructions to install [pytorch3d](https://github.com/facebookresearch/pytorch3d/blob/main/INSTALL.md)
 
 ```
-conda create -n semantic-meshes python=3.9 -y
-conda activate semantic-meshes
+conda create -n multiview-prediction python=3.9 -y
+conda activate multiview-prediction
 conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
 conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
 conda install -c bottler nvidiacub -y
@@ -65,6 +65,14 @@ Note that the CyVerse WebDav server is not particularly powerful so they request
 The website provides a good overview of how to use `dvc`. In most cases, all you need to do is `dvc pull <filename>` to obtain the data.
 
 ### Running
-One entrypoint is `multiview_prediction_toolkit/entrypoints/mesh_render.py`. The command line interface provides several options that are described there.
+There are currently two main workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
 
-There are also scripts in `dev`. The aim of these is to for prototyping specific tasks in a way that is more specific or less generic. Ideally, after sufficient development, these scripts will be moved into `entrypoints` or deleted in unnecessary. 
+There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
+```
+conda activate multiview-prediction
+python multiview_prediction_toolkit/entrypoints/mesh_render.py --help
+python multiview_prediction_toolkit/entrypoints/aggregate_viewpoints.py --help
+```
+
+There are also a variety of scripts in the `dev` folder. These are one-off examples designed for a specific task and are not designed to be robust, current, or generalizable. However, they can serve as an example for your own scripts.
+

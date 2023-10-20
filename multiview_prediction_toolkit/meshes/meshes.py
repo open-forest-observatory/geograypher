@@ -351,6 +351,7 @@ class TexturedPhotogrammetryMesh:
         verts_df = self.get_verts_geodataframe(geopandas_df.crs)
 
         if len(geopandas_df) == 1:
+            # TODO benchmark if this is faster
             points_in_polygons = verts_df.intersection(geopandas_df["geometry"][0])
         else:
             # Select points that are within the polygons

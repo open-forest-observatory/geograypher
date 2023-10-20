@@ -51,7 +51,7 @@ class Segmentor:
         Args:
             inds_image (np.ndarray): Image of integer indices. (m, n)
             num_classes (int, NoneType): The number of classes. If None, computed as the max index provided. Default None
-            ignore_ind
+            ignore_ind (inte, optional): This index is an ignored class
 
         Returns:
             np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False

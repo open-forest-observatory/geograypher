@@ -18,22 +18,69 @@ from multiview_prediction_toolkit.segmentation import (
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--camera-file", default=DEFAULT_CAM_FILE)
-    parser.add_argument("--mesh-file", default=DEFAULT_LOCAL_MESH)
-    parser.add_argument("--image-folder", default=DEFAULT_IMAGES_FOLDER)
-    parser.add_argument("--label-folder", default=DEFAULT_LABELS_FOLDER)
-    parser.add_argument("--DEM-file", default=None)
-    parser.add_argument("--export-file", default="vis/predicted_map.geojson")
-    parser.add_argument("--mesh-downsample", type=float, default=0.25)
-    parser.add_argument("--image-downsample", type=float, default=0.25)
-    parser.add_argument("--ground-height-threshold", type=float, default=2)
-    parser.add_argument("--label-names", nargs="+")
-    parser.add_argument("--num-classes", type=int, default=10)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--camera-file",
+        default=DEFAULT_CAM_FILE,
+        help="Path to the MetaShape-exported .xml camera file",
+    )
+    parser.add_argument(
+        "--mesh-file",
+        default=DEFAULT_LOCAL_MESH,
+        help="Path to the Metashape-exported mesh file, with associated transform .csv",
+    )
+    parser.add_argument(
+        "--image-folder",
+        default=DEFAULT_IMAGES_FOLDER,
+        help="Path to the folder of images used to create the mesh",
+    )
+    parser.add_argument(
+        "--label-folder",
+        default=DEFAULT_LABELS_FOLDER,
+        help="Path to the folder of labels to be aggregated onto the mesh. Must be in the same structure as the images.",
+    )
+    parser.add_argument(
+        "--DTM-file",
+        default=None,
+        help="Optional path to a digital terrain model file to remove ground points",
+    )
+    parser.add_argument(
+        "--ground-height-threshold",
+        type=float,
+        default=2,
+        help="Height in meters above the DTM to consider ground. Only used if --DTM-file is set",
+    )
+    parser.add_argument(
+        "--export-file",
+        default="vis/predicted_map.geojson",
+        help="Where to export the predicted map",
+    )
+    parser.add_argument(
+        "--mesh-downsample",
+        type=float,
+        default=0.25,
+        help="Downsample the mesh to this fraction of vertices for increased performance but lower quality",
+    )
+    parser.add_argument(
+        "--image-downsample",
+        type=float,
+        default=0.25,
+        help="Downsample the images to this fraction of the size for increased performance but lower quality",
+    )
+    parser.add_argument("--label-names", nargs="+", help="Optional of label names")
+    parser.add_argument(
+        "--num-classes",
+        type=int,
+        default=10,
+        help="Number of classes in segmentation task",
+    )
     parser.add_argument(
         "--log-level",
         default="info",
         choices=list(logging._nameToLevel.keys()),
+        help="Verbosity of printouts",
     )
 
     args = parser.parse_args()
@@ -51,7 +98,7 @@ if __name__ == "__main__":
         camera_file=args.camera_file, image_folder=args.image_folder
     )
 
-    # Load the mesh and associated DEM file
+    # Load the mesh
     logging.info("Creating mesh")
     mesh = TexturedPhotogrammetryMesh(
         mesh_filename=args.mesh_file,
@@ -60,6 +107,10 @@ if __name__ == "__main__":
 
     # Create a segmentor that looks up pre-processed images
     logging.info("Creating lookup segmentor")
+    # Set number of classes if only names is provided
+    if args.num_classes is None and args.class_names is not None:
+        args.num_classes = len(args.class_names)
+
     segmentor = LookUpSegmentor(
         base_folder=args.image_folder,
         lookup_folder=args.label_folder,
@@ -80,11 +131,11 @@ if __name__ == "__main__":
     # Find the most common species for each face
     most_common_label_ID = np.argmax(averaged_label_IDs, axis=1)
 
-    if args.DEM_file is not None:
-        logging.info("Thresholding based on height above DEM")
+    if args.DTM_file is not None:
+        logging.info("Thresholding based on height above DTM")
         # Set any points on the ground to not have a class
         is_ground = mesh.get_height_above_ground(
-            DEM_file=args.DEM_file, threshold=args.ground_height_threshold
+            DEM_file=args.DTM_file, threshold=args.ground_height_threshold
         ).astype(int)
         is_ground = mesh.vert_to_face_IDs(is_ground).astype(bool)
         most_common_label_ID[is_ground] = np.nan
