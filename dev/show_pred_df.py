@@ -59,7 +59,8 @@ cf_matrix, _ = eval_confusion_matrix(
     gascola_df,
     column_name="class",
     savepath=f"vis/confusion_matrix_{TILE}.png",
-    normalize=False,
+    normalize=True,
+    normalize_by_class=True,
 )
 
 print(np.sum(cf_matrix))

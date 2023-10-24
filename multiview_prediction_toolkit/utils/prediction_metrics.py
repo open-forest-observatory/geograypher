@@ -12,6 +12,7 @@ def eval_confusion_matrix(
     column_name: str,
     column_values: list[str] = None,
     normalize: bool = True,
+    normalize_by_class: bool = False,
     savepath: PATH_TYPE = None,
 ):
     grouped_predicted_df = predicted_df.dissolve(by=column_name)
@@ -43,6 +44,10 @@ def eval_confusion_matrix(
 
     if normalize:
         confusion_matrix = confusion_matrix / np.sum(confusion_matrix)
+
+    if normalize_by_class:
+        class_freq = np.sum(confusion_matrix, axis=1, keepdims=True)
+        confusion_matrix = confusion_matrix / class_freq
 
     plt.imshow(confusion_matrix, vmin=0)
     plt.xticks(ticks=np.arange(len(column_values)), labels=column_values, rotation=45)
