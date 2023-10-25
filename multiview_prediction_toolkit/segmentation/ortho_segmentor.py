@@ -1,20 +1,16 @@
-from operator import is_
 from rastervision.core.data import ClassConfig
 from rastervision.core.data.label import SemanticSegmentationSmoothLabels
 from rastervision.pytorch_learner import (
     SemanticSegmentationSlidingWindowGeoDataset,
-    SemanticSegmentationVisualizer,
 )
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 
 from rastervision.core import Box
-from imageio import imsave
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from pathlib import Path
 from tqdm import tqdm
+from imageio import imwrite
 
-import albumentations as A
 import numpy as np
 
 from multiview_prediction_toolkit.config import PATH_TYPE
@@ -46,6 +42,13 @@ class OrthoSegmentor:
 
         self.ds = None
 
+    def get_filename(self, window):
+        raster_name = Path(self.raster_input_file).name
+        filename = (
+            f"{raster_name}:{window.ymin}:{window.xmin}:{window.ymax}:{window.xmax}.png"
+        )
+        return filename
+
     def create_sliding_window_dataset(self, is_train: bool):
         kwargs = {
             "class_config": self.class_config,
@@ -63,14 +66,73 @@ class OrthoSegmentor:
 
         self.ds = SemanticSegmentationSlidingWindowGeoDataset.from_uris(**kwargs)
 
-    def create_training_chips(self):
+    def create_training_chips(
+        self,
+        output_folder: PATH_TYPE,
+        brightness_multiplier: float = 1.0,
+        background_ind: int = 255,
+    ):
         self.create_sliding_window_dataset(is_train=True)
 
-    def create_test_chips(self):
+        num_labels = len(self.class_config.names)
+
+        # Create output folders
+        image_folder = Path(output_folder, "imgs")
+        anns_folder = Path(output_folder, "anns")
+
+        image_folder.mkdir(parents=True, exist_ok=True)
+        anns_folder.mkdir(parents=True, exist_ok=True)
+
+        for (image, label), window in tqdm(
+            zip(self.ds, self.ds.windows), total=len(self.ds)
+        ):
+            image = image.permute((1, 2, 0)).cpu().numpy()
+
+            image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
+                np.uint8
+            )
+
+            label = label.cpu().numpy().astype(np.uint8)
+
+            mask = label == (num_labels - 1)
+            if np.all(mask):
+                continue
+
+            label[mask] = background_ind
+
+            filename = self.get_filename(window)
+
+            imwrite(Path(image_folder, filename), image)
+            imwrite(Path(anns_folder, filename), label)
+
+    def create_test_chips(
+        self,
+        output_folder: PATH_TYPE,
+        brightness_multiplier: float = 1.0,
+    ):
         self.create_sliding_window_dataset(is_train=False)
 
+        Path(output_folder).mkdir(parents=True, exist_ok=True)
+
+        for (image, _), window in tqdm(
+            zip(self.ds, self.ds.windows), total=len(self.ds)
+        ):
+            image = image.permute((1, 2, 0)).cpu().numpy()
+
+            image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
+                np.uint8
+            )
+            if np.all(image == 0):
+                continue
+
+            imwrite(Path(output_folder, self.get_filename(window=window)), image)
+
     def assemble_tiled_predictions(
-        self, prediction_folder, savefile=None, crop_frac=1 / 8, eval_performance=True
+        self,
+        prediction_folder,
+        savefile=None,
+        discard_edge_frac=1 / 8,
+        eval_performance=True,
     ):
         self.create_sliding_window_dataset(is_train=eval_performance)
         files = sorted(Path(prediction_folder).glob("*"))
@@ -97,7 +159,7 @@ class OrthoSegmentor:
             extent=extent, num_classes=len(self.class_config.names) - 1, dtype=float
         )
 
-        crop_sz = int(self.chip_size * crop_frac)
+        crop_sz = int(self.chip_size * discard_edge_frac)
         for window, file in tqdm(zip(windows, files), total=len(windows)):
             pred = np.load(file)
             pred = np.transpose(pred, (2, 0, 1))
@@ -117,14 +179,3 @@ class OrthoSegmentor:
             evaluation = evaluator.evaluate_predictions(
                 ground_truth=gt_labels, predictions=seg_labels
             )
-
-
-IMAGE_URI = "data/gascola/orthos/example-run-001_20230517T1827_ortho_mesh.tif"
-LABELS_URI = "data/gascola/gascola.geojson"
-
-
-ortho_seg = OrthoSegmentor(raster_input_file=IMAGE_URI, vector_label_file=LABELS_URI)
-for tag in ("001", "002"):
-    pred_folder = f"data/gascola/ortho_chips_saved_pred_{tag}"
-    savefile = f"data/gascola/ortho_chips_saved_pred_{tag}.tif"
-    ortho_seg.assemble_tiled_predictions(pred_folder, eval_performance=True)
