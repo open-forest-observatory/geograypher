@@ -69,8 +69,10 @@ class OrthoSegmentor:
     def create_test_chips(self):
         self.create_sliding_window_dataset(is_train=False)
 
-    def assemble_tiled_predictions(self, prediction_folder, savefile, crop_frac=1 / 8):
-        self.create_sliding_window_dataset(is_train=False)
+    def assemble_tiled_predictions(
+        self, prediction_folder, savefile=None, crop_frac=1 / 8, eval_performance=True
+    ):
+        self.create_sliding_window_dataset(is_train=eval_performance)
         files = sorted(Path(prediction_folder).glob("*"))
 
         coords = [file.stem.split(":")[1:] for file in files]
@@ -94,8 +96,6 @@ class OrthoSegmentor:
         seg_labels = SemanticSegmentationSmoothLabels(
             extent=extent, num_classes=len(self.class_config.names) - 1, dtype=float
         )
-        gt_labels = self.ds.get_label_array()
-        breakpoint()
 
         crop_sz = int(self.chip_size * crop_frac)
         for window, file in tqdm(zip(windows, files), total=len(windows)):
@@ -105,11 +105,18 @@ class OrthoSegmentor:
                 windows=[window], predictions=[pred], crop_sz=crop_sz
             )
 
-        seg_labels.save(
-            savefile,
-            crs_transformer=self.ds.scene.raster_source.crs_transformer,
-            class_config=self.class_config,
-        )
+        if savefile is not None:
+            seg_labels.save(
+                savefile,
+                crs_transformer=self.ds.scene.raster_source.crs_transformer,
+                class_config=self.class_config,
+            )
+        if eval_performance:
+            evaluator = SemanticSegmentationEvaluator(self.class_config)
+            gt_labels = self.ds.scene.label_source.get_labels()
+            evaluation = evaluator.evaluate_predictions(
+                ground_truth=gt_labels, predictions=seg_labels
+            )
 
 
 IMAGE_URI = "data/gascola/orthos/example-run-001_20230517T1827_ortho_mesh.tif"
@@ -120,4 +127,4 @@ ortho_seg = OrthoSegmentor(raster_input_file=IMAGE_URI, vector_label_file=LABELS
 for tag in ("001", "002"):
     pred_folder = f"data/gascola/ortho_chips_saved_pred_{tag}"
     savefile = f"data/gascola/ortho_chips_saved_pred_{tag}.tif"
-    ortho_seg.assemble_tiled_predictions(pred_folder, savefile)
+    ortho_seg.assemble_tiled_predictions(pred_folder, eval_performance=True)
