@@ -14,14 +14,22 @@ Pytorch3D is a bit challenging to install, so we do it manually first. Begin by 
 ```
 conda create -n multiview-prediction python=3.9 -y
 conda activate multiview-prediction
+```
+
+If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install a large set of the dependencies.
+
+```
+poetry install
+```
+
+For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
+
+Now install the `pytorch3d` dependencies that can't be installed with `poetry`.
+
+```
 conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
 conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
 conda install -c bottler nvidiacub -y
-```
-
-Now install the library itself
-
-```
 conda install pytorch3d -c pytorch3d -y
 ```
 
@@ -31,14 +39,6 @@ Validate the installation
 python -c "import torch; print(torch.cuda.is_available())"
 python -c "import pytorch3d; print(pytorch3d.__version__)"
 ```
-
-### install the rest of the dependencies and the project.
-If you haven't already, install [poetry](https://python-poetry.org/docs/).
-
-```
-poetry install
-```
-For some reason, poetry may not work if it's not in a graphical session the first time. I think some form of authentication token is managed differently.
 
 You may get the following error when running `pyvista` visualization:
 ```
