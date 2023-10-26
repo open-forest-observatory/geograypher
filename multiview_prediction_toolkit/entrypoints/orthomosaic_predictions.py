@@ -1,0 +1,130 @@
+import argparse
+
+from multiview_prediction_toolkit.segmentation import OrthoSegmentor
+from pathlib import Path
+import logging
+
+
+def parse_args():
+    """Parse and return arguements
+
+    Returns:
+        argparse.Namespace: Arguments
+    """
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("raster_image_file", help="Path to raster tile")
+    parser.add_argument(
+        "--vector-label-file",
+        help="Path to vector label file. Cannot be used with --raster-label-file",
+    )
+    parser.add_argument(
+        "--raster-label-file",
+        help="Path to raster label file. Cannot be used with --vector-label-file",
+    )
+
+    parser.add_argument(
+        "--chip-size", type=int, default=2048, help="Size of chips in pixels"
+    )
+    parser.add_argument(
+        "--training-stride",
+        type=int,
+        default=2048,
+        help="The stride between chips in pixels",
+    )
+    parser.add_argument(
+        "--inference-stride",
+        type=int,
+        default=1024,
+        help="The stride between chips in pixels",
+    )
+
+    parser.add_argument(
+        "--brightness-multiplier",
+        type=float,
+        default=1.0,
+        help="Multiplier on chip brightness",
+    )
+
+    parser.add_argument(
+        "--training-chips-folder",
+        type=Path,
+        help="Run chipping for training and export to this folder",
+    )
+    parser.add_argument(
+        "--inference-chips-folder",
+        type=Path,
+        help="Run chipping for inference and export to this folder",
+    )
+    parser.add_argument(
+        "--prediction-chips-folder",
+        type=Path,
+        help="Run aggregation using chipts from this folder",
+    )
+
+    parser.add_argument(
+        "--aggregated-savefile",
+        type=Path,
+        help="Save aggregated predictions to this file. Must be writable by rasterio. Only used with --prediction-chips-folder",
+    )
+    parser.add_argument(
+        "--discard-edge-frac",
+        type=float,
+        default=0.125,
+        help="Discard this fraction of predictions at the edgest. Only used with --prediction-chips-folder",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=list(logging._nameToLevel.keys()),
+        help="Verbosity of printouts",
+    )
+
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    logging.basicConfig(level=args.log_level.upper())
+
+    logging.info("Loading data for ortho segmentor class")
+    ortho_seg = OrthoSegmentor(
+        raster_input_file=args.raster_image_file,
+        vector_label_file=args.vector_label_file,
+        raster_label_file=args.raster_label_file,
+        chip_size=args.chip_size,
+        training_stride=args.training_stride,
+        inference_stride=args.inference_stride,
+    )
+
+    if args.training_chips_folder is not None:
+        logging.info(f"Writing training chips to {args.training_chips_folder}")
+        ortho_seg.write_training_chips(
+            args.training_chips_folder, brightness_multiplier=args.brightness_multiplier
+        )
+
+    if args.inference_chips_folder is not None:
+        logging.info(f"Writing inference chips to {args.inference_chips_folder}")
+        ortho_seg.write_inference_chips(
+            args.inference_chips_folder,
+            brightness_multiplier=args.brightness_multiplier,
+        )
+
+    if args.prediction_chips_folder is not None:
+        logging.info(
+            f"Aggregating tiled predictions from {args.prediction_chips_folder}"
+            + (
+                ""
+                if args.aggregated_savefile is None
+                else f" and saving to {args.aggregated_savefile}"
+            )
+        )
+        ortho_seg.assemble_tiled_predictions(
+            args.prediction_chips_folder,
+            savefile=args.aggregated_savefile,
+            discard_edge_frac=args.discard_edge_frac,
+            eval_performance=True,
+        )
