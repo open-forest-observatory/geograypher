@@ -47,12 +47,12 @@ if __name__ == "__main__":
     )
 
     if args.training_chips_folder is not None:
-        ortho_seg.create_training_chips(
+        ortho_seg.write_training_chips(
             args.training_chips_folder, brightness_multiplier=args.brightness_multiplier
         )
 
     if args.inference_chips_folder is not None:
-        ortho_seg.create_test_chips(
+        ortho_seg.write_inference_chips(
             args.inference_chips_folder,
             brightness_multiplier=args.brightness_multiplier,
         )
@@ -64,4 +64,3 @@ if __name__ == "__main__":
             discard_edge_frac=args.discard_edge_frac,
             eval_performance=True,
         )
-        breakpoint()
