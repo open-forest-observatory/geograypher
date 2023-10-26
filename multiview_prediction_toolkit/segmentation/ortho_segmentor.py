@@ -195,7 +195,7 @@ class OrthoSegmentor:
             imwrite(Path(image_folder, filename), image)
             imwrite(Path(anns_folder, filename), label)
 
-    def write_test_chips(
+    def write_inference_chips(
         self,
         output_folder: PATH_TYPE,
         brightness_multiplier: float = 1.0,
