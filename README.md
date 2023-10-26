@@ -65,13 +65,16 @@ Note that the CyVerse WebDav server is not particularly powerful so they request
 The website provides a good overview of how to use `dvc`. In most cases, all you need to do is `dvc pull <filename>` to obtain the data.
 
 ### Running
-There are currently two main workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
+There are currently two main 3D workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
+
+It also provides functionality for making predictions on top-down orthomosaics. This is not the main focus of the tool but is intended as a strong baseline or for applications where only this data is available.
 
 There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
 ```
 conda activate multiview-prediction
 python multiview_prediction_toolkit/entrypoints/mesh_render.py --help
 python multiview_prediction_toolkit/entrypoints/aggregate_viewpoints.py --help
+python multiview_prediction_toolkit/entrypoints/orthomosaic_predictions.py --help
 ```
 
 There are also a variety of scripts in the `dev` folder. These are one-off examples designed for a specific task and are not designed to be robust, current, or generalizable. However, they can serve as an example for your own scripts.
