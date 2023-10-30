@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import geopandas as gpd
 import numpy as np
 import numpy.ma as ma
 import pyproj
@@ -7,10 +8,9 @@ import pyvista as pv
 import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
+from shapely import Point
 from skimage.io import imread
 from skimage.transform import resize
-import geopandas as gpd
-from shapely import Point
 
 from multiview_prediction_toolkit.config import PATH_TYPE
 from multiview_prediction_toolkit.utils.image import get_GPS_exif

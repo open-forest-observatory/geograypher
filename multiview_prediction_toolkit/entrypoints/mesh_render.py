@@ -1,8 +1,9 @@
 import argparse
 import logging
-from tqdm import tqdm
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+from tqdm import tqdm
 
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (

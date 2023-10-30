@@ -1,12 +1,13 @@
-from abc import abstractmethod
-import numpy as np
 import typing
-from multiview_prediction_toolkit.cameras import (
-    PhotogrammetryCameraSet,
-    PhotogrammetryCamera,
-)
+from abc import abstractmethod
 
+import numpy as np
 from torch import NoneType
+
+from multiview_prediction_toolkit.cameras import (
+    PhotogrammetryCamera,
+    PhotogrammetryCameraSet,
+)
 
 
 class Segmentor:

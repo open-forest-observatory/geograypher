@@ -1,9 +1,10 @@
 import geopandas as gpd
-import numpy as np
-from multiview_prediction_toolkit.utils.utils import get_projected_CRS
-from multiview_prediction_toolkit.config import PATH_TYPE
-import pyproj
 import matplotlib.pyplot as plt
+import numpy as np
+import pyproj
+
+from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.utils.utils import get_projected_CRS
 
 
 def eval_confusion_matrix(

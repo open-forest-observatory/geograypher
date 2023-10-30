@@ -1,31 +1,31 @@
+import typing
+from collections import Counter
 from pathlib import Path
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pyproj
 import pyvista as pv
+import rasterio as rio
 import skimage
 import torch
-import typing
-import matplotlib.pyplot as plt
 from pytorch3d.renderer import (
+    AmbientLights,
+    HardGouraudShader,
     MeshRasterizer,
     RasterizationSettings,
     TexturesVertex,
-    AmbientLights,
-    HardGouraudShader,
 )
-import rasterio as rio
-from collections import Counter
 from pytorch3d.structures import Meshes
+from shapely import Point, Polygon
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from shapely import Polygon, Point
-import geopandas as gpd
-import pandas as pd
 from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
 
 

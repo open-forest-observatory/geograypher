@@ -1,8 +1,8 @@
-import pyproj
-from shapely import intersection, union, MultiPolygon
 import matplotlib.pyplot as plt
-from geopandas import GeoDataFrame
 import numpy as np
+import pyproj
+from geopandas import GeoDataFrame
+from shapely import MultiPolygon, intersection, union
 
 
 def get_projected_CRS(lat, lon, assume_western_hem=True):

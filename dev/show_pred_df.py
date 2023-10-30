@@ -1,12 +1,13 @@
 from pathlib import Path
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from shapely import transform, Polygon
 import numpy as np
-
-from multiview_prediction_toolkit.utils.prediction_metrics import eval_confusion_matrix
+from shapely import Polygon, transform
 
 from multiview_prediction_toolkit.config import DATA_FOLDER
+from multiview_prediction_toolkit.utils.prediction_metrics import \
+    eval_confusion_matrix
 
 TILE = "002"
 
