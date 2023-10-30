@@ -1,4 +1,4 @@
-# multiview-prediction-toolkit
+# Multi-View Prediction Toolkit (MVPT)
 This tools is designed for multi-view image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tools is designed to be generalizable.
 
 In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrametry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrametry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image. 
@@ -7,13 +7,23 @@ One task that this can support is multi-view classification. For example, if you
 
 
 ## Installation
+If you are an internal collaborator working on JetStream2 cloud compute environment with access to the `/ofo-share`, you can directly use an existing conda environment. Note that you should not make any changes to this environment since these changes will impact others. 
 
-### Install pytorch3d
-Pytorch3D is a bit challenging to install, so we do it manually first. Begin by following the instructions to install [pytorch3d](https://github.com/facebookresearch/pytorch3d/blob/main/INSTALL.md)
+To do so, you must have installed `conda` on your JetStream. Then tell `conda` to look in the following places for environments and packages.
+```
+conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
+conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
+```
+
+Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVPT`
+
+
+### New environment
+
 
 ```
-conda create -n multiview-prediction python=3.9 -y
-conda activate multiview-prediction
+conda create -n MVPT python=3.9 -y
+conda activate MVPT
 ```
 
 If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install a large set of the dependencies.
@@ -71,7 +81,7 @@ It also provides functionality for making predictions on top-down orthomosaics. 
 
 There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
 ```
-conda activate multiview-prediction
+conda activate MVPT
 python multiview_prediction_toolkit/entrypoints/mesh_render.py --help
 python multiview_prediction_toolkit/entrypoints/aggregate_viewpoints.py --help
 python multiview_prediction_toolkit/entrypoints/orthomosaic_predictions.py --help
