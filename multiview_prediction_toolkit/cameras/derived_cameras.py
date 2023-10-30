@@ -6,6 +6,8 @@ import numpy as np
 from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
 from multiview_prediction_toolkit.config import PATH_TYPE
 
+from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
+
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
@@ -53,13 +55,8 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         # Get the transform relating the arbitrary local coordinate system
         # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape
-        transform = chunk[1][0][0]
-        rotation = transform[0].text
-        translation = transform[1].text
-        scale = transform[2].text
-        self.local_to_epgs_4978_transform = self.make_4x4_transform(
-            rotation, translation, scale
-        )
+
+        self.local_to_epgs_4978_transform = parse_transform_metashape(camera_file)
 
         cameras = chunk[2]
 
@@ -74,25 +71,3 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
-
-    def make_4x4_transform(
-        self, rotation_str: str, translation_str: str, scale_str: str = "1"
-    ):
-        """Convenience function to make a 4x4 matrix from the string format used by Metashape
-
-        Args:
-            rotation_str (str): Row major with 9 entries
-            translation_str (str): 3 entries
-            scale_str (str, optional): single value. Defaults to "1".
-
-        Returns:
-            np.ndarray: (4, 4) A homogenous transform mapping from cam to world
-        """
-        rotation_np = np.fromstring(rotation_str, sep=" ")
-        rotation_np = np.reshape(rotation_np, (3, 3))
-        translation_np = np.fromstring(translation_str, sep=" ")
-        scale = float(scale_str)
-        transform = np.eye(4)
-        transform[:3, :3] = rotation_np * scale
-        transform[:3, 3] = translation_np
-        return transform
