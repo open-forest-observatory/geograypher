@@ -1,9 +1,8 @@
 import xml.etree.ElementTree as ET
+import numpy as np
 
 
-def make_4x4_transform(
-    self, rotation_str: str, translation_str: str, scale_str: str = "1"
-):
+def make_4x4_transform(rotation_str: str, translation_str: str, scale_str: str = "1"):
     """Convenience function to make a 4x4 matrix from the string format used by Metashape
 
     Args:
@@ -16,6 +15,10 @@ def make_4x4_transform(
     """
     rotation_np = np.fromstring(rotation_str, sep=" ")
     rotation_np = np.reshape(rotation_np, (3, 3))
+
+    if det := np.linalg.det(rotation_np) != 1.0:
+        raise ValueError(f"Inproper rotation matrix with determinant {det}")
+
     translation_np = np.fromstring(translation_str, sep=" ")
     scale = float(scale_str)
     transform = np.eye(4)
@@ -28,12 +31,15 @@ def parse_transform_metashape(camera_file):
     tree = ET.parse(camera_file)
     root = tree.getroot()
     # first level
-    chunk = root.find("chunk")
-    # second level
-    sensors = chunk.find("sensors")
-    transform = chunk[1][0][0]
-    rotation = transform[0].text
-    translation = transform[1].text
-    scale = transform[2].text
-    local_to_epgs_4978_transform = self.make_4x4_transform(rotation, translation, scale)
+    components = root.find("chunk").find("components")
+
+    assert len(components) == 1
+    transform = components.find("component").find("transform")
+
+    rotation = transform.find("rotation").text
+    translation = transform.find("translation").text
+    scale = transform.find("scale").text
+
+    local_to_epgs_4978_transform = make_4x4_transform(rotation, translation, scale)
+
     return local_to_epgs_4978_transform

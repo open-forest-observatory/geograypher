@@ -26,7 +26,12 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
+from multiview_prediction_toolkit.config import PATH_TYPE, VERT_ID, VIS_FOLDER
+from multiview_prediction_toolkit.utils.indexing import (
+    ensure_float_labels,
+)
+from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
+import logging
 
 
 class TexturedPhotogrammetryMesh:
@@ -34,10 +39,11 @@ class TexturedPhotogrammetryMesh:
         self,
         mesh_filename: PATH_TYPE,
         downsample_target: float = 1.0,
-        transform_file: PATH_TYPE = None,
+        transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_kwargs: dict = {},
         discrete_label: bool = True,
+        require_transform: bool = False,
     ):
         """_summary_
 
@@ -68,10 +74,15 @@ class TexturedPhotogrammetryMesh:
             self.device = torch.device("cpu")
 
         # Load the mesh with the pyvista loader
+        logging.info("Loading mesh")
         self.load_mesh(downsample_target=downsample_target)
         # Load the transform
-        self.load_transform_to_epsg_4326(transform_file)
+        logging.info("Loading transform to EPSG:4326")
+        self.load_transform_to_epsg_4326(
+            transform_filename, require_transform=require_transform
+        )
         # Load the texture
+        logging.info("Loading texture")
         self.load_texture(texture, texture_kwargs)
 
     # Setup methods
@@ -106,7 +117,12 @@ class TexturedPhotogrammetryMesh:
         self, transform_filename: PATH_TYPE, require_transform: bool = False
     ):
         """
-        transform_filename (PATH_TYPE):
+        Load the 4x4 transform projects points from their local coordnate system into EPSG:4326,
+        the earth-centered, earth-fixed coordinate frame. This can either be from a CSV file specifying
+        it directly or extracted from a Metashape camera output
+
+        Args
+            transform_filename (PATH_TYPE):
             require_transform (bool): Does a local-to-global transform file need to be available"
         Raises:
             FileNotFoundError: Cannot find texture file
@@ -118,7 +134,7 @@ class TexturedPhotogrammetryMesh:
             # If not required, do nothing. TODO consider adding a warning
             return
 
-        elif Path(transform_filename).suffix == ".yml":
+        elif Path(transform_filename).suffix == ".xml":
             self.local_to_epgs_4978_transform = parse_transform_metashape(
                 transform_filename
             )
@@ -160,15 +176,13 @@ class TexturedPhotogrammetryMesh:
         if texture is None:
             # Assume that no texture will be needed, consider printing a warning
             return
-
         elif not isinstance(texture, np.ndarray):
             successfully_loaded = False
-            breakpoint()
             # Try loading different types of files
             try:
-                texture = np.load(texture)
+                texture = np.load(texture, allow_pickle=True)
                 successfully_loaded = True
-            except (ValueError, TypeError):
+            except:
                 pass
 
             if not successfully_loaded:
@@ -176,7 +190,6 @@ class TexturedPhotogrammetryMesh:
                     gdf = gpd.read_file(texture)
                     column_name = texture_kwargs.get("column_name")
 
-                    breakpoint()
                     self.get_values_for_verts_from_vector(
                         column_names=column_name,
                         geopandas_df=gdf,
@@ -205,6 +218,7 @@ class TexturedPhotogrammetryMesh:
 
             if not successfully_loaded:
                 raise ValueError(f"Could not load texture for {texture}")
+
         else:
             if texture.ndim == 1:
                 texture = np.expand_dims(texture, axis=1)
@@ -329,7 +343,7 @@ class TexturedPhotogrammetryMesh:
         points = gpd.GeoDataFrame(df, crs=crs)
 
         # Add an index column because the normal index will not be preserved in future operations
-        points["id"] = df.index
+        points[VERT_ID] = df.index
 
         return points
 
@@ -415,7 +429,7 @@ class TexturedPhotogrammetryMesh:
         if isinstance(column_names, str):
             column_names = [column_names]
         # Get the index array
-        index_array = points_in_polygons["id"].to_numpy()
+        index_array = points_in_polygons[VERT_ID].to_numpy()
 
         output_dict = {}
         # Extract the data from each
@@ -423,9 +437,11 @@ class TexturedPhotogrammetryMesh:
             # Create an array corresponding to all the points and initialize to NaN
             values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
             # Assign points that are inside a given tree with that tree's ID
-            values[index_array] = points_in_polygons[column_name].to_numpy()
+            values[index_array] = ensure_float_labels(
+                query_array=points_in_polygons[column_name],
+                full_array=geopandas_df[column_name],
+            )
             output_dict[column_name] = values
-
         # If only one name was requested, just return that
         if len(column_names) == 1:
             output_values = list(output_dict.values())[0]

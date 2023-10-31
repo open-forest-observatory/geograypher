@@ -50,3 +50,5 @@ COLORS = {
     "canopy": [34, 139, 34],
     "earth": [175, 128, 79],
 }
+
+VERT_ID = "vert_ID"
