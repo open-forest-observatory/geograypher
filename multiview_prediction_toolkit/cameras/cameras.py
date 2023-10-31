@@ -11,6 +11,7 @@ from pyvista import demos
 from shapely import Point
 from skimage.io import imread
 from skimage.transform import resize
+from tqdm import tqdm
 
 from multiview_prediction_toolkit.config import PATH_TYPE
 from multiview_prediction_toolkit.utils.image import get_GPS_exif
@@ -100,10 +101,14 @@ class PhotogrammetryCamera:
             int(self.image_size[1] * image_scale),
         )
 
-    def get_lon_lat(self):
+    def get_lon_lat(self, negate_easting=True):
         """Return the lon, lat tuple, reading from exif metadata if neccessary"""
         if None in self.lon_lat:
             self.lon_lat = get_GPS_exif(self.image_filename)
+
+            if negate_easting:
+                self.lon_lat = (-self.lon_lat[0], self.lon_lat[1])
+
         return self.lon_lat
 
     def check_projected_in_image(
@@ -352,6 +357,8 @@ class PhotogrammetryCameraSet:
             camera_file (PATH_TYPE): Path to the .xml camera export from Metashape
             image_folder (PATH_TYPE): Path to the folder of images used by Metashape
         """
+        self.image_folder = image_folder
+        self.camera_file = camera_file
 
         self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
 
@@ -396,9 +403,12 @@ class PhotogrammetryCameraSet:
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
 
-    def get_GPS_coords(self):
+    def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
-        return list(map(lambda x: x.get_lon_lat(), self.cameras))
+        return [
+            x.get_lon_lat()
+            for x in tqdm(self.cameras, desc="Loading GPS data for camera set")
+        ]
 
     def get_subset_near_geofile(
         self, geofile: PATH_TYPE, buffer_radius_meters: float = 50
@@ -411,32 +421,60 @@ class PhotogrammetryCameraSet:
         """
         # Read in the geofile
         geodata = gpd.read_file(geofile)
-        # Transform to the local Cartesian CRS if it's lat lon
+        # Transform to the local geometric CRS if it's lat lon
         if geodata.crs == pyproj.CRS.from_epsg(4326):
             point = geodata["geometry"][0].centroid
             geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
             geodata.to_crs(geometric_crs, inplace=True)
+        # Merge all of the elements together into one multipolygon, destroying any attributes that were there
+        geodata = geodata.dissolve()
         # Expand the geometry of the shape by the buffer
-        # TODO is it better to merge first? Maybe?
         geodata["geometry"] = geodata.buffer(buffer_radius_meters)
+
         # Read the locations of all the points
-        image_points = list(map(lambda x: Point(*x), self.get_GPS_coords()))
-        # Create a dataframe
-        image_points_df = gpd.GeoDataFrame(geometry=image_points)
-        # Add an index row because the normal index will be removed in subsequent operations
-        image_points_df["index"] = image_points_df.index
-
-        points_in_field_buffer = gpd.tools.overlay(
-            image_points, geodata, how="intersection"
+        # TODO do these need to be swapped
+        image_locations = [Point(*x) for x in self.get_lon_lat_coords()]
+        # Create a dataframe, assuming inputs are lat lon
+        image_locations_df = gpd.GeoDataFrame(
+            geometry=image_locations, crs=pyproj.CRS.from_epsg(4326)
         )
+        image_locations_df.to_crs(geodata.crs, inplace=True)
+        # Add an index row because the normal index will be removed in subsequent operations
+        image_locations_df["index"] = image_locations_df.index
 
-    def vis(self, plotter: pv.Plotter, add_orientation_cube: bool = False):
+        breakpoint()
+        points_in_field_buffer = gpd.sjoin(image_locations_df, geodata, how="left")
+        valid_camera_points = np.isfinite(
+            points_in_field_buffer["index_right"].to_numpy
+        )
+        valid_camera_inds = np.where(valid_camera_points)[0]
+        # How to instantiate from a list of cameras
+
+        # This does a load and then we thown out the data, what's a better way to do this?
+        subset_camera_set = PhotogrammetryCameraSet(
+            camera_file=self.camera_file, image_folder=self.image_folder
+        )
+        subset_camera_set.cameras = [self.cameras[i] for i in valid_camera_inds]
+        return subset_camera_set
+
+    def vis(
+        self,
+        plotter: pv.Plotter = None,
+        add_orientation_cube: bool = False,
+        show: bool = False,
+    ):
         """Visualize all the cameras
 
         Args:
-            plotter (pv.Plotter): Plotter to add the cameras to
+            plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
+            show (bool, optional): Show the results instead of waiting for other content to be added
         """
+
+        if plotter is None:
+            plotter = pv.Plotter()
+            show = True
+
         for camera in self.cameras:
             camera.vis(plotter)
         if add_orientation_cube:
@@ -450,3 +488,6 @@ class PhotogrammetryCameraSet:
             plotter.add_mesh(ocube["z_p"], color="red")
             plotter.add_mesh(ocube["z_n"], color="red")
             plotter.show_axes()
+
+        if show:
+            plotter.show()
