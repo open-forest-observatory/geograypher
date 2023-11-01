@@ -1,4 +1,6 @@
+from copy import deepcopy
 from typing import Tuple
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -403,6 +405,12 @@ class PhotogrammetryCameraSet:
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
 
+    def get_image_filename(self, index: int, absolute=False):
+        filename = self.get_camera_by_index(index).image_filename
+        if not absolute:
+            filename = Path(filename).relative_to(self.image_folder)
+        return filename
+
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
         return [
@@ -442,18 +450,15 @@ class PhotogrammetryCameraSet:
         # Add an index row because the normal index will be removed in subsequent operations
         image_locations_df["index"] = image_locations_df.index
 
-        breakpoint()
         points_in_field_buffer = gpd.sjoin(image_locations_df, geodata, how="left")
         valid_camera_points = np.isfinite(
-            points_in_field_buffer["index_right"].to_numpy
+            points_in_field_buffer["index_right"].to_numpy()
         )
         valid_camera_inds = np.where(valid_camera_points)[0]
         # How to instantiate from a list of cameras
 
-        # This does a load and then we thown out the data, what's a better way to do this?
-        subset_camera_set = PhotogrammetryCameraSet(
-            camera_file=self.camera_file, image_folder=self.image_folder
-        )
+        # Is there a better way? Are there side effects I'm not thinking of?
+        subset_camera_set = deepcopy(self)
         subset_camera_set.cameras = [self.cameras[i] for i in valid_camera_inds]
         return subset_camera_set
 
