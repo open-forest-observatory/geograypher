@@ -231,13 +231,19 @@ class TexturedPhotogrammetryMesh:
                     "Cannot infer whether texture should be applied to vertices of faces because the number is the same"
                 )
             elif n_values == n_verts:
-                self.vertex_texture = texture_array
+                is_vertex_texture = True
             elif n_values == n_faces:
-                self.face_texture = texture_array
+                is_vertex_texture = False
             else:
                 raise ValueError(
                     f"The number of elements in the texture ({n_values}) did not match the number of faces ({n_faces}) or vertices ({n_verts})"
                 )
+
+        # Set the appropriate texture
+        if is_vertex_texture:
+            self.vertex_texture = texture_array
+        else:
+            self.face_texture = texture_array
 
     def load_texture(
         self,
@@ -262,7 +268,6 @@ class TexturedPhotogrammetryMesh:
             texture = self.pyvista_mesh.active_scalars
 
             if texture is not None:
-                breakpoint()
                 self.set_texture(texture)
             # Assume that no texture will be needed, consider printing a warning
             return
@@ -279,7 +284,6 @@ class TexturedPhotogrammetryMesh:
                 try:
                     gdf = gpd.read_file(texture)
                     column_name = texture_kwargs.get("column_name")
-
                     self.get_values_for_verts_from_vector(
                         column_names=column_name,
                         geopandas_df=gdf,
@@ -452,6 +456,9 @@ class TexturedPhotogrammetryMesh:
             # most_common_ind = Counter(matching_IDs).most_common(1)
 
     def vert_to_face_texture(self, vert_IDs):
+        if vert_IDs is None:
+            raise ValueError("None")
+
         # Each row contains the IDs of each vertex
         IDs_per_face = vert_IDs[self.faces]
         # Now we need to "vote" for the best one
@@ -532,9 +539,10 @@ class TexturedPhotogrammetryMesh:
             output_dict[column_name] = values
         # If only one name was requested, just return that
         if len(column_names) == 1:
-            output_values = list(output_dict.values())[0]
+            output_values = np.array(list(output_dict.values())[0])
             if set_vertex_texture:
-                self.vertex_texture = output_values
+                self.set_texture(output_values, is_vertex_texture=True)
+
             return output_values
         # Else return a dict of all requested values
         return output_dict
@@ -932,11 +940,18 @@ class TexturedPhotogrammetryMesh:
         plotter = pv.Plotter(off_screen=off_screen)
 
         # If the vis scalars are None, use the vertex IDs
-        if vis_scalars is None and self.vertex_texture is not None:
-            vis_scalars = self.vertex_texture.copy().astype(float)
-            vis_scalars[vis_scalars < 0] = np.nan
-        elif vis_scalars is None and self.face_texture is not None:
-            vis_scalars = self.face_texture.copy().astype(float)
+        if vis_scalars is None:
+            vis_scalars = self.get_texture(
+                # Request vertex texture if both are available
+                request_vertex_texture=(
+                    True
+                    if (
+                        self.vertex_texture is not None
+                        and self.face_texture is not None
+                    )
+                    else None
+                )
+            ).astype(float)
             vis_scalars[vis_scalars < 0] = np.nan
 
         is_rgb = (
