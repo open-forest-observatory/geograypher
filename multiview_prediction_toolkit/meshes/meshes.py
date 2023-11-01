@@ -1,6 +1,6 @@
 import typing
-from collections import Counter
 from pathlib import Path
+from skimage.transform import resize
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -26,7 +26,13 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import PATH_TYPE, VERT_ID, VIS_FOLDER
+from multiview_prediction_toolkit.config import (
+    NULL_TEXTURE_FLOAT_VALUE,
+    NULL_TEXTURE_INT_VALUE,
+    PATH_TYPE,
+    VERT_ID,
+    VIS_FOLDER,
+)
 from multiview_prediction_toolkit.utils.indexing import (
     ensure_float_labels,
 )
@@ -66,6 +72,7 @@ class TexturedPhotogrammetryMesh:
         self.vertex_texture = None
         self.face_texture = None
         self.local_to_epgs_4978_transform = None
+        self.label_names = None
 
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
@@ -154,6 +161,84 @@ class TexturedPhotogrammetryMesh:
             # Not set
             return
 
+    def standardize_texture(self, texture_array: np.ndarray):
+        # TODO consider coercing into a numpy array
+
+        # Check the dimensions
+        if texture_array.ndim == 1:
+            texture_array = np.expand_dims(texture_array, axis=1)
+        elif texture_array.ndim != 2:
+            raise ValueError(
+                f"Input texture should have 1 or 2 dimensions but instead has {texture_array.ndim}"
+            )
+        return texture_array
+
+    def get_texture(
+        self,
+        request_vertex_texture: typing.Union[bool, None] = None,
+        try_verts_faces_conversion: bool = True,
+    ):
+        # If this is unset, try to infer it
+        if request_vertex_texture is None:
+            if (self.vertex_texture is None and self.face_texture is None) or (
+                self.vertex_texture is not None and self.face_texture is not None
+            ):
+                raise ValueError(
+                    "Abigious which texture is requested, set requeste_vertex_texture appropriately"
+                )
+
+            # Assume that the only one available is being requested
+            request_vertex_texture = self.vertex_texture is None
+
+        if request_vertex_texture:
+            if self.vertex_texture is not None:
+                return self.standardize_texture(self.vertex_texture)
+            elif try_verts_faces_conversion:
+                self.set_texture(self.face_to_vert_texture(self.face_texture))
+                self.vertex_texture
+            else:
+                raise ValueError(
+                    "Vertex texture not present and conversion was not requested"
+                )
+
+        else:
+            if self.face_texture is not None:
+                return self.standardize_texture(self.face_texture)
+            elif try_verts_faces_conversion:
+                self.set_texture(self.vert_to_face_texture(self.vertex_texture))
+                return self.face_texture
+            else:
+                raise ValueError(
+                    "Face texture not present and conversion was not requested"
+                )
+
+    def set_texture(
+        self,
+        texture_array: np.ndarray,
+        is_vertex_texture: typing.Union[bool, None] = None,
+    ):
+        texture_array = self.standardize_texture(texture_array)
+
+        # If it is not specified whether this is a vertex texture, attempt to infer it from the shape
+        if is_vertex_texture is None:
+            # Check that the number of matches face or verts
+            n_values = texture_array.shape[0]
+            n_faces = self.faces.shape[0]
+            n_verts = self.verts.shape[0]
+
+            if n_verts == n_faces:
+                raise ValueError(
+                    "Cannot infer whether texture should be applied to vertices of faces because the number is the same"
+                )
+            elif n_values == n_verts:
+                self.vertex_texture = texture_array
+            elif n_values == n_faces:
+                self.face_texture = texture_array
+            else:
+                raise ValueError(
+                    f"The number of elements in the texture ({n_values}) did not match the number of faces ({n_faces}) or vertices ({n_verts})"
+                )
+
     def load_texture(
         self,
         texture: typing.Union[PATH_TYPE, np.ndarray, None],
@@ -169,11 +254,16 @@ class TexturedPhotogrammetryMesh:
                   This should be dataset of polygons/multipolygons. Ideally, there should be no overlap between
                   regions with different labels. These regions may be assigned based on the order of the rows.
                 * A raster file readable by rasterio. We may want to support using a subset of bands
-                * A texture provided in the mesh file. We should see what mesh file types supported by pyvista support
-                  saving vertex and/or face texture
             texture_kwargs (dict, optional): Keywords specific to different types of textures. Defaults to {}.
         """
         if texture is None:
+            # Try to load it from the mesh
+            # Note that this requires us to have not decimated yet
+            texture = self.pyvista_mesh.active_scalars
+
+            if texture is not None:
+                breakpoint()
+                self.set_texture(texture)
             # Assume that no texture will be needed, consider printing a warning
             return
         elif not isinstance(texture, np.ndarray):
@@ -220,16 +310,13 @@ class TexturedPhotogrammetryMesh:
                 raise ValueError(f"Could not load texture for {texture}")
 
         else:
-            if texture.ndim == 1:
-                texture = np.expand_dims(texture, axis=1)
-            elif texture.ndim != 2:
-                raise ValueError(
-                    f"Input texture should have 1 or 2 dimensions but instead has {texture.ndim}"
-                )
+            self.set_texture(texture_array=texture)
 
-            # TODO set the texture directly
+    def get_label_names(self):
+        return self.label_names
 
-        # This uses ducktyping, we try to load the textures in order and move to the next ones if it fails
+    def set_label_names(self, label_names):
+        self.label_names = label_names
 
     def create_pytorch3d_mesh(
         self,
@@ -349,7 +436,7 @@ class TexturedPhotogrammetryMesh:
 
     # Transform labels face<->vertex methods
 
-    def face_to_vert_IDs(self, face_IDs):
+    def face_to_vert_texture(self, face_IDs):
         """_summary_
 
         Args:
@@ -364,7 +451,7 @@ class TexturedPhotogrammetryMesh:
             # matching_IDs = face_IDs[matching_inds]
             # most_common_ind = Counter(matching_IDs).most_common(1)
 
-    def vert_to_face_IDs(self, vert_IDs):
+    def vert_to_face_texture(self, vert_IDs):
         # Each row contains the IDs of each vertex
         IDs_per_face = vert_IDs[self.faces]
         # Now we need to "vote" for the best one
@@ -384,7 +471,8 @@ class TexturedPhotogrammetryMesh:
             + np.random.random(counts_per_class_per_face.shape) * 0.5
         )
         most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
-        most_common_class_per_face[zeros_mask] = -1
+        # Set any faces with zero counts to the null value
+        most_common_class_per_face[zeros_mask] = NULL_TEXTURE_FLOAT_VALUE
 
         return most_common_class_per_face
 
@@ -437,7 +525,7 @@ class TexturedPhotogrammetryMesh:
             # Create an array corresponding to all the points and initialize to NaN
             values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
             # Assign points that are inside a given tree with that tree's ID
-            values[index_array] = ensure_float_labels(
+            values[index_array], self.label_names = ensure_float_labels(
                 query_array=points_in_polygons[column_name],
                 full_array=geopandas_df[column_name],
             )
@@ -450,6 +538,31 @@ class TexturedPhotogrammetryMesh:
             return output_values
         # Else return a dict of all requested values
         return output_dict
+
+    def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
+        # TODO consider moving most of this functionality to a utils file
+        if save_vert_texture:
+            vert_texture = self.get_texture(request_vertex_texture=True)
+            n_channels = vert_texture.shape[1]
+
+            if n_channels == 1:
+                vert_texture = np.repeat(vert_texture, (1, 3))
+            if n_channels > 3:
+                logging.warning(
+                    "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
+                )
+                # Take the argmax
+                vert_texture = np.nanargmax(vert_texture, axis=1, keepdims=True)
+                # Replace nan with 255
+                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
+                # Expand to the right number of channels
+                vert_texture = np.repeat(vert_texture, repeats=(1, 3))
+
+            vert_texture = vert_texture.astype(np.uint8)
+        else:
+            vert_texture = None
+
+        self.pyvista_mesh.save(savepath, texture=vert_texture)
 
     def export_face_labels_vector(
         self,
@@ -546,15 +659,19 @@ class TexturedPhotogrammetryMesh:
         verts_in_raster_CRS = self.get_vertices_in_CRS(raster.crs)
 
         # Get the points as a list
-        x_points = verts_in_raster_CRS[:, 1].tolist()
-        y_points = verts_in_raster_CRS[:, 0].tolist()
+        # TODO consider if there's a case where this is wrong and the axes need to be switched
+        x_points = verts_in_raster_CRS[:, 0].tolist()
+        y_points = verts_in_raster_CRS[:, 1].tolist()
 
         # Zip them together
         zipped_locations = zip(x_points, y_points)
-        # Sample the raster file and squeeze if single channel
-        sampled_raster_values = np.squeeze(
-            np.array(list(raster.sample(zipped_locations)))
+        sampling_iter = tqdm(
+            zipped_locations,
+            desc="Sampling values from raster",
+            total=verts_in_raster_CRS.shape[0],
         )
+        # Sample the raster file and squeeze if single channel
+        sampled_raster_values = np.squeeze(np.array(list(raster.sample(sampling_iter))))
 
         if return_verts_in_CRS:
             return sampled_raster_values, verts_in_raster_CRS
@@ -723,6 +840,7 @@ class TexturedPhotogrammetryMesh:
         camera_index: int,
         image_scale: float = 1.0,
         shade_by_indexing: bool = None,
+        set_null_texture_to_value: float = None,
     ):
         """Render an image from the viewpoint of a single camera
         # TODO include an option to specify whether indexing or shading is used
@@ -749,7 +867,7 @@ class TexturedPhotogrammetryMesh:
                 self.vertex_texture is not None
                 and self.vertex_texture.shape[0] == self.verts.shape[0]
             ):
-                self.face_texture = self.vert_to_face_IDs(self.vertex_texture)
+                self.face_texture = self.vert_to_face_texture(self.vertex_texture)
             else:
                 raise ValueError("No texture for rendering")
             self.create_pytorch3d_mesh(self.vertex_texture)
@@ -780,6 +898,10 @@ class TexturedPhotogrammetryMesh:
 
             # Render te images using the shader
             label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
+
+        # Remap the value for null pixels
+        if set_null_texture_to_value is not None:
+            label_img[label_img == NULL_TEXTURE_FLOAT_VALUE] = set_null_texture_to_value
 
         return label_img
 
@@ -820,7 +942,7 @@ class TexturedPhotogrammetryMesh:
         is_rgb = (
             self.pyvista_mesh.active_scalars_name == "RGB"
             if vis_scalars is None
-            else (len(vis_scalars.shape) > 1)
+            else (len(vis_scalars.shape[1]) > 1)
         )
 
         # Add the mesh
@@ -840,17 +962,19 @@ class TexturedPhotogrammetryMesh:
     def save_renders_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
-        image_scale=1.0,
+        render_image_scale=1.0,
         camera_indices=None,
         render_folder: PATH_TYPE = "renders",
         make_composites: bool = False,
         blend_composite: bool = True,
+        save_native_resolution: bool = False,
+        set_null_texture_to_value: float = 255,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
         Args:
             camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
-            image_scale (float, optional):
+            render_image_scale (float, optional):
                 Multiplier on the real image scale to obtain size for rendering. Lower values
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
@@ -866,17 +990,31 @@ class TexturedPhotogrammetryMesh:
 
         save_folder = Path(VIS_FOLDER, render_folder)
         save_folder.mkdir(parents=True, exist_ok=True)
+        logging.info(f"Saving renders to {save_folder}")
 
-        for i in tqdm(camera_indices):
+        for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(
                 camera_set=camera_set,
                 camera_index=i,
-                image_scale=image_scale,
-            )[..., :3]
+                image_scale=render_image_scale,
+                set_null_texture_to_value=set_null_texture_to_value,
+            )
+
+            # Clip channels if needed
+            if rendered.ndim == 3:
+                rendered = rendered[..., :3]
+
+            if save_native_resolution:
+                native_size = camera_set.get_camera_by_index(i).get_image_size()
+                # Upsample using nearest neighbor interpolation for discrete labels and
+                # bilinear for non-discrete
+                rendered = resize(
+                    rendered, native_size, order=(0 if self.discrete_label else 1)
+                )
 
             if make_composites:
                 real_img = camera_set.get_camera_by_index(i).get_image(
-                    image_scale=image_scale
+                    image_scale=(1.0 if save_native_resolution else render_image_scale)
                 )[..., :3]
 
                 if blend_composite:
@@ -890,6 +1028,13 @@ class TexturedPhotogrammetryMesh:
                     1,
                 )
 
-            rendered = (rendered * 255).astype(np.uint8)
+            # rendered = (rendered * 255).astype(np.uint8)
+            rendered = rendered.astype(np.uint8)
+            output_filename = Path(
+                save_folder, camera_set.get_image_filename(i, absolute=False)
+            )
+            # This may create nested folders in the output dir
+            output_filename.mkdir(parents=True, exist_ok=True)
+            output_filename = str(output_filename.with_suffix(".png"))
             # Save the image
-            skimage.io.imsave(f"{save_folder}/render_{i:03d}.png", rendered)
+            skimage.io.imsave(output_filename, rendered)
