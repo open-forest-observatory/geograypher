@@ -262,59 +262,65 @@ class TexturedPhotogrammetryMesh:
                 * A raster file readable by rasterio. We may want to support using a subset of bands
             texture_kwargs (dict, optional): Keywords specific to different types of textures. Defaults to {}.
         """
-        if texture is None:
-            # Try to load it from the mesh
-            # Note that this requires us to have not decimated yet
-            texture = self.pyvista_mesh.active_scalars
+        # The easy case, a texture is passed in directly
+        if isinstance(texture, np.ndarray):
+            self.set_texture(texture_array=texture)
+        # If the texture is None, try to load it from the mesh
+        # Note that this requires us to have not decimated yet
+        elif texture is None:
+            # See if the mesh has a texture, else this will be None
+            texture_array = self.pyvista_mesh.active_scalars
 
-            if texture is not None:
-                self.set_texture(texture)
-            # Assume that no texture will be needed, consider printing a warning
-            return
-        elif not isinstance(texture, np.ndarray):
-            successfully_loaded = False
-            # Try loading different types of files
+            if texture_array is not None:
+                # Check if this was a really one channel that had to be tiled to
+                # three for saving
+                min_val_per_row = np.min(texture_array, axis=1)
+                max_val_per_row = np.max(texture_array, axis=1)
+                if np.array_equal(min_val_per_row, max_val_per_row):
+                    texture_array = texture_array[:, 0]
+                # We might want set texture to check if all values are the same in each row
+                # and reduce to a single column
+                self.set_texture(texture_array)
+            else:
+                # Assume that no texture will be needed, consider printing a warning
+                logging.warn("No texture provided")
+        else:
+
+            # Try handling all the other supported filetypes
+            texture_array = None
+
+            # Numpy file
             try:
-                texture = np.load(texture, allow_pickle=True)
-                successfully_loaded = True
+                texture_array = np.load(texture, allow_pickle=True)
             except:
                 pass
 
-            if not successfully_loaded:
+            # Vector file
+            if texture_array is None:
                 try:
                     gdf = gpd.read_file(texture)
                     column_name = texture_kwargs.get("column_name")
-                    self.get_values_for_verts_from_vector(
+                    texture_array = self.get_values_for_verts_from_vector(
                         column_names=column_name,
                         geopandas_df=gdf,
-                        set_vertex_texture=True,
                     )
-
-                    successfully_loaded = True
                 except (ValueError, AttributeError):
                     pass
 
-            if not successfully_loaded:
+            # Raster file
+            if texture_array is None:
                 try:
                     # TODO
-                    src = rio.open(texture)
-                    breakpoint()
-                except ValueError:
+                    texture_array = self.get_vert_values_from_raster_file(texture)
+                except (ValueError, TypeError):
                     pass
 
-            if not successfully_loaded:
-                try:
-                    # TODO
-                    point_data = self.pyvista_mesh.point_data[texture]
-                    breakpoint()
-                except KeyError:
-                    raise ValueError(f"Texture {texture} not found in the pyvista mesh")
-
-            if not successfully_loaded:
+            # Error out if not set, since we assume the intent was to have a texture at this point
+            if texture_array is None:
                 raise ValueError(f"Could not load texture for {texture}")
 
-        else:
-            self.set_texture(texture_array=texture)
+            # This will error if something is wrong with the texture that was loaded
+            self.set_texture(texture_array)
 
     def get_label_names(self):
         return self.label_names
@@ -462,7 +468,9 @@ class TexturedPhotogrammetryMesh:
         vert_IDs = np.squeeze(vert_IDs)
 
         if vert_IDs.ndim != 1:
-            raise ValueError(f"Can only perform conversion with one dimensional array but instead had {vert_IDs.ndim}")
+            raise ValueError(
+                f"Can only perform conversion with one dimensional array but instead had {vert_IDs.ndim}"
+            )
 
         # Each row contains the IDs of each vertex
         IDs_per_face = vert_IDs[self.faces]
@@ -494,7 +502,6 @@ class TexturedPhotogrammetryMesh:
         column_names: typing.List[str],
         vector_file: PATH_TYPE = None,
         geopandas_df: gpd.GeoDataFrame = None,
-        set_vertex_texture: bool = False,
     ) -> np.ndarray:
         """Get the value from a dataframe for each vertex
 
@@ -502,7 +509,6 @@ class TexturedPhotogrammetryMesh:
             column_names (str): Which column to obtain data from
             geopandas_df (GeoDataFrame, optional): Data to use.
             vector_file (PATH_TYPE, optional): Path to data that can be loaded by geopandas
-            set_vertex_texture (bool, optional): If True and only one column name is provided, set self.vertex_texture to the result
 
         Returns:
             np.ndarray: Array of values for each vertex if there is one column name or
@@ -545,8 +551,6 @@ class TexturedPhotogrammetryMesh:
         # If only one name was requested, just return that
         if len(column_names) == 1:
             output_values = np.array(list(output_dict.values())[0])
-            if set_vertex_texture:
-                self.set_texture(output_values, is_vertex_texture=True)
 
             return output_values
         # Else return a dict of all requested values
@@ -559,7 +563,8 @@ class TexturedPhotogrammetryMesh:
             n_channels = vert_texture.shape[1]
 
             if n_channels == 1:
-                vert_texture = np.repeat(vert_texture, (1, 3))
+                breakpoint()
+                vert_texture = np.tile(vert_texture, reps=(1, 3))
             if n_channels > 3:
                 logging.warning(
                     "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
@@ -927,6 +932,7 @@ class TexturedPhotogrammetryMesh:
         vis_scalars=None,
         mesh_kwargs: typing.Dict = {},
         plotter_kwargs: typing.Dict = {},
+        force_xvfb:bool=False,
     ):
         """Show the mesh and cameras
 
@@ -939,7 +945,7 @@ class TexturedPhotogrammetryMesh:
             plotter_kwargs: dict of keyword arguments for the plotter
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
-        if off_screen:
+        if off_screen or force_xvfb:
             pv.start_xvfb()
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
