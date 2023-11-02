@@ -277,9 +277,11 @@ class TexturedPhotogrammetryMesh:
                 min_val_per_row = np.min(texture_array, axis=1)
                 max_val_per_row = np.max(texture_array, axis=1)
                 if np.array_equal(min_val_per_row, max_val_per_row):
-                    texture_array = texture_array[:, 0]
-                # We might want set texture to check if all values are the same in each row
-                # and reduce to a single column
+                    # This is supposted to be one channel
+                    texture_array = texture_array[:, 0].astype(float)
+                    # Set any values that are the ignore int value to nan
+                    texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
+
                 self.set_texture(texture_array)
             else:
                 # Assume that no texture will be needed, consider printing a warning
@@ -563,7 +565,7 @@ class TexturedPhotogrammetryMesh:
             n_channels = vert_texture.shape[1]
 
             if n_channels == 1:
-                breakpoint()
+                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
                 vert_texture = np.tile(vert_texture, reps=(1, 3))
             if n_channels > 3:
                 logging.warning(
@@ -932,7 +934,7 @@ class TexturedPhotogrammetryMesh:
         vis_scalars=None,
         mesh_kwargs: typing.Dict = {},
         plotter_kwargs: typing.Dict = {},
-        force_xvfb:bool=False,
+        force_xvfb: bool = False,
     ):
         """Show the mesh and cameras
 
