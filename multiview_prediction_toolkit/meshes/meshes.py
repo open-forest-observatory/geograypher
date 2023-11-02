@@ -215,6 +215,7 @@ class TexturedPhotogrammetryMesh:
         self,
         texture_array: np.ndarray,
         is_vertex_texture: typing.Union[bool, None] = None,
+        delete_existing: bool = True,
     ):
         texture_array = self.standardize_texture(texture_array)
 
@@ -241,8 +242,12 @@ class TexturedPhotogrammetryMesh:
         # Set the appropriate texture
         if is_vertex_texture:
             self.vertex_texture = texture_array
+            if delete_existing:
+                self.face_texture = None
         else:
             self.face_texture = texture_array
+            if delete_existing:
+                self.vertex_texture = None
 
     def load_texture(
         self,
@@ -877,22 +882,11 @@ class TexturedPhotogrammetryMesh:
 
         # Check to make sure required data is available
         if shade_by_indexing:
-            if (
-                self.face_texture is not None
-                and self.face_texture.shape[0] == self.faces.shape[0]
-            ):
-                pass
-            if (
-                self.vertex_texture is not None
-                and self.vertex_texture.shape[0] == self.verts.shape[0]
-            ):
-                self.face_texture = self.vert_to_face_texture(self.vertex_texture)
-            else:
-                raise ValueError("No texture for rendering")
-            self.create_pytorch3d_mesh(self.vertex_texture)
+            face_texture = self.get_texture(request_vertex_texture=False)
+            self.create_pytorch3d_mesh()
         else:
             if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(self.vertex_texture)
+                self.create_pytorch3d_mesh(self.get_texture(request_vertex_texture=True))
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
@@ -904,7 +898,7 @@ class TexturedPhotogrammetryMesh:
 
         if shade_by_indexing:
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-            pix_to_label = self.face_texture[pix_to_face]
+            pix_to_label = face_texture[pix_to_face]
             img_size = pg_camera.get_image_size(image_scale=image_scale)
             label_img = np.reshape(pix_to_label, img_size)
         else:
@@ -1015,6 +1009,7 @@ class TexturedPhotogrammetryMesh:
             camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
 
+        output_folder = Path(output_folder)
         output_folder.mkdir(parents=True, exist_ok=True)
         logging.info(f"Saving renders to {output_folder}")
 
