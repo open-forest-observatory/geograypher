@@ -459,6 +459,11 @@ class TexturedPhotogrammetryMesh:
         if vert_IDs is None:
             raise ValueError("None")
 
+        vert_IDs = np.squeeze(vert_IDs)
+
+        if vert_IDs.ndim != 1:
+            raise ValueError(f"Can only perform conversion with one dimensional array but instead had {vert_IDs.ndim}")
+
         # Each row contains the IDs of each vertex
         IDs_per_face = vert_IDs[self.faces]
         # Now we need to "vote" for the best one
@@ -957,7 +962,7 @@ class TexturedPhotogrammetryMesh:
         is_rgb = (
             self.pyvista_mesh.active_scalars_name == "RGB"
             if vis_scalars is None
-            else (len(vis_scalars.shape[1]) > 1)
+            else (vis_scalars.shape[1] > 1)
         )
 
         # Add the mesh

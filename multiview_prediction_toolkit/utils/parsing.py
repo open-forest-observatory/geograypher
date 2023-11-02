@@ -16,8 +16,8 @@ def make_4x4_transform(rotation_str: str, translation_str: str, scale_str: str =
     rotation_np = np.fromstring(rotation_str, sep=" ")
     rotation_np = np.reshape(rotation_np, (3, 3))
 
-    if det := np.linalg.det(rotation_np) != 1.0:
-        raise ValueError(f"Inproper rotation matrix with determinant {det}")
+    if not np.isclose(np.linalg.det(rotation_np), 1.0, atol=1e-8, rtol=0):
+        raise ValueError(f"Inproper rotation matrix with determinant {np.linalg.det(rotation_np)}")
 
     translation_np = np.fromstring(translation_str, sep=" ")
     scale = float(scale_str)
