@@ -184,7 +184,7 @@ class TexturedPhotogrammetryMesh:
                 self.vertex_texture is not None and self.face_texture is not None
             ):
                 raise ValueError(
-                    "Abigious which texture is requested, set requeste_vertex_texture appropriately"
+                    "Ambigious which texture is requested, set request_vertex_texture appropriately"
                 )
 
             # Assume that the only one available is being requested
@@ -200,7 +200,6 @@ class TexturedPhotogrammetryMesh:
                 raise ValueError(
                     "Vertex texture not present and conversion was not requested"
                 )
-
         else:
             if self.face_texture is not None:
                 return self.standardize_texture(self.face_texture)
@@ -992,7 +991,7 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet,
         render_image_scale=1.0,
         camera_indices=None,
-        render_folder: PATH_TYPE = "renders",
+        output_folder: PATH_TYPE = Path(VIS_FOLDER, "renders"),
         make_composites: bool = False,
         blend_composite: bool = True,
         save_native_resolution: bool = False,
@@ -1016,9 +1015,8 @@ class TexturedPhotogrammetryMesh:
             camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
 
-        save_folder = Path(VIS_FOLDER, render_folder)
-        save_folder.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Saving renders to {save_folder}")
+        output_folder.mkdir(parents=True, exist_ok=True)
+        logging.info(f"Saving renders to {output_folder}")
 
         for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(
@@ -1059,10 +1057,10 @@ class TexturedPhotogrammetryMesh:
             # rendered = (rendered * 255).astype(np.uint8)
             rendered = rendered.astype(np.uint8)
             output_filename = Path(
-                save_folder, camera_set.get_image_filename(i, absolute=False)
+                output_folder, camera_set.get_image_filename(i, absolute=False)
             )
             # This may create nested folders in the output dir
-            output_filename.mkdir(parents=True, exist_ok=True)
+            output_filename.parent.mkdir(parents=True, exist_ok=True)
             output_filename = str(output_filename.with_suffix(".png"))
             # Save the image
-            skimage.io.imsave(output_filename, rendered)
+            skimage.io.imsave(output_filename, rendered, check_contrast=False)
