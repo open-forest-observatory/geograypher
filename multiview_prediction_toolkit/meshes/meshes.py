@@ -732,7 +732,9 @@ class TexturedPhotogrammetryMesh:
     # Expensive pixel-to-vertex operations
 
     def get_rasterization_results_pytorch3d(
-        self, camera: PhotogrammetryCamera, image_scale: float = 1.0
+        self,
+        cameras: typing.Union[PhotogrammetryCameraSet, PhotogrammetryCamera],
+        image_scale: float = 1.0,
     ):
         """Use pytorch3d to get correspondences between pixels and vertices
 
@@ -744,10 +746,17 @@ class TexturedPhotogrammetryMesh:
             pytorch3d.PerspectiveCamera: The camera corresponding to the index
             pytorch3d.Fragments: The rendering results from the rasterer, before the shader
         """
+        # Promote to one-length list if only one camera is passed
 
         # Create a camera from the metashape parameters
-        p3d_camera = camera.get_pytorch3d_camera(self.device)
-        image_size = camera.get_image_size(image_scale=image_scale)
+        p3d_cameras = cameras.get_pytorch3d_camera(device=self.device)
+        if isinstance(cameras, PhotogrammetryCamera):
+            image_size = cameras.get_image_size(image_scale=image_scale)
+        else:
+            image_size = cameras.get_camera_by_index(0).image_size(
+                image_scale=image_scale
+            )
+
         raster_settings = RasterizationSettings(
             image_size=image_size,
             blur_radius=0.0,
@@ -756,17 +765,21 @@ class TexturedPhotogrammetryMesh:
 
         # Don't wrap this in a MeshRenderer like normal because we need intermediate results
         rasterizer = MeshRasterizer(
-            cameras=p3d_camera, raster_settings=raster_settings
+            cameras=p3d_cameras, raster_settings=raster_settings
         ).to(self.device)
 
+        # Ensure that a pytorch3d mesh exists
+        self.create_pytorch3d_mesh()
+        # Perform the expensive pytorch3d operation
         fragments = rasterizer(self.pytorch3d_mesh)
-        return p3d_camera, fragments
+        return p3d_cameras, fragments
 
     def aggregate_viewpoints_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
         camera_inds=None,
         image_scale: float = 1.0,
+        batch_size: int = 1,
     ):
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
@@ -783,7 +796,9 @@ class TexturedPhotogrammetryMesh:
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         n_channels = camera_set.n_image_channels()
-        face_colors = np.zeros((self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32)
+        face_texture = np.zeros(
+            (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
+        )
         counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint16)
 
         # Set up indices for indexing into the image
@@ -800,36 +815,43 @@ class TexturedPhotogrammetryMesh:
             # If camera inds are not defined, do them all in a random order
             camera_inds = np.arange(len(camera_set.cameras))
             np.random.shuffle(camera_inds)
-
-        for i in tqdm(camera_inds):
+        for batch_start in tqdm(
+            range(0, len(camera_inds), batch_size),
+            desc="Aggregating information from different viewpoints",
+        ):
             # Get the photogrammetry camera
-            pg_camera = camera_set.get_camera_by_index(i)
+            batch_cameras = camera_set.get_subset_cameras(
+                camera_inds[batch_start : batch_start + batch_size]
+            )
             # Do the expensive step to get pixel-to-vertex correspondences
             _, fragments = self.get_rasterization_results_pytorch3d(
-                camera=pg_camera, image_scale=image_scale
+                cameras=batch_cameras, image_scale=image_scale
             )
-            # Load the image
-            img = camera_set.get_image_by_index(i, image_scale=image_scale)
+            # Do the update step independently for each of the images
+            for i in range(batch_size):
+                # Load the image
+                img = batch_cameras.get_image_by_index(i, image_scale=image_scale)
 
-            ## Aggregate image information using the correspondences
-            # Extract the correspondences as a flat array
-            pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-            # Build an array to store the new colors
-            new_colors = np.zeros(
-                (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
-            )
-            # Index the image to fill this array
-            # TODO find a way to do this better if there are multiple pixels per face
-            # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
-            new_colors[pix_to_face] = img[flat_i_inds, flat_j_inds]
-            # Update the face colors
-            face_colors = face_colors + new_colors
-            # Find unique face indices because we can't increment multiple times like ths
-            unique_faces = np.unique(pix_to_face)
-            counts[unique_faces] = counts[unique_faces] + 1
+                ## Aggregate image information using the correspondences
+                # Extract the correspondences as a flat array
+                pix_to_face = fragments.pix_to_face[i, :, :, 0].cpu().numpy().flatten()
+                # Build an array to store the new colors
+                new_texture = np.zeros(
+                    (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
+                )
+                # Index the image to fill this array
+                # TODO find a way to do this better if there are multiple pixels per face
+                # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
+                new_texture[pix_to_face] = img[flat_i_inds, flat_j_inds]
+                # Update the face colors
+                face_texture = face_texture + new_texture
+                # Find unique face indices because we can't increment multiple times like ths
+                unique_faces = np.unique(pix_to_face)
+                # TODO Consider ditching counts array since we can sum over all values in the face texture
+                counts[unique_faces] = counts[unique_faces] + 1
 
-        normalized_face_colors = face_colors / np.expand_dims(counts, 1)
-        return normalized_face_colors, face_colors, counts
+        normalized_face_colors = face_texture / np.expand_dims(counts, 1)
+        return normalized_face_colors, face_texture, counts
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """
@@ -886,7 +908,9 @@ class TexturedPhotogrammetryMesh:
             self.create_pytorch3d_mesh()
         else:
             if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(self.get_texture(request_vertex_texture=True))
+                self.create_pytorch3d_mesh(
+                    self.get_texture(request_vertex_texture=True)
+                )
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
