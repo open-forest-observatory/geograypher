@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Tuple
 from pathlib import Path
+import typing
 
 import geopandas as gpd
 import numpy as np
@@ -402,6 +403,11 @@ class PhotogrammetryCameraSet:
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]
 
+    def get_subset_cameras(self, inds: typing.List[int]):
+        subset_camera_set = deepcopy(self)
+        subset_camera_set.cameras = [self.cameras[i] for i in inds]
+        return subset_camera_set
+
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
 
@@ -410,6 +416,37 @@ class PhotogrammetryCameraSet:
         if not absolute:
             filename = Path(filename).relative_to(self.image_folder)
         return filename
+
+    def get_pytorch3d_camera(self, device: str):
+        """
+        Return a pytorch3d cameras object based on the parameters from metashape.
+        This has the information from each of the camears in the set to enabled batched rendering.
+
+
+        Args:
+            device (str): What device (cuda/cpu) to put the object on
+
+        Returns:
+            pytorch3d.renderer.PerspectiveCameras:
+        """
+        # Get teh
+        p3d_cameras = [camera.get_pytorch3d_camera(device) for camera in self.cameras]
+        image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
+        if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
+            raise ValueError("Not all cameras have the same image size")
+
+        cameras = PerspectiveCameras(
+            R=torch.Tensor([camera.R for camera in p3d_cameras]),
+            T=torch.Tensor([camera.T for camera in p3d_cameras]),
+            focal_length=torch.Tensor([camera.fcl_screen for camera in p3d_cameras]),
+            principal_point=torch.Tensor(
+                [camera.prc_points_screen for camera in p3d_cameras]
+            ),
+            device=device,
+            in_ndc=False,  # screen coords
+            image_size=image_sizes[0],
+        )
+        return cameras
 
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
@@ -458,8 +495,7 @@ class PhotogrammetryCameraSet:
         # How to instantiate from a list of cameras
 
         # Is there a better way? Are there side effects I'm not thinking of?
-        subset_camera_set = deepcopy(self)
-        subset_camera_set.cameras = [self.cameras[i] for i in valid_camera_inds]
+        subset_camera_set = self.get_subset_cameras(valid_camera_inds)
         return subset_camera_set
 
     def vis(
