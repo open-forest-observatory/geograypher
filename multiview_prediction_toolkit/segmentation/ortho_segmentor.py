@@ -28,12 +28,6 @@ class OrthoSegmentor:
             "earth",
             "null",
         ),  # TODO fix these up
-        class_colors: list[str] = (
-            "lightgray",
-            "darkred",
-            "red",
-            "green",
-        ),  # TODO fix this
         chip_size: int = 2048,
         training_stride: int = 2048,
         inference_stride: int = 1024,
@@ -47,7 +41,7 @@ class OrthoSegmentor:
         self.inference_stride = inference_stride
 
         self.class_config = ClassConfig(
-            names=class_names, colors=class_colors, null_class="null"
+            names=class_names, null_class="null"
         )
 
         # This will be instantiated later
@@ -185,7 +179,6 @@ class OrthoSegmentor:
             image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
                 np.uint8
             )
-
             # Get filename and write out
             filename = self.get_filename_from_window(window)
             imwrite(Path(image_folder, filename), image)

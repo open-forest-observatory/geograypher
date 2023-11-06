@@ -31,6 +31,7 @@ class LookUpSegmentor(Segmentor):
         relative_path = Path(filename).relative_to(self.base_folder)
         lookup_path = Path(self.lookup_folder, relative_path)
         lookup_path = lookup_path.with_suffix(".png")
+
         image = imread(lookup_path)
         resized_image = resize(
             image,
