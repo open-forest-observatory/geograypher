@@ -1,6 +1,6 @@
+import logging
 import typing
 from pathlib import Path
-from skimage.transform import resize
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -20,18 +20,17 @@ from pytorch3d.renderer import (
 )
 from pytorch3d.structures import Meshes
 from shapely import Point, Polygon
+from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER
-from multiview_prediction_toolkit.utils.indexing import (
-    ensure_float_labels,
-)
+from multiview_prediction_toolkit.config import PATH_TYPE, VIS_FOLDER, NULL_TEXTURE_INT_VALUE
+from multiview_prediction_toolkit.utils.indexing import ensure_float_labels
 from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
-import logging
+
 
 class TexturedPhotogrammetryMesh:
     def __init__(
@@ -623,12 +622,12 @@ class TexturedPhotogrammetryMesh:
         ]
         # Create a geodata frame from these polygons
         individual_polygons_df = gpd.GeoDataFrame(
-            {"labels": face_labels}, geometry=face_polygons, crs=export_crs
+            {"class_id": face_labels}, geometry=face_polygons, crs=export_crs
         )
         # Merge these triangles into a multipolygon for each class
         # This is the expensive step
         aggregated_df = individual_polygons_df.dissolve(
-            by="labels", as_index=False, dropna=drop_na
+            by="class_id", as_index=False, dropna=drop_na
         )
 
         # Add names if present
@@ -646,7 +645,7 @@ class TexturedPhotogrammetryMesh:
         # Vis if requested
         if vis:
             aggregated_df.plot(
-                column="names" if label_names is not None else "labels",
+                column="names" if label_names is not None else "class_id",
                 aspect=1,
                 legend=True,
                 **vis_kwargs,
@@ -879,7 +878,9 @@ class TexturedPhotogrammetryMesh:
             self.create_pytorch3d_mesh()
         else:
             if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(self.get_texture(request_vertex_texture=True))
+                self.create_pytorch3d_mesh(
+                    self.get_texture(request_vertex_texture=True)
+                )
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
