@@ -338,6 +338,7 @@ class TexturedPhotogrammetryMesh:
         self,
         vert_texture: np.ndarray = None,
         force_recreation: bool = False,
+        batch_size: int = 1,
     ):
         """Create the pytorch_3d_mesh
 
@@ -368,6 +369,9 @@ class TexturedPhotogrammetryMesh:
             faces=[torch.Tensor(self.faces).to(self.device)],
             textures=texture,
         ).to(self.device)
+
+        if batch_size != 1 and len(self.pytorch3d_mesh) == 1:
+            self.pytorch3d_mesh = self.pytorch3d_mesh.extend(batch_size)
 
     # Vertex methods
 
@@ -735,6 +739,7 @@ class TexturedPhotogrammetryMesh:
         self,
         cameras: typing.Union[PhotogrammetryCameraSet, PhotogrammetryCamera],
         image_scale: float = 1.0,
+        cull_to_frustum: bool = False,
     ):
         """Use pytorch3d to get correspondences between pixels and vertices
 
@@ -753,7 +758,7 @@ class TexturedPhotogrammetryMesh:
         if isinstance(cameras, PhotogrammetryCamera):
             image_size = cameras.get_image_size(image_scale=image_scale)
         else:
-            image_size = cameras.get_camera_by_index(0).image_size(
+            image_size = cameras.get_camera_by_index(0).get_image_size(
                 image_scale=image_scale
             )
 
@@ -761,6 +766,7 @@ class TexturedPhotogrammetryMesh:
             image_size=image_size,
             blur_radius=0.0,
             faces_per_pixel=1,
+            cull_to_frustum=cull_to_frustum,
         )
 
         # Don't wrap this in a MeshRenderer like normal because we need intermediate results
@@ -769,7 +775,7 @@ class TexturedPhotogrammetryMesh:
         ).to(self.device)
 
         # Ensure that a pytorch3d mesh exists
-        self.create_pytorch3d_mesh()
+        self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
         # Perform the expensive pytorch3d operation
         fragments = rasterizer(self.pytorch3d_mesh)
         return p3d_cameras, fragments
@@ -790,9 +796,6 @@ class TexturedPhotogrammetryMesh:
             camera_inds: What images to use
             image_scale (float): Scale images
         """
-        # TODO add an option to do this with a lower-res image
-        # TODO make this return something meaningful rather than side effects/in place ops
-
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         n_channels = camera_set.n_image_channels()
@@ -801,25 +804,16 @@ class TexturedPhotogrammetryMesh:
         )
         counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint16)
 
-        # Set up indices for indexing into the image
-        img_shape = camera_set.get_camera_by_index(0).get_image_size(
-            image_scale=image_scale
-        )
-        inds = np.meshgrid(
-            np.arange(img_shape[0]), np.arange(img_shape[1]), indexing="ij"
-        )
-        flat_i_inds = inds[0].flatten()
-        flat_j_inds = inds[1].flatten()
-
         if camera_inds is None:
             # If camera inds are not defined, do them all in a random order
             camera_inds = np.arange(len(camera_set.cameras))
             np.random.shuffle(camera_inds)
+
         for batch_start in tqdm(
             range(0, len(camera_inds), batch_size),
             desc="Aggregating information from different viewpoints",
         ):
-            # Get the photogrammetry camera
+            # Get the photogrammetry cameras for the batch
             batch_cameras = camera_set.get_subset_cameras(
                 camera_inds[batch_start : batch_start + batch_size]
             )
@@ -831,6 +825,14 @@ class TexturedPhotogrammetryMesh:
             for i in range(batch_size):
                 # Load the image
                 img = batch_cameras.get_image_by_index(i, image_scale=image_scale)
+                img_shape = img.shape
+
+                # Set up indices for indexing into the image
+                inds = np.meshgrid(
+                    np.arange(img_shape[0]), np.arange(img_shape[1]), indexing="ij"
+                )
+                flat_i_inds = inds[0].flatten()
+                flat_j_inds = inds[1].flatten()
 
                 ## Aggregate image information using the correspondences
                 # Extract the correspondences as a flat array
