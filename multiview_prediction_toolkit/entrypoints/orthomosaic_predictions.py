@@ -25,13 +25,17 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--class-names", nargs="+"
+    )
+
+    parser.add_argument(
         "--chip-size", type=int, default=2048, help="Size of chips in pixels"
     )
     parser.add_argument(
-        "--training-stride",
+        "--training-stride-fraction",
         type=int,
-        default=2048,
-        help="The stride between chips in pixels",
+        default=0.5,
+        help="The stride between chips as a fraction of the chip size",
     )
     parser.add_argument(
         "--inference-stride",
@@ -95,8 +99,9 @@ if __name__ == "__main__":
         raster_input_file=args.raster_image_file,
         vector_label_file=args.vector_label_file,
         raster_label_file=args.raster_label_file,
+        class_names=args.class_names,
         chip_size=args.chip_size,
-        training_stride=args.training_stride,
+        training_stride=int(args.training_stride_fraction * args.chip_size),
         inference_stride=args.inference_stride,
     )
 
