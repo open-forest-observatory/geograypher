@@ -1,6 +1,6 @@
 from copy import deepcopy
-from typing import Tuple
 from pathlib import Path
+from typing import Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -13,6 +13,7 @@ from pyvista import demos
 from shapely import Point
 from skimage.io import imread
 from skimage.transform import resize
+from tqdm import tqdm
 
 from multiview_prediction_toolkit.config import PATH_TYPE
 from multiview_prediction_toolkit.utils.image import get_GPS_exif
