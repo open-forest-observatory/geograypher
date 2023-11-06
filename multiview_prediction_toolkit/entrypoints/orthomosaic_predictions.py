@@ -28,16 +28,16 @@ def parse_args():
         "--chip-size", type=int, default=2048, help="Size of chips in pixels"
     )
     parser.add_argument(
-        "--training-stride",
+        "--training-stride-fraction",
         type=int,
-        default=2048,
-        help="The stride between chips in pixels",
+        default=0.5,
+        help="The stride between chips in as a fraction of the tile size",
     )
     parser.add_argument(
-        "--inference-stride",
+        "--inference-stride-fraction",
         type=int,
-        default=1024,
-        help="The stride between chips in pixels",
+        default=0.5,
+        help="The stride between chips as a fraction of the tile size",
     )
 
     parser.add_argument(
@@ -96,8 +96,8 @@ if __name__ == "__main__":
         vector_label_file=args.vector_label_file,
         raster_label_file=args.raster_label_file,
         chip_size=args.chip_size,
-        training_stride=args.training_stride,
-        inference_stride=args.inference_stride,
+        training_stride=int(args.training_stride_fraction * args.chip_size),
+        inference_stride=int(args.inference_stride_fraction * args.chip_size),
     )
 
     if args.training_chips_folder is not None:
