@@ -136,6 +136,13 @@ def make_ss_scene_vec_or_rast(
                 logging.warn(f"Created temp file {label_file}")
                 # Dump data to tempfile
                 label_data.to_file(label_file)
+            if label_data.crs != pyproj.CRS.from_epsg(4326):
+                temp_label_file_manager = tempfile.NamedTemporaryFile(
+                    mode="w+", suffix=".geojson"
+                )
+                label_file = temp_label_file_manager.name
+                label_data.to_crs(pyproj.CRS.from_epsg(4326))
+                label_data.to_file(label_file)
 
         kwargs["label_vector_uri"] = label_file
 
