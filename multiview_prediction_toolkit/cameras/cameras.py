@@ -31,6 +31,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
+        **kwargs,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
 
@@ -362,24 +363,7 @@ class PhotogrammetryCameraSet:
         """
         self.image_folder = image_folder
         self.camera_file = camera_file
-
-        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
-
-        self.cameras = []
-
-        for image_filename, cam_to_world_transform in zip(
-            self.image_filenames, self.cam_to_world_transforms
-        ):
-            new_camera = PhotogrammetryCamera(
-                image_filename,
-                cam_to_world_transform,
-                self.f,
-                self.cx,
-                self.cy,
-                self.image_width,
-                self.image_height,
-            )
-            self.cameras.append(new_camera)
+        self.cameras = None
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """Parse the software-specific camera files and populate required member fields
@@ -429,18 +413,20 @@ class PhotogrammetryCameraSet:
         Returns:
             pytorch3d.renderer.PerspectiveCameras:
         """
-        # Get teh
+        # Get the pytorch3d cameras for each of the cameras in the set
         p3d_cameras = [camera.get_pytorch3d_camera(device) for camera in self.cameras]
+        # Get the image sizes
         image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
+        # Check that all the image sizes are the same because this is required for proper batched rendering
         if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
             raise ValueError("Not all cameras have the same image size")
-
+        # Create the new pytorch3d cameras object with the information from each camera
         cameras = PerspectiveCameras(
-            R=torch.Tensor([camera.R for camera in p3d_cameras]),
-            T=torch.Tensor([camera.T for camera in p3d_cameras]),
-            focal_length=torch.Tensor([camera.fcl_screen for camera in p3d_cameras]),
-            principal_point=torch.Tensor(
-                [camera.prc_points_screen for camera in p3d_cameras]
+            R=torch.cat([camera.R for camera in p3d_cameras], 0),
+            T=torch.cat([camera.T for camera in p3d_cameras], 0),
+            focal_length=torch.cat([camera.focal_length for camera in p3d_cameras], 0),
+            principal_point=torch.cat(
+                [camera.get_principal_point() for camera in p3d_cameras], 0
             ),
             device=device,
             in_ndc=False,  # screen coords

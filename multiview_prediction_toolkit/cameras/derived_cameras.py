@@ -2,14 +2,43 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+from torch import Value
 
-from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
+from multiview_prediction_toolkit.cameras import (
+    PhotogrammetryCameraSet,
+    PhotogrammetryCamera,
+)
 from multiview_prediction_toolkit.config import PATH_TYPE
 
-from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
+from multiview_prediction_toolkit.utils.parsing import (
+    parse_sensors,
+    parse_transform_metashape,
+)
 
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
+    def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, **kwargs):
+        """
+        Create a camera set from a metashape .xml camera file and the path to the image folder
+
+
+        Args:
+            camera_file (PATH_TYPE): Path to the .xml camera export from Metashape
+            image_folder (PATH_TYPE): Path to the folder of images used by Metashape
+        """
+        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
+
+        self.cameras = []
+
+        for image_filename, cam_to_world_transform, sensor_id in zip(
+            self.image_filenames, self.cam_to_world_transforms, self.sensor_IDs
+        ):
+            sensor_dict = self.sensors_dict[sensor_id]
+            new_camera = PhotogrammetryCamera(
+                image_filename, cam_to_world_transform, **sensor_dict
+            )
+            self.cameras.append(new_camera)
+
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """Parse the information about the camera intrinsics and extrinsics
 
@@ -28,30 +57,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         chunk = root.find("chunk")
         # second level
         sensors = chunk.find("sensors")
-
-        # sensors info
-        # TODO in the future we should support multiple sensors
-        # This would required parsing multiple sensor configs and figuring out
-        # which image each corresponds to
-        sensor = sensors[0]
-        self.image_width = int(sensor[0].get("width"))
-        self.image_height = int(sensor[0].get("height"))
-
-        calibration = sensor.find("calibration")
-        if calibration is None:
-            raise ValueError("No calibration provided")
-
-        self.f = float(calibration.find("f").text)
-        self.cx = float(calibration.find("cx").text)
-        self.cy = float(calibration.find("cy").text)
-        if None in (self.f, self.cx, self.cy):
-            ValueError("Incomplete calibration provided")
-
-        # Get potentially-empty dict of distortion parameters
-        self.distortion_dict = {
-            calibration[i].tag: float(calibration[i].text)
-            for i in range(3, len(calibration))
-        }
+        self.sensors_dict = parse_sensors(sensors)
 
         # Get the transform relating the arbitrary local coordinate system
         # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape
@@ -62,6 +68,8 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         self.image_filenames = []
         self.cam_to_world_transforms = []
+        self.sensor_IDs = []
+
         for camera in cameras:
             transform = camera.find("transform")
             if transform is None:
@@ -71,3 +79,4 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
+            self.sensor_IDs.append(int(camera.get("sensor_id")))
