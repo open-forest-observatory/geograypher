@@ -1,16 +1,15 @@
 import geopandas as gpd
-import pyproj
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pyproj
 import torch
-import matplotlib.pyplot as plt
+from geopandas import GeoDataFrame
 from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
 from scipy.spatial.distance import cdist
 from shapely import Point, difference
 from shapely.validation import make_valid
-from geopandas import GeoDataFrame
-
 
 from multiview_prediction_toolkit.config import (
     COLORS,

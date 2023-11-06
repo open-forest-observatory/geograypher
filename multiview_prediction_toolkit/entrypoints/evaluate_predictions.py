@@ -1,6 +1,6 @@
 import argparse
-from pathlib import Path
 import json
+from pathlib import Path
 
 from multiview_prediction_toolkit.utils.prediction_metrics import (
     compute_rastervision_evaluation_metrics,
@@ -26,6 +26,7 @@ def parse_args():
         required=True,
         help="Path to vector or raster label file",
     )
+    parser.add_argument("--class-names", nargs="+")
     parser.add_argument(
         "--metrics-output-file",
         type=Path,
@@ -40,7 +41,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     evaluation = compute_rastervision_evaluation_metrics(
-        args.raster_file, args.prediction_file, args.groundtruth_file
+        args.raster_file, args.prediction_file, args.groundtruth_file, args.class_names
     )
     eval_json = evaluation.to_json()
     if args.metrics_output_file is not None:

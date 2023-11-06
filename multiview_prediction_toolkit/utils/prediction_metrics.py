@@ -1,20 +1,19 @@
 import logging
-from math import e
-import geopandas as gpd
-import numpy as np
-from pathlib import Path
-from multiview_prediction_toolkit.utils.utils import get_projected_CRS
-from multiview_prediction_toolkit.config import PATH_TYPE
-import pyproj
-import matplotlib.pyplot as plt
-from rastervision.core.data.utils import make_ss_scene
-from rastervision.core.data import ClassConfig
-import geopandas as gpd
 import tempfile
-import matplotlib.pyplot as plt
-import rasterio as rio
+from math import e
+from pathlib import Path
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pyproj
+import rasterio as rio
+from rastervision.core.data import ClassConfig
+from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
+
+from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.utils.utils import get_projected_CRS
 
 
 def eval_confusion_matrix(
@@ -76,22 +75,6 @@ def eval_confusion_matrix(
         plt.close()
 
     return confusion_matrix, column_values
-
-
-def get_cf_raster_pred_raster_gt(
-    image_file, prediction_file, gt_file, class_labels=None
-):
-    class_config = ClassConfig(names=["building", "background"])
-    class_config.ensure_null_class()
-
-    prediction_scene = make_ss_scene(
-        class_config=class_config,
-        image_uri=image_file,
-        label_raster_uri=prediction_file,
-        image_raster_source_kw=dict(allow_streaming=True),
-    )
-
-    prediction_labels = prediction_scene.label_source.get_labels()
 
 
 def check_if_raster(filename):
@@ -163,7 +146,7 @@ def compute_rastervision_evaluation_metrics(
     image_file: PATH_TYPE,
     prediction_file: PATH_TYPE,
     groundtruth_file: PATH_TYPE,
-    class_names: list[str] = ["canopy", "grass", "bare"],
+    class_names: list[str],
     vis_savefile: str = None,
 ):
     image_file = str(image_file)

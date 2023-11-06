@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import numpy as np
+from imageio import imread
+from skimage.transform import resize
+
 from multiview_prediction_toolkit.config import PATH_TYPE
 from multiview_prediction_toolkit.segmentation import Segmentor
-from pathlib import Path
-from skimage.transform import resize
-from imageio import imread
 
 
 class BrightnessSegmentor(Segmentor):

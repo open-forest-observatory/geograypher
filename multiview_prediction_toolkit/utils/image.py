@@ -1,5 +1,5 @@
-from PIL import Image
 import piexif
+from PIL import Image
 
 
 def get_GPS_exif(filename):

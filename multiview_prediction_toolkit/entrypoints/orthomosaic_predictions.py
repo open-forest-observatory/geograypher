@@ -1,8 +1,8 @@
 import argparse
+import logging
+from pathlib import Path
 
 from multiview_prediction_toolkit.segmentation import OrthoSegmentor
-from pathlib import Path
-import logging
 
 
 def parse_args():

@@ -1,21 +1,17 @@
-from rastervision.core.data import ClassConfig
-from rastervision.core.data.label import (
-    SemanticSegmentationSmoothLabels,
-    SemanticSegmentationDiscreteLabels,
-)
-from rastervision.pytorch_learner import (
-    SemanticSegmentationSlidingWindowGeoDataset,
-)
-from rastervision.core.evaluation import SemanticSegmentationEvaluator
-
-from rastervision.core import Box
-from tqdm import tqdm
-from pathlib import Path
-from tqdm import tqdm
-from imageio import imwrite
 import typing
+from pathlib import Path
 
 import numpy as np
+from imageio import imwrite
+from rastervision.core import Box
+from rastervision.core.data import ClassConfig
+from rastervision.core.data.label import (
+    SemanticSegmentationDiscreteLabels,
+    SemanticSegmentationSmoothLabels,
+)
+from rastervision.core.evaluation import SemanticSegmentationEvaluator
+from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
+from tqdm import tqdm
 
 from multiview_prediction_toolkit.config import PATH_TYPE
 
