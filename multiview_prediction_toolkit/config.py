@@ -50,3 +50,7 @@ COLORS = {
     "canopy": [34, 139, 34],
     "earth": [175, 128, 79],
 }
+
+VERT_ID = "vert_ID"
+NULL_TEXTURE_FLOAT_VALUE = -1
+NULL_TEXTURE_INT_VALUE = 255
