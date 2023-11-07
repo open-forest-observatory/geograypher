@@ -759,6 +759,9 @@ class TexturedPhotogrammetryMesh:
             cameras=p3d_camera, raster_settings=raster_settings
         ).to(self.device)
 
+        # Create mesh if not present
+        self.create_pytorch3d_mesh()
+
         fragments = rasterizer(self.pytorch3d_mesh)
         return p3d_camera, fragments
 
