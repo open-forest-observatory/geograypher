@@ -7,18 +7,20 @@ One task that this can support is multi-view classification. For example, if you
 
 
 ## Installation
-If you are an internal collaborator working on JetStream2 cloud compute environment with access to the `/ofo-share`, you can directly use an existing conda environment. Note that you should not make any changes to this environment since these changes will impact others. 
+There are two ways to use this tool. If you are an internal collaborator working on the `JetStream2` cloud compute environment with access to the `/ofo-share`, you can directly use an existing `conda` environment. Note that this option is only suitable if you want to use the existing functionality and not make changes to the toolkit code or dependencies. If you are an external collaborator/user or want to do development work, please create your own new environment. 
 
-To do so, you must have installed `conda` on your JetStream. Then tell `conda` to look in the following places for environments and packages.
+### Using existing environment
+Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed `conda` on your JetStream. Then you can tell `conda` to look in the following places for environments and packages.
 ```
 conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
 conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
 ```
+Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVPT`, and can be activated as follows:
+```
+conda activate MVPT
+```
 
-Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVPT`
-
-
-### New environment
+### Creating a new environment
 
 
 ```
@@ -26,7 +28,7 @@ conda create -n MVPT python=3.9 -y
 conda activate MVPT
 ```
 
-If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install a large set of the dependencies.
+If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
 
 ```
 poetry install
