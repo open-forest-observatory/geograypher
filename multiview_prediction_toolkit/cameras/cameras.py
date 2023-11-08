@@ -16,8 +16,8 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.utils.geospatial import get_projected_CRS
 from multiview_prediction_toolkit.utils.image import get_GPS_exif
-from multiview_prediction_toolkit.utils.utils import get_projected_CRS
 
 
 class PhotogrammetryCamera:

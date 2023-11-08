@@ -13,7 +13,7 @@ from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 
 from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.utils.utils import get_projected_CRS
+from multiview_prediction_toolkit.utils.geospatial import get_projected_CRS
 
 
 def eval_confusion_matrix(

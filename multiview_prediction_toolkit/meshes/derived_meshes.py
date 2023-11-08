@@ -18,7 +18,7 @@ from multiview_prediction_toolkit.config import (
     PATH_TYPE,
 )
 from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh
-from multiview_prediction_toolkit.utils.utils import (
+from multiview_prediction_toolkit.utils.geospatial import (
     find_union_of_intersections,
     get_projected_CRS,
     to_float,
