@@ -347,12 +347,14 @@ class TexturedPhotogrammetryMesh:
                 * dataframe, where all columns will be colapsed
                 * A shapely polygon/multipolygon
                 * A file that can be loaded by geopandas
-            buffer_meters (float, optional): _description_. Defaults to 0.
-            default_CRS (pyproj.CRS, optional): _description_. Defaults to pyproj.CRS.from_epsg(4326).
-            return_original_IDs (bool, optional): _description_. Defaults to False.
+            buffer_meters (float, optional): Expand the geometry by this amount of meters. Defaults to 0.
+            default_CRS (pyproj.CRS, optional): The CRS to use if one isn't provided. Defaults to pyproj.CRS.from_epsg(4326).
+            return_original_IDs (bool, optional): Return the indices into the original mesh. Defaults to False.
 
         Returns:
-            _type_: _description_
+            pyvista.PolyData: The subset of the mesh
+            np.ndarray: The indices of the points in the original mesh (only if return_original_IDs set)
+            np.ndarray: The indices of the faces in the original mesh (only if return_original_IDs set)
         """
         # Get the ROI into a geopandas GeoDataFrame
         if isinstance(region_of_interest, gpd.GeoDataFrame):
@@ -382,7 +384,6 @@ class TexturedPhotogrammetryMesh:
         subset_unstructured_grid = self.pyvista_mesh.extract_points(vert_inds)
         # Convert the unstructured grid to a PolyData (mesh) again
         subset_mesh = subset_unstructured_grid.extract_surface()
-        print(subset_mesh.array_names)
 
         # If we need the indices into the original mesh, return those
         if return_original_IDs:
