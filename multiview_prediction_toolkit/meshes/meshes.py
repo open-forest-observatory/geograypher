@@ -1,6 +1,6 @@
+import logging
 import typing
 from pathlib import Path
-from skimage.transform import resize
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -19,7 +19,8 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from shapely import Point, Polygon
+from shapely import MultiPolygon, Polygon
+from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.cameras import (
@@ -33,11 +34,9 @@ from multiview_prediction_toolkit.config import (
     VERT_ID,
     VIS_FOLDER,
 )
-from multiview_prediction_toolkit.utils.indexing import (
-    ensure_float_labels,
-)
+from multiview_prediction_toolkit.utils.geospatial import ensure_geometric_CRS
+from multiview_prediction_toolkit.utils.indexing import ensure_float_labels
 from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
-import logging
 
 
 class TexturedPhotogrammetryMesh:
@@ -188,7 +187,7 @@ class TexturedPhotogrammetryMesh:
                 )
 
             # Assume that the only one available is being requested
-            request_vertex_texture = self.vertex_texture is None
+            request_vertex_texture = self.vertex_texture is not None
 
         if request_vertex_texture:
             if self.vertex_texture is not None:
@@ -286,12 +285,15 @@ class TexturedPhotogrammetryMesh:
                     # Set any values that are the ignore int value to nan
                     texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
+                # Flip if it's RGB, since the convention is opposite what we expect
+                if texture_array.ndim == 2 and texture_array.shape[1] == 3:
+                    texture_array = np.flip(texture_array, axis=1)
+
                 self.set_texture(texture_array)
             else:
                 # Assume that no texture will be needed, consider printing a warning
                 logging.warn("No texture provided")
         else:
-
             # Try handling all the other supported filetypes
             texture_array = None
 
@@ -327,6 +329,71 @@ class TexturedPhotogrammetryMesh:
 
             # This will error if something is wrong with the texture that was loaded
             self.set_texture(texture_array)
+
+    def get_geospatial_subset(
+        self,
+        region_of_interest: typing.Union[
+            gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE
+        ],
+        buffer_meters: float = 0,
+        default_CRS: pyproj.CRS = pyproj.CRS.from_epsg(4326),
+        return_original_IDs: bool = False,
+    ):
+        """Get a subset of the mesh based on geospatial data
+
+        Args:
+            region_of_interest (typing.Union[gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE]):
+                Region of interest. Can be a
+                * dataframe, where all columns will be colapsed
+                * A shapely polygon/multipolygon
+                * A file that can be loaded by geopandas
+            buffer_meters (float, optional): Expand the geometry by this amount of meters. Defaults to 0.
+            default_CRS (pyproj.CRS, optional): The CRS to use if one isn't provided. Defaults to pyproj.CRS.from_epsg(4326).
+            return_original_IDs (bool, optional): Return the indices into the original mesh. Defaults to False.
+
+        Returns:
+            pyvista.PolyData: The subset of the mesh
+            np.ndarray: The indices of the points in the original mesh (only if return_original_IDs set)
+            np.ndarray: The indices of the faces in the original mesh (only if return_original_IDs set)
+        """
+        # Get the ROI into a geopandas GeoDataFrame
+        if isinstance(region_of_interest, gpd.GeoDataFrame):
+            ROI_gpd = region_of_interest
+        elif isinstance(region_of_interest, (Polygon, MultiPolygon)):
+            ROI_gpd = gpd.DataFrame(crs=default_CRS, geometry=[region_of_interest])
+        else:
+            ROI_gpd = gpd.read_file(region_of_interest)
+
+        # Disolve to ensure there is only one row
+        ROI_gpd = ROI_gpd.dissolve()
+        # Make sure we're using a geometric CRS so a buffer can be applied
+        ROI_gpd = ensure_geometric_CRS(ROI_gpd)
+        # Apply the buffer
+        ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters)
+        # Disolve again in case
+        ROI_gpd = ROI_gpd.dissolve()
+
+        # Get the vertices as a dataframe in the same CRS
+        verts_df = self.get_verts_geodataframe(ROI_gpd.crs)
+        # Determine which vertices are within the ROI polygon
+        verts_in_ROI = gpd.tools.overlay(verts_df, ROI_gpd, how="intersection")
+        # Extract the IDs of the set within the polygon
+        vert_inds = verts_in_ROI["vert_ID"].to_numpy()
+
+        # Extract a submesh using these IDs, which is returned as an UnstructuredGrid
+        subset_unstructured_grid = self.pyvista_mesh.extract_points(vert_inds)
+        # Convert the unstructured grid to a PolyData (mesh) again
+        subset_mesh = subset_unstructured_grid.extract_surface()
+
+        # If we need the indices into the original mesh, return those
+        if return_original_IDs:
+            return (
+                subset_mesh,
+                subset_unstructured_grid["vtkOriginalPointIds"],
+                subset_unstructured_grid["vtkOriginalCellIds"],
+            )
+        # Else return just the mesh
+        return subset_mesh
 
     def get_label_names(self):
         return self.label_names
@@ -472,7 +539,6 @@ class TexturedPhotogrammetryMesh:
             raise ValueError("None")
 
         vert_IDs = np.squeeze(vert_IDs)
-
         if vert_IDs.ndim != 1:
             raise ValueError(
                 f"Can only perform conversion with one dimensional array but instead had {vert_IDs.ndim}"
@@ -889,7 +955,9 @@ class TexturedPhotogrammetryMesh:
             self.create_pytorch3d_mesh()
         else:
             if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(self.get_texture(request_vertex_texture=True))
+                self.create_pytorch3d_mesh(
+                    self.get_texture(request_vertex_texture=True)
+                )
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
@@ -981,7 +1049,7 @@ class TexturedPhotogrammetryMesh:
             camera_set.vis(plotter, add_orientation_cube=True)
 
         # Show
-        plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
+        return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
 
     def save_renders_pytorch3d(
         self,

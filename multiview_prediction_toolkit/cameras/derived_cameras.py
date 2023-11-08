@@ -5,7 +5,6 @@ import numpy as np
 
 from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
 from multiview_prediction_toolkit.config import PATH_TYPE
-
 from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
 
 

@@ -5,6 +5,14 @@ from geopandas import GeoDataFrame
 from shapely import MultiPolygon, intersection, union
 
 
+def ensure_geometric_CRS(geodata):
+    if geodata.crs == pyproj.CRS.from_epsg(4326):
+        point = geodata["geometry"][0].centroid
+        geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
+        return geodata.to_crs(geometric_crs)
+    return geodata
+
+
 def get_projected_CRS(lat, lon, assume_western_hem=True):
     if assume_western_hem and lon > 0:
         lon = -lon
@@ -29,8 +37,5 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
     return all_intersections
 
 
-def to_float(x, nan_string):
-    if x == nan_string:
-        return np.nan
-    else:
-        return float(x)
+def to_float():
+    pass
