@@ -4,12 +4,12 @@ This repository uses `isort` for import management and `black` for general forma
 pip install isort
 pip install black
 ```
-We use the default arguments so the tools can be executed by simplying pointing them at all files in the repository. From the root directory of the project, you should execute the following:
+We use the default arguments so the tools can be executed by simply pointing them at all files in the repository. From the root directory of the project, you should execute the following:
 ```
 isort .
 black .
 ```
-Note that it's important that `isort` is run first, because it doesn't not produce a format that's consistent with `black`. 
+Note that it's important that `isort` is run first, because it doesn't produce a format that's consistent with `black`. 
 
 ### Docstrings
 For documentation, we use the [Google](https://github.com/NilsJPWerner/autoDocstring/blob/HEAD/docs/google.md) format. I personally use [VSCode autoDocstring](https://marketplace.visualstudio.com/items?itemName=njpwerner.autodocstring) plugin for templating. 
