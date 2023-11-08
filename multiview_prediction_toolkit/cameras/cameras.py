@@ -273,7 +273,7 @@ class PhotogrammetryCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.5):
+    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.1):
         """
         Visualize the camera as a frustum, at the appropriate translation and
         rotation and with the given focal length and aspect ratio.

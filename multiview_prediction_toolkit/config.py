@@ -42,7 +42,7 @@ DEFAULT_GEO_POINTS_FILE = str(
     Path(DATA_FOLDER, "ept_trees_01_rectified_inclSmall.geojson")
 )
 # Example digital elevation model
-DEFAULT_DEM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
+DEFAULT_DTM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
 
 ## Misc constants
 # Colors to be used across the project
