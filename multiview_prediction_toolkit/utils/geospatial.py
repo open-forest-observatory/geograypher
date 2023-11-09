@@ -1,3 +1,4 @@
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
@@ -60,38 +61,50 @@ def get_fractional_overlap(
                       overlaps with the classe. The second level is the overlap with
                       each class
     """
+    # Find the union of all class information
     union_of_all_classes = classes_df.dissolve()
-    union_of_all_classes.plot()
 
     # This column will be used later to index back into the original dataset
     unlabeled_df["index"] = unlabeled_df.index
+    # Find all the polygons intersecting the class data
     unlabeled_polygons_intersecting_classes = union_of_all_classes.overlay(
         unlabeled_df, how="intersection"
     )
-
     # We can't use the intersecting polygons directly because we want to preserve full geometries at the boundaries
     intersecting_indices = unlabeled_polygons_intersecting_classes["index"].to_numpy()
+    # Find the subset of original polygons that overlap with the class data
     unlabeled_df_intersecting_classes = unlabeled_df.iloc[intersecting_indices]
-    # Subset for testing speed
-    unlabeled_df_intersecting_classes = unlabeled_df_intersecting_classes[:20]
 
     # Add area field to each
     unlabeled_df_intersecting_classes[
         "unlabeled_area"
     ] = unlabeled_df_intersecting_classes.area
 
+    # Find the intersecting geometries
+    # We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified
     overlay = gpd.overlay(
         unlabeled_df_intersecting_classes,
         classes_df,
-        how="intersection",
+        how="union",
         keep_geom_type=False,
     )
-    overlay["per_class_area"] = overlay.area
+    # Drop the rows that only contain information from the class_labels
+    overlay = overlay[np.isfinite(overlay["index"].to_numpy())]
+
+    overlay["overlapping_area"] = overlay.area
     overlay["per_class_area_fraction"] = (
-        overlay["per_class_area"] / overlay["unlabeled_area"]
+        overlay["overlapping_area"] / overlay["unlabeled_area"]
     )
+
     # Aggregating the results
     results = overlay.groupby(["index", class_column]).agg(
         {"per_class_area_fraction": "sum"}
     )
-    return results
+
+    # Set the max class
+    argmax = results.groupby(level=[0]).idxmax()
+    max_class = [x[1] for x in argmax.iloc[:, 0].to_list()]
+    index = [int(x[0]) for x in argmax.iloc[:, 0].to_list()]
+    unlabeled_df_intersecting_classes.loc[index, "max_class"] = max_class
+
+    return results, overlay, unlabeled_df_intersecting_classes
