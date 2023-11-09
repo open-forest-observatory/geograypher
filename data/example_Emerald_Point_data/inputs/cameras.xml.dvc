@@ -1,0 +1,5 @@
+outs:
+- md5: 6e6e2d6741cedfad575d09117e182944
+  size: 1038720
+  hash: md5
+  path: cameras.xml
