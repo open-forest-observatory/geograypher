@@ -1,6 +1,8 @@
 [core]
     autostage = true
-    remote = cyverse
+    remote = cyverse_public
 ['remote "cyverse"']
     url = webdavs://data.cyverse.org/dav/iplant/projects/ofo/internal/DVC_test/multiview_prediction_toolkit_DVC
     jobs = 5
+['remote "cyverse_public"']
+    url = webdavs://data.cyverse.org/dav/iplant/projects/ofo/public/MVPT-example-data-DVC
