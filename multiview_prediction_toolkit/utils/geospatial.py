@@ -39,3 +39,59 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
 
 def to_float():
     pass
+
+
+# https://gis.stackexchange.com/questions/421888/getting-the-percentage-of-how-much-areas-intersects-with-another-using-geopandas
+def get_fractional_overlap(
+    unlabeled_df: GeoDataFrame, classes_df: GeoDataFrame, class_column: str = "names"
+) -> GeoDataFrame:
+    """
+    For each element in unlabeled df, return the fractional overlap with each class in
+    classes_df
+
+
+    Args:
+        unlabeled_df (GeoDataFrame): A dataframe of geometries
+        classes_df (GeoDataFrame): A dataframe of classes
+        class_column (str, optional): Which column in the classes_df to use. Defaults to "names".
+
+    Returns:
+        GeoDataFrame: A multi-level dataframe for each element in unlabeled_df that
+                      overlaps with the classe. The second level is the overlap with
+                      each class
+    """
+    union_of_all_classes = classes_df.dissolve()
+    union_of_all_classes.plot()
+
+    # This column will be used later to index back into the original dataset
+    unlabeled_df["index"] = unlabeled_df.index
+    unlabeled_polygons_intersecting_classes = union_of_all_classes.overlay(
+        unlabeled_df, how="intersection"
+    )
+
+    # We can't use the intersecting polygons directly because we want to preserve full geometries at the boundaries
+    intersecting_indices = unlabeled_polygons_intersecting_classes["index"].to_numpy()
+    unlabeled_df_intersecting_classes = unlabeled_df.iloc[intersecting_indices]
+    # Subset for testing speed
+    unlabeled_df_intersecting_classes = unlabeled_df_intersecting_classes[:20]
+
+    # Add area field to each
+    unlabeled_df_intersecting_classes[
+        "unlabeled_area"
+    ] = unlabeled_df_intersecting_classes.area
+
+    overlay = gpd.overlay(
+        unlabeled_df_intersecting_classes,
+        classes_df,
+        how="intersection",
+        keep_geom_type=False,
+    )
+    overlay["per_class_area"] = overlay.area
+    overlay["per_class_area_fraction"] = (
+        overlay["per_class_area"] / overlay["unlabeled_area"]
+    )
+    # Aggregating the results
+    results = overlay.groupby(["index", class_column]).agg(
+        {"per_class_area_fraction": "sum"}
+    )
+    return results
