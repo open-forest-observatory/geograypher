@@ -13,7 +13,10 @@ from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 
 from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.utils.geospatial import get_projected_CRS
+from multiview_prediction_toolkit.utils.geospatial import (
+    get_projected_CRS,
+    reproject_raster,
+)
 
 
 def eval_confusion_matrix(
@@ -110,6 +113,13 @@ def plot_geodata(filename, ax, raster_downsample_factor=0.1, ignore_class=3):
 def make_ss_scene_vec_or_rast(
     class_config, image_file, label_file, validate_vector_label=True
 ):
+    image_data = rio.open(image_file)
+
+    if image_data.crs != pyproj.CRS.from_epsg(4326):
+        temp_image_file = tempfile.NamedTemporaryFile(mode="w+", suffix=".tif")
+        reproject_raster(image_file, temp_image_file.name)
+        image_file = temp_image_file.name
+
     kwargs = {"class_config": class_config, "image_uri": image_file}
     is_raster_label = check_if_raster(label_file)
 
