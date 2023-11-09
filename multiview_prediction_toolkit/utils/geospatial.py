@@ -105,6 +105,6 @@ def get_fractional_overlap(
     argmax = results.groupby(level=[0]).idxmax()
     max_class = [x[1] for x in argmax.iloc[:, 0].to_list()]
     index = [int(x[0]) for x in argmax.iloc[:, 0].to_list()]
-    unlabeled_df_intersecting_classes.loc[index, "max_class"] = max_class
+    unlabeled_df_intersecting_classes.loc[index, "predicted_class"] = max_class
 
     return results, overlay, unlabeled_df_intersecting_classes
