@@ -13,6 +13,7 @@ from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
+from multiview_prediction_toolkit.utils.io import read_image_or_numpy
 from multiview_prediction_toolkit.config import PATH_TYPE
 
 
@@ -237,7 +238,7 @@ class OrthoSegmentor:
         prediction_folder: PATH_TYPE,
         savefile: typing.Union[PATH_TYPE, None] = None,
         discard_edge_frac: float = 1 / 8,
-        eval_performance: bool = True,
+        eval_performance: bool = False,
         smooth_seg_labels: bool = False,
     ):
         """Take tiled predictions on disk and aggregate them into a raster
@@ -273,9 +274,8 @@ class OrthoSegmentor:
         for window, file in tqdm(
             zip(windows, files), total=len(windows), desc="Aggregating tile predictions"
         ):
-            # TODO make this support more filetypes
             # Load the data
-            pred = np.load(file)
+            pred = read_image_or_numpy(file)
 
             # This means the output is confidence-per-class, channel first
             if len(pred.shape) == 3:
