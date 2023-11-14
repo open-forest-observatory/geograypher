@@ -674,7 +674,7 @@ class TexturedPhotogrammetryMesh:
 
     def export_face_labels_vector(
         self,
-        face_labels: np.ndarray,
+        face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
         export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         label_names: typing.Tuple = None,
@@ -701,16 +701,21 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: Merged data
         """
+        if face_labels is None:
+            face_labels = self.get_texture(request_vertex_texture=False)
+
         # Check that the correct number of labels are provided
         if len(face_labels) != self.faces.shape[0]:
             raise ValueError()
+
+        face_labels = np.squeeze(face_labels)
 
         # Get the mesh vertices in the desired export CRS
         verts_in_crs = self.get_vertices_in_CRS(export_crs)
         # Get a triangle in geospatial coords for each face
         # Only report the x, y values and not z
         face_polygons = [
-            Polygon(np.flip(verts_in_crs[face_IDs][:, :2]), axis=1)
+            Polygon(np.flip(verts_in_crs[face_IDs][:, :2], axis=1))
             for face_IDs in self.faces
         ]
         # Create a geodata frame from these polygons
@@ -727,7 +732,7 @@ class TexturedPhotogrammetryMesh:
         if label_names is not None:
             names = [
                 (label_names[int(label)] if label is not np.nan else np.nan)
-                for label in aggregated_df["labels"].tolist()
+                for label in aggregated_df["class_id"].tolist()
             ]
             aggregated_df["names"] = names
 
@@ -1035,7 +1040,7 @@ class TexturedPhotogrammetryMesh:
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
 
-        # If the vis scalars are None, use the vertex IDs
+        # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
             vis_scalars = self.get_texture(
                 # Request vertex texture if both are available

@@ -1,0 +1,5 @@
+/labeled_mesh.ply
+/predicted_segmentations
+/rendered_labels
+/standardized_labels.geojson
+/aggregated_face_labels.npy
