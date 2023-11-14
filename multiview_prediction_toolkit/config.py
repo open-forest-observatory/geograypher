@@ -77,3 +77,16 @@ EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
     "outputs",
     "predicted_labels.geojson",
 )
+
+EXAMPLE_LABEL_NAMES = (
+    "ABCO",
+    "ABMA",
+    "CADE",
+    "PI",
+    "PICO",
+    "PIJE",
+    "PILA",
+    "PIPO",
+    "SALSCO",
+    "TSME",
+)
