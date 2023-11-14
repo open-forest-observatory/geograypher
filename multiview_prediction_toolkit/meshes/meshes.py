@@ -193,9 +193,10 @@ class TexturedPhotogrammetryMesh:
     ):
         # If this is unset, try to infer it
         if request_vertex_texture is None:
-            if (self.vertex_texture is None and self.face_texture is None) or (
-                self.vertex_texture is not None and self.face_texture is not None
-            ):
+            if self.vertex_texture is None and self.face_texture is None:
+                # No texture available
+                return
+            elif self.vertex_texture is not None and self.face_texture is not None:
                 raise ValueError(
                     "Ambigious which texture is requested, set request_vertex_texture appropriately"
                 )
@@ -1034,7 +1035,7 @@ class TexturedPhotogrammetryMesh:
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
 
-        # If the vis scalars are None, use the vertex IDs
+        # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
             vis_scalars = self.get_texture(
                 # Request vertex texture if both are available
@@ -1046,8 +1047,7 @@ class TexturedPhotogrammetryMesh:
                     )
                     else None
                 )
-            ).astype(float)
-            vis_scalars[vis_scalars < 0] = np.nan
+            )
 
         is_rgb = (
             self.pyvista_mesh.active_scalars_name == "RGB"
