@@ -273,7 +273,7 @@ class PhotogrammetryCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.5):
+    def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
         Visualize the camera as a frustum, at the appropriate translation and
         rotation and with the given focal length and aspect ratio.
@@ -467,6 +467,8 @@ class PhotogrammetryCameraSet:
         plotter: pv.Plotter = None,
         add_orientation_cube: bool = False,
         show: bool = False,
+        frustum_scale: float = 0.1,
+        force_xvfb: bool = False,
     ):
         """Visualize all the cameras
 
@@ -474,6 +476,8 @@ class PhotogrammetryCameraSet:
             plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
             show (bool, optional): Show the results instead of waiting for other content to be added
+            frustum_scale (float, optional): Size of cameras in world units
+            force_xvfb (bool, optional): Force a headless rendering backend
         """
 
         if plotter is None:
@@ -481,7 +485,7 @@ class PhotogrammetryCameraSet:
             show = True
 
         for camera in self.cameras:
-            camera.vis(plotter)
+            camera.vis(plotter, frustum_scale=frustum_scale)
         if add_orientation_cube:
             # TODO Consider adding to a freestanding vis module
             ocube = demos.orientation_cube()
@@ -495,4 +499,6 @@ class PhotogrammetryCameraSet:
             plotter.show_axes()
 
         if show:
+            if force_xvfb:
+                pv.start_xvfb()
             plotter.show()

@@ -5,10 +5,10 @@ import numpy as np
 
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
-    DEFAULT_CAM_FILE,
-    DEFAULT_IMAGES_FOLDER,
-    DEFAULT_LABELS_FOLDER,
-    DEFAULT_LOCAL_MESH,
+    EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_IMAGE_FOLDER,
+    EXAMPLE_MESH_FILENAME,
+    EXAMPLE_PREDICTED_LABELS_FOLDER,
 )
 from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
 from multiview_prediction_toolkit.segmentation import (
@@ -23,22 +23,22 @@ def parse_args():
     )
     parser.add_argument(
         "--camera-file",
-        default=DEFAULT_CAM_FILE,
+        default=EXAMPLE_CAMERAS_FILE,
         help="Path to the MetaShape-exported .xml camera file",
     )
     parser.add_argument(
         "--mesh-file",
-        default=DEFAULT_LOCAL_MESH,
+        default=EXAMPLE_MESH_FILENAME,
         help="Path to the Metashape-exported mesh file, with associated transform .csv",
     )
     parser.add_argument(
         "--image-folder",
-        default=DEFAULT_IMAGES_FOLDER,
+        default=EXAMPLE_IMAGE_FOLDER,
         help="Path to the folder of images used to create the mesh",
     )
     parser.add_argument(
         "--label-folder",
-        default=DEFAULT_LABELS_FOLDER,
+        default=EXAMPLE_PREDICTED_LABELS_FOLDER,
         help="Path to the folder of labels to be aggregated onto the mesh. Must be in the same structure as the images.",
     )
     parser.add_argument(

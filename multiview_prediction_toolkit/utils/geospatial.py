@@ -1,9 +1,13 @@
 import geopandas as gpd
+import logging
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
+import rasterio as rio
 from geopandas import GeoDataFrame
 from shapely import MultiPolygon, intersection, union
+from tqdm import tqdm
 
 
 def ensure_geometric_CRS(geodata):
@@ -110,3 +114,33 @@ def get_fractional_overlap_vector(
     unlabeled_df_intersecting_classes.loc[index, "predicted_class"] = max_class
 
     return results, overlay, unlabeled_df_intersecting_classes
+
+# https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio
+def reproject_raster(in_path, out_path, out_crs=pyproj.CRS.from_epsg(4326)):
+
+    """ """
+    logging.warn("Starting to reproject raster")
+    # reproject raster to project crs
+    with rio.open(in_path) as src:
+        src_crs = src.crs
+        transform, width, height = rio.warp.calculate_default_transform(
+            src_crs, out_crs, src.width, src.height, *src.bounds
+        )
+        kwargs = src.meta.copy()
+
+        kwargs.update(
+            {"crs": out_crs, "transform": transform, "width": width, "height": height}
+        )
+
+        with rio.open(out_path, "w", **kwargs) as dst:
+            for i in tqdm(range(1, src.count + 1), desc="Reprojecting bands"):
+                rio.warp.reproject(
+                    source=rio.band(src, i),
+                    destination=rio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=out_crs,
+                    resampling=rio.warp.Resampling.nearest,
+                )
+    logging.warn("Done reprojecting raster")

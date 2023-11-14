@@ -12,39 +12,64 @@ DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 # Where to save vis data
 VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 
-# Images for one metashape project used as an example
-DEFAULT_IMAGES_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "images"))
+VERT_ID = "vert_ID"
+NULL_TEXTURE_FLOAT_VALUE = -1
+NULL_TEXTURE_INT_VALUE = 255
 
-# Images for one metashape project used as an example
-DEFAULT_LABELS_FOLDER = str(Path(DATA_FOLDER, "composite_georef", "segmented"))
+### Example data variables
+## Raw input data
+# The input labels
+EXAMPLE_LABELS_FILENAME = Path(
+    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "labels.geojson"
+)
+# The mesh exported from Metashape
+EXAMPLE_MESH_FILENAME = Path(
+    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "mesh.ply"
+)
+# The camera file exported from Metashape
+EXAMPLE_CAMERAS_FILENAME = Path(
+    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "cameras.xml"
+)
+# The digital elevation map exported by Metashape
+EXAMPLE_DTM_FILE = Path(DATA_FOLDER, "example_Emerald_Point_data", "inputs", "dtm.tif")
+# The image folder used to create the Metashape project
+EXAMPLE_IMAGE_FOLDER = Path(
+    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "images"
+)
 
-# Mesh in local metashape coordinates for one metashape project used as an example
-DEFAULT_LOCAL_MESH = str(
-    Path(
-        DATA_FOLDER,
-        "composite_georef",
-        "composite_georef_low_res_20230928T1604_model_local.ply",
-    )
+## Define the intermediate results
+# Processed geo file
+EXAMPLE_STANDARDIZED_LABELS_FILENAME = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "intermediate_results",
+    "standardized_labels.geojson",
 )
-# Exported metashape cameras for example project
-DEFAULT_CAM_FILE = str(
-    Path(
-        DATA_FOLDER,
-        "composite_georef",
-        "composite_georef_cameras.xml",
-    )
+# Where to save the mesh after labeling
+EXAMPLE_LABELED_MESH_FILENAME = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "intermediate_results",
+    "labeled_mesh.ply",
 )
-# Example tree crown deliniation
-DEFAULT_GEOPOLYGON_FILE = str(
-    Path(DATA_FOLDER, "composite_georef", "composite_20230520T0519_tree_mask.geojson")
+# Where to save the rendering label images
+EXAMPLE_RENDERED_LABELS_FOLDER = Path(
+    DATA_FOLDER, "example_Emerald_Point_data", "intermediate_results", "rendered_labels"
 )
-# Example field reference data
-DEFAULT_GEO_POINTS_FILE = str(
-    Path(DATA_FOLDER, "ept_trees_01_rectified_inclSmall.geojson")
+# Predicted images from a segementation algorithm
+EXAMPLE_PREDICTED_LABELS_FOLDER = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "intermediate_results",
+    "predicted_segmentations",
 )
-# Example digital elevation model
-DEFAULT_DEM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
-
+# The predicted aggregated face data
+EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "intermediate_results",
+    "aggregated_face_labels.npy",
+)
 
 ## Misc constants
 # Colors to be used across the project
@@ -58,6 +83,23 @@ MATPLOTLIB_PALLETE = [
     hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
 ]
 
-VERT_ID = "vert_ID"
-NULL_TEXTURE_FLOAT_VALUE = -1
-NULL_TEXTURE_INT_VALUE = 255
+## Outputs
+EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "outputs",
+    "predicted_labels.geojson",
+)
+
+EXAMPLE_LABEL_NAMES = (
+    "ABCO",
+    "ABMA",
+    "CADE",
+    "PI",
+    "PICO",
+    "PIJE",
+    "PILA",
+    "PIPO",
+    "SALSCO",
+    "TSME",
+)

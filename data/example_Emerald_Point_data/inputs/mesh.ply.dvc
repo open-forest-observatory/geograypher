@@ -1,0 +1,5 @@
+outs:
+- md5: 0fb5c371965a768a2983f649cd525dd1
+  size: 35217695
+  hash: md5
+  path: mesh.ply

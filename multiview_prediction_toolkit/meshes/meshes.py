@@ -19,7 +19,7 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from shapely import Point, MultiPolygon, Polygon
+from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
 
@@ -28,9 +28,11 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCameraSet,
 )
 from multiview_prediction_toolkit.config import (
-    PATH_TYPE,
-    VIS_FOLDER,
     NULL_TEXTURE_INT_VALUE,
+    NULL_TEXTURE_FLOAT_VALUE,
+    PATH_TYPE,
+    VERT_ID,
+    VIS_FOLDER,
 )
 from multiview_prediction_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_prediction_toolkit.utils.indexing import ensure_float_labels
@@ -45,6 +47,8 @@ class TexturedPhotogrammetryMesh:
         transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_kwargs: dict = {},
+        ROI=None,
+        ROI_buffer_meters: float = 0,
         discrete_label: bool = True,
         require_transform: bool = False,
     ):
@@ -79,7 +83,11 @@ class TexturedPhotogrammetryMesh:
 
         # Load the mesh with the pyvista loader
         logging.info("Loading mesh")
-        self.load_mesh(downsample_target=downsample_target)
+        self.load_mesh(
+            downsample_target=downsample_target,
+            ROI=ROI,
+            ROI_buffer_meters=ROI_buffer_meters,
+        )
         # Load the transform
         logging.info("Loading transform to EPSG:4326")
         self.load_transform_to_epsg_4326(
@@ -94,6 +102,8 @@ class TexturedPhotogrammetryMesh:
     def load_mesh(
         self,
         downsample_target: float = 1.0,
+        ROI=None,
+        ROI_buffer_meters=0,
     ):
         """Load the pyvista mesh and create the pytorch3d texture
 
@@ -104,6 +114,12 @@ class TexturedPhotogrammetryMesh:
         # Load the mesh using pyvista
         # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
         self.pyvista_mesh = pv.read(self.mesh_filename)
+
+        # Select a region of interest if needed
+        self.pyvista_mesh = self.select_mesh_ROI(
+            region_of_interest=ROI, buffer_meters=ROI_buffer_meters
+        )
+
         # Downsample mesh if needed
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
@@ -329,10 +345,10 @@ class TexturedPhotogrammetryMesh:
             # This will error if something is wrong with the texture that was loaded
             self.set_texture(texture_array)
 
-    def get_geospatial_subset(
+    def select_mesh_ROI(
         self,
         region_of_interest: typing.Union[
-            gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE
+            gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
         ],
         buffer_meters: float = 0,
         default_CRS: pyproj.CRS = pyproj.CRS.from_epsg(4326),
@@ -355,6 +371,9 @@ class TexturedPhotogrammetryMesh:
             np.ndarray: The indices of the points in the original mesh (only if return_original_IDs set)
             np.ndarray: The indices of the faces in the original mesh (only if return_original_IDs set)
         """
+        if region_of_interest is None:
+            return self.pyvista_mesh
+
         # Get the ROI into a geopandas GeoDataFrame
         if isinstance(region_of_interest, gpd.GeoDataFrame):
             ROI_gpd = region_of_interest
@@ -655,7 +674,7 @@ class TexturedPhotogrammetryMesh:
 
     def export_face_labels_vector(
         self,
-        face_labels: np.ndarray,
+        face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
         export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         label_names: typing.Tuple = None,
@@ -682,16 +701,22 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: Merged data
         """
+        if face_labels is None:
+            face_labels = self.get_texture(request_vertex_texture=False)
+
         # Check that the correct number of labels are provided
         if len(face_labels) != self.faces.shape[0]:
             raise ValueError()
+
+        face_labels = np.squeeze(face_labels)
 
         # Get the mesh vertices in the desired export CRS
         verts_in_crs = self.get_vertices_in_CRS(export_crs)
         # Get a triangle in geospatial coords for each face
         # Only report the x, y values and not z
         face_polygons = [
-            Polygon(verts_in_crs[face_IDs][:, :2]) for face_IDs in self.faces
+            Polygon(np.flip(verts_in_crs[face_IDs][:, :2], axis=1))
+            for face_IDs in self.faces
         ]
         # Create a geodata frame from these polygons
         individual_polygons_df = gpd.GeoDataFrame(
@@ -707,7 +732,7 @@ class TexturedPhotogrammetryMesh:
         if label_names is not None:
             names = [
                 (label_names[int(label)] if label is not np.nan else np.nan)
-                for label in aggregated_df["labels"].tolist()
+                for label in aggregated_df["class_id"].tolist()
             ]
             aggregated_df["names"] = names
 
@@ -742,9 +767,9 @@ class TexturedPhotogrammetryMesh:
             np.ndarray: samples from raster. Either (n_verts,) or (n_verts, n_raster_channels)
             np.ndarray (optional): (n_verts, 3) the vertices in the raster CRS
         """
-        # Open the DEM file
+        # Open the DTM file
         raster = rio.open(raster_file)
-        # Get the mesh points in the coordinate reference system of the DEM
+        # Get the mesh points in the coordinate reference system of the DTM
         verts_in_raster_CRS = self.get_vertices_in_CRS(raster.crs)
 
         # Get the points as a list
@@ -768,24 +793,24 @@ class TexturedPhotogrammetryMesh:
         return sampled_raster_values
 
     def get_height_above_ground(
-        self, DEM_file: PATH_TYPE, threshold: float = None
+        self, DTM_file: PATH_TYPE, threshold: float = None
     ) -> np.ndarray:
-        """Return height above ground for a points in the mesh and a given DEM
+        """Return height above ground for a points in the mesh and a given DTM
 
         Args:
-            DEM_file (PATH_TYPE): Path to the DEM raster
+            DTM_file (PATH_TYPE): Path to the digital terrain model raster
             threshold (float, optional):
                 If not None, return a boolean mask for points under this height. Defaults to None.
 
         Returns:
             np.ndarray: Either the height above ground or a boolean mask for ground points
         """
-        # Get the height from the DEM and the points in the same CRS
-        DEM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
-            DEM_file, return_verts_in_CRS=True
+        # Get the height from the DTM and the points in the same CRS
+        DTM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
+            DTM_file, return_verts_in_CRS=True
         )
         # Subtract the two to get the height above ground
-        height_above_ground = verts_in_raster_CRS[:, 2] - DEM_heights
+        height_above_ground = verts_in_raster_CRS[:, 2] - DTM_heights
 
         # If the threshold is not None, return a boolean mask that is true for ground points
         if threshold is not None:
@@ -995,7 +1020,7 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
-        mesh_kwargs: typing.Dict = {},
+        mesh_kwargs: typing.Dict = {"cmap": "tab10", "clim": [0, 9]},
         plotter_kwargs: typing.Dict = {},
         force_xvfb: bool = False,
     ):
@@ -1015,7 +1040,7 @@ class TexturedPhotogrammetryMesh:
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
 
-        # If the vis scalars are None, use the vertex IDs
+        # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
             vis_scalars = self.get_texture(
                 # Request vertex texture if both are available
@@ -1044,7 +1069,7 @@ class TexturedPhotogrammetryMesh:
         )
         # If the camera set is provided, show this too
         if camera_set is not None:
-            camera_set.vis(plotter, add_orientation_cube=True)
+            camera_set.vis(plotter, add_orientation_cube=False)
 
         # Show
         return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
