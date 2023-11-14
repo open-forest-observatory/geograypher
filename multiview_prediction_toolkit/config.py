@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Union
+import matplotlib.pyplot as plt
 
 ## Typing constants
 # A file/folder path
@@ -44,12 +45,18 @@ DEFAULT_GEO_POINTS_FILE = str(
 # Example digital elevation model
 DEFAULT_DEM_FILE = "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/composite_georef/composite_georef_low_res_20230928T1637_dtm.tif"
 
+
 ## Misc constants
 # Colors to be used across the project
-COLORS = {
-    "canopy": [34, 139, 34],
-    "earth": [175, 128, 79],
-}
+def hex_to_rgb(value):
+    value = value.lstrip("#")
+    lv = len(value)
+    return tuple(int(value[i : i + lv // 3], 16) for i in range(0, lv, lv // 3))
+
+
+MATPLOTLIB_PALLETE = [
+    hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
+]
 
 VERT_ID = "vert_ID"
 NULL_TEXTURE_FLOAT_VALUE = -1

@@ -62,7 +62,7 @@ def parse_args():
         type=Path,
         help="Run aggregation using chipts from this folder",
     )
-
+    parser.add_argument("--class-names", nargs="+")
     parser.add_argument(
         "--aggregated-savefile",
         type=Path,
@@ -98,6 +98,7 @@ if __name__ == "__main__":
         chip_size=args.chip_size,
         training_stride=int(args.training_stride_fraction * args.chip_size),
         inference_stride=int(args.inference_stride_fraction * args.chip_size),
+        class_names=args.class_names,
     )
 
     if args.training_chips_folder is not None:
@@ -126,5 +127,5 @@ if __name__ == "__main__":
             args.prediction_chips_folder,
             savefile=args.aggregated_savefile,
             discard_edge_frac=args.discard_edge_frac,
-            eval_performance=True,
+            eval_performance=False,
         )

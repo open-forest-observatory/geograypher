@@ -42,8 +42,14 @@ def to_float():
     pass
 
 
+def get_fractional_overlap_raster(
+    unlabeled_df, classes_raster, class_names, class_column: str = "names"
+) -> GeoDataFrame:
+    pass
+
+
 # https://gis.stackexchange.com/questions/421888/getting-the-percentage-of-how-much-areas-intersects-with-another-using-geopandas
-def get_fractional_overlap(
+def get_fractional_overlap_vector(
     unlabeled_df: GeoDataFrame, classes_df: GeoDataFrame, class_column: str = "names"
 ) -> GeoDataFrame:
     """
