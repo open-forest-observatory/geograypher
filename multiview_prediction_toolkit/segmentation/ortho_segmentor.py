@@ -2,7 +2,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
-from imageio import imwrite
+from imageio import imwrite, imread
 from rastervision.core import Box
 from rastervision.core.data import ClassConfig
 from rastervision.core.data.label import (
@@ -13,7 +13,7 @@ from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.config import PATH_TYPE, MATPLOTLIB_PALLETE
 
 
 class OrthoSegmentor:
@@ -22,18 +22,8 @@ class OrthoSegmentor:
         raster_input_file: PATH_TYPE,
         vector_label_file: PATH_TYPE = None,
         raster_label_file: PATH_TYPE = None,
-        class_names: list[str] = (
-            "grass",
-            "trees",
-            "earth",
-            "null",
-        ),  # TODO fix these up
-        class_colors: list[str] = (
-            "lightgray",
-            "darkred",
-            "red",
-            "green",
-        ),  # TODO fix this
+        class_names: list[str] = (),  # TODO fix these up
+        class_colors: list[str] = (),  # TODO fix this
         chip_size: int = 2048,
         training_stride: int = 2048,
         inference_stride: int = 1024,
@@ -46,9 +36,14 @@ class OrthoSegmentor:
         self.training_stride = training_stride
         self.inference_stride = inference_stride
 
+        if class_colors is not None:
+            class_colors = MATPLOTLIB_PALLETE[: len(class_names)]
+
         self.class_config = ClassConfig(
-            names=class_names, colors=class_colors, null_class="null"
+            names=class_names,
+            colors=class_colors,
         )
+        self.class_config.ensure_null_class()
 
         # This will be instantiated later
         self.dataset = None
@@ -267,15 +262,14 @@ class OrthoSegmentor:
             num_classes=len(self.class_config.names) - 1,
         )
 
-        # Compute the number of pixels to discard at the edge
-        crop_sz = int(self.chip_size * discard_edge_frac)
         # Iterate over windows and files
         for window, file in tqdm(
             zip(windows, files), total=len(windows), desc="Aggregating tile predictions"
         ):
             # TODO make this support more filetypes
             # Load the data
-            pred = np.load(file)
+            # pred = np.load(file)
+            pred = imread(file)
 
             # This means the output is confidence-per-class, channel first
             if len(pred.shape) == 3:
@@ -284,6 +278,9 @@ class OrthoSegmentor:
                 # If we want hard classifications, compute that
                 if not smooth_seg_labels:
                     pred = np.argmax(pred, axis=0)
+
+            # Compute the number of pixels to discard at the edge
+            crop_sz = int(min(window.size) * discard_edge_frac)
 
             # Add the prediction to the dataset
             # TODO see if we can get speedups by batching this

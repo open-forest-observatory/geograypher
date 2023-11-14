@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Union
+import matplotlib.pyplot as plt
 
 ## Typing constants
 # A file/folder path
@@ -69,6 +70,18 @@ EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
     "intermediate_results",
     "aggregated_face_labels.npy",
 )
+
+## Misc constants
+# Colors to be used across the project
+def hex_to_rgb(value):
+    value = value.lstrip("#")
+    lv = len(value)
+    return tuple(int(value[i : i + lv // 3], 16) for i in range(0, lv, lv // 3))
+
+
+MATPLOTLIB_PALLETE = [
+    hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
+]
 
 ## Outputs
 EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(

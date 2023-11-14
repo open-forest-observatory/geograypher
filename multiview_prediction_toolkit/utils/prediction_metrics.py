@@ -1,7 +1,8 @@
 import logging
 import tempfile
-from math import e
 from pathlib import Path
+import typing
+
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ import rasterio as rio
 from rastervision.core.data import ClassConfig
 from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from multiview_prediction_toolkit.config import PATH_TYPE
 from multiview_prediction_toolkit.utils.geospatial import (
@@ -208,3 +210,43 @@ def compute_rastervision_evaluation_metrics(
     )
 
     return evaluation
+
+
+def compute_and_show_cf(
+    pred_labels: list,
+    gt_labels: list,
+    use_labels_from: str = "both",
+    vis: bool = True,
+    savefile: typing.Union[None, PATH_TYPE] = None,
+):
+    """_summary_
+
+    Args:
+        pred_labels (list): _description_
+        gt_labels (list): _description_
+        use_labels_from (str, optional): _description_. Defaults to "gt".
+    """
+    if use_labels_from == "gt":
+        labels = np.unique(list(gt_labels))
+    elif use_labels_from == "pred":
+        labels = np.unique(list(pred_labels))
+    elif use_labels_from == "both":
+        labels = np.unique(list(pred_labels) + list(gt_labels))
+    else:
+        raise ValueError(
+            f"Must use labels from gt, pred, or both but instead was {use_labels_from}"
+        )
+
+    cf_matrix = confusion_matrix(y_true=gt_labels, y_pred=pred_labels, labels=labels)
+
+    if vis:
+        cf_disp = ConfusionMatrixDisplay(
+            confusion_matrix=cf_matrix, display_labels=labels
+        )
+        cf_disp.plot()
+        if savefile is None:
+            plt.show()
+        else:
+            plt.savefig(savefile)
+
+    return cf_matrix, labels
