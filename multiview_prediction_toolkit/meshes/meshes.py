@@ -191,12 +191,12 @@ class TexturedPhotogrammetryMesh:
         request_vertex_texture: typing.Union[bool, None] = None,
         try_verts_faces_conversion: bool = True,
     ):
+        if self.vertex_texture is None and self.face_texture is None:
+            return
+
         # If this is unset, try to infer it
         if request_vertex_texture is None:
-            if self.vertex_texture is None and self.face_texture is None:
-                # No texture available
-                return
-            elif self.vertex_texture is not None and self.face_texture is not None:
+            if self.vertex_texture is not None and self.face_texture is not None:
                 raise ValueError(
                     "Ambigious which texture is requested, set request_vertex_texture appropriately"
                 )
