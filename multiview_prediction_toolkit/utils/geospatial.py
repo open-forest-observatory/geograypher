@@ -38,14 +38,10 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
     return all_intersections
 
 
-def to_float():
-    pass
-
-
 def get_fractional_overlap_raster(
     unlabeled_df, classes_raster, class_names, class_column: str = "names"
 ) -> GeoDataFrame:
-    pass
+    raise NotImplementedError()
 
 
 # https://gis.stackexchange.com/questions/421888/getting-the-percentage-of-how-much-areas-intersects-with-another-using-geopandas

@@ -289,8 +289,6 @@ class OrthoSegmentor:
             )
 
         if savefile is not None:
-            np.save("vis/pixel_counts.npy", seg_labels.pixel_counts)
-            np.save("vis/hit_mask.npy", seg_labels.hit_mask)
             # Save out the raster data
             seg_labels.save(
                 str(savefile),
