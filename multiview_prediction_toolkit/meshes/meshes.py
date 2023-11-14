@@ -674,7 +674,7 @@ class TexturedPhotogrammetryMesh:
 
     def export_face_labels_vector(
         self,
-        face_labels: np.ndarray,
+        face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
         export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         label_names: typing.Tuple = None,
@@ -701,6 +701,9 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: Merged data
         """
+        if face_labels is None:
+            face_labels = self.get_texture(request_vertex_texture=False)
+
         # Check that the correct number of labels are provided
         if len(face_labels) != self.faces.shape[0]:
             raise ValueError()

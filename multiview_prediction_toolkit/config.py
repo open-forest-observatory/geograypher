@@ -62,3 +62,18 @@ EXAMPLE_PREDICTED_LABELS_FOLDER = Path(
     "intermediate_results",
     "predicted_segmentations",
 )
+# The predicted aggregated face data
+EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "intermediate_results",
+    "aggregated_face_labels.npy",
+)
+
+## Outputs
+EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
+    DATA_FOLDER,
+    "example_Emerald_Point_data",
+    "outputs",
+    "predicted_labels.geojson",
+)
