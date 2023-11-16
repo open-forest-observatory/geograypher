@@ -124,8 +124,7 @@ if __name__ == "__main__":
             )
         )
         ortho_seg.assemble_tiled_predictions(
-            args.prediction_chips_folder,
-            savefile=args.aggregated_savefile,
+            sorted(args.prediction_chips_folder.glob("*")),
+            class_savefile=args.aggregated_savefile,
             downweight_edge_frac=args.downweight_edge_frac,
-            eval_performance=False,
         )
