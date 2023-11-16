@@ -1,0 +1,5 @@
+outs:
+- md5: b7ff5367c13df4d2fe07658e8ae88e59
+  size: 7571809
+  hash: md5
+  path: predicted_labels.geojson
