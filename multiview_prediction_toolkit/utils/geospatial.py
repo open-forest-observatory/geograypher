@@ -1,13 +1,18 @@
-import geopandas as gpd
 import logging
+import typing
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import rasterio as rio
 from geopandas import GeoDataFrame
+from rasterstats import zonal_stats
 from shapely import MultiPolygon, intersection, union
+from shapely.geometry import box
 from tqdm import tqdm
+
+from multiview_prediction_toolkit.config import PATH_TYPE
 
 
 def ensure_geometric_CRS(geodata):
@@ -42,10 +47,76 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
     return all_intersections
 
 
-def get_fractional_overlap_raster(
-    unlabeled_df, classes_raster, class_names, class_column: str = "names"
-) -> GeoDataFrame:
-    raise NotImplementedError()
+def get_overlap_raster(
+    unlabeled_df: typing.Union[PATH_TYPE, GeoDataFrame],
+    classes_raster: PATH_TYPE,
+    num_classes: typing.Union[None, int] = None,
+    normalize: bool = False,
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    """Get the overlap for each polygon in the unlabeled DF with each class in the raster
+
+    Args:
+        unlabeled_df (typing.Union[PATH_TYPE, GeoDataFrame]):
+            Dataframe or path to dataframe containing geometries per object
+        classes_raster (PATH_TYPE): Path to a categorical raster
+        num_classes (typing.Union[None, int], optional):
+            Number of classes, if None defaults to the highest overlapping class. Defaults to None.
+        normalize (bool, optional): Normalize counts matrix from pixels to fraction. Defaults to False.
+
+    Returns:
+        np.ndarray: (n_valid, n_classes) counts per polygon per class
+        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions
+    """
+    # Try to load the vector data if it's not a geodataframe
+    if not isinstance(unlabeled_df, GeoDataFrame):
+        unlabeled_df = gpd.read_file(unlabeled_df)
+
+    with rio.open(classes_raster, "r") as src:
+        raster_crs = src.crs
+        # Note this is a shapely object with no CRS, but we ensure
+        # the vectors are converted to the same CRS
+        raster_bounds = box(*src.bounds)
+
+    # Ensure that the vector data is in the same CRS as the raster
+    if raster_crs != unlabeled_df.crs:
+        # Avoid doing this in place because we don't want to modify the input dataframe
+        # This should properly create a copy
+        unlabeled_df = unlabeled_df.to_crs(raster_crs)
+        print(unlabeled_df.crs)
+
+    # Find the polygons that are within the bounds of the raster
+    within_bounds_IDs = np.where(
+        np.logical_not(unlabeled_df.intersection(raster_bounds).is_empty.to_numpy())
+    )[0]
+
+    # Compute the stats
+    stats = zonal_stats(
+        unlabeled_df.iloc[within_bounds_IDs], str(classes_raster), categorical=True
+    )
+
+    # Find which polygons have non-null class predictions
+    # Due to nondata regions, some polygons within the region may not have class information
+    valid_prediction_IDs = np.where([x != {} for x in stats])[0]
+
+    # Determine the number of classes if not set
+    if num_classes is None:
+        # Find the max value that show up in valid predictions
+        num_classes = 1 + np.max(
+            [np.max(list(stats[i].keys())) for i in valid_prediction_IDs]
+        )
+
+    # Build the counts matrix for non-null predictions
+    counts_matrix = np.zeros((len(valid_prediction_IDs), num_classes))
+
+    # Fill the counts matrix
+    for i in valid_prediction_IDs:
+        for j, count in stats[i].items():
+            counts_matrix[i, j] = count
+
+    # Bookkeeping to find the IDs that were both within the raster and non-null
+    valid_IDs_in_original = within_bounds_IDs[valid_prediction_IDs]
+
+    return counts_matrix, valid_IDs_in_original
 
 
 # https://gis.stackexchange.com/questions/421888/getting-the-percentage-of-how-much-areas-intersects-with-another-using-geopandas
@@ -115,9 +186,9 @@ def get_fractional_overlap_vector(
 
     return results, overlay, unlabeled_df_intersecting_classes
 
+
 # https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio
 def reproject_raster(in_path, out_path, out_crs=pyproj.CRS.from_epsg(4326)):
-
     """ """
     logging.warn("Starting to reproject raster")
     # reproject raster to project crs
