@@ -249,4 +249,7 @@ def compute_and_show_cf(
         else:
             plt.savefig(savefile)
 
-    return cf_matrix, labels
+    # TODO compute more comprehensive metrics here
+    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)
+
+    return cf_matrix, labels, accuracy

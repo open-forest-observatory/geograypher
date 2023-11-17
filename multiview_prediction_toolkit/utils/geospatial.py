@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import rasterio as rio
-from geopandas import GeoDataFrame
+from geopandas import GeoDataFrame, GeoSeries
 from rasterstats import zonal_stats
-from shapely import MultiPolygon, intersection, union
+from shapely import MultiPolygon, Polygon, intersection, union
 from shapely.geometry import box
 from tqdm import tqdm
 
@@ -47,12 +47,37 @@ def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
     return all_intersections
 
 
+def intersects_union_of_polygons(
+    query_polygons: GeoDataFrame,
+    region_polygon: typing.Union[GeoDataFrame, GeoSeries, Polygon, MultiPolygon],
+):
+    if isinstance(region_polygon, GeoDataFrame):
+        region_polygon.plot()
+        # Try to make geometries valid
+        region_polygon.geometry = region_polygon.buffer(0)
+        region_polygon = region_polygon.dissolve()
+        region_polygon = region_polygon.geometry[0]
+
+    # Find the polygons that are within the bounds of the raster
+    intersection = query_polygons.intersection(region_polygon)
+    empty_geometry = intersection.is_empty.to_numpy()
+    within_bounds_IDs = np.where(np.logical_not(empty_geometry))[0]
+    return within_bounds_IDs
+
+
+def coerce_to_geoframe(potential_geoframe):
+    # Try to load the vector data if it's not a geodataframe
+    if not isinstance(potential_geoframe, GeoDataFrame):
+        potential_geoframe = gpd.read_file(potential_geoframe)
+    return potential_geoframe
+
+
 def get_overlap_raster(
     unlabeled_df: typing.Union[PATH_TYPE, GeoDataFrame],
     classes_raster: PATH_TYPE,
     num_classes: typing.Union[None, int] = None,
     normalize: bool = False,
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+) -> (np.ndarray, np.ndarray):
     """Get the overlap for each polygon in the unlabeled DF with each class in the raster
 
     Args:
@@ -67,9 +92,7 @@ def get_overlap_raster(
         np.ndarray: (n_valid, n_classes) counts per polygon per class
         np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions
     """
-    # Try to load the vector data if it's not a geodataframe
-    if not isinstance(unlabeled_df, GeoDataFrame):
-        unlabeled_df = gpd.read_file(unlabeled_df)
+    unlabeled_df = coerce_to_geoframe(unlabeled_df)
 
     with rio.open(classes_raster, "r") as src:
         raster_crs = src.crs
@@ -82,12 +105,9 @@ def get_overlap_raster(
         # Avoid doing this in place because we don't want to modify the input dataframe
         # This should properly create a copy
         unlabeled_df = unlabeled_df.to_crs(raster_crs)
-        print(unlabeled_df.crs)
 
-    # Find the polygons that are within the bounds of the raster
-    within_bounds_IDs = np.where(
-        np.logical_not(unlabeled_df.intersection(raster_bounds).is_empty.to_numpy())
-    )[0]
+    # Compute which polygons intersect the raster region
+    within_bounds_IDs = intersects_union_of_polygons(unlabeled_df, raster_bounds)
 
     # Compute the stats
     stats = zonal_stats(
@@ -116,13 +136,19 @@ def get_overlap_raster(
     # Bookkeeping to find the IDs that were both within the raster and non-null
     valid_IDs_in_original = within_bounds_IDs[valid_prediction_IDs]
 
+    if normalize:
+        counts_matrix = counts_matrix / np.sum(counts_matrix, axis=1, keepdims=True)
+
     return counts_matrix, valid_IDs_in_original
 
 
 # https://gis.stackexchange.com/questions/421888/getting-the-percentage-of-how-much-areas-intersects-with-another-using-geopandas
-def get_fractional_overlap_vector(
-    unlabeled_df: GeoDataFrame, classes_df: GeoDataFrame, class_column: str = "names"
-) -> GeoDataFrame:
+def get_overlap_vector(
+    unlabeled_df: GeoDataFrame,
+    classes_df: GeoDataFrame,
+    class_column: str,
+    class_names: typing.Union[None, typing.List[str]] = None,
+) -> (np.ndarray, np.ndarray):
     """
     For each element in unlabeled df, return the fractional overlap with each class in
     classes_df
@@ -132,25 +158,37 @@ def get_fractional_overlap_vector(
         unlabeled_df (GeoDataFrame): A dataframe of geometries
         classes_df (GeoDataFrame): A dataframe of classes
         class_column (str, optional): Which column in the classes_df to use. Defaults to "names".
+        class_names (typing.Union[None, typing.List[str]], optional): Complete list of classes to use
 
     Returns:
-        GeoDataFrame: A multi-level dataframe for each element in unlabeled_df that
-                      overlaps with the classe. The second level is the overlap with
-                      each class
+        np.ndarray: (n_valid, n_classes) counts per polygon per class
+        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions
     """
-    # Find the union of all class information
-    union_of_all_classes = classes_df.dissolve()
 
-    # This column will be used later to index back into the original dataset
-    unlabeled_df["index"] = unlabeled_df.index
-    # Find all the polygons intersecting the class data
-    unlabeled_polygons_intersecting_classes = union_of_all_classes.overlay(
-        unlabeled_df, how="intersection"
+    ## Preprocessing
+    # Ensure that both a geodataframes
+    unlabeled_df = coerce_to_geoframe(unlabeled_df)
+    classes_df = coerce_to_geoframe(classes_df)
+
+    unlabeled_df = ensure_geometric_CRS(unlabeled_df)
+    if classes_df.crs != unlabeled_df.crs:
+        classes_df = classes_df.to_crs(unlabeled_df.crs)
+
+    unlabeled_df.geometry = unlabeled_df.geometry.simplify(0.01)
+    classes_df.geometry = classes_df.geometry.simplify(0.01)
+
+    if class_column not in classes_df.columns:
+        raise ValueError(f"Class column `{class_column}` not in {classes_df.column}")
+
+    logging.info(
+        "Computing the intersection of the unlabeled polygons with the labeled region"
     )
-    # We can't use the intersecting polygons directly because we want to preserve full geometries at the boundaries
-    intersecting_indices = unlabeled_polygons_intersecting_classes["index"].to_numpy()
-    # Find the subset of original polygons that overlap with the class data
-    unlabeled_df_intersecting_classes = unlabeled_df.iloc[intersecting_indices]
+    # Find which unlabeled polygons intersect with the labeled region
+    intersection_IDs = intersects_union_of_polygons(unlabeled_df, classes_df)
+    logging.info("Finished computing intersection")
+    # Extract only these polygons
+    unlabeled_df_intersecting_classes = unlabeled_df.iloc[intersection_IDs]
+    unlabeled_df_intersecting_classes["index"] = unlabeled_df_intersecting_classes.index
 
     # Add area field to each
     unlabeled_df_intersecting_classes[
@@ -159,32 +197,41 @@ def get_fractional_overlap_vector(
 
     # Find the intersecting geometries
     # We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified
+    logging.info("computing overlay")
     overlay = gpd.overlay(
-        unlabeled_df_intersecting_classes,
         classes_df,
+        unlabeled_df_intersecting_classes,
         how="union",
         keep_geom_type=False,
     )
     # Drop the rows that only contain information from the class_labels
-    overlay = overlay[np.isfinite(overlay["index"].to_numpy())]
+    overlay = overlay.dropna(subset="index")
 
+    # TODO look more into this part, something seems wrong
     overlay["overlapping_area"] = overlay.area
     overlay["per_class_area_fraction"] = (
         overlay["overlapping_area"] / overlay["unlabeled_area"]
     )
-
     # Aggregating the results
-    results = overlay.groupby(["index", class_column]).agg(
-        {"per_class_area_fraction": "sum"}
+    # WARNING Make sure that this is a list and not a tuple or it gets considered one key
+    logging.info("computing groupby")
+    # Groupby and aggregate
+    grouped_by = overlay.groupby(by=["index", class_column])
+    aggregated = grouped_by.agg({"per_class_area_fraction": "sum"})
+
+    # Extract the original class names
+    unique_class_names = sorted(classes_df[class_column].unique().tolist())
+    counts_matrix = np.zeros(
+        (len(unlabeled_df_intersecting_classes), len(unique_class_names))
     )
 
-    # Set the max class
-    argmax = results.groupby(level=[0]).idxmax()
-    max_class = [x[1] for x in argmax.iloc[:, 0].to_list()]
-    index = [int(x[0]) for x in argmax.iloc[:, 0].to_list()]
-    unlabeled_df_intersecting_classes.loc[index, "predicted_class"] = max_class
+    for r in aggregated.iterrows():
+        (index, class_name), area_fraction = r
+        counts_matrix[int(index), unique_class_names.index(class_name)] = float(
+            area_fraction.iloc[0]
+        )
 
-    return results, overlay, unlabeled_df_intersecting_classes
+    return counts_matrix, intersection_IDs
 
 
 # https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio
