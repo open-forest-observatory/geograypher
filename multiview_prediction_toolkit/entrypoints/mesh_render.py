@@ -10,6 +10,7 @@ from multiview_prediction_toolkit.config import (
     DATA_FOLDER,
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+    EXAMPLE_RENDERED_LABELS_FOLDER,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
 )
@@ -41,11 +42,6 @@ def parse_args():
         help="Path to the folder of images used to create the mesh",
     )
     parser.add_argument(
-        "--render-folder",
-        default="vis/example_renders",
-        help="Path to save the rendered images. Will be created if not present",
-    )
-    parser.add_argument(
         "--mesh-downsample",
         type=float,
         default=1,
@@ -66,6 +62,12 @@ def parse_args():
         "--vector-file-column",
         default="Species",
         help="Column to use in vector file for texture information",
+    )
+    parser.add_argument(
+        "--ROI-buffer-meters",
+        type=float,
+        help="Remove all portions of the mesh that are farther than this distance in meters"
+        + " from the labeled data. If unset, the entire mesh will be retained.",
     )
     parser.add_argument(
         "--render-folder",
@@ -95,18 +97,23 @@ if __name__ == "__main__":
     # Load the camera set
     logging.info("Creating the camera set")
     camera_set = MetashapeCameraSet(args.camera_file, args.image_folder)
+    if args.ROI_buffer_meters is not None:
+        logging.info("Subsetting cameras")
+        camera_set = camera_set.get_subset_near_geofile(
+            args.vector_file, args.ROI_buffer_meters
+        )
 
     # Load the mesh
     logging.info("Loading the mesh")
     mesh = TexturedPhotogrammetryMesh(
-        args.mesh_file, downsample_target=args.mesh_downsample
-    )
-
-    logging.info("Setting the mesh texture")
-    mesh.get_values_for_verts_from_vector(
-        column_names=args.vector_file_column,
-        vector_file=args.vector_file,
-        set_vertex_IDs=True,
+        args.mesh_file,
+        downsample_target=args.mesh_downsample,
+        transform_filename=args.camera_file,
+        texture=args.vector_file,
+        texture_kwargs={"column_names": args.vector_file_column},
+        ROI=args.vector_file if args.ROI_buffer_meters is not None else None,
+        ROI_buffer_meters=args.ROI_buffer_meters,
+        require_transform=True,
     )
 
     if args.vis or args.screenshot_filename is not None:
