@@ -1,4 +1,4 @@
-# Multi-View Prediction Toolkit (MVPT)
+# Multi-View Mapping Toolkit (MVMT)
 This tools is designed for multi-view image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tools is designed to be generalizable.
 
 In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrametry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrametry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image. 
@@ -17,15 +17,15 @@ conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
 ```
 Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVPT`, and can be activated as follows:
 ```
-conda activate MVPT
+conda activate MVMT
 ```
 
 ### Creating a new environment
 
 
 ```
-conda create -n MVPT python=3.9 -y
-conda activate MVPT
+conda create -n MVMT python=3.9 -y
+conda activate MVMT
 ```
 
 If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
@@ -85,7 +85,7 @@ It also provides functionality for making predictions on top-down orthomosaics. 
 
 There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
 ```
-conda activate MVPT
+conda activate MVMT
 python multiview_prediction_toolkit/entrypoints/mesh_render.py --help
 python multiview_prediction_toolkit/entrypoints/aggregate_viewpoints.py --help
 python multiview_prediction_toolkit/entrypoints/orthomosaic_predictions.py --help
@@ -93,7 +93,7 @@ python multiview_prediction_toolkit/entrypoints/orthomosaic_predictions.py --hel
 
 Quality metrics can be computed using the evaluation script
 ```
-conda activate multiview-prediction
+conda activate MVMT
 python multiview_prediction_toolkit/entrypoints/evaluate_predictions.py --help
 ```
 
