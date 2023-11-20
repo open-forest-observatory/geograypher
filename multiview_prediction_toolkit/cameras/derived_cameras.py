@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from glob import glob
 
 import numpy as np
 
@@ -59,14 +60,29 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         cameras = chunk[2]
 
-        self.image_filenames = []
         self.cam_to_world_transforms = []
+
+        camera_labels = [camera.get("label") for camera in cameras]
+
+        self.image_filenames = self.get_absolute_filenames(image_folder, camera_labels)
+
         for camera in cameras:
             transform = camera.find("transform")
             if transform is None:
                 # skipping unaligned camera
                 continue
-            self.image_filenames.append(Path(image_folder, camera.get("label")))
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
+
+    def get_absolute_filenames(self, image_folder, camera_labels, image_extension=""):
+        absolute_filenames = []
+
+        for camera_label in camera_labels:
+            if camera_label.split("/")[0] == "ofo-share":
+                absolute_filename = Path("/", camera_label)
+            else:
+                absolute_filename = Path(image_folder, camera_label)
+            absolute_filenames.append(absolute_filename)
+
+        return absolute_filenames

@@ -364,6 +364,11 @@ class PhotogrammetryCameraSet:
 
         self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
 
+        missing_images = self.find_mising_images()
+        if len(missing_images) > 0:
+            print(missing_images)
+            raise ValueError("Missing images displayed above")
+
         self.cameras = []
 
         for image_filename, cam_to_world_transform in zip(
@@ -379,6 +384,14 @@ class PhotogrammetryCameraSet:
                 self.image_height,
             )
             self.cameras.append(new_camera)
+
+    def find_mising_images(self):
+        invalid_images = []
+        for image_file in self.image_filenames:
+            if not image_file.is_file():
+                invalid_images.append(image_file)
+
+        return invalid_images
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """Parse the software-specific camera files and populate required member fields
