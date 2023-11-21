@@ -102,6 +102,11 @@ if __name__ == "__main__":
         camera_set = camera_set.get_subset_near_geofile(
             args.vector_file, args.ROI_buffer_meters
         )
+        camera_set.save_images(
+            Path(
+                "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/species-class-seed-kernel/oblique-pred-images/delta/raw"
+            )
+        )
 
     # Load the mesh
     logging.info("Loading the mesh")
@@ -110,18 +115,21 @@ if __name__ == "__main__":
         downsample_target=args.mesh_downsample,
         transform_filename=args.camera_file,
         texture=args.vector_file,
-        texture_kwargs={"column_names": args.vector_file_column},
+        texture_kwargs={"column_name": args.vector_file_column},
         ROI=args.vector_file if args.ROI_buffer_meters is not None else None,
         ROI_buffer_meters=args.ROI_buffer_meters,
         require_transform=True,
     )
 
     if args.vis or args.screenshot_filename is not None:
+        logging.info("Visualizing the mesh")
         mesh.vis(screenshot_filename=args.screenshot_filename)
 
+    logging.info("Rendering the images")
     mesh.save_renders_pytorch3d(
         camera_set=camera_set,
         render_image_scale=args.image_downsample,
         output_folder=args.render_folder,
-        make_composite=False,
+        make_composites=False,
+        save_native_resolution=True,
     )

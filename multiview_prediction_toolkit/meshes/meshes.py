@@ -68,8 +68,6 @@ class TexturedPhotogrammetryMesh:
         self.pyvista_mesh = None
         self.pytorch3d_mesh = None
         self.texture = None
-        self.verts = None
-        self.faces = None
         self.vertex_texture = None
         self.face_texture = None
         self.local_to_epgs_4978_transform = None
@@ -81,17 +79,17 @@ class TexturedPhotogrammetryMesh:
         else:
             self.device = torch.device("cpu")
 
+        # Load the transform
+        logging.info("Loading transform to EPSG:4326")
+        self.load_transform_to_epsg_4326(
+            transform_filename, require_transform=require_transform
+        )
         # Load the mesh with the pyvista loader
         logging.info("Loading mesh")
         self.load_mesh(
             downsample_target=downsample_target,
             ROI=ROI,
             ROI_buffer_meters=ROI_buffer_meters,
-        )
-        # Load the transform
-        logging.info("Loading transform to EPSG:4326")
-        self.load_transform_to_epsg_4326(
-            transform_filename, require_transform=require_transform
         )
         # Load the texture
         logging.info("Loading texture")
@@ -128,8 +126,6 @@ class TexturedPhotogrammetryMesh:
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-        # Extract the vertices and faces
-        self.verts = self.pyvista_mesh.points.copy()
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
@@ -238,7 +234,7 @@ class TexturedPhotogrammetryMesh:
             # Check that the number of matches face or verts
             n_values = texture_array.shape[0]
             n_faces = self.faces.shape[0]
-            n_verts = self.verts.shape[0]
+            n_verts = self.pyvista_mesh.points.shape[0]
 
             if n_verts == n_faces:
                 raise ValueError(
@@ -449,7 +445,7 @@ class TexturedPhotogrammetryMesh:
 
         # Create the pytorch mesh
         self.pytorch3d_mesh = Meshes(
-            verts=[torch.Tensor(self.verts).to(self.device)],
+            verts=[torch.Tensor(self.pyvista_mesh.points).to(self.device)],
             faces=[torch.Tensor(self.faces).to(self.device)],
             textures=texture,
         ).to(self.device)
@@ -464,14 +460,13 @@ class TexturedPhotogrammetryMesh:
             in_place (bool): Should the vertices be updated for all member objects
         """
         homogenous_local_points = np.vstack(
-            (self.verts.T, np.ones(self.verts.shape[0]))
+            (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.points.shape[0]))
         )
         transformed_local_points = transform_4x4 @ homogenous_local_points
         transformed_local_points = transformed_local_points[:3].T
 
         # Overwrite existing vertices in both pytorch3d and pyvista mesh
         if in_place:
-            self.verts = transformed_local_points.copy()
             self.pyvista_mesh.points = transformed_local_points.copy()
         return transformed_local_points
 
@@ -545,7 +540,7 @@ class TexturedPhotogrammetryMesh:
         """
         raise NotImplementedError()
         # TODO figure how to have a NaN class that
-        for i in tqdm(range(self.verts.shape[0])):
+        for i in tqdm(range(self.pyvista_mesh.points.shape[0])):
             # Find which faces are using this vertex
             matching = np.sum(self.faces == i, axis=1)
             # matching_inds = np.where(matching)[0]

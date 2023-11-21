@@ -65,6 +65,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         camera_labels = [camera.get("label") for camera in cameras]
 
         self.image_filenames = self.get_absolute_filenames(image_folder, camera_labels)
+        self.lon_lats = []
 
         for camera in cameras:
             transform = camera.find("transform")
@@ -74,6 +75,10 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
+            reference = camera.find("reference")
+            lon_lat = (float(reference.get("x")), float(reference.get("y")))
+            self.lon_lats.append(lon_lat)
+        # <reference x="-120.087143111111" y="38.967084472222197" z="2084.4450000000002" yaw="5.8999999999999995" pitch="0.099999999999993788" roll="-0" sxyz="62" enabled="false"/>
 
     def get_absolute_filenames(self, image_folder, camera_labels, image_extension=""):
         absolute_filenames = []
@@ -82,7 +87,13 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             if camera_label.split("/")[0] == "ofo-share":
                 absolute_filename = Path("/", camera_label)
             else:
-                absolute_filename = Path(image_folder, camera_label)
+                search_str = str(Path(image_folder, "**", camera_label))
+                matching_files = list(glob(search_str))
+                if len(matching_files) != 1 and False:
+                    raise ValueError(
+                        f"Bad match for {search_str} resulted in {len(matching_files)} files"
+                    )
+                absolute_filename = Path(matching_files[0])
             absolute_filenames.append(absolute_filename)
 
         return absolute_filenames
