@@ -300,10 +300,6 @@ class TexturedPhotogrammetryMesh:
                     # Set any values that are the ignore int value to nan
                     texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
-                # Flip if it's RGB, since the convention is opposite what we expect
-                if texture_array.ndim == 2 and texture_array.shape[1] == 3:
-                    texture_array = np.flip(texture_array, axis=1)
-
                 self.set_texture(texture_array)
             else:
                 # Assume that no texture will be needed, consider printing a warning
