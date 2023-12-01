@@ -320,25 +320,27 @@ class PhotogrammetryCamera:
                 np.ones((1, 5)),
             )
         )
-        colors = np.array(
-            [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
-        ).astype(float)
 
         projected_vertices = self.cam_to_world_transform @ vertices
         rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
         ## mesh faces
         faces = np.hstack(
             [
-                [3, 0, 1, 2],
-                [3, 0, 2, 3],
-                [3, 0, 3, 4],
-                [3, 0, 4, 1],
-                [3, 1, 2, 3],
-                [3, 3, 4, 1],
-            ]  # square  # triangle  # triangle
+                [3, 0, 1, 2],  # side
+                [3, 0, 2, 3],  # bottom
+                [3, 0, 3, 4],  # side
+                [3, 0, 4, 1],  # top
+                [3, 1, 2, 3],  # endcap tiangle #1
+                [3, 3, 4, 1],  # endcap tiangle #1
+            ]
         )
+        # All blue except the top surface is red
+        face_colors = np.array(
+            [[0, 0, 1], [0, 0, 1], [0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1]]
+        ).astype(float)
+
         frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
-        frustum["RGB"] = colors
+        frustum["RGB"] = face_colors
         frustum.triangulate()
         plotter.add_mesh(frustum, scalars="RGB", rgb=True)
 
