@@ -467,7 +467,7 @@ class PhotogrammetryCameraSet:
         plotter: pv.Plotter = None,
         add_orientation_cube: bool = False,
         show: bool = False,
-        frustum_scale: float = 0.1,
+        frustum_scale: float = 1,
         force_xvfb: bool = False,
     ):
         """Visualize all the cameras
