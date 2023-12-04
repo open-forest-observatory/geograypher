@@ -333,7 +333,7 @@ class PhotogrammetryCamera:
         scaled_halfheight = self.image_height / (self.f * 2)
 
         scaled_cx = self.cx / self.f
-        scaled_cy = self.cx / self.f
+        scaled_cy = self.cy / self.f
 
         right = scaled_cx + scaled_halfwidth
         left = scaled_cx - scaled_halfwidth
@@ -386,7 +386,7 @@ class PhotogrammetryCamera:
                 [3, 0, 3, 4],  # side
                 [3, 0, 4, 1],  # top
                 [3, 1, 2, 3],  # endcap tiangle #1
-                [3, 3, 4, 1],  # endcap tiangle #1
+                [3, 3, 4, 1],  # endcap tiangle #2
             ]
         )
         # All blue except the top (-Y) surface is red
@@ -401,6 +401,66 @@ class PhotogrammetryCamera:
         # Show the mesh with the given face colors
         # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
         plotter.add_mesh(frustum, scalars=face_colors, rgb=True)
+
+    def vis_rays(
+        self, pixel_coords_ij: np.ndarray, plotter: pv.Plotter, line_length: float = 10
+    ):
+        """Show rays eminating from the camera
+
+        Args:
+            image_coords (np.ndarray): (n,2) array of (i,j) pixel coordinates in the image
+            plotter (pv.Plotter): Plotter to use.
+            line_length (float, optional): How long the lines are. Defaults to 10. #TODO allow an array of different values
+        """
+        # Transform from i, j to x, y
+        pixel_coords_xy = np.flip(pixel_coords_ij, axis=1)
+
+        # Cast a ray from the center of the mesh for vis
+        principal_point = np.array(
+            [[self.image_width / 2.0 + self.cx, self.image_height / 2.0 + self.cy]]
+        )
+        centered_pixel_coords = pixel_coords_xy - principal_point
+        scaled_pixel_coords = centered_pixel_coords / self.f
+
+        n_points = len(scaled_pixel_coords)
+
+        if n_points == 0:
+            return
+
+        line_verts = [
+            np.array(
+                [
+                    [0, 0, 0, 1],
+                    [
+                        point[0] * line_length,
+                        point[1] * line_length,
+                        line_length,
+                        1,
+                    ],
+                ]
+            )
+            for point in scaled_pixel_coords
+        ]
+        line_verts = np.concatenate(line_verts, axis=0).T
+
+        projected_vertices = self.cam_to_world_transform @ line_verts
+
+        # Handle scale in transform
+        if self.cam_to_world_transform[3, 3] != 1.0:
+            projected_vertices /= self.cam_to_world_transform[3, 3]
+
+        projected_vertices = projected_vertices[:3, :].T
+
+        lines = np.vstack(
+            (
+                np.full(n_points, fill_value=2),
+                np.arange(0, 2 * n_points, 2),
+                np.arange(0, 2 * n_points, 2) + 1,
+            )
+        ).T
+
+        mesh = pv.PolyData(projected_vertices, lines=lines)
+        plotter.add_mesh(mesh)
 
 
 class PhotogrammetryCameraSet:
