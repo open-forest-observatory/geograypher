@@ -9,6 +9,8 @@ from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
     DATA_FOLDER,
     EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+    EXAMPLE_RENDERED_LABELS_FOLDER,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
     EXAMPLE_STANDARDIZED_LABELS_FILENAME,
@@ -39,11 +41,6 @@ def parse_args():
         "--image-folder",
         default=EXAMPLE_IMAGE_FOLDER,
         help="Path to the folder of images used to create the mesh",
-    )
-    parser.add_argument(
-        "--render-folder",
-        default="vis/example_renders",
-        help="Path to save the rendered images. Will be created if not present",
     )
     parser.add_argument(
         "--mesh-downsample",
@@ -118,23 +115,25 @@ if __name__ == "__main__":
     # Load the mesh
     logging.info("Loading the mesh")
     mesh = TexturedPhotogrammetryMesh(
-        args.mesh_file, downsample_target=args.mesh_downsample
-    )
-
-    logging.info("Setting the mesh texture")
-    mesh.get_values_for_verts_from_vector(
-        column_names=args.vector_file_column,
-        vector_file=args.vector_file,
-        set_vertex_IDs=True,
+        args.mesh_file,
+        downsample_target=args.mesh_downsample,
+        transform_filename=args.camera_file,
+        texture=args.vector_file,
+        texture_kwargs={"column_name": args.vector_file_column},
+        ROI=args.vector_file if args.ROI_buffer_meters is not None else None,
+        ROI_buffer_meters=args.ROI_buffer_meters,
+        require_transform=True,
     )
 
     if args.vis or args.screenshot_filename is not None:
         logging.info("Visualizing the mesh")
         mesh.vis(screenshot_filename=args.screenshot_filename, camera_set=camera_set)
 
+    logging.info("Rendering the images")
     mesh.save_renders_pytorch3d(
         camera_set=camera_set,
         render_image_scale=args.image_downsample,
         output_folder=args.render_folder,
-        make_composite=False,
+        make_composites=False,
+        save_native_resolution=True,
     )

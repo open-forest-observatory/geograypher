@@ -234,7 +234,6 @@ def get_overlap_vector(
     return counts_matrix, intersection_IDs
 
 
-
 # https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio
 def reproject_raster(in_path, out_path, out_crs=pyproj.CRS.from_epsg(4326)):
     """ """

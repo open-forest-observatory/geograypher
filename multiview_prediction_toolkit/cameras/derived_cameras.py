@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from glob import glob
+from tqdm import tqdm
 
 import numpy as np
 
@@ -87,3 +89,41 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
+            reference = camera.find("reference")
+            lon_lat = (float(reference.get("x")), float(reference.get("y")))
+            self.lon_lats.append(lon_lat)
+        # <reference x="-120.087143111111" y="38.967084472222197" z="2084.4450000000002" yaw="5.8999999999999995" pitch="0.099999999999993788" roll="-0" sxyz="62" enabled="false"/>
+
+    def get_absolute_filenames(self, image_folder, camera_labels, image_extension=""):
+        absolute_filenames = [
+            "/" + str(camera_label)
+            for camera_label in camera_labels
+            if camera_label.split("/")[0] == "ofo-share"
+        ]
+        updated_paths = []
+
+        for camera_label in tqdm(camera_labels, desc="Fixing up camera paths"):
+            if camera_label.split("/")[0] == "ofo-share":
+                updated_paths.append(Path("/", camera_label))
+            else:
+                search_str = str(Path(image_folder, "**", camera_label))
+                matching_files = sorted(glob(search_str, recursive=True))
+
+                selected_files = [
+                    matching_file
+                    for matching_file in matching_files
+                    if matching_file not in absolute_filenames
+                ]
+                # selected_files = [
+                #    x for x in selected_files if "flattened" not in str(x)
+                # ]
+                if len(selected_files) != 1:
+                    print(selected_files)
+                    raise ValueError(
+                        f"Bad match for {search_str} resulted in {len(selected_files)} files"
+                    )
+                updated_paths.append(selected_files[0])
+
+        updated_paths = [Path(x) for x in updated_paths]
+
+        return updated_paths

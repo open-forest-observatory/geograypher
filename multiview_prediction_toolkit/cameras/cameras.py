@@ -1,6 +1,9 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
+import shutil
+import os
+from tqdm import tqdm
 
 import geopandas as gpd
 import numpy as np
@@ -30,6 +33,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
+        lon_lat: Union[None, Tuple[float, float]] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
 
@@ -51,12 +55,16 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
 
+        if lon_lat is None:
+            self.lon_lat = (None, None)
+        else:
+            self.lon_lat = lon_lat
+
         self.image_size = (image_height, image_width)
         self.image = None
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
-        self.lon_lat = (None, None)
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -375,10 +383,15 @@ class PhotogrammetryCameraSet:
 
         self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
 
+        missing_images = self.find_mising_images()
+        if len(missing_images) > 0:
+            print(missing_images)
+            raise ValueError("Missing images displayed above")
+
         self.cameras = []
 
-        for image_filename, cam_to_world_transform in zip(
-            self.image_filenames, self.cam_to_world_transforms
+        for image_filename, cam_to_world_transform, lon_lat in zip(
+            self.image_filenames, self.cam_to_world_transforms, self.lon_lats
         ):
             new_camera = PhotogrammetryCamera(
                 image_filename,
@@ -388,8 +401,17 @@ class PhotogrammetryCameraSet:
                 self.cy,
                 self.image_width,
                 self.image_height,
+                lon_lat=lon_lat,
             )
             self.cameras.append(new_camera)
+
+    def find_mising_images(self):
+        invalid_images = []
+        for image_file in self.image_filenames:
+            if not image_file.is_file():
+                invalid_images.append(image_file)
+
+        return invalid_images
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """Parse the software-specific camera files and populate required member fields
@@ -421,6 +443,18 @@ class PhotogrammetryCameraSet:
         if not absolute:
             filename = Path(filename).relative_to(self.image_folder)
         return filename
+
+    def save_images(self, output_folder, copy=False):
+        for i in tqdm(range(len(self.cameras))):
+            output_file = Path(
+                output_folder, self.get_image_filename(i, absolute=False)
+            )
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            src_file = self.get_image_filename(i, absolute=True)
+            if copy:
+                shutil.copy(src_file, output_file)
+            else:
+                os.symlink(src_file, output_file)
 
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
