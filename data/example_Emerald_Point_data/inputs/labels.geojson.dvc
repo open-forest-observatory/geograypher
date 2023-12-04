@@ -1,0 +1,5 @@
+outs:
+- md5: 386265a1e10802b3d7aaa9cf68e80600
+  size: 2716560
+  hash: md5
+  path: labels.geojson

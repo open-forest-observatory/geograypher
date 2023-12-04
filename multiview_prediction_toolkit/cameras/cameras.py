@@ -1,7 +1,9 @@
 from copy import deepcopy
-from typing import Tuple
 from pathlib import Path
-import typing
+from typing import Tuple, Union, List
+import shutil
+import os
+from tqdm import tqdm
 
 import geopandas as gpd
 import numpy as np
@@ -17,8 +19,8 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.utils.geospatial import get_projected_CRS
 from multiview_prediction_toolkit.utils.image import get_GPS_exif
-from multiview_prediction_toolkit.utils.utils import get_projected_CRS
 
 
 class PhotogrammetryCamera:
@@ -31,7 +33,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
-        **kwargs,
+        lon_lat: Union[None, Tuple[float, float]] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
 
@@ -53,12 +55,16 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
 
+        if lon_lat is None:
+            self.lon_lat = (None, None)
+        else:
+            self.lon_lat = lon_lat
+
         self.image_size = (image_height, image_width)
         self.image = None
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
-        self.lon_lat = (None, None)
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -275,7 +281,7 @@ class PhotogrammetryCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.5):
+    def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
         Visualize the camera as a frustum, at the appropriate translation and
         rotation and with the given focal length and aspect ratio.
@@ -291,58 +297,69 @@ class PhotogrammetryCamera:
         scaled_cx = self.cx / self.f
         scaled_cy = self.cx / self.f
 
-        vertices = np.vstack(
-            (
-                np.array(
-                    [
-                        [0, 0, 0],
-                        [
-                            scaled_cx + scaled_halfwidth,
-                            scaled_cy + scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx + scaled_halfwidth,
-                            scaled_cy - scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx - scaled_halfwidth,
-                            scaled_cy - scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx - scaled_halfwidth,
-                            scaled_cy + scaled_halfheight,
-                            1,
-                        ],
-                    ]
-                ).T
-                * frustum_scale,
-                np.ones((1, 5)),
-            )
-        )
-        colors = np.array(
-            [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
-        ).astype(float)
+        right = scaled_cx + scaled_halfwidth
+        left = scaled_cx - scaled_halfwidth
+        top = scaled_cy + scaled_halfheight
+        bottom = scaled_cy - scaled_halfheight
 
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [
+                    right,
+                    top,
+                    1,
+                ],
+                [
+                    right,
+                    bottom,
+                    1,
+                ],
+                [
+                    left,
+                    bottom,
+                    1,
+                ],
+                [
+                    left,
+                    top,
+                    1,
+                ],
+            ]
+        ).T
+        # Make the coordinates homogenous
+        vertices = np.vstack((vertices, np.ones((1, 5))))
+
+        # Project the vertices into the world cordinates
         projected_vertices = self.cam_to_world_transform @ vertices
-        rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
+
+        # Deal with the case where there is a scale transform
+        if self.cam_to_world_transform[3, 3] != 1.0:
+            projected_vertices /= self.cam_to_world_transform[3, 3]
+
         ## mesh faces
         faces = np.hstack(
             [
-                [3, 0, 1, 2],
-                [3, 0, 2, 3],
-                [3, 0, 3, 4],
-                [3, 0, 4, 1],
-                [3, 1, 2, 3],
-                [3, 3, 4, 1],
-            ]  # square  # triangle  # triangle
+                [3, 0, 1, 2],  # side
+                [3, 0, 2, 3],  # bottom
+                [3, 0, 3, 4],  # side
+                [3, 0, 4, 1],  # top
+                [3, 1, 2, 3],  # endcap tiangle #1
+                [3, 3, 4, 1],  # endcap tiangle #1
+            ]
         )
-        frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
-        frustum["RGB"] = colors
+        # All blue except the top surface is red
+        face_colors = np.array(
+            [[0, 0, 1], [0, 0, 1], [0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1]]
+        ).astype(float)
+
+        # Create a mesh for the camera frustum
+        frustum = pv.PolyData(projected_vertices[:3].T, faces)
+        # Unsure exactly what's going on here, but it's required for it to be valid
         frustum.triangulate()
-        plotter.add_mesh(frustum, scalars="RGB", rgb=True)
+        # Show the mesh with the given face colors
+        # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
+        plotter.add_mesh(frustum, scalars=face_colors, rgb=True)
 
 
 class PhotogrammetryCameraSet:
@@ -363,7 +380,38 @@ class PhotogrammetryCameraSet:
         """
         self.image_folder = image_folder
         self.camera_file = camera_file
-        self.cameras = None
+
+        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
+
+        missing_images = self.find_mising_images()
+        if len(missing_images) > 0:
+            print(missing_images)
+            raise ValueError("Missing images displayed above")
+
+        self.cameras = []
+
+        for image_filename, cam_to_world_transform, lon_lat in zip(
+            self.image_filenames, self.cam_to_world_transforms, self.lon_lats
+        ):
+            new_camera = PhotogrammetryCamera(
+                image_filename,
+                cam_to_world_transform,
+                self.f,
+                self.cx,
+                self.cy,
+                self.image_width,
+                self.image_height,
+                lon_lat=lon_lat,
+            )
+            self.cameras.append(new_camera)
+
+    def find_mising_images(self):
+        invalid_images = []
+        for image_file in self.image_filenames:
+            if not image_file.is_file():
+                invalid_images.append(image_file)
+
+        return invalid_images
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
         """Parse the software-specific camera files and populate required member fields
@@ -387,7 +435,7 @@ class PhotogrammetryCameraSet:
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]
 
-    def get_subset_cameras(self, inds: typing.List[int]):
+    def get_subset_cameras(self, inds: List[int]):
         subset_camera_set = deepcopy(self)
         subset_camera_set.cameras = [self.cameras[i] for i in inds]
         return subset_camera_set
@@ -433,6 +481,18 @@ class PhotogrammetryCameraSet:
             image_size=image_sizes[0],
         )
         return cameras
+
+    def save_images(self, output_folder, copy=False):
+        for i in tqdm(range(len(self.cameras))):
+            output_file = Path(
+                output_folder, self.get_image_filename(i, absolute=False)
+            )
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            src_file = self.get_image_filename(i, absolute=True)
+            if copy:
+                shutil.copy(src_file, output_file)
+            else:
+                os.symlink(src_file, output_file)
 
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
@@ -489,6 +549,8 @@ class PhotogrammetryCameraSet:
         plotter: pv.Plotter = None,
         add_orientation_cube: bool = False,
         show: bool = False,
+        frustum_scale: float = 1,
+        force_xvfb: bool = False,
     ):
         """Visualize all the cameras
 
@@ -496,6 +558,8 @@ class PhotogrammetryCameraSet:
             plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
             show (bool, optional): Show the results instead of waiting for other content to be added
+            frustum_scale (float, optional): Size of cameras in world units
+            force_xvfb (bool, optional): Force a headless rendering backend
         """
 
         if plotter is None:
@@ -503,7 +567,7 @@ class PhotogrammetryCameraSet:
             show = True
 
         for camera in self.cameras:
-            camera.vis(plotter)
+            camera.vis(plotter, frustum_scale=frustum_scale)
         if add_orientation_cube:
             # TODO Consider adding to a freestanding vis module
             ocube = demos.orientation_cube()
@@ -517,4 +581,6 @@ class PhotogrammetryCameraSet:
             plotter.show_axes()
 
         if show:
+            if force_xvfb:
+                pv.start_xvfb()
             plotter.show()

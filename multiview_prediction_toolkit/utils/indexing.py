@@ -1,6 +1,7 @@
+import logging
+
 import numpy as np
 import pandas as pd
-import logging
 
 
 def ensure_float_labels(query_array, full_array=None) -> np.ndarray:
