@@ -9,9 +9,9 @@ from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
     DATA_FOLDER,
     EXAMPLE_CAMERAS_FILENAME,
-    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
 )
 from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
 

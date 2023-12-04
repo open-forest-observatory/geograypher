@@ -1,8 +1,7 @@
 import logging
 import tempfile
-from pathlib import Path
 import typing
-
+from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt

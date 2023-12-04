@@ -28,8 +28,8 @@ from multiview_prediction_toolkit.cameras import (
     PhotogrammetryCameraSet,
 )
 from multiview_prediction_toolkit.config import (
-    NULL_TEXTURE_INT_VALUE,
     NULL_TEXTURE_FLOAT_VALUE,
+    NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     VERT_ID,
     VIS_FOLDER,
