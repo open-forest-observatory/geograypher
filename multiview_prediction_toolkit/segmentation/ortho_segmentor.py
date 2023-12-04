@@ -8,13 +8,10 @@ import rasterio as rio
 from imageio import imread, imwrite
 from rastervision.core import Box
 from rastervision.core.data import ClassConfig
-from rastervision.core.data.label import (
-    SemanticSegmentationDiscreteLabels,
-    SemanticSegmentationSmoothLabels,
-)
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
+from multiview_prediction_toolkit.utils.io import read_image_or_numpy
 from multiview_prediction_toolkit.config import MATPLOTLIB_PALLETE, PATH_TYPE
 from multiview_prediction_toolkit.utils.numeric import create_ramped_weighting
 
@@ -303,8 +300,7 @@ class OrthoSegmentor:
                     total=len(pred_files),
                 ):
                     # Read the prediction from disk
-                    # TODO use more flexible reader here
-                    pred = imread(pred_file)
+                    pred = read_image_or_numpy(pred_file)
 
                     if pred.shape != (window.height, window.width):
                         raise ValueError("Size of pred does not match window")
