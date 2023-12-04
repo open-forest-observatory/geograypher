@@ -80,6 +80,8 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         self.image_filenames = []
         self.cam_to_world_transforms = []
+        self.lon_lats = []
+
         for camera in cameras:
             transform = camera.find("transform")
             if transform is None:

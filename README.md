@@ -15,10 +15,11 @@ Note that you should not make any changes to this environment since these change
 conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
 conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
 ```
-Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVPT`, and can be activated as follows:
+Now you should see all of my conda environments when you do `conda env list`. The one you want is `MVMT-stable`, and can be activated as follows:
 ```
-conda activate MVMT
+conda activate MVMT-stable
 ```
+Use this instead of `MVMT` in future steps.
 
 ### Creating a new environment
 
@@ -58,7 +59,7 @@ libGL error: MESA-LOADER: failed to open swrast: <CONDA ENV LOCATION>/bin/../lib
 ```
 If this happens, you can fix it by symlinking to the system version. I don't know why this is required.
 ```
-ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/bin/../lib/libstdc++.so.6
+ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
 ```
 
 ### Example data
