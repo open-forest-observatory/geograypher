@@ -1,9 +1,8 @@
+import os
+import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Tuple, Union
-import shutil
-import os
-from tqdm import tqdm
+from typing import List, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
@@ -33,6 +32,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
+        distortion_params: dict = {},
         lon_lat: Union[None, Tuple[float, float]] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
@@ -45,6 +45,8 @@ class PhotogrammetryCamera:
             cy (float): Principle point y (pixels)
             image_width (int): Input image width pixels
             image_height (int): Input image height pixels
+            distortion_params (dict, optional): Distortion parameters, currently unused
+            lon_lat (Union[None, Tuple[float, float]], optional): Location, defaults to None
         """
         self.image_filename = image_filename
         self.cam_to_world_transform = cam_to_world_transform
@@ -54,6 +56,7 @@ class PhotogrammetryCamera:
         self.cy = cy
         self.image_width = image_width
         self.image_height = image_height
+        self.distortion_params = distortion_params
 
         if lon_lat is None:
             self.lon_lat = (None, None)
@@ -381,7 +384,15 @@ class PhotogrammetryCameraSet:
         self.image_folder = image_folder
         self.camera_file = camera_file
 
-        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
+        (
+            self.image_filenames,
+            self.cam_to_world_transforms,
+            self.sensor_IDs,
+            self.lan_lats,
+            self.sensors_dict,
+        ) = self.parse_input(
+            camera_file=camera_file, image_folder=image_folder, **kwargs
+        )
 
         missing_images = self.find_mising_images()
         if len(missing_images) > 0:
@@ -390,18 +401,15 @@ class PhotogrammetryCameraSet:
 
         self.cameras = []
 
-        for image_filename, cam_to_world_transform, lon_lat in zip(
-            self.image_filenames, self.cam_to_world_transforms, self.lon_lats
+        for image_filename, cam_to_world_transform, sensor_ID, lon_lat in zip(
+            self.image_filenames,
+            self.cam_to_world_transforms,
+            self.sensor_IDs,
+            self.lon_lats,
         ):
+            sensor_params = self.sensors_dict[sensor_ID]
             new_camera = PhotogrammetryCamera(
-                image_filename,
-                cam_to_world_transform,
-                self.f,
-                self.cx,
-                self.cy,
-                self.image_width,
-                self.image_height,
-                lon_lat=lon_lat,
+                image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )
             self.cameras.append(new_camera)
 
@@ -414,7 +422,8 @@ class PhotogrammetryCameraSet:
         return invalid_images
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
-        """Parse the software-specific camera files and populate required member fields
+        """
+        Parse the software-specific camera files and populate required member fields.
 
         Args:
             camera_file (PATH_TYPE): Path to the camera file
@@ -435,6 +444,11 @@ class PhotogrammetryCameraSet:
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]
 
+    def get_subset_cameras(self, inds: List[int]):
+        subset_camera_set = deepcopy(self)
+        subset_camera_set.cameras = [self.cameras[i] for i in inds]
+        return subset_camera_set
+
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self.get_camera_by_index(index).get_image(image_scale=image_scale)
 
@@ -443,6 +457,39 @@ class PhotogrammetryCameraSet:
         if not absolute:
             filename = Path(filename).relative_to(self.image_folder)
         return filename
+
+    def get_pytorch3d_camera(self, device: str):
+        """
+        Return a pytorch3d cameras object based on the parameters from metashape.
+        This has the information from each of the camears in the set to enabled batched rendering.
+
+
+        Args:
+            device (str): What device (cuda/cpu) to put the object on
+
+        Returns:
+            pytorch3d.renderer.PerspectiveCameras:
+        """
+        # Get the pytorch3d cameras for each of the cameras in the set
+        p3d_cameras = [camera.get_pytorch3d_camera(device) for camera in self.cameras]
+        # Get the image sizes
+        image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
+        # Check that all the image sizes are the same because this is required for proper batched rendering
+        if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
+            raise ValueError("Not all cameras have the same image size")
+        # Create the new pytorch3d cameras object with the information from each camera
+        cameras = PerspectiveCameras(
+            R=torch.cat([camera.R for camera in p3d_cameras], 0),
+            T=torch.cat([camera.T for camera in p3d_cameras], 0),
+            focal_length=torch.cat([camera.focal_length for camera in p3d_cameras], 0),
+            principal_point=torch.cat(
+                [camera.get_principal_point() for camera in p3d_cameras], 0
+            ),
+            device=device,
+            in_ndc=False,  # screen coords
+            image_size=image_sizes[0],
+        )
+        return cameras
 
     def save_images(self, output_folder, copy=False):
         for i in tqdm(range(len(self.cameras))):
@@ -503,8 +550,7 @@ class PhotogrammetryCameraSet:
         # How to instantiate from a list of cameras
 
         # Is there a better way? Are there side effects I'm not thinking of?
-        subset_camera_set = deepcopy(self)
-        subset_camera_set.cameras = [self.cameras[i] for i in valid_camera_inds]
+        subset_camera_set = self.get_subset_cameras(valid_camera_inds)
         return subset_camera_set
 
     def vis(

@@ -46,3 +46,33 @@ def parse_transform_metashape(camera_file):
     local_to_epgs_4978_transform = make_4x4_transform(rotation, translation, scale)
 
     return local_to_epgs_4978_transform
+
+
+def parse_sensors(sensors):
+    sensors_dict = {}
+
+    for sensor in sensors:
+
+        sensor_dict = {}
+
+        sensor_dict["image_width"] = int(sensor[0].get("width"))
+        sensor_dict["image_height"] = int(sensor[0].get("height"))
+
+        calibration = sensor.find("calibration")
+        if calibration is None:
+            raise ValueError("No calibration provided")
+
+        sensor_dict["f"] = float(calibration.find("f").text)
+        sensor_dict["cx"] = float(calibration.find("cx").text)
+        sensor_dict["cy"] = float(calibration.find("cy").text)
+        if None in (sensor_dict["f"], sensor_dict["cx"], sensor_dict["cy"]):
+            ValueError("Incomplete calibration provided")
+
+        # Get potentially-empty dict of distortion parameters
+        sensor_dict["distortion_params"] = {
+            calibration[i].tag: float(calibration[i].text)
+            for i in range(3, len(calibration))
+        }
+        sensor_ID = int(sensor.get("id"))
+        sensors_dict[sensor_ID] = sensor_dict
+    return sensors_dict

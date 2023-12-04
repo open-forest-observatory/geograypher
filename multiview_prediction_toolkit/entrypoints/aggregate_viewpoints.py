@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 import numpy as np
 
@@ -58,6 +59,11 @@ def parse_args():
         help="Where to export the predicted map",
     )
     parser.add_argument(
+        "--texture-export-filename-npy",
+        type=Path,
+        help="Where to save the mesh texture as a numpy array",
+    )
+    parser.add_argument(
         "--mesh-downsample",
         type=float,
         default=0.25,
@@ -69,6 +75,12 @@ def parse_args():
         default=0.25,
         help="Downsample the images to this fraction of the size for increased performance but lower quality",
     )
+    parser.add_argument(
+        "--rendering-batch-size",
+        type=int,
+        default=1,
+        help="The number of images to render at once",
+    )
     parser.add_argument("--label-names", nargs="+", help="Optional of label names")
     parser.add_argument(
         "--num-classes",
@@ -76,6 +88,7 @@ def parse_args():
         default=10,
         help="Number of classes in segmentation task",
     )
+    parser.add_argument("--vis", action="store_true", help="Show aggregated result")
     parser.add_argument(
         "--log-level",
         default="info",
@@ -103,6 +116,7 @@ if __name__ == "__main__":
     mesh = TexturedPhotogrammetryMesh(
         mesh_filename=args.mesh_file,
         downsample_target=args.mesh_downsample,
+        transform_filename=args.camera_file,
     )
 
     # Create a segmentor that looks up pre-processed images
@@ -126,7 +140,9 @@ if __name__ == "__main__":
     # Find correspondences between image pixels and mesh faces
     logging.info("Main step: aggregating viewpoints")
     averaged_label_IDs, _, _ = mesh.aggregate_viewpoints_pytorch3d(
-        segmentor_camera_set, image_scale=args.image_downsample
+        segmentor_camera_set,
+        image_scale=args.image_downsample,
+        batch_size=args.rendering_batch_size,
     )
     # Find the most common species for each face
     most_common_label_ID = np.argmax(averaged_label_IDs, axis=1)
@@ -140,6 +156,11 @@ if __name__ == "__main__":
         is_ground = mesh.vert_to_face_IDs(is_ground).astype(bool)
         most_common_label_ID[is_ground] = np.nan
 
+    # Export the predictions as a numpy file
+    logging.info("Exporting predictions to numpy file")
+    args.texture_export_filename_npy.parent.mkdir(exist_ok=True, parents=True)
+    np.save(args.texture_export_filename_npy, most_common_label_ID)
+
     # Export the predictions
     logging.info("Exporting predictions to vector file")
     mesh.export_face_labels_vector(
@@ -148,9 +169,10 @@ if __name__ == "__main__":
         label_names=args.label_names,
     )
     # Visualize
-    logging.info("Visualizing result")
-    mesh.vis(
-        vis_scalars=most_common_label_ID,
-        interactive=True,
-        mesh_kwargs={"cmap": "tab10", "clim": [0, 9]},
-    )
+    if args.vis:
+        logging.info("Visualizing result")
+        mesh.vis(
+            vis_scalars=most_common_label_ID,
+            interactive=True,
+            mesh_kwargs={"cmap": "tab10", "clim": [0, 9]},
+        )

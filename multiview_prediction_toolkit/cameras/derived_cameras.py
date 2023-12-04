@@ -1,13 +1,20 @@
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from glob import glob
-from tqdm import tqdm
+from pathlib import Path
 
 import numpy as np
+from torch import Value
+from tqdm import tqdm
 
-from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
+from multiview_prediction_toolkit.cameras import (
+    PhotogrammetryCamera,
+    PhotogrammetryCameraSet,
+)
 from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
+from multiview_prediction_toolkit.utils.parsing import (
+    parse_sensors,
+    parse_transform_metashape,
+)
 
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
@@ -31,48 +38,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         chunk = root.find("chunk")
         # second level
         sensors = chunk.find("sensors")
-
-        # sensors info
-        # TODO in the future we should support multiple sensors
-        # This would required parsing multiple sensor configs and figuring out
-        # which image each corresponds to
-        sensor = sensors[0]
-        self.image_width = int(sensor[0].get("width"))
-        self.image_height = int(sensor[0].get("height"))
-
-        calibration = sensor.find("calibration")
-        if calibration is None:
-            self.f = default_focal
-            self.cx = 0
-            self.cy = 0
-        else:
-            self.f = float(calibration.find("f").text)
-            self.cx = float(calibration.find("cx").text)
-            self.cy = float(calibration.find("cy").text)
-
-        if self.f is None and default_focal is not None:
-            self.f = default_focal
-
-        if self.cx is None:
-            self.cx = 0
-
-        if self.cy is None:
-            self.cy = 0
-
-        if None in (self.f, self.cx, self.cy):
-            ValueError("Incomplete calibration provided")
-
-        # Get potentially-empty dict of distortion parameters
-        if calibration is not None:
-            self.distortion_dict = {
-                calibration[i].tag: float(calibration[i].text)
-                for i in range(3, len(calibration))
-            }
-        else:
-            self.distortion_dict = {}
-
-        # Get the transform relating the arbitrary local coordinate system
-        # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape
+        self.sensors_dict = parse_sensors(sensors)
 
         self.local_to_epgs_4978_transform = parse_transform_metashape(camera_file)
 
@@ -80,6 +46,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         self.image_filenames = []
         self.cam_to_world_transforms = []
+        self.sensor_IDs = []
         self.lon_lats = []
 
         for camera in cameras:
@@ -91,10 +58,18 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.cam_to_world_transforms.append(
                 np.fromstring(transform.text, sep=" ").reshape(4, 4)
             )
+            self.sensor_IDs.append(int(camera.get("sensor_id")))
             reference = camera.find("reference")
             lon_lat = (float(reference.get("x")), float(reference.get("y")))
             self.lon_lats.append(lon_lat)
-        # <reference x="-120.087143111111" y="38.967084472222197" z="2084.4450000000002" yaw="5.8999999999999995" pitch="0.099999999999993788" roll="-0" sxyz="62" enabled="false"/>
+
+        return (
+            self.image_filenames,
+            self.cam_to_world_transforms,
+            self.sensor_IDs,
+            self.lon_lats,
+            self.sensors_dict,
+        )
 
     def get_absolute_filenames(self, image_folder, camera_labels, image_extension=""):
         absolute_filenames = [

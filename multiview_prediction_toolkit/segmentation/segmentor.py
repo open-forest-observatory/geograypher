@@ -1,13 +1,10 @@
 import typing
-from abc import abstractmethod
+from copy import deepcopy
 
 import numpy as np
 from torch import NoneType
 
-from multiview_prediction_toolkit.cameras import (
-    PhotogrammetryCamera,
-    PhotogrammetryCameraSet,
-)
+from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
 
 
 class Segmentor:
@@ -102,6 +99,14 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
         return self.base_camera_set.get_image_by_index(
             index=index, image_scale=image_scale
         )
+
+    def get_subset_cameras(self, inds: typing.List[int]):
+        subset_camera_set = deepcopy(self)
+        subset_camera_set.cameras = [self.cameras[i] for i in inds]
+        subset_camera_set.base_camera_set = (
+            subset_camera_set.base_camera_set.get_subset_cameras(inds)
+        )
+        return subset_camera_set
 
     def n_image_channels(self) -> int:
         return self.segmentor.num_classes

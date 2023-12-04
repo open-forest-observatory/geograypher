@@ -24,6 +24,8 @@ def parse_args():
         help="Path to raster label file. Cannot be used with --vector-label-file",
     )
 
+    parser.add_argument("--class-names", nargs="+")
+
     parser.add_argument(
         "--chip-size", type=int, default=2048, help="Size of chips in pixels"
     )
@@ -31,7 +33,7 @@ def parse_args():
         "--training-stride-fraction",
         type=int,
         default=0.5,
-        help="The stride between chips in as a fraction of the tile size",
+        help="The stride between chips as a fraction of the tile size",
     )
     parser.add_argument(
         "--inference-stride-fraction",
@@ -95,6 +97,7 @@ if __name__ == "__main__":
         raster_input_file=args.raster_image_file,
         vector_label_file=args.vector_label_file,
         raster_label_file=args.raster_label_file,
+        class_names=args.class_names,
         chip_size=args.chip_size,
         training_stride=int(args.training_stride_fraction * args.chip_size),
         inference_stride=int(args.inference_stride_fraction * args.chip_size),

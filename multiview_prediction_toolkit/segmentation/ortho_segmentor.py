@@ -185,7 +185,6 @@ class OrthoSegmentor:
             image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
                 np.uint8
             )
-
             # Get filename and write out
             filename = self.get_filename_from_window(window)
             imwrite(Path(image_folder, filename), image)
