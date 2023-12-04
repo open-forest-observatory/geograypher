@@ -273,7 +273,7 @@ class PhotogrammetryCamera:
         )
         return cameras
 
-    def vis(self, plotter: pv.Plotter, frustum_scale: float = 0.1):
+    def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
         Visualize the camera as a frustum, at the appropriate translation and
         rotation and with the given focal length and aspect ratio.
@@ -289,58 +289,69 @@ class PhotogrammetryCamera:
         scaled_cx = self.cx / self.f
         scaled_cy = self.cx / self.f
 
-        vertices = np.vstack(
-            (
-                np.array(
-                    [
-                        [0, 0, 0],
-                        [
-                            scaled_cx + scaled_halfwidth,
-                            scaled_cy + scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx + scaled_halfwidth,
-                            scaled_cy - scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx - scaled_halfwidth,
-                            scaled_cy - scaled_halfheight,
-                            1,
-                        ],
-                        [
-                            scaled_cx - scaled_halfwidth,
-                            scaled_cy + scaled_halfheight,
-                            1,
-                        ],
-                    ]
-                ).T
-                * frustum_scale,
-                np.ones((1, 5)),
-            )
-        )
-        colors = np.array(
-            [[0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]]
-        ).astype(float)
+        right = scaled_cx + scaled_halfwidth
+        left = scaled_cx - scaled_halfwidth
+        top = scaled_cy + scaled_halfheight
+        bottom = scaled_cy - scaled_halfheight
 
+        vertices = np.array(
+            [
+                [0, 0, 0],
+                [
+                    right,
+                    top,
+                    1,
+                ],
+                [
+                    right,
+                    bottom,
+                    1,
+                ],
+                [
+                    left,
+                    bottom,
+                    1,
+                ],
+                [
+                    left,
+                    top,
+                    1,
+                ],
+            ]
+        ).T
+        # Make the coordinates homogenous
+        vertices = np.vstack((vertices, np.ones((1, 5))))
+
+        # Project the vertices into the world cordinates
         projected_vertices = self.cam_to_world_transform @ vertices
-        rescaled_projected_vertices = projected_vertices[:3] / projected_vertices[3:]
+
+        # Deal with the case where there is a scale transform
+        if self.cam_to_world_transform[3, 3] != 1.0:
+            projected_vertices /= self.cam_to_world_transform[3, 3]
+
         ## mesh faces
         faces = np.hstack(
             [
-                [3, 0, 1, 2],
-                [3, 0, 2, 3],
-                [3, 0, 3, 4],
-                [3, 0, 4, 1],
-                [3, 1, 2, 3],
-                [3, 3, 4, 1],
-            ]  # square  # triangle  # triangle
+                [3, 0, 1, 2],  # side
+                [3, 0, 2, 3],  # bottom
+                [3, 0, 3, 4],  # side
+                [3, 0, 4, 1],  # top
+                [3, 1, 2, 3],  # endcap tiangle #1
+                [3, 3, 4, 1],  # endcap tiangle #1
+            ]
         )
-        frustum = pv.PolyData(rescaled_projected_vertices[:3].T, faces)
-        frustum["RGB"] = colors
+        # All blue except the top surface is red
+        face_colors = np.array(
+            [[0, 0, 1], [0, 0, 1], [0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1]]
+        ).astype(float)
+
+        # Create a mesh for the camera frustum
+        frustum = pv.PolyData(projected_vertices[:3].T, faces)
+        # Unsure exactly what's going on here, but it's required for it to be valid
         frustum.triangulate()
-        plotter.add_mesh(frustum, scalars="RGB", rgb=True)
+        # Show the mesh with the given face colors
+        # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
+        plotter.add_mesh(frustum, scalars=face_colors, rgb=True)
 
 
 class PhotogrammetryCameraSet:
@@ -467,6 +478,8 @@ class PhotogrammetryCameraSet:
         plotter: pv.Plotter = None,
         add_orientation_cube: bool = False,
         show: bool = False,
+        frustum_scale: float = 1,
+        force_xvfb: bool = False,
     ):
         """Visualize all the cameras
 
@@ -474,6 +487,8 @@ class PhotogrammetryCameraSet:
             plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
             show (bool, optional): Show the results instead of waiting for other content to be added
+            frustum_scale (float, optional): Size of cameras in world units
+            force_xvfb (bool, optional): Force a headless rendering backend
         """
 
         if plotter is None:
@@ -481,7 +496,7 @@ class PhotogrammetryCameraSet:
             show = True
 
         for camera in self.cameras:
-            camera.vis(plotter)
+            camera.vis(plotter, frustum_scale=frustum_scale)
         if add_orientation_cube:
             # TODO Consider adding to a freestanding vis module
             ocube = demos.orientation_cube()
@@ -495,4 +510,6 @@ class PhotogrammetryCameraSet:
             plotter.show_axes()
 
         if show:
+            if force_xvfb:
+                pv.start_xvfb()
             plotter.show()

@@ -62,17 +62,17 @@ def parse_args():
         type=Path,
         help="Run aggregation using chipts from this folder",
     )
-
+    parser.add_argument("--class-names", nargs="+")
     parser.add_argument(
         "--aggregated-savefile",
         type=Path,
         help="Save aggregated predictions to this file. Must be writable by rasterio. Only used with --prediction-chips-folder",
     )
     parser.add_argument(
-        "--discard-edge-frac",
+        "--downweight-edge-frac",
         type=float,
-        default=0.125,
-        help="Discard this fraction of predictions at the edgest. Only used with --prediction-chips-folder",
+        default=0.25,
+        help="Downweight this fraction of predictions at the edges using a linear ramp. Only used with --prediction-chips-folder",
     )
     parser.add_argument(
         "--log-level",
@@ -98,6 +98,7 @@ if __name__ == "__main__":
         chip_size=args.chip_size,
         training_stride=int(args.training_stride_fraction * args.chip_size),
         inference_stride=int(args.inference_stride_fraction * args.chip_size),
+        class_names=args.class_names,
     )
 
     if args.training_chips_folder is not None:
@@ -123,8 +124,7 @@ if __name__ == "__main__":
             )
         )
         ortho_seg.assemble_tiled_predictions(
-            args.prediction_chips_folder,
-            savefile=args.aggregated_savefile,
-            discard_edge_frac=args.discard_edge_frac,
-            eval_performance=True,
+            sorted(args.prediction_chips_folder.glob("*")),
+            class_savefile=args.aggregated_savefile,
+            downweight_edge_frac=args.downweight_edge_frac,
         )

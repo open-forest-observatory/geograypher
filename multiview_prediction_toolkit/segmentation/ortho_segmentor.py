@@ -1,20 +1,23 @@
+import logging
+import tempfile
 import typing
 from pathlib import Path
 
 import numpy as np
-from imageio import imwrite
+import rasterio as rio
+from imageio import imread, imwrite
 from rastervision.core import Box
 from rastervision.core.data import ClassConfig
 from rastervision.core.data.label import (
     SemanticSegmentationDiscreteLabels,
     SemanticSegmentationSmoothLabels,
 )
-from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
 from multiview_prediction_toolkit.utils.io import read_image_or_numpy
-from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_prediction_toolkit.config import MATPLOTLIB_PALLETE, PATH_TYPE
+from multiview_prediction_toolkit.utils.numeric import create_ramped_weighting
 
 
 class OrthoSegmentor:
@@ -23,18 +26,8 @@ class OrthoSegmentor:
         raster_input_file: PATH_TYPE,
         vector_label_file: PATH_TYPE = None,
         raster_label_file: PATH_TYPE = None,
-        class_names: list[str] = (
-            "grass",
-            "trees",
-            "earth",
-            "null",
-        ),  # TODO fix these up
-        class_colors: list[str] = (
-            "lightgray",
-            "darkred",
-            "red",
-            "green",
-        ),  # TODO fix this
+        class_names: list[str] = (),  # TODO fix these up
+        class_colors: list[str] = (),  # TODO fix this
         chip_size: int = 2048,
         training_stride: int = 2048,
         inference_stride: int = 1024,
@@ -47,9 +40,16 @@ class OrthoSegmentor:
         self.training_stride = training_stride
         self.inference_stride = inference_stride
 
+        self.class_names = class_names
+
+        if class_colors is not None:
+            class_colors = MATPLOTLIB_PALLETE[: len(class_names)]
+
         self.class_config = ClassConfig(
-            names=class_names, colors=class_colors, null_class="null"
+            names=class_names,
+            colors=class_colors,
         )
+        self.class_config.ensure_null_class()
 
         # This will be instantiated later
         self.dataset = None
@@ -68,9 +68,9 @@ class OrthoSegmentor:
         filename = f"{raster_name}:{window.ymin}:{window.xmin}:{window.ymax}:{window.xmax}{extension}"
         return filename
 
-    def parse_boxes_from_files(
+    def parse_windows_from_files(
         self, files: list[Path], sep: str = ":"
-    ) -> tuple[list[Box], Box]:
+    ) -> tuple[list[rio.windows.Window], rio.windows.Window]:
         """Return the boxes and extent from a list of filenames
 
         Args:
@@ -78,28 +78,31 @@ class OrthoSegmentor:
             sep (str): Seperator between elements
 
         Returns:
-            tuple[list[Box], Box]: List of boxes for each file and extent
+            tuple[list[rio.windows.Window], rio.windows.Window]: List of windows for each file and extent
         """
         # Split the coords out, currently ignorign the filename as the first element
         coords = [file.stem.split(sep)[1:] for file in files]
         # Create windows from coords
         windows = [
-            Box(
-                xmin=int(coord[0]),
-                ymin=int(coord[1]),
-                xmax=int(coord[2]),
-                ymax=int(coord[3]),
+            rio.windows.Window(
+                row_off=int(coord[0]),
+                col_off=int(coord[1]),
+                height=int(coord[2]) - int(coord[0]),
+                width=int(coord[3]) - int(coord[1]),
             )
             for coord in coords
         ]
         # Compute the extents as the min/max of the boxes
         coords_array = np.array(coords).astype(int)
-        extent = Box(
-            xmin=np.min(coords_array[:, 0]),
-            ymin=np.min(coords_array[:, 1]),
-            xmax=np.max(coords_array[:, 2]),
-            ymax=np.max(coords_array[:, 3]),
+
+        xmin = np.min(coords_array[:, 0])
+        ymin = np.min(coords_array[:, 1])
+        xmax = np.max(coords_array[:, 2])
+        ymax = np.max(coords_array[:, 3])
+        extent = rio.windows.Window(
+            row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin
         )
+
         return windows, extent
 
     def create_sliding_window_dataset(
@@ -240,72 +243,145 @@ class OrthoSegmentor:
         discard_edge_frac: float = 1 / 8,
         eval_performance: bool = False,
         smooth_seg_labels: bool = False,
+        nodataval: typing.Union[int, None] = 255,
+        count_dtype: type = np.uint8,
+        max_overlapping_tiles: int = 4,
     ):
         """Take tiled predictions on disk and aggregate them into a raster
 
         Args:
-            prediction_folder (PATH_TYPE): Where predictions are written
-            savefile (typing.Union[PATH_TYPE, NoneType], optional): Where to save the merged raster. Defaults to None.
-            discard_edge_frac (float, optional): Discard this fraction of predictions at the edge of each tile. Defaults to 1/8.
-            eval_performance (bool, optional): Compute metrics. Defaults to True.
+            pred_files (list[PATH_TYPE]): List of filenames where predictions are written
+            class_savefile (typing.Union[PATH_TYPE, NoneType], optional): Where to save the merged raster.
+            counts_savefile (typing.Union[PATH_TYPE, NoneType], optional):
+                Where to save the counts for the merged predictions raster.
+                A tempfile will be created and then deleted if not specified. Defaults to None.
+            downweight_edge_frac (float, optional): Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
             smooth_seg_labels (bool, optional): Use a distribution of class confidences, rather than hard labels. Defaults to False.
+            nodataval: (typing.Union[int, None]): Value for unassigned pixels. If None, will be set to len(self.class_names), the first unused class. Defaults to 255
+            count_dtype (type, optional): What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
+            max_overlapping_tiles (int):
+                The max number of prediction tiles that may overlap at a given point. This is used to upper bound the valud in the count matrix,
+                because we use scaled np.uint8 values rather than floats for efficiency. Setting a lower value enables slightly more accuracy in the
+                aggregation process, but too low can lead to overflow. Defaults to 4
         """
-        # Create dataset with annotation information if needed for evaluation
-        self.create_sliding_window_dataset(is_annotated=eval_performance)
-        # Get prediction files
-        files = sorted(Path(prediction_folder).glob("*"))
+        # Setup
+        num_classes = len(self.class_names)
+
+        # Set nodataval to the first unused class ID
+        if nodataval is None:
+            nodataval = num_classes
+
+        # If the user didn't specify where to write the counts, create a tempfile that will be deleted
+        if counts_savefile is None:
+            counts_savefile_manager = tempfile.NamedTemporaryFile(
+                mode="w+", suffix=".tif", dir=class_savefile.parent
+            )
+            counts_savefile = counts_savefile_manager.name
 
         # Parse the filenames to get the windows
-        windows, extent = self.parse_boxes_from_files(files)
+        # TODO consider using the extent to only write a file for the minimum encolsing rectangle
+        windows, _ = self.parse_windows_from_files(pred_files)
 
-        # Create the segmentation labels object to add predictions to
-        seg_labels = (
-            SemanticSegmentationSmoothLabels
-            if smooth_seg_labels
-            else SemanticSegmentationDiscreteLabels
-        )(
-            extent=extent,
-            num_classes=len(self.class_config.names) - 1,
-        )
+        # Aggregate predictions
+        with rio.open(self.raster_input_file) as src:
+            # Create file to store counts that is the same as the input raster except it has num_classes number of bands
+            with rio.open(
+                counts_savefile,
+                "w+",
+                driver="GTiff",
+                height=src.shape[0],
+                width=src.shape[1],
+                count=num_classes,
+                dtype=count_dtype,
+                crs=src.crs,
+                transform=src.transform,
+            ) as dst:
+                # Create
+                pred_weighting_dict = {}
+                for pred_file, window in tqdm(
+                    zip(pred_files, windows),
+                    desc="Aggregating raster predictions",
+                    total=len(pred_files),
+                ):
+                    # Read the prediction from disk
+                    # TODO use more flexible reader here
+                    pred = imread(pred_file)
 
-        # Compute the number of pixels to discard at the edge
-        crop_sz = int(self.chip_size * discard_edge_frac)
-        # Iterate over windows and files
-        for window, file in tqdm(
-            zip(windows, files), total=len(windows), desc="Aggregating tile predictions"
-        ):
-            # Load the data
-            pred = read_image_or_numpy(file)
+                    if pred.shape != (window.height, window.width):
+                        raise ValueError("Size of pred does not match window")
 
-            # This means the output is confidence-per-class, channel first
-            if len(pred.shape) == 3:
-                pred = np.transpose(pred, (2, 0, 1))
+                    # We want to downweight portions at the edge so we create a ramped weighting mask
+                    # but we don't want to duplicate this computation because it's the same for each same sized chip
+                    if pred.shape not in pred_weighting_dict:
+                        # We want to keep this as a uint8
+                        pred_weighting = create_ramped_weighting(
+                            pred.shape, downweight_edge_frac
+                        )
 
-                # If we want hard classifications, compute that
-                if not smooth_seg_labels:
-                    pred = np.argmax(pred, axis=0)
+                        # Allow us to get as much granularity as possible given the datatype
+                        if count_dtype is not float:
+                            pred_weighting = pred_weighting * (
+                                np.iinfo(count_dtype).max / max_overlapping_tiles
+                            )
+                        # Convert weighting to desired type
+                        pred_weighting_dict[pred.shape] = pred_weighting.astype(
+                            count_dtype
+                        )
 
-            # Add the prediction to the dataset
-            # TODO see if we can get speedups by batching this
-            seg_labels.add_predictions(
-                windows=[window], predictions=[pred], crop_sz=crop_sz
-            )
+                    # Get weighting
+                    pred_weighting = pred_weighting_dict[pred.shape]
 
-        if savefile is not None:
-            # Save out the raster data
-            seg_labels.save(
-                str(savefile),
-                crs_transformer=self.dataset.scene.raster_source.crs_transformer,
-                class_config=self.class_config,
-            )
+                    # Update each band in the counts file within the window
+                    for i in range(num_classes):
+                        # Bands in rasterio are 1-indexed
+                        band_ind = i + 1
+                        class_i_window_counts = dst.read(band_ind, window=window)
+                        class_i_preds = pred == i
+                        # If nothing matches this class, don't waste computation
+                        if not np.any(class_i_preds):
+                            continue
+                        # Weight the predictions to downweight the ones at the edge
+                        weighted_preds = (class_i_preds * pred_weighting).astype(
+                            count_dtype
+                        )
+                        # Add the new predictions to the previous counts
+                        class_i_window_counts += weighted_preds
+                        # Write out the updated results for this window
+                        dst.write(class_i_window_counts, band_ind, window=window)
 
-        # Compute the metrics
-        if eval_performance:
-            # TODO fix OOM issues here
-            evaluator = SemanticSegmentationEvaluator(self.class_config)
-            gt_labels = self.dataset.scene.label_source.get_labels()
-            evaluation = evaluator.evaluate_predictions(
-                ground_truth=gt_labels, predictions=seg_labels
-            )
-            print(evaluation)
-            return evaluation
+        ## Convert counts file to max-class file
+
+        with rio.open(counts_savefile, "r") as src:
+            # Create a one-band file to store the index of the most predicted class
+            with rio.open(
+                class_savefile,
+                "w",
+                driver="GTiff",
+                height=src.shape[0],
+                width=src.shape[1],
+                count=1,
+                dtype=np.uint8,
+                crs=src.crs,
+                transform=src.transform,
+                nodata=nodataval,
+            ) as dst:
+                # Iterate over the blocks corresponding to the tiff driver in the dataset
+                # to compute the max class and write it out
+                for _, window in tqdm(
+                    list(src.block_windows()), desc="Writing out max class"
+                ):
+                    # Read in the counts
+                    counts_array = src.read(window=window)
+                    # Compute which pixels have no recorded predictions and mask them out
+                    nodata_mask = np.sum(counts_array, axis=0) == 0
+
+                    # If it's all nodata, don't write it out
+                    # TODO make sure this works as expected
+                    if np.all(nodata_mask):
+                        continue
+
+                    # Compute which class had the highest counts
+                    max_class = np.argmax(counts_array, axis=0)
+                    max_class[nodata_mask] = nodataval
+                    # TODO, it would be good to check if it's all nodata and skip the write because that's unneeded
+                    dst.write(max_class, 1, window=window)

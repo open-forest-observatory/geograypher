@@ -9,7 +9,9 @@ from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
 
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
-    def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
+    def parse_input(
+        self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, default_focal=None
+    ):
         """Parse the information about the camera intrinsics and extrinsics
 
         Args:
@@ -38,19 +40,34 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         calibration = sensor.find("calibration")
         if calibration is None:
-            raise ValueError("No calibration provided")
+            self.f = default_focal
+            self.cx = 0
+            self.cy = 0
+        else:
+            self.f = float(calibration.find("f").text)
+            self.cx = float(calibration.find("cx").text)
+            self.cy = float(calibration.find("cy").text)
 
-        self.f = float(calibration.find("f").text)
-        self.cx = float(calibration.find("cx").text)
-        self.cy = float(calibration.find("cy").text)
+        if self.f is None and default_focal is not None:
+            self.f = default_focal
+
+        if self.cx is None:
+            self.cx = 0
+
+        if self.cy is None:
+            self.cy = 0
+
         if None in (self.f, self.cx, self.cy):
             ValueError("Incomplete calibration provided")
 
         # Get potentially-empty dict of distortion parameters
-        self.distortion_dict = {
-            calibration[i].tag: float(calibration[i].text)
-            for i in range(3, len(calibration))
-        }
+        if calibration is not None:
+            self.distortion_dict = {
+                calibration[i].tag: float(calibration[i].text)
+                for i in range(3, len(calibration))
+            }
+        else:
+            self.distortion_dict = {}
 
         # Get the transform relating the arbitrary local coordinate system
         # to the earth-centered earth-fixed EPGS:4978 system that is used as a reference by metashape

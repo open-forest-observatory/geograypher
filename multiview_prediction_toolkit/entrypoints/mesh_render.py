@@ -8,10 +8,10 @@ from tqdm import tqdm
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (
     DATA_FOLDER,
-    DEFAULT_CAM_FILE,
-    DEFAULT_GEOPOLYGON_FILE,
-    DEFAULT_IMAGES_FOLDER,
-    DEFAULT_LOCAL_MESH,
+    EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+    EXAMPLE_IMAGE_FOLDER,
+    EXAMPLE_MESH_FILENAME,
 )
 from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
 
@@ -27,17 +27,17 @@ def parse_args():
     )
     parser.add_argument(
         "--mesh-file",
-        default=DEFAULT_LOCAL_MESH,
+        default=EXAMPLE_MESH_FILENAME,
         help="Path to the Metashape-exported mesh file, with associated transform .csv",
     )
     parser.add_argument(
         "--camera-file",
-        default=DEFAULT_CAM_FILE,
+        default=EXAMPLE_CAMERAS_FILENAME,
         help="Path to the MetaShape-exported .xml camera file",
     )
     parser.add_argument(
         "--image-folder",
-        default=DEFAULT_IMAGES_FOLDER,
+        default=EXAMPLE_IMAGE_FOLDER,
         help="Path to the folder of images used to create the mesh",
     )
     parser.add_argument(
@@ -59,13 +59,29 @@ def parse_args():
     )
     parser.add_argument(
         "--vector-file",
-        default=DEFAULT_GEOPOLYGON_FILE,
+        default=EXAMPLE_STANDARDIZED_LABELS_FILENAME,
         help="Vector file to load texture information from. Must be open-able by geopandas",
     )
     parser.add_argument(
         "--vector-file-column",
-        default="ID",
+        default="Species",
         help="Column to use in vector file for texture information",
+    )
+    parser.add_argument(
+        "--ROI-buffer-meters",
+        type=float,
+        help="Remove all portions of the mesh that are farther than this distance in meters"
+        + " from the labeled data. If unset, the entire mesh will be retained.",
+    )
+    parser.add_argument(
+        "--save-subset-images-folder",
+        help="Where to save the subset of images near the labeled data",
+        type=Path,
+    )
+    parser.add_argument(
+        "--render-folder",
+        default=EXAMPLE_RENDERED_LABELS_FOLDER,
+        help="Where to render the labels",
     )
     parser.add_argument("--vis", action="store_true", help="Show mesh")
     parser.add_argument(
@@ -90,6 +106,14 @@ if __name__ == "__main__":
     # Load the camera set
     logging.info("Creating the camera set")
     camera_set = MetashapeCameraSet(args.camera_file, args.image_folder)
+    if args.ROI_buffer_meters is not None:
+        logging.info("Subsetting cameras")
+        camera_set = camera_set.get_subset_near_geofile(
+            args.vector_file, args.ROI_buffer_meters
+        )
+        if args.save_subset_images_folder:
+            logging.info("Saving subset of images")
+            camera_set.save_images(args.save_subset_images_folder)
 
     # Load the mesh
     logging.info("Loading the mesh")
@@ -105,22 +129,12 @@ if __name__ == "__main__":
     )
 
     if args.vis or args.screenshot_filename is not None:
-        mesh.vis(screenshot_filename=args.screenshot_filename)
+        logging.info("Visualizing the mesh")
+        mesh.vis(screenshot_filename=args.screenshot_filename, camera_set=camera_set)
 
-    for i in tqdm(range(camera_set.n_cameras())):
-        image = camera_set.get_image_by_index(i, image_scale=args.image_downsample)
-        image_path = camera_set.get_camera_by_index(i).image_filename
-        label_mask = mesh.render_pytorch3d(
-            camera_set, image_scale=args.image_downsample, camera_index=i
-        )
-        savepath = Path(
-            DATA_FOLDER,
-            args.render_folder,
-            str(Path(image_path)).replace(".jpg", ".npy"),
-        )
-
-        savepath.parent.mkdir(parents=True, exist_ok=True)
-        np.save(
-            savepath,
-            label_mask,
-        )
+    mesh.save_renders_pytorch3d(
+        camera_set=camera_set,
+        render_image_scale=args.image_downsample,
+        output_folder=args.render_folder,
+        make_composite=False,
+    )

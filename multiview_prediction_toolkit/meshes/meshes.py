@@ -300,10 +300,6 @@ class TexturedPhotogrammetryMesh:
                     # Set any values that are the ignore int value to nan
                     texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
-                # Flip if it's RGB, since the convention is opposite what we expect
-                if texture_array.ndim == 2 and texture_array.shape[1] == 3:
-                    texture_array = np.flip(texture_array, axis=1)
-
                 self.set_texture(texture_array)
             else:
                 # Assume that no texture will be needed, consider printing a warning
@@ -674,7 +670,7 @@ class TexturedPhotogrammetryMesh:
 
     def export_face_labels_vector(
         self,
-        face_labels: np.ndarray,
+        face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
         export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         label_names: typing.Tuple = None,
@@ -701,16 +697,21 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: Merged data
         """
+        if face_labels is None:
+            face_labels = self.get_texture(request_vertex_texture=False)
+
         # Check that the correct number of labels are provided
         if len(face_labels) != self.faces.shape[0]:
             raise ValueError()
+
+        face_labels = np.squeeze(face_labels)
 
         # Get the mesh vertices in the desired export CRS
         verts_in_crs = self.get_vertices_in_CRS(export_crs)
         # Get a triangle in geospatial coords for each face
         # Only report the x, y values and not z
         face_polygons = [
-            Polygon(np.flip(verts_in_crs[face_IDs][:, :2]), axis=1)
+            Polygon(np.flip(verts_in_crs[face_IDs][:, :2], axis=1))
             for face_IDs in self.faces
         ]
         # Create a geodata frame from these polygons
@@ -727,7 +728,7 @@ class TexturedPhotogrammetryMesh:
         if label_names is not None:
             names = [
                 (label_names[int(label)] if label is not np.nan else np.nan)
-                for label in aggregated_df["labels"].tolist()
+                for label in aggregated_df["class_id"].tolist()
             ]
             aggregated_df["names"] = names
 
@@ -986,11 +987,19 @@ class TexturedPhotogrammetryMesh:
             pg_camera, image_scale=image_scale
         )
 
+        # Use the indexing method
         if shade_by_indexing:
+            # Extract the pixel to face correspondences
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-            pix_to_label = face_texture[pix_to_face]
+            # Index into the texture image
+            flat_labels = face_texture[pix_to_face]
+            # Remap the value pixels that don't correspond to a face, which are labeled -1
+            if set_null_texture_to_value is not None:
+                flat_labels[pix_to_face == -1] = set_null_texture_to_value
+
+            # Reshape from flat to an array
             img_size = pg_camera.get_image_size(image_scale=image_scale)
-            label_img = np.reshape(pix_to_label, img_size)
+            label_img = np.reshape(flat_labels, img_size)
         else:
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
@@ -999,12 +1008,8 @@ class TexturedPhotogrammetryMesh:
                 device=self.device, cameras=p3d_camera, lights=lights
             )
 
-            # Render te images using the shader
+            # Render the images using the shader
             label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
-
-        # Remap the value for null pixels
-        if set_null_texture_to_value is not None:
-            label_img[label_img == NULL_TEXTURE_FLOAT_VALUE] = set_null_texture_to_value
 
         return label_img
 
@@ -1015,7 +1020,7 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
-        mesh_kwargs: typing.Dict = {"cmap": "tab10", "clim": [0, 9]},
+        mesh_kwargs: typing.Dict = {},
         plotter_kwargs: typing.Dict = {},
         force_xvfb: bool = False,
     ):
@@ -1035,7 +1040,7 @@ class TexturedPhotogrammetryMesh:
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
 
-        # If the vis scalars are None, use the vertex IDs
+        # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
             vis_scalars = self.get_texture(
                 # Request vertex texture if both are available
