@@ -8,10 +8,6 @@ import rasterio as rio
 from imageio import imread, imwrite
 from rastervision.core import Box
 from rastervision.core.data import ClassConfig
-from rastervision.core.data.label import (
-    SemanticSegmentationDiscreteLabels,
-    SemanticSegmentationSmoothLabels,
-)
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
@@ -238,10 +234,10 @@ class OrthoSegmentor:
 
     def assemble_tiled_predictions(
         self,
-        prediction_folder: PATH_TYPE,
-        savefile: typing.Union[PATH_TYPE, None] = None,
-        discard_edge_frac: float = 1 / 8,
-        eval_performance: bool = False,
+        pred_files: list[PATH_TYPE],
+        class_savefile: PATH_TYPE,
+        counts_savefile: typing.Union[PATH_TYPE, None] = None,
+        downweight_edge_frac: float = 0.25,
         smooth_seg_labels: bool = False,
         nodataval: typing.Union[int, None] = 255,
         count_dtype: type = np.uint8,
@@ -304,8 +300,7 @@ class OrthoSegmentor:
                     total=len(pred_files),
                 ):
                     # Read the prediction from disk
-                    # TODO use more flexible reader here
-                    pred = imread(pred_file)
+                    pred = read_image_or_numpy(pred_file)
 
                     if pred.shape != (window.height, window.width):
                         raise ValueError("Size of pred does not match window")
