@@ -1264,7 +1264,8 @@ class TexturedPhotogrammetryMesh:
     # Visualization and saving methods
     def vis(
         self,
-        interactive=True,
+        plotter: pv.Plotter = None,
+        interactive: bool = True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
@@ -1276,6 +1277,7 @@ class TexturedPhotogrammetryMesh:
         """Show the mesh and cameras
 
         Args:
+            plotter (pyvista.Plotter, optional): Plotter to use, else one will be created
             off_screen (bool, optional): Show offscreen
             camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
@@ -1297,8 +1299,9 @@ class TexturedPhotogrammetryMesh:
                 # More than 20 class or continous values
                 mesh_kwargs = {}
 
-        # Create the plotter which may be onscreen or off
-        plotter = pv.Plotter(off_screen=off_screen)
+        if plotter is None:
+            # Create the plotter which may be onscreen or off
+            plotter = pv.Plotter(off_screen=off_screen)
 
         # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
