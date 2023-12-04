@@ -13,6 +13,7 @@ from multiview_prediction_toolkit.config import (
     EXAMPLE_RENDERED_LABELS_FOLDER,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
 )
 from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
 
@@ -70,6 +71,11 @@ def parse_args():
         + " from the labeled data. If unset, the entire mesh will be retained.",
     )
     parser.add_argument(
+        "--save-subset-images-folder",
+        help="Where to save the subset of images near the labeled data",
+        type=Path,
+    )
+    parser.add_argument(
         "--render-folder",
         default=EXAMPLE_RENDERED_LABELS_FOLDER,
         help="Where to render the labels",
@@ -102,11 +108,9 @@ if __name__ == "__main__":
         camera_set = camera_set.get_subset_near_geofile(
             args.vector_file, args.ROI_buffer_meters
         )
-        camera_set.save_images(
-            Path(
-                "/ofo-share/repos-david/semantic-mesh-pytorch3d/data/species-class-seed-kernel/oblique-pred-images/delta/raw"
-            )
-        )
+        if args.save_subset_images_folder:
+            logging.info("Saving subset of images")
+            camera_set.save_images(args.save_subset_images_folder)
 
     # Load the mesh
     logging.info("Loading the mesh")
@@ -123,7 +127,7 @@ if __name__ == "__main__":
 
     if args.vis or args.screenshot_filename is not None:
         logging.info("Visualizing the mesh")
-        mesh.vis(screenshot_filename=args.screenshot_filename)
+        mesh.vis(screenshot_filename=args.screenshot_filename, camera_set=camera_set)
 
     logging.info("Rendering the images")
     mesh.save_renders_pytorch3d(

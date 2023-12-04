@@ -69,10 +69,10 @@ def parse_args():
         help="Save aggregated predictions to this file. Must be writable by rasterio. Only used with --prediction-chips-folder",
     )
     parser.add_argument(
-        "--discard-edge-frac",
+        "--downweight-edge-frac",
         type=float,
-        default=0.125,
-        help="Discard this fraction of predictions at the edgest. Only used with --prediction-chips-folder",
+        default=0.25,
+        help="Downweight this fraction of predictions at the edges using a linear ramp. Only used with --prediction-chips-folder",
     )
     parser.add_argument(
         "--log-level",
@@ -124,8 +124,7 @@ if __name__ == "__main__":
             )
         )
         ortho_seg.assemble_tiled_predictions(
-            args.prediction_chips_folder,
-            savefile=args.aggregated_savefile,
-            discard_edge_frac=args.discard_edge_frac,
-            eval_performance=False,
+            sorted(args.prediction_chips_folder.glob("*")),
+            class_savefile=args.aggregated_savefile,
+            downweight_edge_frac=args.downweight_edge_frac,
         )
