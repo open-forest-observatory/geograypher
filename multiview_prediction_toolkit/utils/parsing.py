@@ -69,7 +69,7 @@ def parse_sensors(sensors):
             ValueError("Incomplete calibration provided")
 
         # Get potentially-empty dict of distortion parameters
-        sensor_dict["distortion_dict"] = {
+        sensor_dict["distortion_params"] = {
             calibration[i].tag: float(calibration[i].text)
             for i in range(3, len(calibration))
         }

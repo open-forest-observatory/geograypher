@@ -1,12 +1,10 @@
 import typing
+from copy import deepcopy
 
 import numpy as np
 from torch import NoneType
-from copy import deepcopy
 
-from multiview_prediction_toolkit.cameras import (
-    PhotogrammetryCameraSet,
-)
+from multiview_prediction_toolkit.cameras import PhotogrammetryCameraSet
 
 
 class Segmentor:

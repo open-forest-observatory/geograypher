@@ -1,8 +1,8 @@
 import argparse
 import logging
+from pathlib import Path
 
 import numpy as np
-from pathlib import Path
 
 from multiview_prediction_toolkit.cameras import MetashapeCameraSet
 from multiview_prediction_toolkit.config import (

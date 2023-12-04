@@ -1,9 +1,8 @@
+import os
+import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Tuple, Union, List
-import shutil
-import os
-from tqdm import tqdm
+from typing import List, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
@@ -33,6 +32,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
+        distortion_params: dict = {},
         lon_lat: Union[None, Tuple[float, float]] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
@@ -45,6 +45,8 @@ class PhotogrammetryCamera:
             cy (float): Principle point y (pixels)
             image_width (int): Input image width pixels
             image_height (int): Input image height pixels
+            distortion_params (dict, optional): Distortion parameters, currently unused
+            lon_lat (Union[None, Tuple[float, float]], optional): Location, defaults to None
         """
         self.image_filename = image_filename
         self.cam_to_world_transform = cam_to_world_transform
@@ -54,6 +56,7 @@ class PhotogrammetryCamera:
         self.cy = cy
         self.image_width = image_width
         self.image_height = image_height
+        self.distortion_params = distortion_params
 
         if lon_lat is None:
             self.lon_lat = (None, None)
@@ -381,7 +384,15 @@ class PhotogrammetryCameraSet:
         self.image_folder = image_folder
         self.camera_file = camera_file
 
-        self.parse_input(camera_file=camera_file, image_folder=image_folder, **kwargs)
+        (
+            self.image_filenames,
+            self.cam_to_world_transforms,
+            self.sensor_IDs,
+            self.lan_lats,
+            self.sensors_dict,
+        ) = self.parse_input(
+            camera_file=camera_file, image_folder=image_folder, **kwargs
+        )
 
         missing_images = self.find_mising_images()
         if len(missing_images) > 0:
@@ -390,18 +401,15 @@ class PhotogrammetryCameraSet:
 
         self.cameras = []
 
-        for image_filename, cam_to_world_transform, lon_lat in zip(
-            self.image_filenames, self.cam_to_world_transforms, self.lon_lats
+        for image_filename, cam_to_world_transform, sensor_ID, lon_lat in zip(
+            self.image_filenames,
+            self.cam_to_world_transforms,
+            self.sensor_IDs,
+            self.lon_lats,
         ):
+            sensor_params = self.sensors_dict[sensor_ID]
             new_camera = PhotogrammetryCamera(
-                image_filename,
-                cam_to_world_transform,
-                self.f,
-                self.cx,
-                self.cy,
-                self.image_width,
-                self.image_height,
-                lon_lat=lon_lat,
+                image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )
             self.cameras.append(new_camera)
 
@@ -414,7 +422,8 @@ class PhotogrammetryCameraSet:
         return invalid_images
 
     def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
-        """Parse the software-specific camera files and populate required member fields
+        """
+        Parse the software-specific camera files and populate required member fields.
 
         Args:
             camera_file (PATH_TYPE): Path to the camera file
