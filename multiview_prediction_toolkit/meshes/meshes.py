@@ -877,6 +877,10 @@ class TexturedPhotogrammetryMesh:
             camera_inds: What images to use
             image_scale (float): Scale images
         """
+        if batch_size != 1:
+            raise NotImplementedError(
+                "Proper batching is not implemented, set batch size to 1"
+            )
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         n_channels = camera_set.n_image_channels()
