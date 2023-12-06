@@ -1,5 +1,6 @@
 import numpy as np
 import pyvista as pv
+from scipy.linalg import lstsq
 
 
 def compute_approximate_ray_intersection(
@@ -13,7 +14,6 @@ def compute_approximate_ray_intersection(
     ac = np.dot(a, c)
     bb = np.dot(b, b)
     bc = np.dot(b, c)
-    print(aa, ab, ac, bb, bc)
 
     denominator = aa * bb - ab * ab
 
@@ -38,3 +38,35 @@ def compute_approximate_ray_intersection(
         plotter.show()
 
     return dist, valid
+
+
+def triangulate_rays_lstsq(starts, directions):
+    # https://github.com/tensorflow/graphics/blob/master/tensorflow_graphics/geometry/representation/ray.py#L284-L371
+
+    # Ensure that we have unit vectors specifying the direction of the ray
+
+    # Build a cross product matrix for each direction, this is the left side
+    # The right side is the dot product between this and the start ray
+
+    As = []
+    bs = []
+    # TODO build this all at once rather than iteratively
+    for start, direction in zip(starts, directions):
+        x, y, z = direction
+        # https://math.stackexchange.com/questions/3764426/matrix-vector-multiplication-cross-product-problem
+        cross_matrix = np.array(
+            [
+                [0, -z, y],
+                [z, 0, -x],
+                [-y, x, 0],
+            ]
+        )
+        As.append(cross_matrix)
+        b = cross_matrix @ start
+        bs.append(b)
+
+    A = np.concatenate(As, axis=0)
+    b = np.concatenate(bs, axis=0)
+
+    x, _, _, _ = np.linalg.lstsq(A, b)
+    return x
