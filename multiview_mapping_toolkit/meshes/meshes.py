@@ -37,6 +37,9 @@ from multiview_mapping_toolkit.config import (
     VERT_ID,
     VIS_FOLDER,
 )
+from multiview_mapping_toolkit.segmentation.derived_segmentors import (
+    TabularRectangleSegmentor,
+)
 from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
 from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
@@ -1260,6 +1263,33 @@ class TexturedPhotogrammetryMesh:
             label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
 
         return label_img
+
+    def aggreate_detections(
+        self, camera_set: PhotogrammetryCameraSet, segmentor: TabularRectangleSegmentor
+    ):
+        # Extract the rays from each of the cameras
+        # Note that these are all still in the local coordinate frame of the mesh
+        all_starts = []
+        all_directions = []
+        all_image_IDs = []
+
+        for i in range(camera_set.n_cameras()):
+            filename = str(camera_set.get_image_filename(i))
+            centers = segmentor.get_detection_centers(filename)
+            camera = camera_set.get_camera_by_index(i)
+            line_segments = camera.vis_rays(pixel_coords_ij=centers, plotter=plotter)
+            if line_segments is not None:
+                starts = line_segments[0::2]
+                ends = line_segments[1::2]
+                directions = ends - starts
+                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
+                directions = directions / lengths
+                all_starts.append(starts)
+                all_directions.append(directions)
+                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
+        all_starts = np.concatenate(all_starts, axis=0)
+        all_directions = np.concatenate(all_directions, axis=0)
+        all_image_IDs = np.concatenate(all_image_IDs, axis=0)
 
     # Visualization and saving methods
     def vis(
