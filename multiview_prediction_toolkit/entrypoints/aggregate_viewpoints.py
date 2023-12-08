@@ -24,7 +24,7 @@ def parse_args():
     )
     parser.add_argument(
         "--camera-file",
-        default=EXAMPLE_CAMERAS_FILE,
+        default=EXAMPLE_CAMERAS_FILENAME,
         help="Path to the MetaShape-exported .xml camera file",
     )
     parser.add_argument(
