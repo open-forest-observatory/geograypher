@@ -11,9 +11,9 @@ from rastervision.core.data import ClassConfig
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.config import MATPLOTLIB_PALLETE, PATH_TYPE
-from multiview_prediction_toolkit.utils.io import read_image_or_numpy
-from multiview_prediction_toolkit.utils.numeric import create_ramped_weighting
+from multiview_mapping_toolkit.config import MATPLOTLIB_PALLETE, PATH_TYPE
+from multiview_mapping_toolkit.utils.io import read_image_or_numpy
+from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
 
 
 class OrthoSegmentor:

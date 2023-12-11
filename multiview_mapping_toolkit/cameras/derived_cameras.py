@@ -6,12 +6,12 @@ import numpy as np
 from torch import Value
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.cameras import (
+from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.utils.parsing import (
+from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.utils.parsing import (
     parse_sensors,
     parse_transform_metashape,
 )

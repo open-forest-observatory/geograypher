@@ -1,7 +1,7 @@
 import numpy as np
 from imageio import imread
 
-from multiview_prediction_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.config import PATH_TYPE
 
 
 def read_image_or_numpy(filename: PATH_TYPE) -> np.ndarray:

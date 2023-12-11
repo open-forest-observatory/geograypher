@@ -13,8 +13,8 @@ from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
-from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.utils.geospatial import (
+from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.utils.geospatial import (
     get_projected_CRS,
     reproject_raster,
 )

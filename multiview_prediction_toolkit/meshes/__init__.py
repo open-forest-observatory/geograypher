@@ -1,1 +1,0 @@
-from multiview_prediction_toolkit.meshes.meshes import TexturedPhotogrammetryMesh

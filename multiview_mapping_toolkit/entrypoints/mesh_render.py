@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.cameras import MetashapeCameraSet
-from multiview_prediction_toolkit.config import (
+from multiview_mapping_toolkit.cameras import MetashapeCameraSet
+from multiview_mapping_toolkit.config import (
     DATA_FOLDER,
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IMAGE_FOLDER,
@@ -14,7 +14,7 @@ from multiview_prediction_toolkit.config import (
     EXAMPLE_RENDERED_LABELS_FOLDER,
     EXAMPLE_STANDARDIZED_LABELS_FILENAME,
 )
-from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
+from multiview_mapping_toolkit.meshes import TexturedPhotogrammetryMesh
 
 
 def parse_args():

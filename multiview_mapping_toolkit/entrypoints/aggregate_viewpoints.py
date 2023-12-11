@@ -4,15 +4,15 @@ from pathlib import Path
 
 import numpy as np
 
-from multiview_prediction_toolkit.cameras import MetashapeCameraSet
-from multiview_prediction_toolkit.config import (
+from multiview_mapping_toolkit.cameras import MetashapeCameraSet
+from multiview_mapping_toolkit.config import (
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
     EXAMPLE_PREDICTED_LABELS_FOLDER,
 )
-from multiview_prediction_toolkit.meshes import TexturedPhotogrammetryMesh
-from multiview_prediction_toolkit.segmentation import (
+from multiview_mapping_toolkit.meshes import TexturedPhotogrammetryMesh
+from multiview_mapping_toolkit.segmentation import (
     LookUpSegmentor,
     SegmentorPhotogrammetryCameraSet,
 )

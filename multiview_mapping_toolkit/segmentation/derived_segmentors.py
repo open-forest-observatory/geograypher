@@ -4,8 +4,8 @@ import numpy as np
 from imageio import imread
 from skimage.transform import resize
 
-from multiview_prediction_toolkit.config import PATH_TYPE
-from multiview_prediction_toolkit.segmentation import Segmentor
+from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.segmentation import Segmentor
 
 
 class BrightnessSegmentor(Segmentor):

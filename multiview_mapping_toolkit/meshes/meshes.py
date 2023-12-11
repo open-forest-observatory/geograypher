@@ -23,20 +23,20 @@ from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_prediction_toolkit.cameras import (
+from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_prediction_toolkit.config import (
+from multiview_mapping_toolkit.config import (
     NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     VERT_ID,
     VIS_FOLDER,
 )
-from multiview_prediction_toolkit.utils.geospatial import ensure_geometric_CRS
-from multiview_prediction_toolkit.utils.indexing import ensure_float_labels
-from multiview_prediction_toolkit.utils.parsing import parse_transform_metashape
+from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
+from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
+from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
 
 
 class TexturedPhotogrammetryMesh:

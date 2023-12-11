@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "multiview-prediction-toolkit"
+name = "multiview-mapping-toolkit"
 version = "0.1.0"
 description = ""
 authors = ["David Russell <davidrussell327@gmail.com>"]
 readme = "README.md"
-packages = [{include = "multiview_prediction_toolkit"}]
+packages = [{include = "multiview_mapping_toolkit"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"

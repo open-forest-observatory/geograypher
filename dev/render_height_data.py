@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from multiview_prediction_toolkit.cameras import MetashapeCameraSet
-from multiview_prediction_toolkit.config import (DATA_FOLDER, DEFAULT_CAM_FILE,
+from multiview_mapping_toolkit.cameras import MetashapeCameraSet
+from multiview_mapping_toolkit.config import (DATA_FOLDER, DEFAULT_CAM_FILE,
                                                  DEFAULT_IMAGES_FOLDER,
                                                  DEFAULT_LOCAL_MESH)
-from multiview_prediction_toolkit.meshes import \
+from multiview_mapping_toolkit.meshes import \
     HeightAboveGroundPhotogrammertryMesh
 
 IMAGES_FOLDER = Path(DATA_FOLDER, "training", "images")

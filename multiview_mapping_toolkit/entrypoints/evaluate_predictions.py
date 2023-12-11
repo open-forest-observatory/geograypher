@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
-from multiview_prediction_toolkit.utils.prediction_metrics import (
+from multiview_mapping_toolkit.utils.prediction_metrics import (
     compute_rastervision_evaluation_metrics,
 )
 

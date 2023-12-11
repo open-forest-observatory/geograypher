@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from shapely import Polygon, transform
 
-from multiview_prediction_toolkit.config import DATA_FOLDER
-from multiview_prediction_toolkit.utils.prediction_metrics import \
+from multiview_mapping_toolkit.config import DATA_FOLDER
+from multiview_mapping_toolkit.utils.prediction_metrics import \
     eval_confusion_matrix
 
 TILE = "002"
