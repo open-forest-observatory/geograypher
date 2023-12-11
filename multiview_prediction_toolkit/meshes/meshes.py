@@ -111,8 +111,10 @@ class TexturedPhotogrammetryMesh:
         """
         # Load the mesh using pyvista
         # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
+        logging.info("Reading the mesh")
         self.pyvista_mesh = pv.read(self.mesh_filename)
 
+        logging.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
             region_of_interest=ROI, buffer_meters=ROI_buffer_meters
@@ -123,9 +125,11 @@ class TexturedPhotogrammetryMesh:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
+            logging.info("Downsampling the mesh")
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
+        logging.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
@@ -367,6 +371,7 @@ class TexturedPhotogrammetryMesh:
             return self.pyvista_mesh
 
         # Get the ROI into a geopandas GeoDataFrame
+        logging.info("Standardizing ROI")
         if isinstance(region_of_interest, gpd.GeoDataFrame):
             ROI_gpd = region_of_interest
         elif isinstance(region_of_interest, (Polygon, MultiPolygon)):
@@ -374,24 +379,31 @@ class TexturedPhotogrammetryMesh:
         else:
             ROI_gpd = gpd.read_file(region_of_interest)
 
+        logging.info("Dissolving ROI")
         # Disolve to ensure there is only one row
         ROI_gpd = ROI_gpd.dissolve()
+        logging.info("Setting CRS and buffering ROI")
         # Make sure we're using a geometric CRS so a buffer can be applied
         ROI_gpd = ensure_geometric_CRS(ROI_gpd)
         # Apply the buffer
         ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters)
+        logging.info("Dissolving buffered ROI")
         # Disolve again in case
         ROI_gpd = ROI_gpd.dissolve()
 
+        logging.info("Extracting verts for dataframe")
         # Get the vertices as a dataframe in the same CRS
         verts_df = self.get_verts_geodataframe(ROI_gpd.crs)
+        logging.info("Checking intersection of verts with ROI")
         # Determine which vertices are within the ROI polygon
         verts_in_ROI = gpd.tools.overlay(verts_df, ROI_gpd, how="intersection")
         # Extract the IDs of the set within the polygon
         vert_inds = verts_in_ROI["vert_ID"].to_numpy()
 
+        logging.info("Extracting points from pyvista mesh")
         # Extract a submesh using these IDs, which is returned as an UnstructuredGrid
         subset_unstructured_grid = self.pyvista_mesh.extract_points(vert_inds)
+        logging.info("Extraction surface from subset mesh")
         # Convert the unstructured grid to a PolyData (mesh) again
         subset_mesh = subset_unstructured_grid.extract_surface()
 
