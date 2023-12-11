@@ -46,7 +46,7 @@ class TexturedPhotogrammetryMesh:
         downsample_target: float = 1.0,
         transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
-        texture_kwargs: dict = {},
+        texture_column_name: typing.Union[PATH_TYPE, None] = None,
         ROI=None,
         ROI_buffer_meters: float = 0,
         discrete_label: bool = True,
@@ -58,7 +58,7 @@ class TexturedPhotogrammetryMesh:
             mesh_filename (PATH_TYPE): Path to the mesh, in a format pyvista can read
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
-            texture_kwargs
+            texture_column_name: The name of the column to use for a vectorfile input
             discrete_label (bool, optional): Is the label quanity discrete or continous
         """
         self.mesh_filename = Path(mesh_filename)
@@ -93,7 +93,7 @@ class TexturedPhotogrammetryMesh:
         )
         # Load the texture
         logging.info("Loading texture")
-        self.load_texture(texture, texture_kwargs)
+        self.load_texture(texture, texture_column_name)
 
     # Setup methods
 
@@ -253,6 +253,10 @@ class TexturedPhotogrammetryMesh:
                     f"The number of elements in the texture ({n_values}) did not match the number of faces ({n_faces}) or vertices ({n_verts})"
                 )
 
+        # This can't be a discrete label, so record that
+        if texture_array.ndim == 2 and texture_array.shape[1] != 1:
+            self.discrete_label = False
+
         # Set the appropriate texture
         if is_vertex_texture:
             self.vertex_texture = texture_array
@@ -266,7 +270,7 @@ class TexturedPhotogrammetryMesh:
     def load_texture(
         self,
         texture: typing.Union[PATH_TYPE, np.ndarray, None],
-        texture_kwargs: dict = {},
+        texture_column_name: typing.Union[None, PATH_TYPE] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
            one will be left as None
@@ -278,7 +282,7 @@ class TexturedPhotogrammetryMesh:
                   This should be dataset of polygons/multipolygons. Ideally, there should be no overlap between
                   regions with different labels. These regions may be assigned based on the order of the rows.
                 * A raster file readable by rasterio. We may want to support using a subset of bands
-            texture_kwargs (dict, optional): Keywords specific to different types of textures. Defaults to {}.
+            texture_column_name: The column to use as the label for a vector data input
         """
         # The easy case, a texture is passed in directly
         if isinstance(texture, np.ndarray):
@@ -317,13 +321,15 @@ class TexturedPhotogrammetryMesh:
             # Vector file
             if texture_array is None:
                 try:
-                    gdf = gpd.read_file(texture)
-                    column_name = texture_kwargs.get("column_name")
+                    if isinstance(texture, gpd.GeoDataFrame):
+                        gdf = texture
+                    else:
+                        gdf = gpd.read_file(texture)
                     texture_array = self.get_values_for_verts_from_vector(
-                        column_names=column_name,
+                        column_names=texture_column_name,
                         geopandas_df=gdf,
                     )
-                except (ValueError, AttributeError):
+                except AttributeError:
                     pass
 
             # Raster file
@@ -627,6 +633,17 @@ class TexturedPhotogrammetryMesh:
             points_in_polygons = gpd.tools.overlay(
                 verts_df, geopandas_df, how="intersection"
             )
+
+        if column_names is None:
+            if geopandas_df.names == 2:
+                column_names = list(
+                    filter(lambda x: x != "geometry", geopandas_df.names)
+                )
+            else:
+                print("No column name provided and ambigious which column to use")
+                raise ValueError(
+                    "No column name provided and ambigious which column to use"
+                )
 
         # If it's one string, make it a one-length array
         if isinstance(column_names, str):

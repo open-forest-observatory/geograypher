@@ -118,7 +118,7 @@ if __name__ == "__main__":
         downsample_target=args.mesh_downsample,
         transform_filename=args.camera_file,
         texture=args.vector_file,
-        texture_kwargs={"column_name": args.vector_file_column},
+        texture_column_name=args.vector_file_column,
         ROI=args.vector_file if args.ROI_buffer_meters is not None else None,
         ROI_buffer_meters=args.ROI_buffer_meters,
         require_transform=True,
