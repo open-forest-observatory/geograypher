@@ -71,36 +71,3 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.sensors_dict,
         )
 
-    def get_absolute_filenames(self, image_folder, camera_labels, image_extension=""):
-        absolute_filenames = [
-            "/" + str(camera_label)
-            for camera_label in camera_labels
-            if camera_label.split("/")[0] == "ofo-share"
-        ]
-        updated_paths = []
-
-        for camera_label in tqdm(camera_labels, desc="Fixing up camera paths"):
-            if camera_label.split("/")[0] == "ofo-share":
-                updated_paths.append(Path("/", camera_label))
-            else:
-                search_str = str(Path(image_folder, "**", camera_label))
-                matching_files = sorted(glob(search_str, recursive=True))
-
-                selected_files = [
-                    matching_file
-                    for matching_file in matching_files
-                    if matching_file not in absolute_filenames
-                ]
-                # selected_files = [
-                #    x for x in selected_files if "flattened" not in str(x)
-                # ]
-                if len(selected_files) != 1:
-                    print(selected_files)
-                    raise ValueError(
-                        f"Bad match for {search_str} resulted in {len(selected_files)} files"
-                    )
-                updated_paths.append(selected_files[0])
-
-        updated_paths = [Path(x) for x in updated_paths]
-
-        return updated_paths
