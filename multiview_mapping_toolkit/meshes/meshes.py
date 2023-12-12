@@ -19,7 +19,7 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from shapely import MultiPolygon, Point, Polygon
+from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
 
@@ -842,6 +842,63 @@ class TexturedPhotogrammetryMesh:
             return height_above_ground < threshold
         # Return height above ground
         return height_above_ground
+
+    def label_ground_class(
+        self,
+        DTM_file: PATH_TYPE,
+        height_above_ground_threshold: float,
+        only_label_existing_labels: bool = True,
+        ground_class_name: str = "ground",
+        ground_ID: typing.Union[None, int] = None,
+    ):
+        """Set vertices to a potentially-new class with a thresholded height above the DTM
+
+        Args:
+            DTM_file (PATH_TYPE): Path to the DTM file
+            height_above_ground_threshold (float): Height (meters) above that DTM that points below are considered ground
+            only_label_existing_labels (bool, optional): Only label points that already have non-null labels. Defaults to True.
+            ground_class_name (str, optional): The potentially-new ground class name. Defaults to "ground".
+            ground_ID (typing.Union[None, int], optional): What value to use for the ground class. Will be set inteligently if not provided. Defaults to None.
+        """
+        # Get the vertex textures from the mesh
+        texture_verts = self.get_texture(
+            request_vertex_texture=True, try_verts_faces_conversion=False
+        )
+        # Compute which vertices are part of the ground by thresholding the height above the DTM
+        ground_mask_verts = self.get_height_above_ground(
+            DTM_file=DTM_file, threshold=height_above_ground_threshold
+        )
+
+        if only_label_existing_labels:
+            # Replace only vertices that were previously labeled as something else, to avoid class imbalance
+            # Find which vertices are labeled
+            is_labeled = texture_verts[:, 0] >= 0
+            # Find which points are ground that were previously labeled as something else
+            replace_mask = np.logical_and(is_labeled, ground_mask_verts)
+        else:
+            # Replace all instances of ground
+            replace_mask = ground_mask_verts
+
+        # Get the existing label names
+        label_names = self.get_label_names()
+
+        if label_names is None and ground_ID is None:
+            # This means that the label is continous, so the concept of ID is meaningless
+            ground_ID = np.nan
+        elif ground_class_name in label_names:
+            # If the ground class name is already in the list, set newly-predicted vertices to that class
+            ground_ID = label_names.tolist().find(ground_class_name)
+        elif label_names is not None:
+            # If the label names are present, and the class is not already included, add it as the last element
+            self.set_label_names(label_names.tolist() + [ground_class_name])
+            if ground_ID is None:
+                # Set it to the first unused ID
+                ground_ID = len(label_names)
+
+        # Replace textured for marked vertices
+        texture_verts[replace_mask, 0] = ground_ID
+        # Apply the texture to the mesh
+        self.set_texture(texture_verts)
 
     # Expensive pixel-to-vertex operations
 
