@@ -847,7 +847,7 @@ class TexturedPhotogrammetryMesh:
         self,
         DTM_file: PATH_TYPE,
         height_above_ground_threshold: float,
-        verts_texture: typing.Union[None, np.ndarray] = None,
+        labels: typing.Union[None, np.ndarray] = None,
         only_label_existing_labels: bool = True,
         ground_class_name: str = "ground",
         ground_ID: typing.Union[None, int] = None,
@@ -860,7 +860,7 @@ class TexturedPhotogrammetryMesh:
         Args:
             DTM_file (PATH_TYPE): Path to the DTM file
             height_above_ground_threshold (float): Height (meters) above that DTM that points below are considered ground
-            verts_texture (typing.Union[None, np.ndarray], optional): Vertex texture, otherwise will be queried from mesh. Defaults to None.
+            labels (typing.Union[None, np.ndarray], optional): Vertex texture, otherwise will be queried from mesh. Defaults to None.
             only_label_existing_labels (bool, optional): Only label points that already have non-null labels. Defaults to True.
             ground_class_name (str, optional): The potentially-new ground class name. Defaults to "ground".
             ground_ID (typing.Union[None, int], optional): What value to use for the ground class. Will be set inteligently if not provided. Defaults to None.
@@ -868,27 +868,44 @@ class TexturedPhotogrammetryMesh:
         Returns:
             np.ndarray: The updated labels
         """
-        # if a vertex texture is not provided, get it from the mesh
-        if verts_texture is None:
+
+        if labels is None:
+            # Default to using vertex labels since it's the native way to check height above the DTM
+            use_vertex_labels = True
+        elif labels is not None:
+            # Check the size of the input labels and set what type they are. Note this could override existing value
+            if labels.shape[0] == self.pyvista_mesh.points.shape[0]:
+                use_vertex_labels = True
+            elif labels.shape[0] == self.faces.shape[0]:
+                use_vertex_labels = False
+            else:
+                raise ValueError(
+                    "Labels were provided but didn't match the shape of vertices or faces"
+                )
+
+        # if a labels are not provided, get it from the mesh
+        if labels is None:
             # Get the vertex textures from the mesh
-            verts_texture = self.get_texture(
-                request_vertex_texture=True, try_verts_faces_conversion=False
+            labels = self.get_texture(
+                request_vertex_texture=use_vertex_labels,
             )
 
         # Compute which vertices are part of the ground by thresholding the height above the DTM
-        ground_mask_verts = self.get_height_above_ground(
+        ground_mask = self.get_height_above_ground(
             DTM_file=DTM_file, threshold=height_above_ground_threshold
         )
+        # If we needed a mask for the faces, compute that instead
+        if not use_vertex_labels:
+            ground_mask = self.vert_to_face_IDs(ground_mask.astype(int)).astype(bool)
 
         if only_label_existing_labels:
             # Replace only vertices that were previously labeled as something else, to avoid class imbalance
             # Find which vertices are labeled
-            is_labeled = texture_verts[:, 0] >= 0
+            # TODO this might not be the right way to check if it's labeled, might have to check for NaN too
+            breakpoint()
+            is_labeled = labels[:, 0] >= 0
             # Find which points are ground that were previously labeled as something else
-            replace_mask = np.logical_and(is_labeled, ground_mask_verts)
-        else:
-            # Replace all instances of ground
-            replace_mask = ground_mask_verts
+            ground_mask = np.logical_and(is_labeled, ground_mask)
 
         # Get the existing label names
         label_names = self.get_label_names()
@@ -906,12 +923,14 @@ class TexturedPhotogrammetryMesh:
                 # Set it to the first unused ID
                 ground_ID = len(label_names)
 
-        # Replace textured for marked vertices
-        texture_verts[replace_mask, 0] = ground_ID
+        # Replace mask for ground_vertices
+        labels[ground_mask, 0] = ground_ID
+
+        # Optionally apply the texture to the mesh
         if set_mesh_texture:
-            # Apply the texture to the mesh
-            self.set_texture(texture_verts)
-        return texture_verts
+            self.set_texture(labels)
+
+        return labels
 
     # Expensive pixel-to-vertex operations
 

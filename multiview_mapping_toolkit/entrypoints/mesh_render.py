@@ -2,12 +2,8 @@ import argparse
 import logging
 from pathlib import Path
 
-import numpy as np
-from tqdm import tqdm
-
 from multiview_mapping_toolkit.cameras import MetashapeCameraSet
 from multiview_mapping_toolkit.config import (
-    DATA_FOLDER,
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
