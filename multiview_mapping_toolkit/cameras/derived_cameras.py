@@ -1,15 +1,9 @@
 import xml.etree.ElementTree as ET
-from glob import glob
 from pathlib import Path
 
 import numpy as np
-from torch import Value
-from tqdm import tqdm
 
-from multiview_mapping_toolkit.cameras import (
-    PhotogrammetryCamera,
-    PhotogrammetryCameraSet,
-)
+from multiview_mapping_toolkit.cameras import PhotogrammetryCameraSet
 from multiview_mapping_toolkit.config import PATH_TYPE
 from multiview_mapping_toolkit.utils.parsing import (
     parse_sensors,
@@ -70,4 +64,3 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             self.lon_lats,
             self.sensors_dict,
         )
-
