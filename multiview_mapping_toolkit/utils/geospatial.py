@@ -147,7 +147,6 @@ def get_overlap_vector(
     unlabeled_df: GeoDataFrame,
     classes_df: GeoDataFrame,
     class_column: str,
-    class_names: typing.Union[None, typing.List[str]] = None,
 ) -> (np.ndarray, np.ndarray):
     """
     For each element in unlabeled df, return the fractional overlap with each class in
@@ -158,7 +157,6 @@ def get_overlap_vector(
         unlabeled_df (GeoDataFrame): A dataframe of geometries
         classes_df (GeoDataFrame): A dataframe of classes
         class_column (str, optional): Which column in the classes_df to use. Defaults to "names".
-        class_names (typing.Union[None, typing.List[str]], optional): Complete list of classes to use
 
     Returns:
         np.ndarray: (n_valid, n_classes) counts per polygon per class
