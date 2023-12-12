@@ -847,23 +847,34 @@ class TexturedPhotogrammetryMesh:
         self,
         DTM_file: PATH_TYPE,
         height_above_ground_threshold: float,
+        verts_texture: typing.Union[None, np.ndarray] = None,
         only_label_existing_labels: bool = True,
         ground_class_name: str = "ground",
         ground_ID: typing.Union[None, int] = None,
-    ):
-        """Set vertices to a potentially-new class with a thresholded height above the DTM
+        set_mesh_texture: bool = False,
+    ) -> np.ndarray:
+        """
+        Set vertices to a potentially-new class with a thresholded height above the DTM.
+        TODO, consider handling face textures as well
 
         Args:
             DTM_file (PATH_TYPE): Path to the DTM file
             height_above_ground_threshold (float): Height (meters) above that DTM that points below are considered ground
+            verts_texture (typing.Union[None, np.ndarray], optional): Vertex texture, otherwise will be queried from mesh. Defaults to None.
             only_label_existing_labels (bool, optional): Only label points that already have non-null labels. Defaults to True.
             ground_class_name (str, optional): The potentially-new ground class name. Defaults to "ground".
             ground_ID (typing.Union[None, int], optional): What value to use for the ground class. Will be set inteligently if not provided. Defaults to None.
+
+        Returns:
+            np.ndarray: The updated labels
         """
-        # Get the vertex textures from the mesh
-        texture_verts = self.get_texture(
-            request_vertex_texture=True, try_verts_faces_conversion=False
-        )
+        # if a vertex texture is not provided, get it from the mesh
+        if verts_texture is None:
+            # Get the vertex textures from the mesh
+            verts_texture = self.get_texture(
+                request_vertex_texture=True, try_verts_faces_conversion=False
+            )
+
         # Compute which vertices are part of the ground by thresholding the height above the DTM
         ground_mask_verts = self.get_height_above_ground(
             DTM_file=DTM_file, threshold=height_above_ground_threshold
@@ -897,8 +908,10 @@ class TexturedPhotogrammetryMesh:
 
         # Replace textured for marked vertices
         texture_verts[replace_mask, 0] = ground_ID
-        # Apply the texture to the mesh
-        self.set_texture(texture_verts)
+        if set_mesh_texture:
+            # Apply the texture to the mesh
+            self.set_texture(texture_verts)
+        return texture_verts
 
     # Expensive pixel-to-vertex operations
 
