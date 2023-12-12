@@ -37,6 +37,7 @@ def parse_args():
     )
     parser.add_argument(
         "--mesh-ROI-buffer-meters",
+        type=float,
         help="Keep points within this distance of the provided ROI object, if unset, everything will be kept",
     )
     parser.add_argument(
@@ -117,6 +118,11 @@ if __name__ == "__main__":
     camera_set = MetashapeCameraSet(
         camera_file=args.camera_file, image_folder=args.image_folder
     )
+    if args.mesh_ROI is not None and args.mesh_ROI_buffer_meters is not None:
+        camera_set = camera_set.get_subset_near_geofile(
+            geofile=args.mesh_ROI, buffer_radius_meters=args.mesh_ROI_buffer_meters
+        )
+        print(len(camera_set.cameras))
 
     # Load the mesh
     logging.info("Creating mesh")
@@ -124,8 +130,8 @@ if __name__ == "__main__":
         mesh_filename=args.mesh_file,
         downsample_target=args.mesh_downsample,
         transform_filename=args.camera_file,
-        ROI=args.ROI,
-        ROI_buffer_meters=args.ROI_buffer_meters,
+        ROI=args.mesh_ROI,
+        ROI_buffer_meters=args.mesh_ROI_buffer_meters,
     )
 
     # Create a segmentor that looks up pre-processed images
@@ -168,9 +174,10 @@ if __name__ == "__main__":
         )
 
     # Export the predictions as a numpy file
-    logging.info("Exporting predictions to numpy file")
-    args.texture_export_filename_npy.parent.mkdir(exist_ok=True, parents=True)
-    np.save(args.texture_export_filename_npy, most_common_label_ID)
+    if args.texture_export_filename_npy is not None:
+        logging.info("Exporting predictions to numpy file")
+        args.texture_export_filename_npy.parent.mkdir(exist_ok=True, parents=True)
+        np.save(args.texture_export_filename_npy, most_common_label_ID)
 
     # Export the predictions
     logging.info("Exporting predictions to vector file")
