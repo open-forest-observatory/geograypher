@@ -178,7 +178,7 @@ def get_overlap_vector(
     classes_df.geometry = classes_df.geometry.simplify(0.01)
 
     if class_column not in classes_df.columns:
-        raise ValueError(f"Class column `{class_column}` not in {classes_df.column}")
+        raise ValueError(f"Class column `{class_column}` not in {classes_df.columns}")
 
     logging.info(
         "Computing the intersection of the unlabeled polygons with the labeled region"
