@@ -33,6 +33,13 @@ def parse_args():
         help="Path to the Metashape-exported mesh file, with associated transform .csv",
     )
     parser.add_argument(
+        "--mesh-ROI", help="Geofile region of interest to crop the mesh to"
+    )
+    parser.add_argument(
+        "--mesh-ROI-buffer-meters",
+        help="Keep points within this distance of the provided ROI object, if unset, everything will be kept",
+    )
+    parser.add_argument(
         "--image-folder",
         default=EXAMPLE_IMAGE_FOLDER,
         help="Path to the folder of images used to create the mesh",
@@ -117,6 +124,8 @@ if __name__ == "__main__":
         mesh_filename=args.mesh_file,
         downsample_target=args.mesh_downsample,
         transform_filename=args.camera_file,
+        ROI=args.ROI,
+        ROI_buffer_meters=args.ROI_buffer_meters,
     )
 
     # Create a segmentor that looks up pre-processed images
@@ -125,6 +134,7 @@ if __name__ == "__main__":
     if args.num_classes is None and args.class_names is not None:
         args.num_classes = len(args.class_names)
 
+    # Create the image segmentor that reads from predictions on disk
     segmentor = LookUpSegmentor(
         base_folder=args.image_folder,
         lookup_folder=args.label_folder,
@@ -150,11 +160,12 @@ if __name__ == "__main__":
     if args.DTM_file is not None:
         logging.info("Thresholding based on height above DTM")
         # Set any points on the ground to not have a class
-        is_ground = mesh.get_height_above_ground(
-            DEM_file=args.DTM_file, threshold=args.ground_height_threshold
-        ).astype(int)
-        is_ground = mesh.vert_to_face_IDs(is_ground).astype(bool)
-        most_common_label_ID[is_ground] = np.nan
+        most_common_label_ID = mesh.label_ground_class(
+            DTM_file=args.DTM_file,
+            height_above_ground_threshold=args.ground_height_threshold,
+            label=most_common_label_ID,
+            ground_ID=np.nan,
+        )
 
     # Export the predictions as a numpy file
     logging.info("Exporting predictions to numpy file")
