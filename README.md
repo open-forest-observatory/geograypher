@@ -27,19 +27,12 @@ Use this instead of `MVMT` in future steps.
 ```
 conda create -n MVMT python=3.9 -y
 conda activate MVMT
-```
 
-If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
-
-```
+#If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
+#For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
 poetry install
-```
 
-For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
-
-Now install the `pytorch3d` dependencies that can't be installed with `poetry`.
-
-```
+#Now install the `pytorch3d` dependencies that can't be installed with `poetry`.
 conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
 conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
 conda install -c bottler nvidiacub -y
