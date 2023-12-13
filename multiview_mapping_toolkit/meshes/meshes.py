@@ -19,8 +19,9 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
-from shapely import MultiPolygon, Polygon
+from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
+from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from multiview_mapping_toolkit.cameras import (
@@ -1081,6 +1082,78 @@ class TexturedPhotogrammetryMesh:
 
         normalized_face_texture = face_texture / np.expand_dims(counts, 1)
         return normalized_face_texture, face_texture, counts
+
+    def aggregate_viewpoints_pytorch3d_by_cluster(
+        self,
+        camera_set: PhotogrammetryCameraSet,
+        image_scale: float = 1.0,
+        batch_size: int = 1,
+        n_clusters: int = 8,
+        buffer_dist_meters=50,
+        vis_clusters: bool = True,
+    ):
+        # Get the lat lon for each camera point and turn into a shapely Point
+        camera_points = [Point(*cp) for cp in camera_set.get_lon_lat_coords()]
+        # Create a geodataframe from the points
+        camera_points = gpd.GeoDataFrame(
+            geometry=camera_points, crs=pyproj.CRS.from_epsg("4326")
+        )
+        # Make sure the gdf has a gemetric CRS so there is no warping of the space
+        camera_points = ensure_geometric_CRS(camera_points)
+        # Extract the x, y points now in a geometric CRS
+        camera_points_numpy = np.stack(
+            camera_points.geometry.apply(lambda point: (point.x, point.y))
+        )
+
+        # Assign each camera to a cluster
+        camera_cluster_IDs = KMeans(n_clusters=n_clusters).fit_predict(
+            camera_points_numpy
+        )
+        if vis_clusters:
+            plt.scatter(
+                camera_points_numpy[:, 0],
+                camera_points_numpy[:, 1],
+                c=camera_cluster_IDs,
+                cmap="tab20",
+            )
+            plt.show()
+
+        # Build the bookkeeping objects
+        n_points = self.faces.shape[0]
+        all_textures = np.zeros(
+            (n_points, camera_set.n_image_channels()), dtype=np.uint16
+        )
+        all_counts = np.zeros(n_points, dtype=np.uint16)
+
+        for cluster_ID in tqdm(range(n_clusters), desc="Chunks in mesh"):
+            # Get indices of cameras for that cluster
+            matching_camera_inds = np.where(cluster_ID == camera_cluster_IDs)[0]
+            # Extract the rows in the dataframe for those IDs
+            subset_camera_points = camera_points.iloc[matching_camera_inds]
+
+            # Extract a sub mesh for a region around the camera points
+            # Also retain the indices into the original mesh
+            # TODO this could be accellerated by computing the membership for all points at the begining
+            sub_mesh_pv, _, face_IDs = self.select_mesh_ROI(
+                region_of_interest=subset_camera_points,
+                buffer_meters=buffer_dist_meters,
+                return_original_IDs=True,
+            )
+            # Wrap this pyvista mesh in a photogrammetry mesh
+            sub_mesh_TPM = TexturedPhotogrammetryMesh(sub_mesh_pv)
+
+            # Get the segmentor camera set for the subset of the camera inds
+            sub_camera_set = camera_set.get_subset_cameras(matching_camera_inds)
+            # Perform aggregation with the subset of camera and the subset of the mesh
+            _, face_texture, counts = sub_mesh_TPM.aggregate_viewpoints_pytorch3d(
+                sub_camera_set, image_scale=image_scale, batch_size=batch_size
+            )
+            # Index back into the full array for bookkeeping
+            all_textures[face_IDs] = all_textures[face_IDs] + face_texture
+            all_counts[face_IDs] = all_counts[face_IDs] + counts
+
+        normalized_face_texture = all_textures / np.expand_dims(all_counts, 1)
+        return normalized_face_texture, all_textures, all_counts
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """
