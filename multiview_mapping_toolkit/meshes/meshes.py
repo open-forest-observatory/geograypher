@@ -1201,7 +1201,7 @@ class TexturedPhotogrammetryMesh:
         is_rgb = (
             self.pyvista_mesh.active_scalars_name == "RGB"
             if vis_scalars is None
-            else (vis_scalars.shape[1] > 1)
+            else (vis_scalars.ndim == 2 and vis_scalars.shape[1] > 1)
         )
 
         # Add the mesh
