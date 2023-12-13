@@ -1007,17 +1007,15 @@ class TexturedPhotogrammetryMesh:
     def aggregate_viewpoints_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
-        camera_inds=None,
         image_scale: float = 1.0,
         batch_size: int = 1,
-    ):
+    ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Aggregate information from different viepoints onto the mesh faces using pytorch3d.
         This considers occlusions but is fairly slow
 
         Args:
             camera_set (PhotogrammetryCamera): Set of cameras to aggregate
-            camera_inds: What images to use
             image_scale (float): Scale images
         """
         if batch_size != 1:
@@ -1032,10 +1030,9 @@ class TexturedPhotogrammetryMesh:
         )
         counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint16)
 
-        if camera_inds is None:
-            # If camera inds are not defined, do them all in a random order
-            camera_inds = np.arange(len(camera_set.cameras))
-            np.random.shuffle(camera_inds)
+        # Go through all cameras in a random order
+        camera_inds = np.arange(len(camera_set.cameras))
+        np.random.shuffle(camera_inds)
 
         for batch_start in tqdm(
             range(0, len(camera_inds), batch_size),
@@ -1090,8 +1087,21 @@ class TexturedPhotogrammetryMesh:
         batch_size: int = 1,
         n_clusters: int = 8,
         buffer_dist_meters=50,
-        vis_clusters: bool = True,
-    ):
+        vis_clusters: bool = False,
+    ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Aggregate viewpoints efficiently by chunking the mesh into clusters
+
+        Args:
+            camera_set (PhotogrammetryCameraSet): Same as aggregate_viewpoints_pytorch3d
+            image_scale (float, optional): Same as aggregate_viewpoints_pytorch3d. Defaults to 1.0.
+            batch_size (int, optional): Same as aggregate_viewpoints_pytorch3d. Defaults to 1.
+            n_clusters (int, optional): Number of clusters to partition the cameras into. Defaults to 8.
+            buffer_dist_meters (int, optional): Distance from cameras to include in mesh subset. Defaults to 50.
+            vis_clusters (bool, optional): Show the camera clusters. Defaults to False.
+
+        Returns:
+            Same as aggregate_viewpoints_pytorch3d
+        """
         # Get the lat lon for each camera point and turn into a shapely Point
         camera_points = [Point(*cp) for cp in camera_set.get_lon_lat_coords()]
         # Create a geodataframe from the points
@@ -1131,9 +1141,13 @@ class TexturedPhotogrammetryMesh:
             # Extract the rows in the dataframe for those IDs
             subset_camera_points = camera_points.iloc[matching_camera_inds]
 
-            # Extract a sub mesh for a region around the camera points
-            # Also retain the indices into the original mesh
-            # TODO this could be accellerated by computing the membership for all points at the begining
+            # TODO this could be accellerated by computing the membership for all points at the begining.
+            # This would require computing all the ROIs (potentially-overlapping) for each region first. Then, finding all the non-overlapping
+            # partition where each polygon corresponds to a set of ROIs. Then the membership for each vertex could be found for each polygon
+            # and the membership in each ROI could be computed. This should be benchmarked though, because having more polygons than original
+            # ROIs may actually lead to slower computations than doing it sequentially
+
+            # Extract a sub mesh for a region around the camera points and also retain the indices into the original mesh
             sub_mesh_pv, _, face_IDs = self.select_mesh_ROI(
                 region_of_interest=subset_camera_points,
                 buffer_meters=buffer_dist_meters,
