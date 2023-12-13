@@ -119,15 +119,15 @@ if __name__ == "__main__":
         camera_file=args.camera_file, image_folder=args.image_folder
     )
     if args.mesh_ROI is not None and args.mesh_ROI_buffer_meters is not None:
-        camera_set = camera_set.get_subset_near_geofile(
-            geofile=args.mesh_ROI, buffer_radius_meters=args.mesh_ROI_buffer_meters
+        camera_set = camera_set.get_subset_ROI(
+            ROI=args.mesh_ROI, buffer_radius_meters=args.mesh_ROI_buffer_meters
         )
         print(len(camera_set.cameras))
 
     # Load the mesh
     logging.info("Creating mesh")
     mesh = TexturedPhotogrammetryMesh(
-        mesh_filename=args.mesh_file,
+        mesh=args.mesh_file,
         downsample_target=args.mesh_downsample,
         transform_filename=args.camera_file,
         ROI=args.mesh_ROI,

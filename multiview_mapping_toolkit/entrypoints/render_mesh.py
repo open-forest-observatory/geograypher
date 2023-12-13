@@ -100,8 +100,8 @@ if __name__ == "__main__":
     camera_set = MetashapeCameraSet(args.camera_file, args.image_folder)
     if args.ROI_buffer_meters is not None:
         logging.info("Subsetting cameras")
-        camera_set = camera_set.get_subset_near_geofile(
-            args.vector_file, args.ROI_buffer_meters
+        camera_set = camera_set.get_subset_ROI(
+            ROI=args.vector_file, buffer_radius_meters=args.ROI_buffer_meters
         )
         if args.save_subset_images_folder:
             logging.info("Saving subset of images")

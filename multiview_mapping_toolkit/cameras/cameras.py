@@ -18,7 +18,10 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_mapping_toolkit.config import PATH_TYPE
-from multiview_mapping_toolkit.utils.geospatial import get_projected_CRS
+from multiview_mapping_toolkit.utils.geospatial import (
+    ensure_geometric_CRS,
+    get_projected_CRS,
+)
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
 
 
@@ -510,28 +513,27 @@ class PhotogrammetryCameraSet:
             for x in tqdm(self.cameras, desc="Loading GPS data for camera set")
         ]
 
-    def get_subset_near_geofile(
-        self, geodata: PATH_TYPE, buffer_radius_meters: float = 50
+    def get_subset_ROI(
+        self,
+        ROI: Union[PATH_TYPE, gpd.GeoDataFrame],
+        buffer_radius_meters: float = 50,
     ):
         """Return cameras that are within a radius of the provided geometry
 
         Args:
-            geofile (PATH_TYPE): Path to a geofile readable by geopandas
+            geodata (Union[PATH_TYPE, gpd.GeoDataFrame]): Geopandas dataframe or path to a geofile readable by geopandas
             buffer_radius_meters (float, optional): Return points within this buffer of the geometry. Defaults to 50.
         """
-        if not isinstance(geodata, gpd.GeoDataFrame):
+        if not isinstance(ROI, gpd.GeoDataFrame):
             # Read in the geofile
-            geodata = gpd.read_file(geodata)
+            ROI = gpd.read_file(ROI)
 
-        # Transform to the local geometric CRS if it's lat lon
-        if geodata.crs == pyproj.CRS.from_epsg(4326):
-            point = geodata["geometry"][0].centroid
-            geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
-            geodata.to_crs(geometric_crs, inplace=True)
+        # Make sure it's a geometric (meters-based) CRS
+        ROI = ensure_geometric_CRS(ROI)
         # Merge all of the elements together into one multipolygon, destroying any attributes that were there
-        geodata = geodata.dissolve()
+        ROI = ROI.dissolve()
         # Expand the geometry of the shape by the buffer
-        geodata["geometry"] = geodata.buffer(buffer_radius_meters)
+        ROI["geometry"] = ROI.buffer(buffer_radius_meters)
 
         # Read the locations of all the points
         # TODO do these need to be swapped
@@ -540,11 +542,11 @@ class PhotogrammetryCameraSet:
         image_locations_df = gpd.GeoDataFrame(
             geometry=image_locations, crs=pyproj.CRS.from_epsg(4326)
         )
-        image_locations_df.to_crs(geodata.crs, inplace=True)
+        image_locations_df.to_crs(ROI.crs, inplace=True)
         # Add an index row because the normal index will be removed in subsequent operations
         image_locations_df["index"] = image_locations_df.index
 
-        points_in_field_buffer = gpd.sjoin(image_locations_df, geodata, how="left")
+        points_in_field_buffer = gpd.sjoin(image_locations_df, ROI, how="left")
         valid_camera_points = np.isfinite(
             points_in_field_buffer["index_right"].to_numpy()
         )
