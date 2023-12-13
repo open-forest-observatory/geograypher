@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 import matplotlib.pyplot as plt
+import pyproj
 
 ## Typing constants
 # A file/folder path
@@ -16,6 +17,7 @@ VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 VERT_ID = "vert_ID"
 NULL_TEXTURE_FLOAT_VALUE = -1
 NULL_TEXTURE_INT_VALUE = 255
+LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
 
 ### Example data variables
 ## Raw input data
@@ -72,6 +74,7 @@ EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
     "aggregated_face_labels.npy",
 )
 
+
 ## Misc constants
 # Colors to be used across the project
 def hex_to_rgb(value):
@@ -83,6 +86,8 @@ def hex_to_rgb(value):
 MATPLOTLIB_PALLETE = [
     hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
 ]
+TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (0, 9)}
+TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (0, 19)}
 
 ## Outputs
 EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(

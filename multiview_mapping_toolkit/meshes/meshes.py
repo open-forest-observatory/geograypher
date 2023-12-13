@@ -28,9 +28,12 @@ from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCameraSet,
 )
 from multiview_mapping_toolkit.config import (
+    LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
+    TEN_CLASS_VIS_KWARGS,
+    TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
     VIS_FOLDER,
 )
@@ -262,6 +265,13 @@ class TexturedPhotogrammetryMesh:
         # This can't be a discrete label, so record that
         if texture_array.ndim == 2 and texture_array.shape[1] != 1:
             self.discrete_label = False
+        else:
+            finite_labels = texture_array[np.isfinite(texture_array)]
+            # See if all labels are approximately ints
+            if np.allclose(finite_labels, finite_labels.astype(int)):
+                self.discrete_label = True
+            else:
+                self.discrete_label = False
 
         # Set the appropriate texture
         if is_vertex_texture:
@@ -804,9 +814,11 @@ class TexturedPhotogrammetryMesh:
         verts_in_raster_CRS = self.get_vertices_in_CRS(raster.crs)
 
         # Get the points as a list
-        # TODO consider if there's a case where this is wrong and the axes need to be switched
-        x_points = verts_in_raster_CRS[:, 0].tolist()
-        y_points = verts_in_raster_CRS[:, 1].tolist()
+        # TODO figure out why things need to be switched for lat lon, seems like a difference in convention
+        # between rasterio and geopandas?
+        x_ind, y_ind = (1, 0) if raster.crs == LAT_LON_EPSG_CODE else (0, 1)
+        x_points = verts_in_raster_CRS[:, x_ind].tolist()
+        y_points = verts_in_raster_CRS[:, y_ind].tolist()
 
         # Zip them together
         zipped_locations = zip(x_points, y_points)
@@ -817,6 +829,10 @@ class TexturedPhotogrammetryMesh:
         )
         # Sample the raster file and squeeze if single channel
         sampled_raster_values = np.squeeze(np.array(list(raster.sample(sampling_iter))))
+
+        # Set nodata locations to nan
+        # TODO figure out if it will ever be a problem to take the first value
+        sampled_raster_values[sampled_raster_values == raster.nodatavals[0]] = np.nan
 
         if return_verts_in_CRS:
             return sampled_raster_values, verts_in_raster_CRS
@@ -840,12 +856,15 @@ class TexturedPhotogrammetryMesh:
         DTM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
             DTM_file, return_verts_in_CRS=True
         )
+        # Extract the vertex height as the third channel
+        verts_height = verts_in_raster_CRS[:, 2]
         # Subtract the two to get the height above ground
-        height_above_ground = verts_in_raster_CRS[:, 2] - DTM_heights
+        height_above_ground = verts_height - DTM_heights
 
         # If the threshold is not None, return a boolean mask that is true for ground points
         if threshold is not None:
             # Return boolean mask
+            # TODO see if this will break for nan values
             return height_above_ground < threshold
         # Return height above ground
         return height_above_ground
@@ -905,12 +924,10 @@ class TexturedPhotogrammetryMesh:
         if not use_vertex_labels:
             ground_mask = self.vert_to_face_IDs(ground_mask.astype(int)).astype(bool)
 
+        # Replace only vertices that were previously labeled as something else, to avoid class imbalance
         if only_label_existing_labels:
-            # Replace only vertices that were previously labeled as something else, to avoid class imbalance
             # Find which vertices are labeled
-            # TODO this might not be the right way to check if it's labeled, might have to check for NaN too
-            breakpoint()
-            is_labeled = labels[:, 0] >= 0
+            is_labeled = np.isfinite(labels[:, 0])
             # Find which points are ground that were previously labeled as something else
             ground_mask = np.logical_and(is_labeled, ground_mask)
 
@@ -1165,7 +1182,7 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
-        mesh_kwargs: typing.Dict = {},
+        mesh_kwargs: typing.Dict = None,
         plotter_kwargs: typing.Dict = {},
         force_xvfb: bool = False,
     ):
@@ -1182,6 +1199,17 @@ class TexturedPhotogrammetryMesh:
         off_screen = (not interactive) or (screenshot_filename is not None)
         if off_screen or force_xvfb:
             pv.start_xvfb()
+
+        # Set the mesh kwargs if not set
+        if mesh_kwargs is None:
+            if self.discrete_label and len(self.get_label_names()) <= 10:
+                mesh_kwargs = TEN_CLASS_VIS_KWARGS
+            elif self.discrete_label and len(self.get_label_names()) <= 20:
+                mesh_kwargs = TWENTY_CLASS_VIS_KWARGS
+            else:
+                # More than 20 class or continous values
+                mesh_kwargs = {}
+
         # Create the plotter which may be onscreen or off
         plotter = pv.Plotter(off_screen=off_screen)
 
