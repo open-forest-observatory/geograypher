@@ -42,7 +42,7 @@ from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
 class TexturedPhotogrammetryMesh:
     def __init__(
         self,
-        mesh_filename: PATH_TYPE,
+        mesh: typing.Union[PATH_TYPE, pv.PolyData],
         downsample_target: float = 1.0,
         transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
@@ -55,13 +55,12 @@ class TexturedPhotogrammetryMesh:
         """_summary_
 
         Args:
-            mesh_filename (PATH_TYPE): Path to the mesh, in a format pyvista can read
+            mesh (typing.Union[PATH_TYPE, pv.PolyData]): Path to the mesh, in a format pyvista can read, or pyvista mesh
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
             texture_column_name: The name of the column to use for a vectorfile input
             discrete_label (bool, optional): Is the label quanity discrete or continous
         """
-        self.mesh_filename = Path(mesh_filename)
         self.downsample_target = downsample_target
         self.discrete_label = discrete_label
 
@@ -87,6 +86,7 @@ class TexturedPhotogrammetryMesh:
         # Load the mesh with the pyvista loader
         logging.info("Loading mesh")
         self.load_mesh(
+            mesh=mesh,
             downsample_target=downsample_target,
             ROI=ROI,
             ROI_buffer_meters=ROI_buffer_meters,
@@ -99,6 +99,7 @@ class TexturedPhotogrammetryMesh:
 
     def load_mesh(
         self,
+        mesh: typing.Union[PATH_TYPE, pv.PolyData],
         downsample_target: float = 1.0,
         ROI=None,
         ROI_buffer_meters=0,
@@ -106,13 +107,18 @@ class TexturedPhotogrammetryMesh:
         """Load the pyvista mesh and create the pytorch3d texture
 
         Args:
+            mesh (typing.Union[PATH_TYPE, pv.PolyData]):
+                Path to the mesh or actual mesh
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
         """
-        # Load the mesh using pyvista
-        # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
-        logging.info("Reading the mesh")
-        self.pyvista_mesh = pv.read(self.mesh_filename)
+        if isinstance(mesh, pv.PolyData):
+            self.pyvista_mesh = mesh
+        else:
+            # Load the mesh using pyvista
+            # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
+            logging.info("Reading the mesh")
+            self.pyvista_mesh = pv.read(mesh)
 
         logging.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
@@ -1055,8 +1061,8 @@ class TexturedPhotogrammetryMesh:
                 # TODO Consider ditching counts array since we can sum over all values in the face texture
                 counts[unique_faces] = counts[unique_faces] + 1
 
-        normalized_face_colors = face_texture / np.expand_dims(counts, 1)
-        return normalized_face_colors, face_texture, counts
+        normalized_face_texture = face_texture / np.expand_dims(counts, 1)
+        return normalized_face_texture, face_texture, counts
 
     def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
         """

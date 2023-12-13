@@ -511,7 +511,7 @@ class PhotogrammetryCameraSet:
         ]
 
     def get_subset_near_geofile(
-        self, geofile: PATH_TYPE, buffer_radius_meters: float = 50
+        self, geodata: PATH_TYPE, buffer_radius_meters: float = 50
     ):
         """Return cameras that are within a radius of the provided geometry
 
@@ -519,8 +519,10 @@ class PhotogrammetryCameraSet:
             geofile (PATH_TYPE): Path to a geofile readable by geopandas
             buffer_radius_meters (float, optional): Return points within this buffer of the geometry. Defaults to 50.
         """
-        # Read in the geofile
-        geodata = gpd.read_file(geofile)
+        if not isinstance(geodata, gpd.GeoDataFrame):
+            # Read in the geofile
+            geodata = gpd.read_file(geodata)
+
         # Transform to the local geometric CRS if it's lat lon
         if geodata.crs == pyproj.CRS.from_epsg(4326):
             point = geodata["geometry"][0].centroid
