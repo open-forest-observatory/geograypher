@@ -302,13 +302,14 @@ class TexturedPhotogrammetryMesh:
             if texture_array is not None:
                 # Check if this was a really one channel that had to be tiled to
                 # three for saving
-                min_val_per_row = np.min(texture_array, axis=1)
-                max_val_per_row = np.max(texture_array, axis=1)
-                if np.array_equal(min_val_per_row, max_val_per_row):
-                    # This is supposted to be one channel
-                    texture_array = texture_array[:, 0].astype(float)
-                    # Set any values that are the ignore int value to nan
-                    texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
+                if len(texture_array.shape) == 2:
+                    min_val_per_row = np.min(texture_array, axis=1)
+                    max_val_per_row = np.max(texture_array, axis=1)
+                    if np.array_equal(min_val_per_row, max_val_per_row):
+                        # This is supposted to be one channel
+                        texture_array = texture_array[:, 0].astype(float)
+                        # Set any values that are the ignore int value to nan
+                texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
                 self.set_texture(texture_array)
             else:
