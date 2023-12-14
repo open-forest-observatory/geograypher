@@ -18,6 +18,7 @@ VERT_ID = "vert_ID"
 NULL_TEXTURE_FLOAT_VALUE = -1
 NULL_TEXTURE_INT_VALUE = 255
 LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
+EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)
 
 ### Example data variables
 ## Raw input data

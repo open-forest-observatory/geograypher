@@ -28,7 +28,7 @@ from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCameraSet,
 )
 from multiview_mapping_toolkit.config import (
-    LAT_LON_EPSG_CODE,
+    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
@@ -319,6 +319,7 @@ class TexturedPhotogrammetryMesh:
                         # This is supposted to be one channel
                         texture_array = texture_array[:, 0].astype(float)
                         # Set any values that are the ignore int value to nan
+                texture_array = texture_array.astype(float)
                 texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
                 self.set_texture(texture_array)
@@ -505,11 +506,14 @@ class TexturedPhotogrammetryMesh:
             self.pyvista_mesh.points = transformed_local_points.copy()
         return transformed_local_points
 
-    def get_vertices_in_CRS(self, output_CRS: pyproj.CRS):
+    def get_vertices_in_CRS(
+        self, output_CRS: pyproj.CRS, force_easting_northing: bool = True
+    ):
         """Return the coordinates of the mesh vertices in a given CRS
 
         Args:
             output_CRS (pyproj.CRS): The coordinate reference system to transform to
+            force_easting_northing (bool, optional): Ensure that the returned points are east first, then north
 
         Returns:
             np.ndarray: (n_points, 3)
@@ -522,7 +526,7 @@ class TexturedPhotogrammetryMesh:
         output_CRS = pyproj.CRS.from_epsg(output_CRS.to_epsg())
         # Build a pyproj transfrormer from EPGS:4978 to the desired CRS
         transformer = pyproj.Transformer.from_crs(
-            pyproj.CRS.from_epsg(4978), output_CRS
+            EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, output_CRS
         )
 
         # Transform the coordinates
@@ -533,6 +537,13 @@ class TexturedPhotogrammetryMesh:
         )
         # Stack and transpose
         verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+
+        # Pyproj respects the CRS axis ordering, which is northing/easting for most projected coordinate systems
+        # This causes headaches because it's assumed by rasterio and geopandas to be easting/northing
+        # https://rasterio.readthedocs.io/en/stable/api/rasterio.crs.html#rasterio.crs.epsg_treats_as_latlong
+        if force_easting_northing and rio.crs.epsg_treats_as_latlong(output_CRS):
+            # Swap first two columns
+            verts_in_output_CRS = verts_in_output_CRS[:, [1, 0, 2]]
 
         return verts_in_output_CRS
 
@@ -548,12 +559,10 @@ class TexturedPhotogrammetryMesh:
         # Get the vertices in the same CRS as the geofile
         verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
 
-        # Check if it's lat, lon which is y-first
-        is_lat_lon = int(crs == pyproj.CRS.from_epsg(4326))
         df = pd.DataFrame(
             {
-                "east": verts_in_geopolygon_crs[:, 0 + is_lat_lon],
-                "north": verts_in_geopolygon_crs[:, 1 - is_lat_lon],
+                "east": verts_in_geopolygon_crs[:, 0],
+                "north": verts_in_geopolygon_crs[:, 1],
             }
         )
         # Create a column of Point objects to use as the geometry
@@ -796,13 +805,17 @@ class TexturedPhotogrammetryMesh:
     # Operations on raster files
 
     def get_vert_values_from_raster_file(
-        self, raster_file: PATH_TYPE, return_verts_in_CRS: bool = False
+        self,
+        raster_file: PATH_TYPE,
+        return_verts_in_CRS: bool = False,
+        nodata_fill_value: float = np.nan,
     ):
         """Compute the height above groun for each point on the mesh
 
         Args:
             raster_file (PATH_TYPE, optional): The path to the geospatial raster file.
             return_verts_in_CRS (bool, optional): Return the vertices transformed into the raster CRS
+            nodata_fill_value (float, optional): Set data defined by the opened file as NODATAVAL to this value
 
         Returns:
             np.ndarray: samples from raster. Either (n_verts,) or (n_verts, n_raster_channels)
@@ -811,17 +824,16 @@ class TexturedPhotogrammetryMesh:
         # Open the DTM file
         raster = rio.open(raster_file)
         # Get the mesh points in the coordinate reference system of the DTM
-        verts_in_raster_CRS = self.get_vertices_in_CRS(raster.crs)
+        verts_in_raster_CRS = self.get_vertices_in_CRS(
+            raster.crs, force_easting_northing=True
+        )
 
         # Get the points as a list
-        # TODO figure out why things need to be switched for lat lon, seems like a difference in convention
-        # between rasterio and geopandas?
-        x_ind, y_ind = (1, 0) if raster.crs == LAT_LON_EPSG_CODE else (0, 1)
-        x_points = verts_in_raster_CRS[:, x_ind].tolist()
-        y_points = verts_in_raster_CRS[:, y_ind].tolist()
+        easting_points = verts_in_raster_CRS[:, 0].tolist()
+        northing_points = verts_in_raster_CRS[:, 1].tolist()
 
         # Zip them together
-        zipped_locations = zip(x_points, y_points)
+        zipped_locations = zip(easting_points, northing_points)
         sampling_iter = tqdm(
             zipped_locations,
             desc="Sampling values from raster",
@@ -832,7 +844,9 @@ class TexturedPhotogrammetryMesh:
 
         # Set nodata locations to nan
         # TODO figure out if it will ever be a problem to take the first value
-        sampled_raster_values[sampled_raster_values == raster.nodatavals[0]] = np.nan
+        sampled_raster_values[
+            sampled_raster_values == raster.nodatavals[0]
+        ] = nodata_fill_value
 
         if return_verts_in_CRS:
             return sampled_raster_values, verts_in_raster_CRS
