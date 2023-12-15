@@ -334,7 +334,7 @@ class TexturedPhotogrammetryMesh:
             try:
                 texture_array = np.load(texture, allow_pickle=True)
             except:
-                pass
+                logging.warn("Could not read texture as a numpy file")
 
             # Vector file
             if texture_array is None:
@@ -348,7 +348,7 @@ class TexturedPhotogrammetryMesh:
                         geopandas_df=gdf,
                     )
                 except AttributeError:
-                    pass
+                    logging.warn("Could not read texture as vector file")
 
             # Raster file
             if texture_array is None:
@@ -356,7 +356,7 @@ class TexturedPhotogrammetryMesh:
                     # TODO
                     texture_array = self.get_vert_values_from_raster_file(texture)
                 except (ValueError, TypeError):
-                    pass
+                    logging.warn("Could not read texture as raster file")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
             if texture_array is None:
