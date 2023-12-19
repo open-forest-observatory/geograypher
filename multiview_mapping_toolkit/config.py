@@ -75,6 +75,15 @@ EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
     "aggregated_face_labels.npy",
 )
 
+EXAMPLE_INTRINSICS = {
+    "f": 1000,
+    "cx": 0,
+    "cy": 0,
+    "image_width": 800,
+    "image_height": 600,
+    "distortion_params": {},
+}
+
 
 ## Misc constants
 # Colors to be used across the project
