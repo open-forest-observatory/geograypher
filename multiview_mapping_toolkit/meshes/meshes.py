@@ -285,7 +285,7 @@ class TexturedPhotogrammetryMesh:
 
     def load_texture(
         self,
-        texture: typing.Union[PATH_TYPE, np.ndarray, None],
+        texture: typing.Union[str, PATH_TYPE, np.ndarray, None],
         texture_column_name: typing.Union[None, PATH_TYPE] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
@@ -330,11 +330,18 @@ class TexturedPhotogrammetryMesh:
             # Try handling all the other supported filetypes
             texture_array = None
 
-            # Numpy file
+            # Name of scalar in the mesh
             try:
-                texture_array = np.load(texture, allow_pickle=True)
-            except:
-                logging.warn("Could not read texture as a numpy file")
+                texture_array = self.pyvista_mesh[texture]
+            except KeyError:
+                logging.warn("Could not read texture as a scalar from the pyvista mesh")
+
+            # Numpy file
+            if texture_array is None:
+                try:
+                    texture_array = np.load(texture, allow_pickle=True)
+                except:
+                    logging.warn("Could not read texture as a numpy file")
 
             # Vector file
             if texture_array is None:
@@ -343,11 +350,11 @@ class TexturedPhotogrammetryMesh:
                         gdf = texture
                     else:
                         gdf = gpd.read_file(texture)
-                    texture_array = self.get_values_for_verts_from_vector(
+                    texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
                         geopandas_df=gdf,
                     )
-                except AttributeError:
+                except:
                     logging.warn("Could not read texture as vector file")
 
             # Raster file
@@ -355,7 +362,7 @@ class TexturedPhotogrammetryMesh:
                 try:
                     # TODO
                     texture_array = self.get_vert_values_from_raster_file(texture)
-                except (ValueError, TypeError):
+                except:
                     logging.warn("Could not read texture as raster file")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
