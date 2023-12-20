@@ -332,6 +332,7 @@ class TexturedPhotogrammetryMesh:
         else:
             # Try handling all the other supported filetypes
             texture_array = None
+            all_values = None
 
             # Name of scalar in the mesh
             try:
@@ -349,15 +350,11 @@ class TexturedPhotogrammetryMesh:
             # Vector file
             if texture_array is None:
                 try:
-                    if isinstance(texture, gpd.GeoDataFrame):
-                        gdf = texture
-                    else:
-                        gdf = gpd.read_file(texture)
                     texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
-                        geopandas_df=gdf,
+                        vector_source=texture,
                     )
-                except:
+                except IndexError:
                     logging.warn("Could not read texture as vector file")
 
             # Raster file
@@ -373,7 +370,7 @@ class TexturedPhotogrammetryMesh:
                 raise ValueError(f"Could not load texture for {texture}")
 
             # This will error if something is wrong with the texture that was loaded
-            self.set_texture(texture_array)
+            self.set_texture(texture_array, all_discrete_texture_values=all_values)
 
     def select_mesh_ROI(
         self,
@@ -450,6 +447,9 @@ class TexturedPhotogrammetryMesh:
             )
         # Else return just the mesh
         return subset_mesh
+
+    def set_label_names(self, label_names):
+        self.label_names = list(label_names)
 
     def get_label_names(self):
         return list(self.IDs_to_labels.values())
@@ -677,7 +677,7 @@ class TexturedPhotogrammetryMesh:
         verts_df = self.get_verts_geodataframe(gdf.crs)
 
         # See which vertices are in the geopolygons
-        if len(gpd) == 1:
+        if len(gdf) == 1:
             # TODO benchmark if this is faster than the overlay option
             points_in_polygons_gdf = verts_df.intersection(gpd["geometry"][0])
         else:
@@ -696,12 +696,20 @@ class TexturedPhotogrammetryMesh:
         for column_name in column_names:
             # Create an array corresponding to all the points and initialize to NaN
             column_values = points_in_polygons_gdf[column_name]
-            print(column_values)
-            # TODO be set to the default value for the type of the column
-            null_value = np.nan
-
+            # TODO clean this up
+            if column_values.dtype == str or column_values.dtype == np.dtype("O"):
+                # TODO be set to the default value for the type of the column
+                null_value = "null"
+            elif column_values.dtype == int:
+                null_value = 255
+            else:
+                null_value = np.nan
             # Create an array, one per vertex, with the null value
-            values = np.full(shape=verts_df.shape[0], fill_value=null_value)
+            values = np.full(
+                shape=verts_df.shape[0],
+                dtype=column_values.dtype,
+                fill_value=null_value,
+            )
             # Assign the labeled values
             values[index_array] = column_values
 
@@ -975,10 +983,10 @@ class TexturedPhotogrammetryMesh:
             ground_ID = np.nan
         elif ground_class_name in label_names:
             # If the ground class name is already in the list, set newly-predicted vertices to that class
-            ground_ID = label_names.tolist().find(ground_class_name)
+            ground_ID = label_names.find(ground_class_name)
         elif label_names is not None:
             # If the label names are present, and the class is not already included, add it as the last element
-            self.set_label_names(label_names.tolist() + [ground_class_name])
+            self.set_label_names(label_names + [ground_class_name])
             if ground_ID is None:
                 # Set it to the first unused ID
                 ground_ID = len(label_names)
@@ -1192,8 +1200,8 @@ class TexturedPhotogrammetryMesh:
 
             # Reshape from flat to an array
             img_size = pg_camera.get_image_size(image_scale=image_scale)
-            texture_channels = 1 if texture.ndim == 1 else texture.shape[1]
-            label_img = np.reshape(flat_labels, img_size + (texture_channels,))
+            texture_channels = () if texture.shape[1] == 1 else (texture.shape[1],)
+            label_img = np.reshape(flat_labels, img_size + texture_channels)
         else:
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)

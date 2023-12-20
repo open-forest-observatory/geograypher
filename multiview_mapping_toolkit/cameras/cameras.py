@@ -406,7 +406,7 @@ class PhotogrammetryCameraSet:
             sensor_IDs = [
                 list(intrinsic_params_per_sensor_type.keys())[0]
             ] * n_transforms
-        elif len(sensor_IDs) != len():
+        elif len(sensor_IDs) != n_transforms:
             raise ValueError(
                 f"Number of sensor_IDs ({len(sensor_IDs)}) is different than the number of transforms ({n_transforms})"
             )
