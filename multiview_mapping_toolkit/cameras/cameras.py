@@ -244,6 +244,21 @@ class PhotogrammetryCamera:
 
         return colors_per_vertex
 
+    def get_pyvista_camera(self, focal_dist=10):
+        camera = pv.Camera()
+        camera_position = self.cam_to_world_transform[:3, 3]
+        camera_look = camera_position + self.cam_to_world_transform[:3, :3] @ np.array(
+            (0, 0, focal_dist)
+        )
+        # Where does the y axis project to
+        camera_up = self.cam_to_world_transform[:3, :3] @ np.array((0, 1, 0))
+
+        camera.focal_point = camera_look
+        camera.position = camera_position
+        camera.up = camera_up
+
+        return camera
+
     def get_pytorch3d_camera(self, device: str):
         """Return a pytorch3d camera based on the parameters from metashape
 
