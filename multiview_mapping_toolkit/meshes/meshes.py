@@ -1167,15 +1167,10 @@ class TexturedPhotogrammetryMesh:
         if shade_by_indexing is None:
             shade_by_indexing = self.is_discrete_texture()
 
-        # Check to make sure required data is available
-        if shade_by_indexing:
-            face_texture = self.get_texture(request_vertex_texture=False)
-            self.create_pytorch3d_mesh()
-        else:
-            if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(
-                    self.get_texture(request_vertex_texture=True)
-                )
+        # TODO clean up
+        texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
+        # Get the texture and set it
+        self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
@@ -1190,14 +1185,15 @@ class TexturedPhotogrammetryMesh:
             # Extract the pixel to face correspondences
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
             # Index into the texture image
-            flat_labels = face_texture[pix_to_face]
+            flat_labels = texture[pix_to_face]
             # Remap the value pixels that don't correspond to a face, which are labeled -1
             if set_null_texture_to_value is not None:
                 flat_labels[pix_to_face == -1] = set_null_texture_to_value
 
             # Reshape from flat to an array
             img_size = pg_camera.get_image_size(image_scale=image_scale)
-            label_img = np.reshape(flat_labels, img_size)
+            texture_channels = 1 if texture.ndim == 1 else texture.shape[1]
+            label_img = np.reshape(flat_labels, img_size + (texture_channels,))
         else:
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
