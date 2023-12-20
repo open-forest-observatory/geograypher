@@ -52,7 +52,6 @@ class TexturedPhotogrammetryMesh:
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         ROI=None,
         ROI_buffer_meters: float = 0,
-        discrete_label: bool = True,
         require_transform: bool = False,
     ):
         """_summary_
@@ -62,10 +61,8 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
             texture_column_name: The name of the column to use for a vectorfile input
-            discrete_label (bool, optional): Is the label quanity discrete or continous
         """
         self.downsample_target = downsample_target
-        self.discrete_label = discrete_label
 
         self.pyvista_mesh = None
         self.pytorch3d_mesh = None
@@ -73,7 +70,7 @@ class TexturedPhotogrammetryMesh:
         self.vertex_texture = None
         self.face_texture = None
         self.local_to_epgs_4978_transform = None
-        self.label_names = None
+        self.IDs_to_labels = None
 
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
@@ -234,15 +231,21 @@ class TexturedPhotogrammetryMesh:
                     "Face texture not present and conversion was not requested"
                 )
 
+    def is_discrete_texture(self):
+        return self.IDs_to_labels is not None
+
     def set_texture(
         self,
         texture_array: np.ndarray,
+        all_discrete_texture_values: typing.Union[typing.List, None] = None,
         is_vertex_texture: typing.Union[bool, None] = None,
         delete_existing: bool = True,
     ):
         texture_array = self.standardize_texture(texture_array)
 
         # If it is not specified whether this is a vertex texture, attempt to infer it from the shape
+        # TODO consider refactoring to check whether it matches the number of one of them,
+        # no matter whether is_vertex_texture is specified
         if is_vertex_texture is None:
             # Check that the number of matches face or verts
             n_values = texture_array.shape[0]
@@ -262,18 +265,18 @@ class TexturedPhotogrammetryMesh:
                     f"The number of elements in the texture ({n_values}) did not match the number of faces ({n_faces}) or vertices ({n_verts})"
                 )
 
-        # This can't be a discrete label, so record that
+        # Ensure that the actual data type is float, and record label names
         if texture_array.ndim == 2 and texture_array.shape[1] != 1:
-            self.discrete_label = False
+            # If it is more than one column, it's assumed to be a real-valued
+            # quanitity and we try to cast it to a float
+            texture_array = texture_array.astype(float)
+            self.IDs_to_labels = None
         else:
-            finite_labels = texture_array[np.isfinite(texture_array)]
-            # See if all labels are approximately ints
-            if np.allclose(finite_labels, finite_labels.astype(int)):
-                self.discrete_label = True
-            else:
-                self.discrete_label = False
+            texture_array, self.IDs_to_labels = ensure_float_labels(
+                texture_array, full_array=all_discrete_texture_values
+            )
 
-        # Set the appropriate texture
+        # Set the appropriate texture and optionally delete the other one
         if is_vertex_texture:
             self.vertex_texture = texture_array
             if delete_existing:
@@ -285,7 +288,7 @@ class TexturedPhotogrammetryMesh:
 
     def load_texture(
         self,
-        texture: typing.Union[PATH_TYPE, np.ndarray, None],
+        texture: typing.Union[str, PATH_TYPE, np.ndarray, None],
         texture_column_name: typing.Union[None, PATH_TYPE] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
@@ -329,25 +332,29 @@ class TexturedPhotogrammetryMesh:
         else:
             # Try handling all the other supported filetypes
             texture_array = None
+            all_values = None
+
+            # Name of scalar in the mesh
+            try:
+                texture_array = self.pyvista_mesh[texture]
+            except KeyError:
+                logging.warn("Could not read texture as a scalar from the pyvista mesh")
 
             # Numpy file
-            try:
-                texture_array = np.load(texture, allow_pickle=True)
-            except:
-                logging.warn("Could not read texture as a numpy file")
+            if texture_array is None:
+                try:
+                    texture_array = np.load(texture, allow_pickle=True)
+                except:
+                    logging.warn("Could not read texture as a numpy file")
 
             # Vector file
             if texture_array is None:
                 try:
-                    if isinstance(texture, gpd.GeoDataFrame):
-                        gdf = texture
-                    else:
-                        gdf = gpd.read_file(texture)
-                    texture_array = self.get_values_for_verts_from_vector(
+                    texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
-                        geopandas_df=gdf,
+                        vector_source=texture,
                     )
-                except AttributeError:
+                except IndexError:
                     logging.warn("Could not read texture as vector file")
 
             # Raster file
@@ -355,7 +362,7 @@ class TexturedPhotogrammetryMesh:
                 try:
                     # TODO
                     texture_array = self.get_vert_values_from_raster_file(texture)
-                except (ValueError, TypeError):
+                except:
                     logging.warn("Could not read texture as raster file")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
@@ -363,7 +370,7 @@ class TexturedPhotogrammetryMesh:
                 raise ValueError(f"Could not load texture for {texture}")
 
             # This will error if something is wrong with the texture that was loaded
-            self.set_texture(texture_array)
+            self.set_texture(texture_array, all_discrete_texture_values=all_values)
 
     def select_mesh_ROI(
         self,
@@ -441,11 +448,11 @@ class TexturedPhotogrammetryMesh:
         # Else return just the mesh
         return subset_mesh
 
-    def get_label_names(self):
-        return self.label_names
-
     def set_label_names(self, label_names):
-        self.label_names = label_names
+        self.label_names = list(label_names)
+
+    def get_label_names(self):
+        return list(self.IDs_to_labels.values())
 
     def create_pytorch3d_mesh(
         self,
@@ -628,73 +635,96 @@ class TexturedPhotogrammetryMesh:
     # Operations on vector data
     def get_values_for_verts_from_vector(
         self,
-        column_names: typing.List[str],
-        vector_file: PATH_TYPE = None,
-        geopandas_df: gpd.GeoDataFrame = None,
+        vector_source: typing.Union[gpd.GeoDataFrame, PATH_TYPE],
+        column_names: typing.Union[str, typing.List[str]],
     ) -> np.ndarray:
         """Get the value from a dataframe for each vertex
 
         Args:
-            column_names (str): Which column to obtain data from
-            geopandas_df (GeoDataFrame, optional): Data to use.
-            vector_file (PATH_TYPE, optional): Path to data that can be loaded by geopandas
+            vector_source (typing.Union[gpd.GeoDataFrame, PATH_TYPE]): geo data frame or path to data that can be loaded by geopandas
+            column_names (typing.Union[str, typing.List[str]]): Which columns to obtain data from
 
         Returns:
             np.ndarray: Array of values for each vertex if there is one column name or
             dict[np.ndarray]: A dict mapping from column names to numpy arrays
         """
-        if vector_file is None and geopandas_df is None:
-            raise ValueError("Must provide either vector_file or geopandas_df")
-        if geopandas_df is None:
-            geopandas_df = gpd.read_file(vector_file)
-
-        # Get a dataframe of vertices
-        verts_df = self.get_verts_geodataframe(geopandas_df.crs)
-
-        if len(geopandas_df) == 1:
-            # TODO benchmark if this is faster
-            points_in_polygons = verts_df.intersection(geopandas_df["geometry"][0])
+        # Lead the vector data if not already provided in memory
+        if isinstance(vector_source, gpd.GeoDataFrame):
+            gdf = vector_source
         else:
-            # Select points that are within the polygons
-            points_in_polygons = gpd.tools.overlay(
-                verts_df, geopandas_df, how="intersection"
-            )
+            # This will error if not readable
+            gdf = gpd.read_file(vector_source)
 
+        # Infer or standardize the column names
         if column_names is None:
-            if geopandas_df.names == 2:
-                column_names = list(
-                    filter(lambda x: x != "geometry", geopandas_df.names)
-                )
+            # Check if there is only one real column
+            if len(gdf.names) == 2:
+                column_names = list(filter(lambda x: x != "geometry", gdf.names))
             else:
-                print("No column name provided and ambigious which column to use")
+                # Log as well since this may be caught by an exception handler,
+                # and it's a user error that can be corrected
+                logging.error(
+                    "No column name provided and ambigious which column to use"
+                )
                 raise ValueError(
                     "No column name provided and ambigious which column to use"
                 )
-
-        # If it's one string, make it a one-length array
-        if isinstance(column_names, str):
+        # If only one column is provided, make it a one-length list
+        elif isinstance(column_names, str):
             column_names = [column_names]
-        # Get the index array
-        index_array = points_in_polygons[VERT_ID].to_numpy()
 
-        output_dict = {}
+        # Get a dataframe of vertices
+        verts_df = self.get_verts_geodataframe(gdf.crs)
+
+        # See which vertices are in the geopolygons
+        if len(gdf) == 1:
+            # TODO benchmark if this is faster than the overlay option
+            points_in_polygons_gdf = verts_df.intersection(gpd["geometry"][0])
+        else:
+            # Select points that are within the polygons
+            points_in_polygons_gdf = gpd.tools.overlay(
+                verts_df, gdf, how="intersection"
+            )
+
+        # Get the index array
+        index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
+
+        # This is one entry per vertex
+        labeled_verts_dict = {}
+        all_values_dict = {}
         # Extract the data from each
         for column_name in column_names:
             # Create an array corresponding to all the points and initialize to NaN
-            values = np.full(shape=verts_df.shape[0], fill_value=np.nan)
-            # Assign points that are inside a given tree with that tree's ID
-            values[index_array], self.label_names = ensure_float_labels(
-                query_array=points_in_polygons[column_name],
-                full_array=geopandas_df[column_name],
+            column_values = points_in_polygons_gdf[column_name]
+            # TODO clean this up
+            if column_values.dtype == str or column_values.dtype == np.dtype("O"):
+                # TODO be set to the default value for the type of the column
+                null_value = "null"
+            elif column_values.dtype == int:
+                null_value = 255
+            else:
+                null_value = np.nan
+            # Create an array, one per vertex, with the null value
+            values = np.full(
+                shape=verts_df.shape[0],
+                dtype=column_values.dtype,
+                fill_value=null_value,
             )
-            output_dict[column_name] = values
+            # Assign the labeled values
+            values[index_array] = column_values
+
+            # Record the results
+            labeled_verts_dict[column_name] = values
+            all_values_dict[column_name] = gdf[column_name]
+
         # If only one name was requested, just return that
         if len(column_names) == 1:
-            output_values = np.array(list(output_dict.values())[0])
+            labeled_verts = np.array(list(labeled_verts_dict.values())[0])
+            all_values = np.array(list(all_values_dict.values())[0])
 
-            return output_values
+            return labeled_verts, all_values
         # Else return a dict of all requested values
-        return output_dict
+        return labeled_verts_dict, all_values_dict
 
     def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
         # TODO consider moving most of this functionality to a utils file
@@ -953,10 +983,10 @@ class TexturedPhotogrammetryMesh:
             ground_ID = np.nan
         elif ground_class_name in label_names:
             # If the ground class name is already in the list, set newly-predicted vertices to that class
-            ground_ID = label_names.tolist().find(ground_class_name)
+            ground_ID = label_names.find(ground_class_name)
         elif label_names is not None:
             # If the label names are present, and the class is not already included, add it as the last element
-            self.set_label_names(label_names.tolist() + [ground_class_name])
+            self.set_label_names(label_names + [ground_class_name])
             if ground_ID is None:
                 # Set it to the first unused ID
                 ground_ID = len(label_names)
@@ -1143,17 +1173,12 @@ class TexturedPhotogrammetryMesh:
             shade_by_indexing (bool, optional): Use indexing rather than a pytorch3d shader. Useful for integer labels
         """
         if shade_by_indexing is None:
-            shade_by_indexing = self.discrete_label
+            shade_by_indexing = self.is_discrete_texture()
 
-        # Check to make sure required data is available
-        if shade_by_indexing:
-            face_texture = self.get_texture(request_vertex_texture=False)
-            self.create_pytorch3d_mesh()
-        else:
-            if self.pytorch3d_mesh.textures is None:
-                self.create_pytorch3d_mesh(
-                    self.get_texture(request_vertex_texture=True)
-                )
+        # TODO clean up
+        texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
+        # Get the texture and set it
+        self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
@@ -1168,14 +1193,15 @@ class TexturedPhotogrammetryMesh:
             # Extract the pixel to face correspondences
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
             # Index into the texture image
-            flat_labels = face_texture[pix_to_face]
+            flat_labels = texture[pix_to_face]
             # Remap the value pixels that don't correspond to a face, which are labeled -1
             if set_null_texture_to_value is not None:
                 flat_labels[pix_to_face == -1] = set_null_texture_to_value
 
             # Reshape from flat to an array
             img_size = pg_camera.get_image_size(image_scale=image_scale)
-            label_img = np.reshape(flat_labels, img_size)
+            texture_channels = () if texture.shape[1] == 1 else (texture.shape[1],)
+            label_img = np.reshape(flat_labels, img_size + texture_channels)
         else:
             # Create ambient light so it doesn't effect the color
             lights = AmbientLights(device=self.device)
@@ -1216,9 +1242,9 @@ class TexturedPhotogrammetryMesh:
 
         # Set the mesh kwargs if not set
         if mesh_kwargs is None:
-            if self.discrete_label and len(self.get_label_names()) <= 10:
+            if self.is_discrete_texture() and len(self.get_label_names()) <= 10:
                 mesh_kwargs = TEN_CLASS_VIS_KWARGS
-            elif self.discrete_label and len(self.get_label_names()) <= 20:
+            elif self.is_discrete_texture() and len(self.get_label_names()) <= 20:
                 mesh_kwargs = TWENTY_CLASS_VIS_KWARGS
             else:
                 # More than 20 class or continous values
@@ -1311,7 +1337,9 @@ class TexturedPhotogrammetryMesh:
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
                 rendered = resize(
-                    rendered, native_size, order=(0 if self.discrete_label else 1)
+                    rendered,
+                    native_size,
+                    order=(0 if self.is_discrete_texture() else 1),
                 )
 
             if make_composites:

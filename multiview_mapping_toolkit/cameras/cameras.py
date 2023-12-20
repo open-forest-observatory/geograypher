@@ -2,7 +2,7 @@ import os
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict
 
 import geopandas as gpd
 import numpy as np
@@ -17,10 +17,9 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.config import EXAMPLE_INTRINSICS, PATH_TYPE
 from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
-    get_projected_CRS,
 )
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
 
@@ -35,7 +34,7 @@ class PhotogrammetryCamera:
         cy: float,
         image_width: int,
         image_height: int,
-        distortion_params: dict = {},
+        distortion_params: Dict[str, float] = {},
         lon_lat: Union[None, Tuple[float, float]] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
@@ -44,8 +43,8 @@ class PhotogrammetryCamera:
             image_filename (PATH_TYPE): The image used for reconstruction
             transform (np.ndarray): A 4x4 transform representing the camera-to-world transform
             f (float): Focal length in pixels
-            cx (float): Principle point x (pixels)
-            cy (float): Principle point y (pixels)
+            cx (float): Principle point x (pixels) from center
+            cy (float): Principle point y (pixels) from center
             image_width (int): Input image width pixels
             image_height (int): Input image height pixels
             distortion_params (dict, optional): Distortion parameters, currently unused
@@ -369,38 +368,71 @@ class PhotogrammetryCamera:
 
 
 class PhotogrammetryCameraSet:
-    f = None
-    cx = None
-    cy = None
-    image_width = None
-    image_height = None
-
-    def __init__(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, **kwargs):
-        """
-        Create a camera set from a metashape .xml camera file and the path to the image folder
-
+    def __init__(
+        self,
+        cam_to_world_transforms: List[np.ndarray],
+        intrinsic_params_per_sensor_type: Dict[int, Dict[str, float]] = {
+            0: EXAMPLE_INTRINSICS
+        },
+        image_filenames: Union[List[PATH_TYPE], None] = None,
+        lon_lats: Union[None, List[Union[None, Tuple[float, float]]]] = None,
+        image_folder: PATH_TYPE = None,
+        sensor_IDs: List[int] = None,
+        validate_images: bool = False,
+    ):
+        """_summary_
 
         Args:
-            camera_file (PATH_TYPE): Path to the .xml camera export from Metashape
-            image_folder (PATH_TYPE): Path to the folder of images used by Metashape
+            cam_to_world_transforms (List[np.ndarray]): The list of 4x4 camera to world transforms
+            intrinsic_params_per_sensor (Dict[int, Dict]): A dictionary mapping from an int camera ID to the intrinsic parameters
+            image_filenames (List[PATH_TYPE]): The list of image filenames, ideally absolute paths
+            lon_lats (Union[None, List[Union[None, Tuple[float, float]]]]): A list of lon,lat tuples, or list of Nones, or None
+            image_folder (PATH_TYPE): The top level folder of the images
+            sensor_IDs (List[int]): The list of sensor IDs, that index into the sensors_params_dict
+            validate_images (bool, optional): Should the existance of the images be checked. Defaults to False.
+
+        Raises:
+            ValueError: _description_
         """
+        # Standardization
+        n_transforms = len(cam_to_world_transforms)
+
+        # Create list of Nones for image filenames if not set
+        if image_filenames is None:
+            image_filenames = [None] * n_transforms
+
+        if sensor_IDs is None and len(intrinsic_params_per_sensor_type) == 1:
+            # Create a list of the only index if not set
+            sensor_IDs = [
+                list(intrinsic_params_per_sensor_type.keys())[0]
+            ] * n_transforms
+        elif len(sensor_IDs) != n_transforms:
+            raise ValueError(
+                f"Number of sensor_IDs ({len(sensor_IDs)}) is different than the number of transforms ({n_transforms})"
+            )
+
+        # If lon lats is None, set it to a list of Nones per transform
+        if lon_lats is None:
+            lon_lats = [None] * n_transforms
+
+        if image_folder is None:
+            # TODO set it to the least common ancestor of all filenames
+            pass
+
+        # Record the values
+        # TODO see if we ever use these
+        self.cam_to_world_transforms = cam_to_world_transforms
+        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
+        self.image_filenames = image_filenames
+        self.lon_lats = lon_lats
+        self.sensor_IDs = sensor_IDs
         self.image_folder = image_folder
-        self.camera_file = camera_file
 
-        (
-            self.image_filenames,
-            self.cam_to_world_transforms,
-            self.sensor_IDs,
-            self.lan_lats,
-            self.sensors_dict,
-        ) = self.parse_input(
-            camera_file=camera_file, image_folder=image_folder, **kwargs
-        )
-
-        missing_images = self.find_mising_images()
-        if len(missing_images) > 0:
-            print(missing_images)
-            raise ValueError("Missing images displayed above")
+        if validate_images:
+            missing_images = self.find_mising_images()
+            if len(missing_images) > 0:
+                print(missing_images)
+                raise ValueError("Missing images displayed above")
 
         self.cameras = []
 
@@ -410,7 +442,7 @@ class PhotogrammetryCameraSet:
             self.sensor_IDs,
             self.lon_lats,
         ):
-            sensor_params = self.sensors_dict[sensor_ID]
+            sensor_params = self.intrinsic_params_per_sensor_type[sensor_ID]
             new_camera = PhotogrammetryCamera(
                 image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )
@@ -423,16 +455,6 @@ class PhotogrammetryCameraSet:
                 invalid_images.append(image_file)
 
         return invalid_images
-
-    def parse_input(self, camera_file: PATH_TYPE, image_folder: PATH_TYPE):
-        """
-        Parse the software-specific camera files and populate required member fields.
-
-        Args:
-            camera_file (PATH_TYPE): Path to the camera file
-            image_folder (PATH_TYPE): Path to the root of the image folder
-        """
-        raise NotImplementedError("Abstract base class")
 
     def n_cameras(self) -> int:
         """Return the number of cameras"""
