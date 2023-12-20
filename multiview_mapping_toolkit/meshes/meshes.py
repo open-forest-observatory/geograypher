@@ -452,6 +452,8 @@ class TexturedPhotogrammetryMesh:
         self.label_names = list(label_names)
 
     def get_label_names(self):
+        if self.IDs_to_labels is None:
+            return None
         return list(self.IDs_to_labels.values())
 
     def create_pytorch3d_mesh(
@@ -966,7 +968,9 @@ class TexturedPhotogrammetryMesh:
         )
         # If we needed a mask for the faces, compute that instead
         if not use_vertex_labels:
-            ground_mask = self.vert_to_face_IDs(ground_mask.astype(int)).astype(bool)
+            ground_mask = self.vert_to_face_texture(ground_mask.astype(int)).astype(
+                bool
+            )
 
         # Replace only vertices that were previously labeled as something else, to avoid class imbalance
         if only_label_existing_labels:
@@ -981,7 +985,7 @@ class TexturedPhotogrammetryMesh:
         if label_names is None and ground_ID is None:
             # This means that the label is continous, so the concept of ID is meaningless
             ground_ID = np.nan
-        elif ground_class_name in label_names:
+        elif label_names is not None and ground_class_name in label_names:
             # If the ground class name is already in the list, set newly-predicted vertices to that class
             ground_ID = label_names.find(ground_class_name)
         elif label_names is not None:
