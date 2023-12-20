@@ -322,31 +322,34 @@ class PhotogrammetryCamera:
         top = scaled_cy + scaled_halfheight
         bottom = scaled_cy - scaled_halfheight
 
-        vertices = np.array(
-            [
-                [0, 0, 0],
+        vertices = (
+            np.array(
                 [
-                    right,
-                    top,
-                    1,
-                ],
-                [
-                    right,
-                    bottom,
-                    1,
-                ],
-                [
-                    left,
-                    bottom,
-                    1,
-                ],
-                [
-                    left,
-                    top,
-                    1,
-                ],
-            ]
-        ).T
+                    [0, 0, 0],
+                    [
+                        right,
+                        top,
+                        1,
+                    ],
+                    [
+                        right,
+                        bottom,
+                        1,
+                    ],
+                    [
+                        left,
+                        bottom,
+                        1,
+                    ],
+                    [
+                        left,
+                        top,
+                        1,
+                    ],
+                ]
+            ).T
+            * frustum_scale
+        )
         # Make the coordinates homogenous
         vertices = np.vstack((vertices, np.ones((1, 5))))
 
