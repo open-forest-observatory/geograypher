@@ -337,7 +337,7 @@ class TexturedPhotogrammetryMesh:
             # Name of scalar in the mesh
             try:
                 texture_array = self.pyvista_mesh[texture]
-            except KeyError:
+            except (KeyError, ValueError):
                 logging.warn("Could not read texture as a scalar from the pyvista mesh")
 
             # Numpy file
@@ -527,6 +527,10 @@ class TexturedPhotogrammetryMesh:
         Returns:
             np.ndarray: (n_points, 3)
         """
+        # If no CRS is requested, just return the points
+        if output_CRS is None:
+            return self.pyvista_mesh.points
+
         # The mesh points are defined in an arbitrary local coordinate system but we can transform them to EPGS:4978,
         # the earth-centered, earth-fixed coordinate system, using an included transform
         epgs4978_verts = self.transform_vertices(self.local_to_epgs_4978_transform)
@@ -687,7 +691,6 @@ class TexturedPhotogrammetryMesh:
             points_in_polygons_gdf = gpd.tools.overlay(
                 verts_df, gdf, how="intersection"
             )
-
         # Get the index array
         index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
 
