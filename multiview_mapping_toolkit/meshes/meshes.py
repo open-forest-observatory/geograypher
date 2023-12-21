@@ -1160,6 +1160,52 @@ class TexturedPhotogrammetryMesh:
         plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
         plotter.show()
 
+    def render_pyvista(
+        self,
+        camera_set,
+        camera_index: int,
+        image_scale: float = 1.0,
+    ):
+        """Render an image from the viewpoint of a single camera. Note that the principle point is ignored.
+
+        Args:
+            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            camera_index (int): which camera to render
+            image_scale (float, optional):
+                Multiplier on the real image scale to obtain size for rendering. Lower values
+                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
+        """
+        # Get the pyvista camera and image size
+        pv_camera = camera_set.get_camera_by_index(camera_index).get_pyvista_camera()
+        image_size = camera_set.get_camera_by_index(camera_index).get_image_size()
+
+        # Transform image size appropriately
+        scaled_image_size_xy = (
+            int(round(image_size[1] * image_scale)),
+            int(round(image_size[0] * image_scale)),
+        )
+
+        # Get the texture from the mesh
+        texture = self.get_texture(request_vertex_texture=False)
+        is_RGB = texture.shape[1] == 3
+
+        # Set up the pyvista plotter
+        plotter = pv.Plotter(off_screen=True)
+        # Add the mesh
+        plotter.add_mesh(
+            self.pyvista_mesh,
+            scalars=texture,
+            rgb=is_RGB,
+        )
+        # Set the camera to the requested viewpoint
+        plotter.camera = pv_camera
+
+        # Perform the rendering operation
+        rendered_img = plotter.screenshot(
+            window_size=scaled_image_size_xy,
+        )
+        return rendered_img
+
     def render_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
@@ -1169,7 +1215,6 @@ class TexturedPhotogrammetryMesh:
         set_null_texture_to_value: float = None,
     ):
         """Render an image from the viewpoint of a single camera
-        # TODO include an option to specify whether indexing or shading is used
 
         Args:
             camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
