@@ -244,18 +244,36 @@ class PhotogrammetryCamera:
 
         return colors_per_vertex
 
-    def get_pyvista_camera(self, focal_dist=10):
+    def get_pyvista_camera(self, focal_dist: float = 10) -> pv.Camera:
+        """
+        Get a pyvista camera at the location specified by photogrammetry.
+        Note that there is no principle point and only the vertical field of view is set
+
+        Args:
+            focal_dist (float, optional): How far away from the camera the center point should be. Defaults to 10.
+
+        Returns:
+            pv.Camera: The pyvista camera from that viewpoint.
+        """
+        # Instantiate a new camera
         camera = pv.Camera()
+        # Get the position as the translational part of the transform
         camera_position = self.cam_to_world_transform[:3, 3]
+        # Get the look point by transforming a ray along the camera's Z axis into world
+        # coordinates and then adding this to the location
         camera_look = camera_position + self.cam_to_world_transform[:3, :3] @ np.array(
             (0, 0, focal_dist)
         )
-        # Where does the y axis project to
+        # Get the up direction of the camera by finding which direction +Y is transformed to
         camera_up = self.cam_to_world_transform[:3, :3] @ np.array((0, 1, 0))
+        # Compute the vertical field of view
+        vertical_FOV_angle = np.rad2deg(2 * np.arctan((self.image_height / 2) / self.f))
 
+        # Set the values
         camera.focal_point = camera_look
         camera.position = camera_position
         camera.up = camera_up
+        camera.view_angle = vertical_FOV_angle
 
         return camera
 
