@@ -685,7 +685,7 @@ class TexturedPhotogrammetryMesh:
         # See which vertices are in the geopolygons
         if len(gdf) == 1:
             # TODO benchmark if this is faster than the overlay option
-            points_in_polygons_gdf = verts_df.intersection(gpd["geometry"][0])
+            points_in_polygons_gdf = verts_df.intersection(gdf["geometry"][0])
         else:
             # Select points that are within the polygons
             points_in_polygons_gdf = gpd.tools.overlay(
