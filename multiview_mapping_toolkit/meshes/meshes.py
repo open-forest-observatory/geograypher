@@ -1165,6 +1165,7 @@ class TexturedPhotogrammetryMesh:
         camera_set,
         camera_index: int,
         image_scale: float = 1.0,
+        enable_ssao: bool = False,
     ):
         """Render an image from the viewpoint of a single camera. Note that the principle point is ignored.
 
@@ -1200,6 +1201,9 @@ class TexturedPhotogrammetryMesh:
         # Set the camera to the requested viewpoint
         plotter.camera = pv_camera
 
+        if enable_ssao:
+            plotter.enable_ssao()
+            # plotter.renderer.enable_ssao(radius=3)
         # Perform the rendering operation
         rendered_img = plotter.screenshot(
             window_size=scaled_image_size_xy,
@@ -1276,6 +1280,7 @@ class TexturedPhotogrammetryMesh:
         vis_scalars=None,
         mesh_kwargs: typing.Dict = None,
         plotter_kwargs: typing.Dict = {},
+        enable_ssao: bool = True,
         force_xvfb: bool = False,
     ):
         """Show the mesh and cameras
@@ -1335,6 +1340,10 @@ class TexturedPhotogrammetryMesh:
         # If the camera set is provided, show this too
         if camera_set is not None:
             camera_set.vis(plotter, add_orientation_cube=False)
+
+        # Enable screen space shading
+        if enable_ssao:
+            plotter.enable_ssao()
 
         # Show
         return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
