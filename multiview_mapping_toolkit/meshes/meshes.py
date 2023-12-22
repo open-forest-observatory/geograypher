@@ -664,8 +664,8 @@ class TexturedPhotogrammetryMesh:
         # Infer or standardize the column names
         if column_names is None:
             # Check if there is only one real column
-            if len(gdf.names) == 2:
-                column_names = list(filter(lambda x: x != "geometry", gdf.names))
+            if len(gdf.columns) == 2:
+                column_names = list(filter(lambda x: x != "geometry", gdf.columns))
             else:
                 # Log as well since this may be caught by an exception handler,
                 # and it's a user error that can be corrected
@@ -683,14 +683,9 @@ class TexturedPhotogrammetryMesh:
         verts_df = self.get_verts_geodataframe(gdf.crs)
 
         # See which vertices are in the geopolygons
-        if len(gdf) == 1:
-            # TODO benchmark if this is faster than the overlay option
-            points_in_polygons_gdf = verts_df.intersection(gdf["geometry"][0])
-        else:
-            # Select points that are within the polygons
-            points_in_polygons_gdf = gpd.tools.overlay(
-                verts_df, gdf, how="intersection"
-            )
+        points_in_polygons_gdf = gpd.tools.overlay(
+            verts_df, gdf, how="intersection"
+        )
         # Get the index array
         index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
 
