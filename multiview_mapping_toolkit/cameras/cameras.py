@@ -264,8 +264,8 @@ class PhotogrammetryCamera:
         camera_look = camera_position + self.cam_to_world_transform[:3, :3] @ np.array(
             (0, 0, focal_dist)
         )
-        # Get the up direction of the camera by finding which direction +Y is transformed to
-        camera_up = self.cam_to_world_transform[:3, :3] @ np.array((0, 1, 0))
+        # Get the up direction of the camera by finding which direction the -Y (image up) vector is transformed to
+        camera_up = self.cam_to_world_transform[:3, :3] @ np.array((0, -1, 0))
         # Compute the vertical field of view
         vertical_FOV_angle = np.rad2deg(2 * np.arctan((self.image_height / 2) / self.f))
 
@@ -389,9 +389,9 @@ class PhotogrammetryCamera:
                 [3, 3, 4, 1],  # endcap tiangle #1
             ]
         )
-        # All blue except the top surface is red
+        # All blue except the top (-Y) surface is red
         face_colors = np.array(
-            [[0, 0, 1], [0, 0, 1], [0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1]]
+            [[0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]]
         ).astype(float)
 
         # Create a mesh for the camera frustum
