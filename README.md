@@ -91,5 +91,3 @@ conda activate MVMT
 python multiview_prediction_toolkit/entrypoints/evaluate_predictions.py --help
 ```
 
-There are also a variety of scripts in the `dev` folder. These are one-off examples designed for a specific task and are not designed to be robust, current, or generalizable. However, they can serve as an example for your own scripts.
-
