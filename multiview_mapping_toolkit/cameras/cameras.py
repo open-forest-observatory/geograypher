@@ -505,6 +505,25 @@ class PhotogrammetryCameraSet:
             raise ValueError("Requested camera ind larger than list")
         return self.cameras[index]
 
+    def get_cameras_in_folder(self, folder: PATH_TYPE):
+        """Return the camera set with cameras corresponding to images in that folder
+
+        Args:
+            folder (PATH_TYPE): The folder location
+
+        Returns:
+            PhotogrammetryCameraSet: A copy of the camera set with only the cameras from that folder
+        """
+        # Get the inds where that camera is in the folder
+        imgs_in_folder_inds = [
+            i
+            for i in range(len(self.cameras))
+            if self.cameras[i].image_filename.is_relative_to(folder)
+        ]
+        # Return the PhotogrammetryCameraSet with those subset of cameras
+        subset_cameras = self.get_subset_cameras(imgs_in_folder_inds)
+        return subset_cameras
+
     def get_subset_cameras(self, inds: List[int]):
         subset_camera_set = deepcopy(self)
         subset_camera_set.cameras = [self.cameras[i] for i in inds]
