@@ -240,6 +240,7 @@ class TexturedPhotogrammetryMesh:
         texture_array: np.ndarray,
         all_discrete_texture_values: typing.Union[typing.List, None] = None,
         is_vertex_texture: typing.Union[bool, None] = None,
+        update_IDs_to_labels: bool = False,
         delete_existing: bool = True,
     ):
         texture_array = self.standardize_texture(texture_array)
@@ -271,11 +272,14 @@ class TexturedPhotogrammetryMesh:
             # If it is more than one column, it's assumed to be a real-valued
             # quanitity and we try to cast it to a float
             texture_array = texture_array.astype(float)
-            self.IDs_to_labels = None
+            IDs_to_labels = None
         else:
-            texture_array, self.IDs_to_labels = ensure_float_labels(
+            texture_array, IDs_to_labels = ensure_float_labels(
                 texture_array, full_array=all_discrete_texture_values
             )
+
+        if update_IDs_to_labels:
+            self.IDs_to_labels = IDs_to_labels
 
         # Set the appropriate texture and optionally delete the other one
         if is_vertex_texture:
@@ -371,7 +375,11 @@ class TexturedPhotogrammetryMesh:
                 raise ValueError(f"Could not load texture for {texture}")
 
             # This will error if something is wrong with the texture that was loaded
-            self.set_texture(texture_array, all_discrete_texture_values=all_values)
+            self.set_texture(
+                texture_array,
+                all_discrete_texture_values=all_values,
+                update_IDs_to_labels=True,
+            )
 
     def select_mesh_ROI(
         self,
@@ -449,8 +457,8 @@ class TexturedPhotogrammetryMesh:
         # Else return just the mesh
         return subset_mesh
 
-    def set_label_names(self, label_names):
-        self.label_names = list(label_names)
+    def add_label(self, label_name, label_ID):
+        self.IDs_to_labels[label_ID] = label_name
 
     def get_label_names(self):
         if self.IDs_to_labels is None:
@@ -984,10 +992,10 @@ class TexturedPhotogrammetryMesh:
             ground_ID = label_names.find(ground_class_name)
         elif label_names is not None:
             # If the label names are present, and the class is not already included, add it as the last element
-            self.set_label_names(label_names + [ground_class_name])
             if ground_ID is None:
                 # Set it to the first unused ID
                 ground_ID = len(label_names)
+            self.add_label(label_name=ground_class_name, label_ID=ground_ID)
 
         # Replace mask for ground_vertices
         labels[ground_mask, 0] = ground_ID
