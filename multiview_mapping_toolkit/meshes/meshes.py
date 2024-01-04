@@ -683,9 +683,7 @@ class TexturedPhotogrammetryMesh:
         verts_df = self.get_verts_geodataframe(gdf.crs)
 
         # See which vertices are in the geopolygons
-        points_in_polygons_gdf = gpd.tools.overlay(
-            verts_df, gdf, how="intersection"
-        )
+        points_in_polygons_gdf = gpd.tools.overlay(verts_df, gdf, how="intersection")
         # Get the index array
         index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
 
@@ -794,10 +792,7 @@ class TexturedPhotogrammetryMesh:
         verts_in_crs = self.get_vertices_in_CRS(export_crs)
         # Get a triangle in geospatial coords for each face
         # Only report the x, y values and not z
-        face_polygons = [
-            Polygon(np.flip(verts_in_crs[face_IDs][:, :2], axis=1))
-            for face_IDs in self.faces
-        ]
+        face_polygons = [Polygon(verts_in_crs[face_IDs, :2]) for face_IDs in self.faces]
         # Create a geodata frame from these polygons
         individual_polygons_df = gpd.GeoDataFrame(
             {"class_id": face_labels}, geometry=face_polygons, crs=export_crs
