@@ -147,6 +147,7 @@ def get_overlap_vector(
     unlabeled_df: GeoDataFrame,
     classes_df: GeoDataFrame,
     class_column: str,
+    normalize: bool = False,
 ) -> (np.ndarray, np.ndarray):
     """
     For each element in unlabeled df, return the fractional overlap with each class in
@@ -157,6 +158,7 @@ def get_overlap_vector(
         unlabeled_df (GeoDataFrame): A dataframe of geometries
         classes_df (GeoDataFrame): A dataframe of classes
         class_column (str, optional): Which column in the classes_df to use. Defaults to "names".
+        normalize (bool, optional): Normalize counts matrix from area to fraction. Defaults to False.
 
     Returns:
         np.ndarray: (n_valid, n_classes) counts per polygon per class
@@ -219,15 +221,25 @@ def get_overlap_vector(
 
     # Extract the original class names
     unique_class_names = sorted(classes_df[class_column].unique().tolist())
+    # And the indices from the original dataframe. This is relavent if the input
+    # dataframe was a subset of an original one
+    unique_index_values = sorted(unlabeled_df_intersecting_classes.index.tolist())
+
     counts_matrix = np.zeros(
         (len(unlabeled_df_intersecting_classes), len(unique_class_names))
     )
 
     for r in aggregated.iterrows():
         (index, class_name), area_fraction = r
-        counts_matrix[int(index), unique_class_names.index(class_name)] = float(
-            area_fraction.iloc[0]
-        )
+        # The index is the index from the original unlabeled dataset, but we need the index into the subset
+        unlabled_object_ind = unique_index_values.index(index)
+        # Transform the class name into a class index
+        class_ind = unique_class_names.index(class_name)
+        # Set the value to the area of the overlap between that unlabeled object and given class
+        counts_matrix[unlabled_object_ind, class_ind] = float(area_fraction.iloc[0])
+
+    if normalize:
+        counts_matrix = counts_matrix / np.sum(counts_matrix, axis=1, keepdims=True)
 
     return counts_matrix, intersection_IDs
 
