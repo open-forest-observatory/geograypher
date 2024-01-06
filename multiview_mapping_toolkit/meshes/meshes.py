@@ -1,4 +1,5 @@
 import logging
+import sys
 import typing
 from pathlib import Path
 
@@ -54,6 +55,7 @@ class TexturedPhotogrammetryMesh:
         ROI=None,
         ROI_buffer_meters: float = 0,
         require_transform: bool = False,
+        log_level: str = "INFO",
     ):
         """_summary_
 
@@ -73,6 +75,12 @@ class TexturedPhotogrammetryMesh:
         self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
 
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(log_level)
+        # Potentially necessary for Jupyter
+        # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
+        self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
+
         if torch.cuda.is_available():
             self.device = torch.device("cuda:0")
             torch.cuda.set_device(self.device)
@@ -80,12 +88,12 @@ class TexturedPhotogrammetryMesh:
             self.device = torch.device("cpu")
 
         # Load the transform
-        logging.info("Loading transform to EPSG:4326")
+        self.logger.info("Loading transform to EPSG:4326")
         self.load_transform_to_epsg_4326(
             transform_filename, require_transform=require_transform
         )
         # Load the mesh with the pyvista loader
-        logging.info("Loading mesh")
+        self.logger.info("Loading mesh")
         self.load_mesh(
             mesh=mesh,
             downsample_target=downsample_target,
@@ -93,7 +101,7 @@ class TexturedPhotogrammetryMesh:
             ROI_buffer_meters=ROI_buffer_meters,
         )
         # Load the texture
-        logging.info("Loading texture")
+        self.logger.info("Loading texture")
         self.load_texture(texture, texture_column_name)
 
     # Setup methods
@@ -118,10 +126,10 @@ class TexturedPhotogrammetryMesh:
         else:
             # Load the mesh using pyvista
             # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
-            logging.info("Reading the mesh")
+            self.logger.info("Reading the mesh")
             self.pyvista_mesh = pv.read(mesh)
 
-        logging.info("Selecting an ROI from mesh")
+        self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
             region_of_interest=ROI, buffer_meters=ROI_buffer_meters
@@ -132,11 +140,11 @@ class TexturedPhotogrammetryMesh:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
-            logging.info("Downsampling the mesh")
+            self.logger.info("Downsampling the mesh")
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-        logging.info("Extracting faces from mesh")
+        self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
@@ -333,7 +341,7 @@ class TexturedPhotogrammetryMesh:
                 self.set_texture(texture_array)
             else:
                 # Assume that no texture will be needed, consider printing a warning
-                logging.warn("No texture provided")
+                self.logger.warn("No texture provided")
         else:
             # Try handling all the other supported filetypes
             texture_array = None
@@ -343,14 +351,16 @@ class TexturedPhotogrammetryMesh:
             try:
                 texture_array = self.pyvista_mesh[texture]
             except (KeyError, ValueError):
-                logging.warn("Could not read texture as a scalar from the pyvista mesh")
+                self.logger.warn(
+                    "Could not read texture as a scalar from the pyvista mesh"
+                )
 
             # Numpy file
             if texture_array is None:
                 try:
                     texture_array = np.load(texture, allow_pickle=True)
                 except:
-                    logging.warn("Could not read texture as a numpy file")
+                    self.logger.warn("Could not read texture as a numpy file")
 
             # Vector file
             if texture_array is None:
@@ -360,7 +370,7 @@ class TexturedPhotogrammetryMesh:
                         vector_source=texture,
                     )
                 except IndexError:
-                    logging.warn("Could not read texture as vector file")
+                    self.logger.warn("Could not read texture as vector file")
 
             # Raster file
             if texture_array is None:
@@ -368,7 +378,7 @@ class TexturedPhotogrammetryMesh:
                     # TODO
                     texture_array = self.get_vert_values_from_raster_file(texture)
                 except:
-                    logging.warn("Could not read texture as raster file")
+                    self.logger.warn("Could not read texture as raster file")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
             if texture_array is None:
@@ -411,7 +421,7 @@ class TexturedPhotogrammetryMesh:
             return self.pyvista_mesh
 
         # Get the ROI into a geopandas GeoDataFrame
-        logging.info("Standardizing ROI")
+        self.logger.info("Standardizing ROI")
         if isinstance(region_of_interest, gpd.GeoDataFrame):
             ROI_gpd = region_of_interest
         elif isinstance(region_of_interest, (Polygon, MultiPolygon)):
@@ -419,31 +429,31 @@ class TexturedPhotogrammetryMesh:
         else:
             ROI_gpd = gpd.read_file(region_of_interest)
 
-        logging.info("Dissolving ROI")
+        self.logger.info("Dissolving ROI")
         # Disolve to ensure there is only one row
         ROI_gpd = ROI_gpd.dissolve()
-        logging.info("Setting CRS and buffering ROI")
+        self.logger.info("Setting CRS and buffering ROI")
         # Make sure we're using a geometric CRS so a buffer can be applied
         ROI_gpd = ensure_geometric_CRS(ROI_gpd)
         # Apply the buffer
         ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters)
-        logging.info("Dissolving buffered ROI")
+        self.logger.info("Dissolving buffered ROI")
         # Disolve again in case
         ROI_gpd = ROI_gpd.dissolve()
 
-        logging.info("Extracting verts for dataframe")
+        self.logger.info("Extracting verts for dataframe")
         # Get the vertices as a dataframe in the same CRS
         verts_df = self.get_verts_geodataframe(ROI_gpd.crs)
-        logging.info("Checking intersection of verts with ROI")
+        self.logger.info("Checking intersection of verts with ROI")
         # Determine which vertices are within the ROI polygon
         verts_in_ROI = gpd.tools.overlay(verts_df, ROI_gpd, how="intersection")
         # Extract the IDs of the set within the polygon
         vert_inds = verts_in_ROI["vert_ID"].to_numpy()
 
-        logging.info("Extracting points from pyvista mesh")
+        self.logger.info("Extracting points from pyvista mesh")
         # Extract a submesh using these IDs, which is returned as an UnstructuredGrid
         subset_unstructured_grid = self.pyvista_mesh.extract_points(vert_inds)
-        logging.info("Extraction surface from subset mesh")
+        self.logger.info("Extraction surface from subset mesh")
         # Convert the unstructured grid to a PolyData (mesh) again
         subset_mesh = subset_unstructured_grid.extract_surface()
 
@@ -678,7 +688,7 @@ class TexturedPhotogrammetryMesh:
             else:
                 # Log as well since this may be caught by an exception handler,
                 # and it's a user error that can be corrected
-                logging.error(
+                self.logger.error(
                     "No column name provided and ambigious which column to use"
                 )
                 raise ValueError(
@@ -743,7 +753,7 @@ class TexturedPhotogrammetryMesh:
                 vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
                 vert_texture = np.tile(vert_texture, reps=(1, 3))
             if n_channels > 3:
-                logging.warning(
+                self.logger.warning(
                     "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
                 )
                 # Take the argmax
@@ -870,7 +880,7 @@ class TexturedPhotogrammetryMesh:
         zipped_locations = zip(easting_points, northing_points)
         sampling_iter = tqdm(
             zipped_locations,
-            desc="Sampling values from raster",
+            desc=f"Sampling values from raster {raster_file}",
             total=verts_in_raster_CRS.shape[0],
         )
         # Sample the raster file and squeeze if single channel
