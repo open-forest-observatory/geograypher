@@ -1,5 +1,0 @@
-outs:
-- md5: d3c21644b715ad324945f7c3496fddca
-  size: 7226816
-  hash: md5
-  path: predicted_species_per_face.npy
