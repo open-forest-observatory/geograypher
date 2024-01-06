@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 import typing
@@ -1425,11 +1426,17 @@ class TexturedPhotogrammetryMesh:
             else (vis_scalars.ndim == 2 and vis_scalars.shape[1] > 1)
         )
 
+        scalar_bar_args = {"vertical": True}
+        if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
+            mesh_kwargs["annotations"] = self.IDs_to_labels
+            scalar_bar_args["n_labels"] = 0
+
         # Add the mesh
         plotter.add_mesh(
             self.pyvista_mesh,
             scalars=vis_scalars,
             rgb=is_rgb,
+            scalar_bar_args=scalar_bar_args,
             **mesh_kwargs,
         )
         # If the camera set is provided, show this too
@@ -1474,7 +1481,14 @@ class TexturedPhotogrammetryMesh:
 
         output_folder = Path(output_folder)
         output_folder.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Saving renders to {output_folder}")
+        self.logger.info(f"Saving renders to {output_folder}")
+
+        # Save the classes filename
+        if self.is_discrete_texture():
+            IDs_to_labels_file = Path(output_folder, "IDs_to_labels.json")
+            self.logger.info(f"Saving IDs_to_labels to {str(IDs_to_labels_file)}")
+            with open(IDs_to_labels_file, "w") as outfile_h:
+                json.dump(self.IDs_to_labels, outfile_h, ensure_ascii=False, indent=4)
 
         for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(

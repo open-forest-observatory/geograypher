@@ -96,8 +96,8 @@ def hex_to_rgb(value):
 MATPLOTLIB_PALLETE = [
     hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
 ]
-TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (0, 9)}
-TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (0, 19)}
+TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (-0.5, 9.5)}
+TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (-0.5, 19.5)}
 
 ## Outputs
 EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
