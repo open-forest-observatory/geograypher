@@ -58,19 +58,9 @@ ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc
 ### Example data
 The public example data is in `data/example_Emerald_Point_data`. You can run notebooks in the `examples` folder to see how to interact with this data.
 
-Data access for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on the CyVerse Data Store in this [folder](https://de.cyverse.org/data/ds/iplant/home/shared/ofo/public/MVPT-example-data-DVC). This data is supposed to be publicly available, so if you have access issues contact <djrussell@ucdavis.edu>.
+Data access for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive in this [folder](https://drive.google.com/drive/folders/1ujEOCpS3m9CDPlPF3p4fdEeebQOt5VTX). It should be publically viewable, but you may still need <djrussell@ucdavis.edu> to share it with you directly for DVC to work.
 
-You should be able to pull the data without any credentials since the folder is set up as publicly readable. In most cases, all you need to do is `dvc pull <filename>` to obtain the data. The [DVC](https://dvc.org/doc) website provides good generic documentation.
-
-Note that the CyVerse WebDav server is not particularly powerful so they requested we keep the number of workers to 5. This is the `jobs` field in the `.dvc/config` file.
-
-If you want to update the data, you need to be an internal collaborator with `write` permisssions on the cyverse folder. To provide `dvc` with your cyverse credentials, do the following:
-```
-dvc remote modify --local cyverse_public user <cyverse username>
-dvc remote modify --local cyverse_public password <cyverse password>
-```
-
-Note that the local flag adds this information to a the `.dvc/config.local` file. Your password is now stored in plaintext on your machine, so use caution. This file is not tracked by git, or else you'd expose your passwords to the outside world.
+In most cases, all you need to do is `dvc pull <filename>` or `dvc pull <folder name> --recursive` to obtain the data. The [DVC](https://dvc.org/doc) website provides good generic documentation.
 
 ### Running
 There are currently two main 3D workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
