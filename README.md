@@ -62,6 +62,11 @@ Data access for this project is managed by a tool called [DVC](https://dvc.org/d
 
 In most cases, all you need to do is `dvc pull <filename>` or `dvc pull <folder name> --recursive` to obtain the data. The [DVC](https://dvc.org/doc) website provides good generic documentation.
 
+### Using your own data
+If you have a Metashape scene with the location of cameras, a mesh, and geospatial information, you can likely use MVMT. If you are using the Metashape GUI, you must do an important step before exporting the mesh model. Metashape stores the mesh in an arbitrary coordinate system that's optimized for viewing and will export it as such. To fix this, in the Metashape GUI you need to do `Model->Transform Object->Reset Transform`, then save the mesh with the local coordinates option. The cameras can be exported without any special considerations.
+
+You can also use our scripted workflow for running Metashape, [automate-metashape](https://github.com/open-forest-observatory/automate-metashape). The cameras and the `local` mesh export will be properly formatted for use with MVMT.
+
 ### Running
 There are currently two main 3D workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
 
@@ -80,4 +85,3 @@ Quality metrics can be computed using the evaluation script
 conda activate MVMT
 python multiview_prediction_toolkit/entrypoints/evaluate_predictions.py --help
 ```
-
