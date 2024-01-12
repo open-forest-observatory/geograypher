@@ -28,9 +28,10 @@ class OrthoSegmentor:
         training_stride: int = 2048,
         inference_stride: int = 1024,
     ):
-        self.raster_input_file = raster_input_file
-        self.vector_label_file = vector_label_file
-        self.raster_label_file = raster_label_file
+        # rastervision complains about pathlib.Path
+        self.raster_input_file = str(raster_input_file) if raster_input_file is not None else None
+        self.vector_label_file = str(vector_label_file) if vector_label_file is not None else None
+        self.raster_label_file = str(raster_label_file) if raster_label_file is not None else None
 
         self.chip_size = chip_size
         self.training_stride = training_stride
@@ -246,7 +247,7 @@ class OrthoSegmentor:
 
         Args:
             pred_files (list[PATH_TYPE]): List of filenames where predictions are written
-            class_savefile (typing.Union[PATH_TYPE, NoneType], optional): Where to save the merged raster.
+            class_savefile (PATH_TYPE): Where to save the merged raster.
             counts_savefile (typing.Union[PATH_TYPE, NoneType], optional):
                 Where to save the counts for the merged predictions raster.
                 A tempfile will be created and then deleted if not specified. Defaults to None.
@@ -268,6 +269,8 @@ class OrthoSegmentor:
 
         # If the user didn't specify where to write the counts, create a tempfile that will be deleted
         if counts_savefile is None:
+            # Create the containing folder if required
+            class_savefile.parent.mkdir(exist_ok=True, parents=True)
             counts_savefile_manager = tempfile.NamedTemporaryFile(
                 mode="w+", suffix=".tif", dir=class_savefile.parent
             )
@@ -275,7 +278,7 @@ class OrthoSegmentor:
 
         # Parse the filenames to get the windows
         # TODO consider using the extent to only write a file for the minimum encolsing rectangle
-        windows, _ = self.parse_windows_from_files(pred_files)
+        windows, extent = self.parse_windows_from_files(pred_files)
 
         # Aggregate predictions
         with rio.open(self.raster_input_file) as src:
@@ -284,8 +287,8 @@ class OrthoSegmentor:
                 counts_savefile,
                 "w+",
                 driver="GTiff",
-                height=src.shape[0],
-                width=src.shape[1],
+                height=extent.width,
+                width=extent.height,
                 count=num_classes,
                 dtype=count_dtype,
                 crs=src.crs,
