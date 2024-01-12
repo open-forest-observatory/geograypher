@@ -58,7 +58,7 @@ ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc
 ### Example data
 The public example data is in `data/example_Emerald_Point_data`. You can run notebooks in the `examples` folder to see how to interact with this data.
 
-Data access for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive in this [folder](https://drive.google.com/drive/folders/1ujEOCpS3m9CDPlPF3p4fdEeebQOt5VTX). It should be publically viewable, but you may still need <djrussell@ucdavis.edu> to share it with you directly for DVC to work.
+Data access for this project is managed by a tool called [DVC](https://dvc.org/doc/install). This serves as an interface between git-tracked pointer files and the raw data. In our case, the data is hosted on Google Drive in this [folder](https://drive.google.com/drive/folders/1ujEOCpS3m9CDPlPF3p4fdEeebQOt5VTX). It should be publically viewable, but you may still need <djrussell@ucdavis.edu> to share it with you directly for DVC to work. The first time you try to pull the data, you will be prompted to sign into Google using a web browser and give DVC permisisions. As far as I know, you must accept these to be able to access the data.
 
 In most cases, all you need to do is `dvc pull <filename>` or `dvc pull <folder name> --recursive` to obtain the data. The [DVC](https://dvc.org/doc) website provides good generic documentation.
 
