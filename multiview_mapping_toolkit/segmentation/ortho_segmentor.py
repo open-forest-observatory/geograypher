@@ -29,9 +29,15 @@ class OrthoSegmentor:
         inference_stride: int = 1024,
     ):
         # rastervision complains about pathlib.Path
-        self.raster_input_file = str(raster_input_file) if raster_input_file is not None else None
-        self.vector_label_file = str(vector_label_file) if vector_label_file is not None else None
-        self.raster_label_file = str(raster_label_file) if raster_label_file is not None else None
+        self.raster_input_file = (
+            str(raster_input_file) if raster_input_file is not None else None
+        )
+        self.vector_label_file = (
+            str(vector_label_file) if vector_label_file is not None else None
+        )
+        self.raster_label_file = (
+            str(raster_label_file) if raster_label_file is not None else None
+        )
 
         self.chip_size = chip_size
         self.training_stride = training_stride

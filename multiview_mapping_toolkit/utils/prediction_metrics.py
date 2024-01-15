@@ -13,7 +13,7 @@ from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
-from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.config import PATH_TYPE, TEN_CLASS_VIS_KWARGS
 from multiview_mapping_toolkit.utils.geospatial import (
     get_projected_CRS,
     reproject_raster,
@@ -91,7 +91,15 @@ def check_if_raster(filename):
         raise ValueError("Unknown extension")
 
 
-def plot_geodata(filename, ax, raster_downsample_factor=0.1, ignore_class=3):
+def plot_geodata(
+    filename,
+    ax,
+    raster_downsample_factor=0.1,
+    class_column="class_id",
+    ignore_class=255,
+    vis_kwargs=TEN_CLASS_VIS_KWARGS,
+):
+    vmin, vmax = vis_kwargs["clim"]
     if check_if_raster(filename):
         with rio.open(filename) as dataset:
             # resample data to target shape
@@ -105,10 +113,12 @@ def plot_geodata(filename, ax, raster_downsample_factor=0.1, ignore_class=3):
             )
         data = data[0].astype(float)
         data[data == ignore_class] = np.nan
-        ax.imshow(data)
+        plt.colorbar(
+            ax.imshow(data, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"]), ax=ax
+        )
     else:
         data = gpd.read_file(filename)
-        data.plot("class_id", ax=ax)
+        data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"])
 
 
 def make_ss_scene_vec_or_rast(
