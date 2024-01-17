@@ -12,73 +12,15 @@ from rastervision.core.data import ClassConfig
 from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from IPython.core.debugger import set_trace
 
 from multiview_mapping_toolkit.config import PATH_TYPE, TEN_CLASS_VIS_KWARGS
 from multiview_mapping_toolkit.utils.geospatial import (
-    get_projected_CRS,
+    ensure_geometric_CRS,
     reproject_raster,
+    get_overlap_vector,
+    get_overlap_raster,
 )
-
-
-def eval_confusion_matrix(
-    predicted_df: gpd.GeoDataFrame,
-    true_df: gpd.GeoDataFrame,
-    column_name: str,
-    column_values: list[str] = None,
-    normalize: bool = True,
-    normalize_by_class: bool = False,
-    savepath: PATH_TYPE = None,
-):
-    grouped_predicted_df = predicted_df.dissolve(by=column_name)
-    grouped_true_df = true_df.dissolve(by=column_name)
-
-    if column_values is None:
-        column_values = grouped_true_df.index.tolist()
-
-    crs = grouped_predicted_df.crs
-    if crs == pyproj.CRS.from_epsg(4326):
-        centroid = grouped_predicted_df["geometry"][0].centroid
-        crs = get_projected_CRS(lat=centroid.y, lon=centroid.x)
-
-    grouped_predicted_df.to_crs(crs, inplace=True)
-    grouped_true_df.to_crs(crs, inplace=True)
-
-    confusion_matrix = np.zeros((len(column_values), len(column_values)))
-
-    for i, true_val in enumerate(column_values):
-        for j, pred_val in enumerate(column_values):
-            pred_multipolygon = grouped_predicted_df.loc[
-                grouped_predicted_df.index == pred_val
-            ]["geometry"].values[0]
-            true_multipolygon = grouped_true_df.loc[grouped_true_df.index == true_val][
-                "geometry"
-            ].values[0]
-            intersection_area = pred_multipolygon.intersection(true_multipolygon).area
-            confusion_matrix[i, j] = intersection_area
-
-    if normalize:
-        confusion_matrix = confusion_matrix / np.sum(confusion_matrix)
-
-    if normalize_by_class:
-        class_freq = np.sum(confusion_matrix, axis=1, keepdims=True)
-        confusion_matrix = confusion_matrix / class_freq
-
-    plt.imshow(confusion_matrix, vmin=0)
-    plt.xticks(ticks=np.arange(len(column_values)), labels=column_values, rotation=45)
-    plt.yticks(ticks=np.arange(len(column_values)), labels=column_values)
-    plt.colorbar()
-    plt.title("Confusion matrix")
-    plt.xlabel("Predicted classes")
-    plt.ylabel("True classes")
-
-    if savepath is None:
-        plt.show()
-    else:
-        plt.tight_layout()
-        plt.savefig(savepath)
-        plt.close()
-
-    return confusion_matrix, column_values
 
 
 def check_if_raster(filename):
@@ -219,6 +161,86 @@ def compute_rastervision_evaluation_metrics(
     )
 
     return evaluation
+
+
+def cf_from_vector_vector(
+    predicted_df: gpd.GeoDataFrame,
+    true_df: gpd.GeoDataFrame,
+    column_name: str,
+    column_values: list[str] = None,
+):
+    if not isinstance(predicted_df, gpd.GeoDataFrame):
+        predicted_df = gpd.read_file(predicted_df)
+    if not isinstance(true_df, gpd.GeoDataFrame):
+        true_df = gpd.read_file(true_df)
+
+    grouped_predicted_df = predicted_df.dissolve(by=column_name)
+    grouped_true_df = true_df.dissolve(by=column_name)
+
+    if column_values is None:
+        column_values = grouped_true_df.index.tolist()
+
+    grouped_predicted_df = ensure_geometric_CRS(grouped_predicted_df)
+    grouped_true_df.to_crs(grouped_predicted_df.crs, inplace=True)
+
+    confusion_matrix = np.zeros((len(column_values), len(column_values)))
+
+    for i, true_val in enumerate(column_values):
+        for j, pred_val in enumerate(column_values):
+            pred_multipolygon = grouped_predicted_df.loc[
+                grouped_predicted_df.index == pred_val
+            ]["geometry"].values[0]
+            true_multipolygon = grouped_true_df.loc[grouped_true_df.index == true_val][
+                "geometry"
+            ].values[0]
+            intersection_area = pred_multipolygon.intersection(true_multipolygon).area
+            confusion_matrix[i, j] = intersection_area
+
+    return confusion_matrix, column_values
+
+
+def compute_evaluation_metrics_no_rastervision(
+    prediction_file: PATH_TYPE,
+    groundtruth_file: PATH_TYPE,
+    class_names: list[str],
+    vis_savefile: str = None,
+    normalize: bool = True,
+    column_name=None,
+):
+    pred_is_raster = check_if_raster(prediction_file)
+    gt_is_raster = check_if_raster(groundtruth_file)
+
+    if gt_is_raster and pred_is_raster:
+        raise NotImplementedError()
+    elif not gt_is_raster and pred_is_raster:
+        cf_matrix, classes = get_overlap_raster(groundtruth_file, prediction_file)
+    elif gt_is_raster and not pred_is_raster:
+        # TODO use get_overlap_raster and flip the order, but make sure to properly threshold area
+        raise NotImplementedError()
+    elif not gt_is_raster and not pred_is_raster:
+        cf_matrix, classes = get_overlap_vector(
+            unlabeled_df=groundtruth_file,
+            classes_df=prediction_file,
+            class_column=column_name,
+        )
+
+    if normalize:
+        cf_matrix /= cf_matrix.sum()
+
+    conf_disp = ConfusionMatrixDisplay(cf_matrix, display_labels=class_names)
+    conf_disp.plot()
+
+    if vis_savefile is None:
+        plt.show()
+    else:
+        plt.savefig(vis_savefile)
+        plt.close()
+
+    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0]))
+
+    print(f"Accuracy {accuracy}")
+
+    return cf_matrix, classes, accuracy
 
 
 def compute_and_show_cf(
