@@ -768,6 +768,9 @@ class TexturedPhotogrammetryMesh:
         else:
             vert_texture = None
 
+        # Create folder if it doesn't exist
+        Path(savepath).parent.mkdir(parents=True, exist_ok=True)
+        # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
 
     def export_face_labels_vector(
