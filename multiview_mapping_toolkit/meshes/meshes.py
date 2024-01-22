@@ -42,6 +42,7 @@ from multiview_mapping_toolkit.config import (
     VERT_ID,
     VIS_FOLDER,
 )
+from multiview_mapping_toolkit.utils.geometric import batched_unary_union
 from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
     find_union_of_intersections,
@@ -787,6 +788,7 @@ class TexturedPhotogrammetryMesh:
         export_crs: pyproj.CRS = LAT_LON_EPSG_CODE,
         label_names: typing.Tuple = None,
         ensure_non_overlapping: bool = True,
+        drop_nan: bool = True,
         vis: bool = True,
         vis_kwargs: typing.Dict = {},
     ) -> gpd.GeoDataFrame:
@@ -800,6 +802,7 @@ class TexturedPhotogrammetryMesh:
             export_crs (pyproj.CRS, optional): What CRS to export in.. Defaults to pyproj.CRS.from_epsg(4326), lat lon.
             label_names (typing.Tuple, optional): Optional names, that are indexed by the labels. Defaults to None.
             ensure_non_overlapping (bool, optional): Should regions where two classes are predicted at different z heights be assigned to one class
+            drop_nan (bool, optional): Don't export the nan class, often used for background
             vis: should the result be visualzed
             vis_kwargs: keyword argmument dict for visualization
 
@@ -835,32 +838,47 @@ class TexturedPhotogrammetryMesh:
         faces_2d = faces[..., :2]
 
         # Extract the faces for each unique label
-        unique_labels = np.unique(face_labels)
-        dict_of_faces = {i: faces_2d[face_labels == i] for i in unique_labels}
 
-        self.logger.info("Converting faces to multipolygon")
+        face_tuples = [tuple(map(tuple, a)) for a in faces_2d]
+        face_polygons = [
+            Polygon(face_tuple)
+            for face_tuple in tqdm(face_tuples, desc=f"Converting faces to polygons")
+        ]
+        self.logger.info("Creating dataframe of faces")
         # Convert these faces to multipolygons
-        dict_of_multipolygons = {}
-        for label, faces_array in dict_of_faces.items():
-            face_tuples = [tuple(map(tuple, a)) for a in faces_array]
-            face_polygons = [
-                Polygon(face_tuple)
-                for face_tuple in tqdm(
-                    face_tuples, desc=f"Converting label {label} to polygons"
-                )
-            ]
-            multi_polygon = MultiPolygon(face_polygons)
-            # multi_polygon = multi_polygon.dissolve()
-            dict_of_multipolygons[label] = multi_polygon
+
+        faces_gdf = gpd.GeoDataFrame(
+            {"class_ID": face_labels.tolist()},
+            geometry=face_polygons,
+            crs=working_CRS,
+        )
+        self.logger.info("Creating dataframe of multipolygons")
+        unique_IDs = np.unique(face_labels)
+        if drop_nan:
+            # Drop nan from the list of IDs
+            unique_IDs = unique_IDs[np.isfinite(unique_IDs)]
+        multipolygon_list = []
+        # For each unique ID, aggregate all the faces together
+        # This is the same as geopandas.groupby, but that is slow and can out of memory easily
+        # due to the large number of polygons
+        # Instead, we replace the default shapely.unary_union with our batched implementation
+        for unique_ID in unique_IDs:
+            matching_face_polygons = faces_gdf.iloc[face_labels == unique_ID]
+            list_of_polygons = matching_face_polygons.geometry.values
+            multipolygon = batched_unary_union(
+                list_of_polygons, batch_size=100000, sort_by_loc=True
+            )
+            multipolygon_list.append(multipolygon)
 
         export_gdf = gpd.GeoDataFrame(
-            {"class_ID": list(dict_of_multipolygons.keys())},
-            geometry=list(dict_of_multipolygons.values()),
-            crs=working_CRS,
+            {"class_ID": unique_IDs}, geometry=multipolygon_list, crs=working_CRS
         )
 
         if label_names is not None:
-            names = [label_names[int(ID)] for ID in export_gdf["class_ID"]]
+            names = [
+                (label_names[int(ID)] if np.isfinite(ID) else "nan")
+                for ID in export_gdf["class_ID"]
+            ]
             export_gdf["names"] = names
 
         # Vis if requested
@@ -874,31 +892,7 @@ class TexturedPhotogrammetryMesh:
             plt.show()
 
         if ensure_non_overlapping:
-            # Find regions where multiple classes were predicted for the same location
-            # This means there were multiple faces at different Z heights in the same location
-            overlapping_multipolygon = find_union_of_intersections(export_gdf.geometry)
-            # Break the overlapping regions into individual polygons
-            overlapping_polygons = list(overlapping_multipolygon)
-            # Find which faces overlap with the overlapping regions
-            for polygon in overlapping_polygons:
-                pass
-
-            # TODO consider breaking them up further into uniformly-sized chunks
-            # For each chunk, compute the summed 3D area per class
-            # For each chunk, assign the best class
-            # Subtract the overlapping regions from the export_gdf
-            # Replace them with the voted ones
-
-            # Compute the areas
-            self.logger.info("Computing area of triangles")
-            areas = [
-                compute_3D_triangle_area(face)
-                for face in tqdm(faces, desc="Computing triangle areas")
-            ]
-            # This is (n_faces, (3D area, z-projected area))
-            areas = np.array(areas)
-            set_trace()
-
+            self.logger.warning("ensure_non_overlapping is not implemented yet")
         # Export if a file is provided
         if export_file is not None:
             export_gdf.to_crs(export_crs, inplace=True)
