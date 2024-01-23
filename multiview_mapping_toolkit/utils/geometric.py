@@ -2,7 +2,7 @@ import logging
 import typing
 
 import shapely
-from shapely import unary_union
+from shapely import unary_union, simplify
 from tqdm import tqdm
 
 logger = logging.getLogger("geometric")
@@ -11,14 +11,17 @@ logger = logging.getLogger("geometric")
 def batched_unary_union(
     geometries: typing.List[shapely.Geometry],
     batch_size: int,
+    grid_size: typing.Union[None, float] = None,
     subsequent_batch_size: int = 4,
     sort_by_loc: bool = False,
+    simplify_tol=0,
 ) -> shapely.MultiPolygon:
     """Roughly replicate the functionality of shapely.unary_union using a batched implementation
 
     Args:
         geometries (typing.List[shapely.Geometry]): Geometries to aggregate
         batch_size (int): The batch size for the first aggregation
+        grid_size (typing.Union[None, float]): grid size passed to unary_union
         subsequent_batch_size (int, optional): The batch size for subsequent (recursive) batches. Defaults to 4.
         sort_by_loc (bool, optional): Should the polygons be sorted by location to have a higher likelihood of merging. Defaults to False.
 
@@ -33,8 +36,8 @@ def batched_unary_union(
 
     # Sort the polygons by their least x coordinates (any bound could be used)
     # The goal of this is to have a higher likelihood of grouping objects together and removing interior coordinates
-    if sort_by_loc:
-        logger.error("Sorting the geometries")
+    if sort_by_loc and batch_size < len(geometries):
+        logger.error(f"Sorting the geometries with {len(geometries)} entries")
         geometries = sorted(geometries, key=lambda x: x.bounds[0])
         logger.error("Done sorting geometries")
 
@@ -49,17 +52,32 @@ def batched_unary_union(
         desc=f"Computing batched unary union with batch size {batch_size}",
     ):
         batch = geometries[i : i + batch_size]
-        batched_unions.append(unary_union(batch))
+        batched_unions.append(unary_union(batch, grid_size=grid_size))
 
-    # TODO consider simplifying the geometry with shapely.simpify
-
+    # Simplify the geometry to reduce the number of points
+    # Don't do this if it would otherwise be returned as-is
+    if simplify_tol > 0.0 and len(batched_unions) > 1:
+        # Simplify then buffer, to make sure we don't have holes
+        logger.info(
+            f"Lengths before simplification {[len(bu.geoms) for bu in batched_unions]}"
+        )
+        batched_unions = [
+            simplify(bu, simplify_tol).buffer(simplify_tol)
+            for bu in tqdm(batched_unions, desc="simplifying polygons")
+        ]
+        logger.info(
+            f"Lengths after simplification {[len(bu.geoms) for bu in batched_unions]}"
+        )
     # Recurse this process until there's only one merged geometry
     # All future calls will use the subsequent_batch_size
     # TODO this batch size could be computed more inteligently, or sidestepped by requesting a number of points
-    # Don't sort because this should already be roughly sorted
+    # Don't sort because this should already be sorted
+    # Don't simplify because we don't want to repeatedly degrade the geometry
     return batched_unary_union(
         batched_unions,
         batch_size=subsequent_batch_size,
+        grid_size=grid_size,
         subsequent_batch_size=subsequent_batch_size,
         sort_by_loc=False,
+        simplify_tol=0.0,
     )

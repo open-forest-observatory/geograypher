@@ -40,12 +40,13 @@ from multiview_mapping_toolkit.config import (
     TEN_CLASS_VIS_KWARGS,
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
+    CLASS_ID_KEY,
     VIS_FOLDER,
 )
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
 from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
-    find_union_of_intersections,
+    ensure_non_overlapping_polygons,
     get_projected_CRS,
 )
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
@@ -788,8 +789,15 @@ class TexturedPhotogrammetryMesh:
         export_crs: pyproj.CRS = LAT_LON_EPSG_CODE,
         label_names: typing.Tuple = None,
         ensure_non_overlapping: bool = True,
+        simplify_tol: float = 0.0,
         drop_nan: bool = True,
         vis: bool = True,
+        batched_unary_union_kwargs: typing.Dict = {
+            "batch_size": 500000,
+            "sort_by_loc": True,
+            "grid_size": 0.05,
+            "simplify_tol": 0.05,
+        },
         vis_kwargs: typing.Dict = {},
     ) -> gpd.GeoDataFrame:
         """Export the labels for each face as a on-per-class multipolygon
@@ -802,8 +810,10 @@ class TexturedPhotogrammetryMesh:
             export_crs (pyproj.CRS, optional): What CRS to export in.. Defaults to pyproj.CRS.from_epsg(4326), lat lon.
             label_names (typing.Tuple, optional): Optional names, that are indexed by the labels. Defaults to None.
             ensure_non_overlapping (bool, optional): Should regions where two classes are predicted at different z heights be assigned to one class
+            simplify_tol: (float, optional): Tolerence in meters to use to simplify geometry
             drop_nan (bool, optional): Don't export the nan class, often used for background
             vis: should the result be visualzed
+            batched_unary_union_kwargs (dict, optional): Keyword arguments for batched_unary_union_call
             vis_kwargs: keyword argmument dict for visualization
 
         Raises:
@@ -848,7 +858,7 @@ class TexturedPhotogrammetryMesh:
         # Convert these faces to multipolygons
 
         faces_gdf = gpd.GeoDataFrame(
-            {"class_ID": face_labels.tolist()},
+            {CLASS_ID_KEY: face_labels.tolist()},
             geometry=face_polygons,
             crs=working_CRS,
         )
@@ -866,36 +876,49 @@ class TexturedPhotogrammetryMesh:
             matching_face_polygons = faces_gdf.iloc[face_labels == unique_ID]
             list_of_polygons = matching_face_polygons.geometry.values
             multipolygon = batched_unary_union(
-                list_of_polygons, batch_size=100000, sort_by_loc=True
+                list_of_polygons, **batched_unary_union_kwargs
             )
             multipolygon_list.append(multipolygon)
 
-        export_gdf = gpd.GeoDataFrame(
-            {"class_ID": unique_IDs}, geometry=multipolygon_list, crs=working_CRS
+        working_gdf = gpd.GeoDataFrame(
+            {CLASS_ID_KEY: unique_IDs}, geometry=multipolygon_list, crs=working_CRS
         )
 
         if label_names is not None:
             names = [
                 (label_names[int(ID)] if np.isfinite(ID) else "nan")
-                for ID in export_gdf["class_ID"]
+                for ID in working_gdf[CLASS_ID_KEY]
             ]
-            export_gdf["names"] = names
+            working_gdf["names"] = names
+
+        # Simplify the output geometry
+        if simplify_tol > 0.0:
+            self.logger.info("Running simplification")
+            working_gdf.geometry = working_gdf.geometry.simplify(simplify_tol)
+
+        # Make sure that the polygons are non-overlapping
+        if ensure_non_overlapping:
+            # TODO create a version that tie-breaks based on the number of predicted faces for each
+            # class and optionally the ratios of 3D to top-down areas for the input triangles.
+            self.logger.info("Ensuring non-overlapping polygons")
+            working_gdf = ensure_non_overlapping_polygons(working_gdf)
+
+        # Transform from the working crs to export crs
+        export_gdf = working_gdf.to_crs(export_crs)
 
         # Vis if requested
         if vis:
+            self.logger.info("Plotting")
             export_gdf.plot(
-                column="names" if label_names is not None else "class_ID",
+                column="names" if label_names is not None else CLASS_ID_KEY,
                 aspect=1,
                 legend=True,
                 **vis_kwargs,
             )
             plt.show()
 
-        if ensure_non_overlapping:
-            self.logger.warning("ensure_non_overlapping is not implemented yet")
         # Export if a file is provided
         if export_file is not None:
-            export_gdf.to_crs(export_crs, inplace=True)
             export_gdf.to_file(export_file)
 
         return export_gdf
