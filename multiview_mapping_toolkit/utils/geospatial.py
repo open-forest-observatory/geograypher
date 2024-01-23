@@ -8,7 +8,7 @@ import pyproj
 import rasterio as rio
 from geopandas import GeoDataFrame, GeoSeries
 from rasterstats import zonal_stats
-from shapely import MultiPolygon, Polygon, intersection, difference, union, Geometry
+from shapely import MultiPolygon, Polygon, intersection, difference, union, Geometry, make_valid
 from shapely.geometry import box
 from tqdm import tqdm
 
