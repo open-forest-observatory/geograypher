@@ -41,6 +41,7 @@ from multiview_mapping_toolkit.config import (
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
     CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
     VIS_FOLDER,
 )
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
@@ -889,7 +890,7 @@ class TexturedPhotogrammetryMesh:
                 (label_names[int(ID)] if np.isfinite(ID) else "nan")
                 for ID in working_gdf[CLASS_ID_KEY]
             ]
-            working_gdf["names"] = names
+            working_gdf[CLASS_NAMES_KEY] = names
 
         # Simplify the output geometry
         if simplify_tol > 0.0:
@@ -910,7 +911,7 @@ class TexturedPhotogrammetryMesh:
         if vis:
             self.logger.info("Plotting")
             export_gdf.plot(
-                column="names" if label_names is not None else CLASS_ID_KEY,
+                column=CLASS_NAMES_KEY if label_names is not None else CLASS_ID_KEY,
                 aspect=1,
                 legend=True,
                 **vis_kwargs,
