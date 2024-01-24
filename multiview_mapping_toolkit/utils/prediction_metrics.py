@@ -8,18 +8,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import rasterio as rio
+from rasterstats import zonal_stats
+from rasterio.plot import reshape_as_image
 from rastervision.core.data import ClassConfig
 from rastervision.core.data.utils import make_ss_scene
 from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from IPython.core.debugger import set_trace
 
-from multiview_mapping_toolkit.constants import PATH_TYPE, TEN_CLASS_VIS_KWARGS
+from multiview_mapping_toolkit.config import (
+    PATH_TYPE,
+    TEN_CLASS_VIS_KWARGS,
+    CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
+)
 from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
     reproject_raster,
     get_overlap_vector,
     get_overlap_raster,
+    coerce_to_geoframe,
 )
 
 
@@ -37,15 +45,20 @@ def plot_geodata(
     filename,
     ax,
     raster_downsample_factor=0.1,
-    class_column="class_id",
+    class_column=CLASS_NAMES_KEY,
     ignore_class=255,
     vis_kwargs=TEN_CLASS_VIS_KWARGS,
 ):
-    vmin, vmax = vis_kwargs["clim"]
+    if "clim" in vis_kwargs:
+        vmin, vmax = vis_kwargs["clim"]
+    else:
+        vmin, vmax = (None, None)
+
+    cmap = vis_kwargs.pop("cmap", None)
     if check_if_raster(filename):
         with rio.open(filename) as dataset:
             # resample data to target shape
-            data = dataset.read(
+            raster = dataset.read(
                 out_shape=(
                     dataset.count,
                     int(dataset.height * raster_downsample_factor),
@@ -53,14 +66,31 @@ def plot_geodata(
                 ),
                 resampling=rio.enums.Resampling.bilinear,
             )
-        data = data[0].astype(float)
-        data[data == ignore_class] = np.nan
-        plt.colorbar(
-            ax.imshow(data, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"]), ax=ax
-        )
+
+        single_channel = raster.shape[0] == 1
+
+        if single_channel:
+            img = np.squeeze(raster).astype(float)
+            img[img == ignore_class] = np.nan
+        else:
+            img = reshape_as_image(raster)
+            # Auto brighten if dark
+            # walrus operator to avoid re-computing the mean
+            if img.shape[2] == 3:
+                mean_img = np.mean(img)
+            elif img.shape[2] == 4:
+                mean_img = np.mean(img[img[..., 3] > 0, :3])
+            else:
+                raise ValueError()
+
+            if mean_img < 50:
+                img = np.clip((img * (50 / mean_img)), 0, 255).astype(np.uint8)
+        cb = ax.imshow(img, vmin=vmin, vmax=vmax, cmap=cmap)
+        if single_channel:
+            plt.colorbar(cb)
     else:
         data = gpd.read_file(filename)
-        data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"])
+        data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
 
 
 def make_ss_scene_vec_or_rast(
@@ -84,14 +114,14 @@ def make_ss_scene_vec_or_rast(
     else:
         if validate_vector_label:
             label_data = gpd.read_file(label_file)
-            if "class_id" not in label_data.columns:
+            if CLASS_ID_KEY not in label_data.columns:
                 if len(label_data) != len(class_config.names) - 1:
                     # TODO see if "class" is there and create labels based on the class names
                     raise ValueError(
-                        "class_id not set and the number of rows is not the same as the number of classes"
+                        f"{CLASS_ID_KEY} not set and the number of rows is not the same as the number of classes"
                     )
-                label_data["class_id"] = label_data.index
-                # Create a temp file where we add the "class_id" field
+                label_data[CLASS_ID_KEY] = label_data.index
+                # Create a temp file where we add the class_ID field
                 temp_label_file_manager = tempfile.NamedTemporaryFile(
                     mode="w+", suffix=".geojson"
                 )
@@ -133,7 +163,7 @@ def compute_rastervision_evaluation_metrics(
     gt_scene, gt_kwargs, gt_temp = make_ss_scene_vec_or_rast(
         class_config=class_config, image_file=image_file, label_file=groundtruth_file
     )
-    # Do visualizations after creating the scene to ensure that the file has the 'class_id' field
+    # Do visualizations after creating the scene to ensure that the file has the class_ID field
     if vis_savefile is not None:
         logging.info("Visualizing")
 
@@ -203,29 +233,83 @@ def compute_evaluation_metrics_no_rastervision(
     prediction_file: PATH_TYPE,
     groundtruth_file: PATH_TYPE,
     class_names: list[str],
+    vis_raster_file: typing.Union[PATH_TYPE, None] = None,
     vis_savefile: str = None,
+    vis: bool = True,
     normalize: bool = True,
-    column_name=None,
+    remap_raster_inds=None,
+    column_name=CLASS_NAMES_KEY,
 ):
     pred_is_raster = check_if_raster(prediction_file)
     gt_is_raster = check_if_raster(groundtruth_file)
 
-    if gt_is_raster and pred_is_raster:
-        raise NotImplementedError()
-    elif not gt_is_raster and pred_is_raster:
-        cf_matrix, classes = get_overlap_raster(groundtruth_file, prediction_file)
-    elif gt_is_raster and not pred_is_raster:
-        # TODO use get_overlap_raster and flip the order, but make sure to properly threshold area
-        raise NotImplementedError()
-    elif not gt_is_raster and not pred_is_raster:
-        cf_matrix, classes = get_overlap_vector(
-            unlabeled_df=groundtruth_file,
-            classes_df=prediction_file,
+    if vis:
+        has_vis_raster_file = int(vis_raster_file is not None)
+        _, axs = plt.subplots(1, 2 + has_vis_raster_file)
+
+        if has_vis_raster_file > 0:
+            plot_geodata(vis_raster_file, ax=axs[0], vis_kwargs={})
+            axs[0].set_title("Reference\n raster file")
+
+        plot_geodata(
+            prediction_file,
+            ax=axs[0 + has_vis_raster_file],
+            class_column=column_name,
+        )
+        plot_geodata(
+            groundtruth_file,
+            ax=axs[1 + has_vis_raster_file],
             class_column=column_name,
         )
 
+        axs[0 + has_vis_raster_file].set_title("Predictions")
+        axs[1 + has_vis_raster_file].set_title("Ground truth")
+        # TODO make this more flexible
+        plt.show()
+
+    if gt_is_raster:
+        raise NotImplementedError()
+    else:
+        groundtruth_gdf = coerce_to_geoframe(groundtruth_file)
+        groundtruth_gdf = groundtruth_gdf.set_index(CLASS_NAMES_KEY, drop=True).reindex(
+            class_names
+        )
+
+        if pred_is_raster:
+            ret = zonal_stats(groundtruth_gdf, str(prediction_file), categorical=True)
+
+            cf_matrix = np.array([list(x.values()) for x in ret])
+            if remap_raster_inds is not None:
+                cf_matrix = cf_matrix[:, tuple(remap_raster_inds)]
+            cf_matrix = np.pad(cf_matrix, pad_width=((0, 1), (0, 1)))
+            classes = class_names
+        else:
+            prediction_gdf = coerce_to_geoframe(prediction_file)
+            prediction_gdf = prediction_gdf.set_index(
+                CLASS_NAMES_KEY, drop=True
+            ).reindex(class_names)
+
+            per_class_area, classes = cf_from_vector_vector(
+                predicted_df=prediction_gdf,
+                true_df=groundtruth_gdf,
+                column_name=column_name,
+            )
+            # Compute the sum of labeled predictions per ground truth class
+            labeled_areas = np.sum(per_class_area, axis=1)
+            # Compute the area of each ground truth class
+            total_areas = groundtruth_gdf.area.values
+            # TODO this isn't correct if predictions are overlapping
+            unlabeled_areas = total_areas - labeled_areas
+
+            # Create a cf matrix with an un-labeled class
+            cf_matrix = np.zeros((len(class_names) + 1, len(class_names) + 1))
+            cf_matrix[:-1, :-1] = per_class_area
+            cf_matrix[:-1, -1] = unlabeled_areas
+
+        class_names.append("unlabeled")
+
     if normalize:
-        cf_matrix /= cf_matrix.sum()
+        cf_matrix = cf_matrix / cf_matrix.sum()
 
     conf_disp = ConfusionMatrixDisplay(cf_matrix, display_labels=class_names)
     conf_disp.plot()

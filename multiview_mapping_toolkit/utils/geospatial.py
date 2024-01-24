@@ -19,6 +19,7 @@ from shapely import (
 )
 from shapely.geometry import box
 from tqdm import tqdm
+from IPython.core.debugger import set_trace
 
 from multiview_mapping_toolkit.constants import PATH_TYPE
 
@@ -253,15 +254,25 @@ def get_overlap_vector(
 
     # TODO look more into this part, something seems wrong
     overlay["overlapping_area"] = overlay.area
-    overlay["per_class_area_fraction"] = (
-        overlay["overlapping_area"] / overlay["unlabeled_area"]
-    )
+    # overlay["per_class_area_fraction"] = (
+    #    overlay["overlapping_area"] / overlay["unlabeled_area"]
+    # )
     # Aggregating the results
     # WARNING Make sure that this is a list and not a tuple or it gets considered one key
     logging.info("computing groupby")
+
+    # If the two dataframes have a column with the same name, they will be renamed
+    if (
+        f"{class_column}_1" in overlay.columns
+        and f"{class_column}_2" in overlay.columns
+    ):
+        aggregatation_class_column = f"{class_column}_1"
+    else:
+        aggregatation_class_column = class_column
+
     # Groupby and aggregate
-    grouped_by = overlay.groupby(by=["index", class_column])
-    aggregated = grouped_by.agg({"per_class_area_fraction": "sum"})
+    grouped_by = overlay.groupby(by=["index", aggregatation_class_column])
+    aggregated = grouped_by.agg({"overlapping_area": "sum"})
 
     # Extract the original class names
     unique_class_names = sorted(classes_df[class_column].unique().tolist())
@@ -274,13 +285,13 @@ def get_overlap_vector(
     )
 
     for r in aggregated.iterrows():
-        (index, class_name), area_fraction = r
+        (index, class_name), area = r
         # The index is the index from the original unlabeled dataset, but we need the index into the subset
         unlabled_object_ind = unique_index_values.index(index)
         # Transform the class name into a class index
         class_ind = unique_class_names.index(class_name)
         # Set the value to the area of the overlap between that unlabeled object and given class
-        counts_matrix[unlabled_object_ind, class_ind] = float(area_fraction.iloc[0])
+        counts_matrix[unlabled_object_ind, class_ind] = float(area.iloc[0])
 
     if normalize:
         counts_matrix = counts_matrix / np.sum(counts_matrix, axis=1, keepdims=True)
