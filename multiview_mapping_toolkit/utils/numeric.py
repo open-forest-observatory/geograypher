@@ -26,3 +26,62 @@ def create_ramped_weighting(
 
     ramped_weighting = np.minimum(i_ramp, j_ramp)
     return ramped_weighting
+
+
+def compute_3D_triangle_area_vectorized(corners: np.ndarray, return_z_proj_area=True):
+    """_summary_
+
+    Args:
+        corners (np.ndarray): (n_faces, n)
+        return_z_proj_area (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+    """
+    A, B, C = corners
+    # https://math.stackexchange.com/questions/2152754/calculate-3d-triangle-area-by-determinant
+    u = B - A
+    v = C - A
+
+    # Save for future computation
+    u0v1_min_u1v0 = u[0] * v[1] - u[1] * v[0]
+    area = (
+        1
+        / 2
+        * np.sqrt(
+            np.power(u[1] * v[2] - u[2] * v[1], 2)
+            + np.power(u[2] * v[0] - u[0] * v[2], 2)
+            + np.power(u0v1_min_u1v0, 2)
+        )
+    )
+
+    if return_z_proj_area:
+        area_z_proj = np.abs(u0v1_min_u1v0) / 2
+        return area, area_z_proj
+
+    return area
+
+
+def compute_3D_triangle_area(corners, return_z_proj_area=True):
+    A, B, C = corners
+    # https://math.stackexchange.com/questions/2152754/calculate-3d-triangle-area-by-determinant
+    u = B - A
+    v = C - A
+
+    # Save for future computation
+    u0v1_min_u1v0 = u[0] * v[1] - u[1] * v[0]
+    area = (
+        1
+        / 2
+        * np.sqrt(
+            np.power(u[1] * v[2] - u[2] * v[1], 2)
+            + np.power(u[2] * v[0] - u[0] * v[2], 2)
+            + np.power(u0v1_min_u1v0, 2)
+        )
+    )
+
+    if return_z_proj_area:
+        area_z_proj = np.abs(u0v1_min_u1v0) / 2
+        return area, area_z_proj
+
+    return area

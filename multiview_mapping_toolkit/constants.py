@@ -15,6 +15,8 @@ DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 
 VERT_ID = "vert_ID"
+CLASS_ID_KEY = "class_ID"
+CLASS_NAMES_KEY = "class_names"
 NULL_TEXTURE_FLOAT_VALUE = -1
 NULL_TEXTURE_INT_VALUE = 255
 LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)

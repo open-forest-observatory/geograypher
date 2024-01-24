@@ -13,6 +13,7 @@ import pyvista as pv
 import rasterio as rio
 import skimage
 import torch
+from IPython.core.debugger import set_trace
 from pytorch3d.renderer import (
     AmbientLights,
     HardGouraudShader,
@@ -32,16 +33,25 @@ from multiview_mapping_toolkit.cameras import (
 )
 from multiview_mapping_toolkit.constants import (
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
+    CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
     VIS_FOLDER,
 )
-from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
+from multiview_mapping_toolkit.utils.geometric import batched_unary_union
+from multiview_mapping_toolkit.utils.geospatial import (
+    ensure_geometric_CRS,
+    ensure_non_overlapping_polygons,
+    get_projected_CRS,
+)
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
+from multiview_mapping_toolkit.utils.numeric import compute_3D_triangle_area
 from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
 
 
@@ -76,7 +86,7 @@ class TexturedPhotogrammetryMesh:
         self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(f"mesh_{id(self)}")
         self.logger.setLevel(log_level)
         # Potentially necessary for Jupyter
         # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
@@ -777,10 +787,18 @@ class TexturedPhotogrammetryMesh:
         self,
         face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
-        export_crs: pyproj.CRS = pyproj.CRS.from_epsg(4326),
+        export_crs: pyproj.CRS = LAT_LON_EPSG_CODE,
         label_names: typing.Tuple = None,
-        drop_na: bool = True,
+        ensure_non_overlapping: bool = True,
+        simplify_tol: float = 0.0,
+        drop_nan: bool = True,
         vis: bool = True,
+        batched_unary_union_kwargs: typing.Dict = {
+            "batch_size": 500000,
+            "sort_by_loc": True,
+            "grid_size": 0.05,
+            "simplify_tol": 0.05,
+        },
         vis_kwargs: typing.Dict = {},
     ) -> gpd.GeoDataFrame:
         """Export the labels for each face as a on-per-class multipolygon
@@ -792,8 +810,11 @@ class TexturedPhotogrammetryMesh:
                 Defaults to None, if unset, nothing will be written.
             export_crs (pyproj.CRS, optional): What CRS to export in.. Defaults to pyproj.CRS.from_epsg(4326), lat lon.
             label_names (typing.Tuple, optional): Optional names, that are indexed by the labels. Defaults to None.
-            drop_na (bool, optional): Should the faces with the nan class be discarded. Defaults to True.
+            ensure_non_overlapping (bool, optional): Should regions where two classes are predicted at different z heights be assigned to one class
+            simplify_tol: (float, optional): Tolerence in meters to use to simplify geometry
+            drop_nan (bool, optional): Don't export the nan class, often used for background
             vis: should the result be visualzed
+            batched_unary_union_kwargs (dict, optional): Keyword arguments for batched_unary_union_call
             vis_kwargs: keyword argmument dict for visualization
 
         Raises:
@@ -802,6 +823,13 @@ class TexturedPhotogrammetryMesh:
         Returns:
             gpd.GeoDataFrame: Merged data
         """
+        # Compute the working projected CRS
+        # This is important because having things in meters makes things easier
+        self.logger.info("Computing working CRS")
+        verts_in_lon_lat = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)
+        lon, lat, _ = verts_in_lon_lat[0]
+        working_CRS = get_projected_CRS(lon=lon, lat=lat)
+
         if face_labels is None:
             face_labels = self.get_texture(request_vertex_texture=False)
 
@@ -811,44 +839,90 @@ class TexturedPhotogrammetryMesh:
 
         face_labels = np.squeeze(face_labels)
 
+        self.logger.info("Computing faces in working CRS")
         # Get the mesh vertices in the desired export CRS
-        verts_in_crs = self.get_vertices_in_CRS(export_crs)
+        verts_in_crs = self.get_vertices_in_CRS(working_CRS)
         # Get a triangle in geospatial coords for each face
-        # Only report the x, y values and not z
-        face_polygons = [Polygon(verts_in_crs[face_IDs, :2]) for face_IDs in self.faces]
-        # Create a geodata frame from these polygons
-        individual_polygons_df = gpd.GeoDataFrame(
-            {"class_id": face_labels}, geometry=face_polygons, crs=export_crs
+        # (n_faces, 3 points, xyz)
+        faces = verts_in_crs[self.faces]
+        # Drop the z axis
+        faces_2d = faces[..., :2]
+
+        # Extract the faces for each unique label
+
+        face_tuples = [tuple(map(tuple, a)) for a in faces_2d]
+        face_polygons = [
+            Polygon(face_tuple)
+            for face_tuple in tqdm(face_tuples, desc=f"Converting faces to polygons")
+        ]
+        self.logger.info("Creating dataframe of faces")
+        # Convert these faces to multipolygons
+
+        faces_gdf = gpd.GeoDataFrame(
+            {CLASS_ID_KEY: face_labels.tolist()},
+            geometry=face_polygons,
+            crs=working_CRS,
         )
-        # Merge these triangles into a multipolygon for each class
-        # This is the expensive step
-        aggregated_df = individual_polygons_df.dissolve(
-            by="class_id", as_index=False, dropna=drop_na
+        self.logger.info("Creating dataframe of multipolygons")
+        unique_IDs = np.unique(face_labels)
+        if drop_nan:
+            # Drop nan from the list of IDs
+            unique_IDs = unique_IDs[np.isfinite(unique_IDs)]
+        multipolygon_list = []
+        # For each unique ID, aggregate all the faces together
+        # This is the same as geopandas.groupby, but that is slow and can out of memory easily
+        # due to the large number of polygons
+        # Instead, we replace the default shapely.unary_union with our batched implementation
+        for unique_ID in unique_IDs:
+            matching_face_polygons = faces_gdf.iloc[face_labels == unique_ID]
+            list_of_polygons = matching_face_polygons.geometry.values
+            multipolygon = batched_unary_union(
+                list_of_polygons, **batched_unary_union_kwargs
+            )
+            multipolygon_list.append(multipolygon)
+
+        working_gdf = gpd.GeoDataFrame(
+            {CLASS_ID_KEY: unique_IDs}, geometry=multipolygon_list, crs=working_CRS
         )
 
-        # Add names if present
         if label_names is not None:
             names = [
-                (label_names[int(label)] if label is not np.nan else np.nan)
-                for label in aggregated_df["class_id"].tolist()
+                (label_names[int(ID)] if np.isfinite(ID) else "nan")
+                for ID in working_gdf[CLASS_ID_KEY]
             ]
-            aggregated_df["names"] = names
+            working_gdf[CLASS_NAMES_KEY] = names
 
-        # Export if a file is provided
-        if export_file is not None:
-            aggregated_df.to_file(export_file)
+        # Simplify the output geometry
+        if simplify_tol > 0.0:
+            self.logger.info("Running simplification")
+            working_gdf.geometry = working_gdf.geometry.simplify(simplify_tol)
+
+        # Make sure that the polygons are non-overlapping
+        if ensure_non_overlapping:
+            # TODO create a version that tie-breaks based on the number of predicted faces for each
+            # class and optionally the ratios of 3D to top-down areas for the input triangles.
+            self.logger.info("Ensuring non-overlapping polygons")
+            working_gdf = ensure_non_overlapping_polygons(working_gdf)
+
+        # Transform from the working crs to export crs
+        export_gdf = working_gdf.to_crs(export_crs)
 
         # Vis if requested
         if vis:
-            aggregated_df.plot(
-                column="names" if label_names is not None else "class_id",
+            self.logger.info("Plotting")
+            export_gdf.plot(
+                column=CLASS_NAMES_KEY if label_names is not None else CLASS_ID_KEY,
                 aspect=1,
                 legend=True,
                 **vis_kwargs,
             )
             plt.show()
 
-        return aggregated_df
+        # Export if a file is provided
+        if export_file is not None:
+            export_gdf.to_file(export_file)
+
+        return export_gdf
 
     # Operations on raster files
 
@@ -1428,6 +1502,10 @@ class TexturedPhotogrammetryMesh:
             if vis_scalars is None
             else (vis_scalars.ndim == 2 and vis_scalars.shape[1] > 1)
         )
+
+        # Data in the range [0, 255] must
+        if is_rgb and np.max(vis_scalars) > 1.0:
+            vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
 
         scalar_bar_args = {"vertical": True}
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
