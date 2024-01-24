@@ -12,7 +12,7 @@ from shapely import MultiPolygon, Polygon, intersection, union
 from shapely.geometry import box
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.constants import PATH_TYPE
 
 
 def ensure_geometric_CRS(geodata):

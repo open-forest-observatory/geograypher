@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from multiview_mapping_toolkit.cameras import MetashapeCameraSet
-from multiview_mapping_toolkit.config import (
+from multiview_mapping_toolkit.constants import (
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_DTM_FILE,
     EXAMPLE_IMAGE_FOLDER,
