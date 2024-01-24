@@ -7,13 +7,66 @@ import numpy as np
 import rasterio as rio
 from imageio import imread, imwrite
 from rastervision.core import Box
+from rasterio.plot import reshape_as_image
 from rastervision.core.data import ClassConfig
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
 from tqdm import tqdm
+from IPython.core.debugger import set_trace
 
 from multiview_mapping_toolkit.constants import MATPLOTLIB_PALLETE, PATH_TYPE
 from multiview_mapping_toolkit.utils.io import read_image_or_numpy
 from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
+from rasterio.windows import Window
+
+
+def create_windows(dataset_h_w, window_size, window_stride):
+    windows = []
+    for col_off in range(0, dataset_h_w[1], window_stride):
+        for row_off in range(0, dataset_h_w[1], window_stride):
+            windows.append(Window(col_off, row_off, window_size, window_size))
+    return windows
+
+
+def get_str_from_window(window: Window, raster_file, suffix):
+    wd = window.todict()
+    if suffix[0] != ".":
+        suffix = "." + suffix
+    window_str = f"{Path(raster_file).name}:{wd['col_off']}:{wd['row_off']}:{wd['height']}:{wd['width']}{suffix}"
+    return window_str
+
+
+def write_unlabeled_chips(
+    raster_file,
+    output_folder,
+    chip_size,
+    training_stride,
+    drop_transparency=True,
+    output_suffix=".jpg",
+):
+    # Create the output folder if not present
+    Path(output_folder).mkdir(exist_ok=True, parents=True)
+
+    with rio.open(raster_file, "r") as dataset:
+        windows = create_windows(
+            dataset_h_w=(dataset.height, dataset.width),
+            window_size=chip_size,
+            window_stride=training_stride,
+        )
+
+        for window in tqdm(windows, desc="Writing unlabeled images"):
+            windowed_raster = dataset.read(window=window)
+            windowed_img = reshape_as_image(windowed_raster)
+
+            if drop_transparency:
+                windowed_img = windowed_img[..., :3]
+
+            output_file_name = Path(
+                output_folder,
+                get_str_from_window(
+                    raster_file=raster_file, window=window, suffix=output_suffix
+                ),
+            )
+            imwrite(output_file_name, windowed_img)
 
 
 class OrthoSegmentor:
@@ -47,12 +100,6 @@ class OrthoSegmentor:
 
         if class_colors is not None:
             class_colors = MATPLOTLIB_PALLETE[: len(class_names)]
-
-        self.class_config = ClassConfig(
-            names=class_names,
-            colors=class_colors,
-        )
-        self.class_config.ensure_null_class()
 
         # This will be instantiated later
         self.dataset = None
@@ -158,9 +205,8 @@ class OrthoSegmentor:
             skip_all_nodata_tiles (bool, optional): If a tile has no valid data, skip writing it
         """
         # Create annoated dataset
-        self.create_sliding_window_dataset(is_annotated=True)
 
-        num_labels = len(self.class_config.names)
+        num_labels = len(self.class_names)
 
         # Create output folders
         image_folder = Path(output_folder, "imgs")
@@ -168,6 +214,22 @@ class OrthoSegmentor:
 
         image_folder.mkdir(parents=True, exist_ok=True)
         anns_folder.mkdir(parents=True, exist_ok=True)
+
+        print(f"Training raster: {self.raster_input_file}")
+        print(f"Vector label: {self.vector_label_file}")
+
+        print(f"Chip size: {self.chip_size}")
+        print(f"Chip stride: {self.training_stride}")
+
+        with rio.open(self.raster_input_file, "r") as dataset:
+            windows = create_windows(
+                dataset_h_w=(dataset.height, dataset.width),
+                window_size=self.chip_size,
+                window_stride=self.training_stride,
+            )
+            for window in windows:
+                windowed_raster = dataset.read(window=window)
+                windowed_img = reshape_as_image(windowed_raster)
 
         # Main loop for writing out the data
         for (image, label), window in tqdm(
