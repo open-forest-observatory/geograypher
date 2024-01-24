@@ -8,7 +8,15 @@ import pyproj
 import rasterio as rio
 from geopandas import GeoDataFrame, GeoSeries
 from rasterstats import zonal_stats
-from shapely import MultiPolygon, Polygon, intersection, difference, union, Geometry, make_valid
+from shapely import (
+    MultiPolygon,
+    Polygon,
+    intersection,
+    difference,
+    union,
+    Geometry,
+    make_valid,
+)
 from shapely.geometry import box
 from tqdm import tqdm
 
@@ -51,7 +59,7 @@ def ensure_non_overlapping_polygons(
 
     for ind in sorted_inds:
         # Get the input geometry and ensure it's valid
-        geom = geometries[ind].make_valid()
+        geom = make_valid(geometries[ind])
         # Subtract the union of all
         geom_to_add = difference(geom, union_of_added_geoms)
         output_geometries[ind] = geom_to_add
