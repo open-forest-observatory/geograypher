@@ -3,7 +3,7 @@ import numpy as np
 from imageio import imread
 import matplotlib.pyplot as plt
 
-from multiview_mapping_toolkit.config import NULL_TEXTURE_INT_VALUE
+from multiview_mapping_toolkit.constants import NULL_TEXTURE_INT_VALUE
 
 
 def visualize_renders(render_folder, image_folder, n_samples=5, render_extension="png"):
