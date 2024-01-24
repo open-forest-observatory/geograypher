@@ -31,7 +31,7 @@ from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_mapping_toolkit.config import (
+from multiview_mapping_toolkit.constants import (
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
