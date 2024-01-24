@@ -16,7 +16,7 @@ from rastervision.core.evaluation import SemanticSegmentationEvaluator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from IPython.core.debugger import set_trace
 
-from multiview_mapping_toolkit.config import (
+from multiview_mapping_toolkit.constants import (
     PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
     CLASS_ID_KEY,
