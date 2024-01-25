@@ -3,26 +3,35 @@ import tempfile
 import typing
 from pathlib import Path
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import rasterio as rio
 from imageio import imread, imwrite
-from rastervision.core import Box
+from IPython.core.debugger import set_trace
+from rasterio.features import rasterize
 from rasterio.plot import reshape_as_image
+from rasterio.transform import AffineTransformer
+from rasterio.windows import Window
+from rastervision.core import Box
 from rastervision.core.data import ClassConfig
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
+from shapely import Polygon
 from tqdm import tqdm
-from IPython.core.debugger import set_trace
 
-from multiview_mapping_toolkit.constants import MATPLOTLIB_PALLETE, PATH_TYPE
+from multiview_mapping_toolkit.constants import (
+    MATPLOTLIB_PALLETE,
+    NULL_TEXTURE_INT_VALUE,
+    PATH_TYPE,
+)
 from multiview_mapping_toolkit.utils.io import read_image_or_numpy
 from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
-from rasterio.windows import Window
 
 
 def create_windows(dataset_h_w, window_size, window_stride):
     windows = []
     for col_off in range(0, dataset_h_w[1], window_stride):
-        for row_off in range(0, dataset_h_w[1], window_stride):
+        for row_off in range(0, dataset_h_w[0], window_stride):
             windows.append(Window(col_off, row_off, window_size, window_size))
     return windows
 
@@ -31,34 +40,108 @@ def get_str_from_window(window: Window, raster_file, suffix):
     wd = window.todict()
     if suffix[0] != ".":
         suffix = "." + suffix
-    window_str = f"{Path(raster_file).name}:{wd['col_off']}:{wd['row_off']}:{wd['height']}:{wd['width']}{suffix}"
+    window_str = f"{Path(raster_file).stem}:{wd['col_off']}:{wd['row_off']}:{wd['height']}:{wd['width']}{suffix}"
     return window_str
 
 
-def write_unlabeled_chips(
+def write_chips(
     raster_file,
     output_folder,
     chip_size,
-    training_stride,
+    chip_stride,
+    label_vector_file=None,
     drop_transparency=True,
     output_suffix=".jpg",
+    ROI_file=None,
+    background_ind=NULL_TEXTURE_INT_VALUE,
+    brightness_multiplier=1.0,
 ):
     # Create the output folder if not present
     Path(output_folder).mkdir(exist_ok=True, parents=True)
 
+    if label_vector_file is not None:
+        label_gdf = gpd.read_file(label_vector_file)
+    else:
+        label_gdf = None
+
     with rio.open(raster_file, "r") as dataset:
+        working_CRS = dataset.crs
         windows = create_windows(
             dataset_h_w=(dataset.height, dataset.width),
             window_size=chip_size,
-            window_stride=training_stride,
+            window_stride=chip_stride,
         )
 
-        for window in tqdm(windows, desc="Writing unlabeled images"):
+        desc = f"Writing image chips to {output_folder}"
+        if label_gdf is not None:
+            desc = f"Writing image chips and labels to {output_folder}"
+            label_gdf.to_crs(working_CRS, inplace=True)
+            # TODO We should provide a way to change these IDs based on an index column and optionally mapping dict
+            label_shapes = list(zip(label_gdf.geometry.values, label_gdf.index.values))
+            labels_folder = Path(output_folder, "anns")
+            output_folder = Path(output_folder, "imgs")
+
+            labels_folder.mkdir(exist_ok=True, parents=True)
+
+        output_folder.mkdir(exist_ok=True, parents=True)
+
+        # Set up the ROI now that we have the working CRS
+        if ROI_file is not None and label_gdf is not None:
+            ROI_gdf = gpd.read_file(ROI_file).to_crs(working_CRS)
+            ROI_geometry = ROI_gdf.dissolve().geometry.values[0]
+            # Crop the labels dataframe to the ROI
+            label_gdf = label_gdf.intersection(ROI_geometry)
+        else:
+            ROI_geometry = None
+
+        for window in tqdm(windows, desc=desc):
+            if ROI_geometry is not None:
+                window_transformer = AffineTransformer(dataset.window_transform(window))
+                pixel_corners = (
+                    (0, 0),
+                    (0, chip_size),
+                    (chip_size, chip_size),
+                    (chip_size, 0),
+                )
+                geospatial_corners = [
+                    window_transformer.xy(pc[0], pc[1], offset="ul")
+                    for pc in pixel_corners
+                ]
+                geospatial_corners.append(geospatial_corners[0])
+                window_polygon = Polygon(geospatial_corners)
+
+                if not ROI_geometry.intersects(window_polygon):
+                    continue
+
+            if label_gdf is not None:
+                window_transform = dataset.window_transform(window)
+                window_transformer = AffineTransformer(window_transform)
+                labels_raster = rasterize(
+                    label_shapes,
+                    out_shape=(chip_size, chip_size),
+                    transform=window_transform,
+                    fill=background_ind,
+                )
+                labels_raster = labels_raster.astype(np.uint8)
+                output_file_name = Path(
+                    labels_folder,
+                    get_str_from_window(
+                        raster_file=raster_file, window=window, suffix=".png"
+                    ),
+                )
+                imwrite(output_file_name, labels_raster)
+
             windowed_raster = dataset.read(window=window)
             windowed_img = reshape_as_image(windowed_raster)
 
-            if drop_transparency:
+            if drop_transparency and windowed_img.shape[2] == 4:
+                transperency = windowed_img[..., 3]
                 windowed_img = windowed_img[..., :3]
+                # Set transperent regions to black
+                windowed_img[transperency == 0, :] = 0
+
+            if brightness_multiplier != 1.0:
+                windowed_img = (windowed_img * brightness_multiplier).astype(np.uint8)
 
             output_file_name = Path(
                 output_folder,
@@ -193,7 +276,7 @@ class OrthoSegmentor:
         self,
         output_folder: PATH_TYPE,
         brightness_multiplier: float = 1.0,
-        background_ind: int = 255,
+        background_ind: int = NULL_TEXTURE_INT_VALUE,
         skip_all_nodata_tiles: bool = True,
     ):
         """Write out training tiles from raster
@@ -307,7 +390,7 @@ class OrthoSegmentor:
         counts_savefile: typing.Union[PATH_TYPE, None] = None,
         downweight_edge_frac: float = 0.25,
         smooth_seg_labels: bool = False,
-        nodataval: typing.Union[int, None] = 255,
+        nodataval: typing.Union[int, None] = NULL_TEXTURE_INT_VALUE,
         count_dtype: type = np.uint8,
         max_overlapping_tiles: int = 4,
     ):
