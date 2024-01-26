@@ -1,390 +1,356 @@
-import logging
 import tempfile
 import typing
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import rasterio as rio
-from imageio import imread, imwrite
-from rastervision.core import Box
-from rastervision.core.data import ClassConfig
-from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
+from imageio import imwrite
+from IPython.core.debugger import set_trace
+from rasterio.features import rasterize
+from rasterio.plot import reshape_as_image
+from rasterio.transform import AffineTransformer
+from rasterio.windows import Window
+from shapely import Polygon
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import MATPLOTLIB_PALLETE, PATH_TYPE
+from multiview_mapping_toolkit.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from multiview_mapping_toolkit.utils.io import read_image_or_numpy
 from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
 
 
-class OrthoSegmentor:
-    def __init__(
-        self,
-        raster_input_file: PATH_TYPE,
-        vector_label_file: PATH_TYPE = None,
-        raster_label_file: PATH_TYPE = None,
-        class_names: list[str] = (),  # TODO fix these up
-        class_colors: list[str] = (),  # TODO fix this
-        chip_size: int = 2048,
-        training_stride: int = 2048,
-        inference_stride: int = 1024,
-    ):
-        # rastervision complains about pathlib.Path
-        self.raster_input_file = (
-            str(raster_input_file) if raster_input_file is not None else None
+def create_windows(dataset_h_w, window_size, window_stride):
+    windows = []
+    for col_off in range(0, dataset_h_w[1], window_stride):
+        for row_off in range(0, dataset_h_w[0], window_stride):
+            windows.append(Window(col_off, row_off, window_size, window_size))
+    return windows
+
+
+def get_str_from_window(window: Window, raster_file, suffix):
+    wd = window.todict()
+    if suffix[0] != ".":
+        suffix = "." + suffix
+    window_str = f"{Path(raster_file).stem}:{wd['col_off']}:{wd['row_off']}:{wd['width']}:{wd['height']}{suffix}"
+    return window_str
+
+
+def pad_to_full_size(img, desired_size):
+    padding_size = np.array(desired_size) - np.array(img.shape[: len(desired_size)])
+    if np.sum(padding_size) > 0:
+        # Pad the trailing edge of the array only
+        padding = [(0, width) for width in padding_size] + [(0, 0)] * (
+            len(img.shape) - len(desired_size)
         )
-        self.vector_label_file = (
-            str(vector_label_file) if vector_label_file is not None else None
-        )
-        self.raster_label_file = (
-            str(raster_label_file) if raster_label_file is not None else None
-        )
+        img = np.pad(img, padding)
 
-        self.chip_size = chip_size
-        self.training_stride = training_stride
-        self.inference_stride = inference_stride
+    return img
 
-        self.class_names = class_names
 
-        if class_colors is not None:
-            class_colors = MATPLOTLIB_PALLETE[: len(class_names)]
+def write_chips(
+    raster_file,
+    output_folder,
+    chip_size,
+    chip_stride,
+    label_vector_file=None,
+    label_column=None,
+    label_remap=None,
+    drop_transparency=True,
+    output_suffix=".jpg",
+    ROI_file=None,
+    background_ind=NULL_TEXTURE_INT_VALUE,
+    brightness_multiplier=1.0,
+):
+    # Create the output folder if not present
+    Path(output_folder).mkdir(exist_ok=True, parents=True)
 
-        self.class_config = ClassConfig(
-            names=class_names,
-            colors=class_colors,
-        )
-        self.class_config.ensure_null_class()
+    if label_vector_file is not None:
+        label_gdf = gpd.read_file(label_vector_file)
+    else:
+        label_gdf = None
 
-        # This will be instantiated later
-        self.dataset = None
-
-    def get_filename_from_window(self, window: Box, extension: str = ".png") -> str:
-        """Return a filename encoding the box coordinates
-
-        Args:
-            window (Box): Box to record
-            extension (str, optional): Filename extension. Defaults to ".png".
-
-        Returns:
-            str: String with ymin, xmin, ymax, xmax
-        """
-        raster_name = Path(self.raster_input_file).name
-        filename = f"{raster_name}:{window.ymin}:{window.xmin}:{window.ymax}:{window.xmax}{extension}"
-        return filename
-
-    def parse_windows_from_files(
-        self, files: list[Path], sep: str = ":"
-    ) -> tuple[list[rio.windows.Window], rio.windows.Window]:
-        """Return the boxes and extent from a list of filenames
-
-        Args:
-            files (list[Path]): List of filenames
-            sep (str): Seperator between elements
-
-        Returns:
-            tuple[list[rio.windows.Window], rio.windows.Window]: List of windows for each file and extent
-        """
-        # Split the coords out, currently ignorign the filename as the first element
-        coords = [file.stem.split(sep)[1:] for file in files]
-        # Create windows from coords
-        windows = [
-            rio.windows.Window(
-                row_off=int(coord[0]),
-                col_off=int(coord[1]),
-                height=int(coord[2]) - int(coord[0]),
-                width=int(coord[3]) - int(coord[1]),
-            )
-            for coord in coords
-        ]
-        # Compute the extents as the min/max of the boxes
-        coords_array = np.array(coords).astype(int)
-
-        xmin = np.min(coords_array[:, 0])
-        ymin = np.min(coords_array[:, 1])
-        xmax = np.max(coords_array[:, 2])
-        ymax = np.max(coords_array[:, 3])
-        extent = rio.windows.Window(
-            row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin
+    with rio.open(raster_file, "r") as dataset:
+        working_CRS = dataset.crs
+        windows = create_windows(
+            dataset_h_w=(dataset.height, dataset.width),
+            window_size=chip_size,
+            window_stride=chip_stride,
         )
 
-        return windows, extent
+        desc = f"Writing image chips to {output_folder}"
+        if label_gdf is not None:
+            desc = f"Writing image chips and labels to {output_folder}"
+            label_gdf.to_crs(working_CRS, inplace=True)
 
-    def create_sliding_window_dataset(
-        self, is_annotated: bool
-    ) -> SemanticSegmentationSlidingWindowGeoDataset:
-        """Sets self.dataset
+            if label_column is not None:
+                label_values = label_gdf[label_column].tolist()
+            else:
+                label_values = label_gdf.index.tolist()
 
-        Args:
-            is_annotated (bool): Should we use labels
+            if label_remap is not None:
+                label_values = [label_remap[old_label] for old_label in label_values]
 
-        Returns:
-            SemanticSegmentationSlidingWindowGeoDataset: The dataset, also sets self.dataset
-        """
+            label_shapes = list(zip(label_gdf.geometry.values, label_values))
+            labels_folder = Path(output_folder, "anns")
+            output_folder = Path(output_folder, "imgs")
 
-        # Keyword args shared between annotated and not
-        kwargs = {
-            "class_config": self.class_config,
-            "image_uri": self.raster_input_file,
-            "image_raster_source_kw": dict(allow_streaming=False),
-            "size": self.chip_size,
-        }
+            labels_folder.mkdir(exist_ok=True, parents=True)
 
-        if is_annotated:
-            if self.raster_input_file is None and self.vector_label_file is None:
-                raise ValueError("One type of label must be included")
+        output_folder.mkdir(exist_ok=True, parents=True)
 
-            kwargs["label_vector_uri"] = self.vector_label_file
-            kwargs["label_raster_uri"] = self.raster_label_file
-            kwargs["stride"] = self.training_stride
+        # Set up the ROI now that we have the working CRS
+        if ROI_file is not None and label_gdf is not None:
+            ROI_gdf = gpd.read_file(ROI_file).to_crs(working_CRS)
+            ROI_geometry = ROI_gdf.dissolve().geometry.values[0]
+            # Crop the labels dataframe to the ROI
+            label_gdf = label_gdf.intersection(ROI_geometry)
         else:
-            kwargs["stride"] = self.inference_stride
+            ROI_geometry = None
 
-        # Create the dataset
-        self.dataset = SemanticSegmentationSlidingWindowGeoDataset.from_uris(**kwargs)
-        return self.dataset
+        for window in tqdm(windows, desc=desc):
+            if ROI_geometry is not None:
+                window_transformer = AffineTransformer(dataset.window_transform(window))
+                pixel_corners = (
+                    (0, 0),
+                    (0, chip_size),
+                    (chip_size, chip_size),
+                    (chip_size, 0),
+                )
+                geospatial_corners = [
+                    window_transformer.xy(pc[0], pc[1], offset="ul")
+                    for pc in pixel_corners
+                ]
+                geospatial_corners.append(geospatial_corners[0])
+                window_polygon = Polygon(geospatial_corners)
 
-    def write_training_chips(
-        self,
-        output_folder: PATH_TYPE,
-        brightness_multiplier: float = 1.0,
-        background_ind: int = 255,
-        skip_all_nodata_tiles: bool = True,
-    ):
-        """Write out training tiles from raster
+                if not ROI_geometry.intersects(window_polygon):
+                    continue
 
-        Args:
-            output_folder (PATH_TYPE): The folder to write to, will create 'imgs' and 'anns' subfolders if not present
-            brightness_multiplier (float, optional): Multiply image brightness by this before saving. Defaults to 1.0.
-            background_ind (int, optional): Write this value for unset/nodata pixels. Defaults to 255.
-            skip_all_nodata_tiles (bool, optional): If a tile has no valid data, skip writing it
-        """
-        # Create annoated dataset
-        self.create_sliding_window_dataset(is_annotated=True)
+            if label_gdf is not None:
+                window_transform = dataset.window_transform(window)
+                window_transformer = AffineTransformer(window_transform)
+                labels_raster = rasterize(
+                    label_shapes,
+                    out_shape=(chip_size, chip_size),
+                    transform=window_transform,
+                    fill=background_ind,
+                )
+                labels_raster = labels_raster.astype(np.uint8)
+                output_file_name = Path(
+                    labels_folder,
+                    get_str_from_window(
+                        raster_file=raster_file, window=window, suffix=".png"
+                    ),
+                )
+                imwrite(
+                    output_file_name,
+                    pad_to_full_size(labels_raster, (chip_size, chip_size)),
+                )
 
-        num_labels = len(self.class_config.names)
+            windowed_raster = dataset.read(window=window)
+            windowed_img = reshape_as_image(windowed_raster)
 
-        # Create output folders
-        image_folder = Path(output_folder, "imgs")
-        anns_folder = Path(output_folder, "anns")
+            if drop_transparency and windowed_img.shape[2] == 4:
+                transparency = windowed_img[..., 3]
+                windowed_img = windowed_img[..., :3]
+                # Set transperent regions to black
+                mask = transparency == 0
+                if np.all(mask):
+                    continue
 
-        image_folder.mkdir(parents=True, exist_ok=True)
-        anns_folder.mkdir(parents=True, exist_ok=True)
+                windowed_img[mask, :] = 0
 
-        # Main loop for writing out the data
-        for (image, label), window in tqdm(
-            zip(self.dataset, self.dataset.windows),
-            total=len(self.dataset),
-            desc="Saving train images and labels",
-        ):
-            label = label.cpu().numpy().astype(np.uint8)
-            mask = label == (num_labels - 1)
+            if brightness_multiplier != 1.0:
+                windowed_img = (windowed_img * brightness_multiplier).astype(np.uint8)
 
-            # If no data is valid, skip writing it
-            if skip_all_nodata_tiles and np.all(mask):
-                continue
-
-            # Set the nodata regions to the background value
-            label[mask] = background_ind
-
-            # Traspose the image so it's channel-last, as expected for images on disk
-            image = image.permute((1, 2, 0)).cpu().numpy()
-
-            # Transform from 0-1 -> 0-255
-            image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
-                np.uint8
+            output_file_name = Path(
+                output_folder,
+                get_str_from_window(
+                    raster_file=raster_file, window=window, suffix=output_suffix
+                ),
             )
-            # Get filename and write out
-            filename = self.get_filename_from_window(window)
-            imwrite(Path(image_folder, filename), image)
-            imwrite(Path(anns_folder, filename), label)
-
-    def write_inference_chips(
-        self,
-        output_folder: PATH_TYPE,
-        brightness_multiplier: float = 1.0,
-        skip_all_nodata_tiles: bool = True,
-    ):
-        """Writes out image chips to perform inference on
-
-        Args:
-            output_folder (PATH_TYPE): Where to write the image chips
-            brightness_multiplier (float, optional): Multiply image brightness by this before saving. Defaults to 1.0.
-            skip_all_nodata_tiles (bool, optional): Skip all black images. Defaults to True.
-        """
-        # Create dataset, without annotations
-        self.create_sliding_window_dataset(is_annotated=False)
-
-        # Create output folder
-        Path(output_folder).mkdir(parents=True, exist_ok=True)
-
-        # Iterate over images and windows in dataset
-        for (image, _), window in tqdm(
-            zip(self.dataset, self.dataset.windows),
-            total=len(self.dataset),
-            desc="Saving test images",
-        ):
-            # Transpose to channel-last
-            image = image.permute((1, 2, 0)).cpu().numpy()
-            # Brighten and transform from 0-1 -> 0-255
-            image = np.clip(image * 255 * brightness_multiplier, 0, 255).astype(
-                np.uint8
-            )
-
-            # Skip black images
-            if skip_all_nodata_tiles and np.all(image == 0):
-                continue
-
-            # Write result
             imwrite(
-                Path(output_folder, self.get_filename_from_window(window=window)), image
+                output_file_name, pad_to_full_size(windowed_img, (chip_size, chip_size))
             )
 
-    def assemble_tiled_predictions(
-        self,
-        pred_files: list[PATH_TYPE],
-        class_savefile: PATH_TYPE,
-        counts_savefile: typing.Union[PATH_TYPE, None] = None,
-        downweight_edge_frac: float = 0.25,
-        smooth_seg_labels: bool = False,
-        nodataval: typing.Union[int, None] = 255,
-        count_dtype: type = np.uint8,
-        max_overlapping_tiles: int = 4,
-    ):
-        """Take tiled predictions on disk and aggregate them into a raster
 
-        Args:
-            pred_files (list[PATH_TYPE]): List of filenames where predictions are written
-            class_savefile (PATH_TYPE): Where to save the merged raster.
-            counts_savefile (typing.Union[PATH_TYPE, NoneType], optional):
-                Where to save the counts for the merged predictions raster.
-                A tempfile will be created and then deleted if not specified. Defaults to None.
-            downweight_edge_frac (float, optional): Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
-            smooth_seg_labels (bool, optional): Use a distribution of class confidences, rather than hard labels. Defaults to False.
-            nodataval: (typing.Union[int, None]): Value for unassigned pixels. If None, will be set to len(self.class_names), the first unused class. Defaults to 255
-            count_dtype (type, optional): What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
-            max_overlapping_tiles (int):
-                The max number of prediction tiles that may overlap at a given point. This is used to upper bound the valud in the count matrix,
-                because we use scaled np.uint8 values rather than floats for efficiency. Setting a lower value enables slightly more accuracy in the
-                aggregation process, but too low can lead to overflow. Defaults to 4
-        """
-        # Setup
-        num_classes = len(self.class_names)
+def parse_windows_from_files(
+    files: list[Path], sep: str = ":"
+) -> tuple[list[Window], Window]:
+    """Return the boxes and extent from a list of filenames
 
-        # Set nodataval to the first unused class ID
-        if nodataval is None:
-            nodataval = num_classes
+    Args:
+        files (list[Path]): List of filenames
+        sep (str): Seperator between elements
 
-        # If the user didn't specify where to write the counts, create a tempfile that will be deleted
-        if counts_savefile is None:
-            # Create the containing folder if required
-            class_savefile.parent.mkdir(exist_ok=True, parents=True)
-            counts_savefile_manager = tempfile.NamedTemporaryFile(
-                mode="w+", suffix=".tif", dir=class_savefile.parent
-            )
-            counts_savefile = counts_savefile_manager.name
+    Returns:
+        tuple[list[Window], Window]: List of windows for each file and extent
+    """
+    # Split the coords out, currently ignorign the filename as the first element
+    coords = [file.stem.split(sep)[1:] for file in files]
+    # Create windows from coords
+    windows = [
+        Window(
+            row_off=int(coord[0]),
+            col_off=int(coord[1]),
+            height=int(coord[2]),
+            width=int(coord[3]),
+        )
+        for coord in coords
+    ]
+    # Compute the extents as the min/max of the boxes
+    coords_array = np.array(coords).astype(int)
 
-        # Parse the filenames to get the windows
-        # TODO consider using the extent to only write a file for the minimum encolsing rectangle
-        windows, extent = self.parse_windows_from_files(pred_files)
+    xmin = np.min(coords_array[:, 0])
+    ymin = np.min(coords_array[:, 1])
+    xmax = np.max(coords_array[:, 2] + coords_array[:, 0])
+    ymax = np.max(coords_array[:, 3] + coords_array[:, 1])
+    extent = Window(row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin)
 
-        # Aggregate predictions
-        with rio.open(self.raster_input_file) as src:
-            # Create file to store counts that is the same as the input raster except it has num_classes number of bands
-            with rio.open(
-                counts_savefile,
-                "w+",
-                driver="GTiff",
-                height=extent.width,
-                width=extent.height,
-                count=num_classes,
-                dtype=count_dtype,
-                crs=src.crs,
-                transform=src.transform,
-            ) as dst:
-                # Create
-                pred_weighting_dict = {}
-                for pred_file, window in tqdm(
-                    zip(pred_files, windows),
-                    desc="Aggregating raster predictions",
-                    total=len(pred_files),
-                ):
-                    # Read the prediction from disk
-                    pred = read_image_or_numpy(pred_file)
+    return windows, extent
 
-                    if pred.shape != (window.height, window.width):
-                        raise ValueError("Size of pred does not match window")
 
-                    # We want to downweight portions at the edge so we create a ramped weighting mask
-                    # but we don't want to duplicate this computation because it's the same for each same sized chip
-                    if pred.shape not in pred_weighting_dict:
-                        # We want to keep this as a uint8
-                        pred_weighting = create_ramped_weighting(
-                            pred.shape, downweight_edge_frac
+def assemble_tiled_predictions(
+    raster_input_file: PATH_TYPE,
+    pred_files: list[PATH_TYPE],
+    class_savefile: PATH_TYPE,
+    num_classes: int,
+    counts_savefile: typing.Union[PATH_TYPE, None] = None,
+    downweight_edge_frac: float = 0.25,
+    nodataval: typing.Union[int, None] = NULL_TEXTURE_INT_VALUE,
+    count_dtype: type = np.uint8,
+    max_overlapping_tiles: int = 4,
+):
+    """Take tiled predictions on disk and aggregate them into a raster
+
+    Args:
+        pred_files (list[PATH_TYPE]): List of filenames where predictions are written
+        class_savefile (PATH_TYPE): Where to save the merged raster.
+        counts_savefile (typing.Union[PATH_TYPE, NoneType], optional):
+            Where to save the counts for the merged predictions raster.
+            A tempfile will be created and then deleted if not specified. Defaults to None.
+        downweight_edge_frac (float, optional): Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
+        nodataval: (typing.Union[int, None]): Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255
+        count_dtype (type, optional): What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
+        max_overlapping_tiles (int):
+            The max number of prediction tiles that may overlap at a given point. This is used to upper bound the valud in the count matrix,
+            because we use scaled np.uint8 values rather than floats for efficiency. Setting a lower value enables slightly more accuracy in the
+            aggregation process, but too low can lead to overflow. Defaults to 4
+    """
+    # Set nodataval to the first unused class ID
+    if nodataval is None:
+        nodataval = num_classes
+
+    # If the user didn't specify where to write the counts, create a tempfile that will be deleted
+    if counts_savefile is None:
+        # Create the containing folder if required
+        class_savefile.parent.mkdir(exist_ok=True, parents=True)
+        counts_savefile_manager = tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".tif", dir=class_savefile.parent
+        )
+        counts_savefile = counts_savefile_manager.name
+
+    # Parse the filenames to get the windows
+    # TODO consider using the extent to only write a file for the minimum encolsing rectangle
+    windows, extent = parse_windows_from_files(pred_files)
+
+    # Aggregate predictions
+    with rio.open(raster_input_file) as src:
+        # Create file to store counts that is the same as the input raster except it has num_classes number of bands
+        with rio.open(
+            counts_savefile,
+            "w+",
+            driver="GTiff",
+            height=extent.width,
+            width=extent.height,
+            count=num_classes,
+            dtype=count_dtype,
+            crs=src.crs,
+            transform=src.transform,
+        ) as dst:
+            # Create
+            pred_weighting_dict = {}
+            for pred_file, window in tqdm(
+                zip(pred_files, windows),
+                desc="Aggregating raster predictions",
+                total=len(pred_files),
+            ):
+                # Read the prediction from disk
+                pred = read_image_or_numpy(pred_file)
+
+                if pred.shape != (window.height, window.width):
+                    raise ValueError("Size of pred does not match window")
+
+                # We want to downweight portions at the edge so we create a ramped weighting mask
+                # but we don't want to duplicate this computation because it's the same for each same sized chip
+                if pred.shape not in pred_weighting_dict:
+                    # We want to keep this as a uint8
+                    pred_weighting = create_ramped_weighting(
+                        pred.shape, downweight_edge_frac
+                    )
+
+                    # Allow us to get as much granularity as possible given the datatype
+                    if count_dtype is not float:
+                        pred_weighting = pred_weighting * (
+                            np.iinfo(count_dtype).max / max_overlapping_tiles
                         )
+                    # Convert weighting to desired type
+                    pred_weighting_dict[pred.shape] = pred_weighting.astype(count_dtype)
 
-                        # Allow us to get as much granularity as possible given the datatype
-                        if count_dtype is not float:
-                            pred_weighting = pred_weighting * (
-                                np.iinfo(count_dtype).max / max_overlapping_tiles
-                            )
-                        # Convert weighting to desired type
-                        pred_weighting_dict[pred.shape] = pred_weighting.astype(
-                            count_dtype
-                        )
+                # Get weighting
+                pred_weighting = pred_weighting_dict[pred.shape]
 
-                    # Get weighting
-                    pred_weighting = pred_weighting_dict[pred.shape]
-
-                    # Update each band in the counts file within the window
-                    for i in range(num_classes):
-                        # Bands in rasterio are 1-indexed
-                        band_ind = i + 1
-                        class_i_window_counts = dst.read(band_ind, window=window)
-                        class_i_preds = pred == i
-                        # If nothing matches this class, don't waste computation
-                        if not np.any(class_i_preds):
-                            continue
-                        # Weight the predictions to downweight the ones at the edge
-                        weighted_preds = (class_i_preds * pred_weighting).astype(
-                            count_dtype
-                        )
-                        # Add the new predictions to the previous counts
-                        class_i_window_counts += weighted_preds
-                        # Write out the updated results for this window
-                        dst.write(class_i_window_counts, band_ind, window=window)
-
-        ## Convert counts file to max-class file
-
-        with rio.open(counts_savefile, "r") as src:
-            # Create a one-band file to store the index of the most predicted class
-            with rio.open(
-                class_savefile,
-                "w",
-                driver="GTiff",
-                height=src.shape[0],
-                width=src.shape[1],
-                count=1,
-                dtype=np.uint8,
-                crs=src.crs,
-                transform=src.transform,
-                nodata=nodataval,
-            ) as dst:
-                # Iterate over the blocks corresponding to the tiff driver in the dataset
-                # to compute the max class and write it out
-                for _, window in tqdm(
-                    list(src.block_windows()), desc="Writing out max class"
-                ):
-                    # Read in the counts
-                    counts_array = src.read(window=window)
-                    # Compute which pixels have no recorded predictions and mask them out
-                    nodata_mask = np.sum(counts_array, axis=0) == 0
-
-                    # If it's all nodata, don't write it out
-                    # TODO make sure this works as expected
-                    if np.all(nodata_mask):
+                # Update each band in the counts file within the window
+                for i in range(num_classes):
+                    # Bands in rasterio are 1-indexed
+                    band_ind = i + 1
+                    class_i_window_counts = dst.read(band_ind, window=window)
+                    class_i_preds = pred == i
+                    # If nothing matches this class, don't waste computation
+                    if not np.any(class_i_preds):
                         continue
+                    # Weight the predictions to downweight the ones at the edge
+                    weighted_preds = (class_i_preds * pred_weighting).astype(
+                        count_dtype
+                    )
+                    # Add the new predictions to the previous counts
+                    class_i_window_counts += weighted_preds
+                    # Write out the updated results for this window
+                    dst.write(class_i_window_counts, band_ind, window=window)
 
-                    # Compute which class had the highest counts
-                    max_class = np.argmax(counts_array, axis=0)
-                    max_class[nodata_mask] = nodataval
-                    # TODO, it would be good to check if it's all nodata and skip the write because that's unneeded
-                    dst.write(max_class, 1, window=window)
+    ## Convert counts file to max-class file
+
+    with rio.open(counts_savefile, "r") as src:
+        # Create a one-band file to store the index of the most predicted class
+        with rio.open(
+            class_savefile,
+            "w",
+            driver="GTiff",
+            height=src.shape[0],
+            width=src.shape[1],
+            count=1,
+            dtype=np.uint8,
+            crs=src.crs,
+            transform=src.transform,
+            nodata=nodataval,
+        ) as dst:
+            # Iterate over the blocks corresponding to the tiff driver in the dataset
+            # to compute the max class and write it out
+            for _, window in tqdm(
+                list(src.block_windows()), desc="Writing out max class"
+            ):
+                # Read in the counts
+                counts_array = src.read(window=window)
+                # Compute which pixels have no recorded predictions and mask them out
+                nodata_mask = np.sum(counts_array, axis=0) == 0
+
+                # If it's all nodata, don't write it out
+                # TODO make sure this works as expected
+                if np.all(nodata_mask):
+                    continue
+
+                # Compute which class had the highest counts
+                max_class = np.argmax(counts_array, axis=0)
+                max_class[nodata_mask] = nodataval
+                # TODO, it would be good to check if it's all nodata and skip the write because that's unneeded
+                dst.write(max_class, 1, window=window)
