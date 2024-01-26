@@ -35,6 +35,42 @@ def get_str_from_window(window: Window, raster_file, suffix):
     return window_str
 
 
+def parse_windows_from_files(
+    files: list[Path], sep: str = ":"
+) -> tuple[list[Window], Window]:
+    """Return the boxes and extent from a list of filenames
+
+    Args:
+        files (list[Path]): List of filenames
+        sep (str): Seperator between elements
+
+    Returns:
+        tuple[list[Window], Window]: List of windows for each file and extent
+    """
+    # Split the coords out, currently ignorign the filename as the first element
+    coords = [file.stem.split(sep)[1:] for file in files]
+    # Create windows from coords
+    windows = [
+        Window(
+            row_off=int(coord[0]),
+            col_off=int(coord[1]),
+            width=int(coord[2]),
+            height=int(coord[3]),
+        )
+        for coord in coords
+    ]
+    # Compute the extents as the min/max of the boxes
+    coords_array = np.array(coords).astype(int)
+
+    xmin = np.min(coords_array[:, 0])
+    ymin = np.min(coords_array[:, 1])
+    xmax = np.max(coords_array[:, 2] + coords_array[:, 0])
+    ymax = np.max(coords_array[:, 3] + coords_array[:, 1])
+    extent = Window(row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin)
+
+    return windows, extent
+
+
 def pad_to_full_size(img, desired_size):
     padding_size = np.array(desired_size) - np.array(img.shape[: len(desired_size)])
     if np.sum(padding_size) > 0:
@@ -174,42 +210,6 @@ def write_chips(
             )
 
 
-def parse_windows_from_files(
-    files: list[Path], sep: str = ":"
-) -> tuple[list[Window], Window]:
-    """Return the boxes and extent from a list of filenames
-
-    Args:
-        files (list[Path]): List of filenames
-        sep (str): Seperator between elements
-
-    Returns:
-        tuple[list[Window], Window]: List of windows for each file and extent
-    """
-    # Split the coords out, currently ignorign the filename as the first element
-    coords = [file.stem.split(sep)[1:] for file in files]
-    # Create windows from coords
-    windows = [
-        Window(
-            row_off=int(coord[0]),
-            col_off=int(coord[1]),
-            height=int(coord[2]),
-            width=int(coord[3]),
-        )
-        for coord in coords
-    ]
-    # Compute the extents as the min/max of the boxes
-    coords_array = np.array(coords).astype(int)
-
-    xmin = np.min(coords_array[:, 0])
-    ymin = np.min(coords_array[:, 1])
-    xmax = np.max(coords_array[:, 2] + coords_array[:, 0])
-    ymax = np.max(coords_array[:, 3] + coords_array[:, 1])
-    extent = Window(row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin)
-
-    return windows, extent
-
-
 def assemble_tiled_predictions(
     raster_input_file: PATH_TYPE,
     pred_files: list[PATH_TYPE],
@@ -279,6 +279,7 @@ def assemble_tiled_predictions(
                 pred = read_image_or_numpy(pred_file)
 
                 if pred.shape != (window.height, window.width):
+                    set_trace()
                     raise ValueError("Size of pred does not match window")
 
                 # We want to downweight portions at the edge so we create a ramped weighting mask
