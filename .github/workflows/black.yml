@@ -1,0 +1,22 @@
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable
+        with:
+          # to exclude a file: '--exclude /path/to/file_or_directory' in options
+          options: "--verbose"
+          src: "./multiview_mapping_toolkit
+                ./multiview_mapping_toolkit/cameras 
+                ./multiview_mapping_toolkit/entrypoints 
+                ./multiview_mapping_toolkit/meshes 
+                ./multiview_mapping_toolkit/segmentation 
+                ./multiview_mapping_toolkit/utils 
+                ./tests 
+                ./examples"
+          jupyter: true
