@@ -3,4 +3,4 @@ from multiview_mapping_toolkit.segmentation.segmentor import (
     SegmentorPhotogrammetryCameraSet,
 )
 from multiview_mapping_toolkit.segmentation.derived_segmentors import LookUpSegmentor
-from multiview_mapping_toolkit.segmentation.ortho_segmentor import OrthoSegmentor
+from multiview_mapping_toolkit.segmentation.ortho_segmentor import write_chips, assemble_tiled_predictions

@@ -32,6 +32,8 @@ from multiview_mapping_toolkit.cameras import (
     PhotogrammetryCameraSet,
 )
 from multiview_mapping_toolkit.constants import (
+    CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
@@ -40,8 +42,6 @@ from multiview_mapping_toolkit.constants import (
     TEN_CLASS_VIS_KWARGS,
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
-    CLASS_ID_KEY,
-    CLASS_NAMES_KEY,
     VIS_FOLDER,
 )
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
@@ -63,6 +63,7 @@ class TexturedPhotogrammetryMesh:
         transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
+        IDs_to_labels: typing.Union[None, dict] = None,
         ROI=None,
         ROI_buffer_meters: float = 0,
         require_transform: bool = False,
@@ -75,6 +76,7 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
             texture_column_name: The name of the column to use for a vectorfile input
+            IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
         """
         self.downsample_target = downsample_target
 
@@ -113,7 +115,7 @@ class TexturedPhotogrammetryMesh:
         )
         # Load the texture
         self.logger.info("Loading texture")
-        self.load_texture(texture, texture_column_name)
+        self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
 
@@ -257,12 +259,31 @@ class TexturedPhotogrammetryMesh:
     def set_texture(
         self,
         texture_array: np.ndarray,
+        IDs_to_labels: typing.Union[None, dict] = None,
         all_discrete_texture_values: typing.Union[typing.List, None] = None,
         is_vertex_texture: typing.Union[bool, None] = None,
-        update_IDs_to_labels: bool = False,
+        use_derived_IDs_to_labels: bool = False,
         delete_existing: bool = True,
     ):
+        """Set the internal texture representation
+
+        Args:
+            texture_array (np.ndarray):
+                The array of texture values. The first dimension must be the length of faces or verts. A second dimension is optional.
+            IDs_to_labels (typing.Union[None, dict], optional): Mapping from integer IDs to string names. Defaults to None.
+            all_discrete_texture_values (typing.Union[typing.List, None], optional):
+                Are all the texture values known to be discrete, representing IDs. Computed from the data if not set. Defaults to None.
+            is_vertex_texture (typing.Union[bool, None], optional):
+                Are the texture values supposed to correspond to the vertices. Computed from the data if not set. Defaults to None.
+            use_derived_IDs_to_labels (bool, optional): Use IDs to labels derived from data if not explicitly provided. Defaults to False.
+            delete_existing (bool, optional): Delete the existing texture when the other one (face, vertex) is set. Defaults to True.
+
+        Raises:
+            ValueError: If the size of the texture doesn't match the number of either faces or vertices
+            ValueError: If the number of faces and vertices are the same and is_vertex_texture isn't set
+        """
         texture_array = self.standardize_texture(texture_array)
+        # IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
 
         # If it is not specified whether this is a vertex texture, attempt to infer it from the shape
         # TODO consider refactoring to check whether it matches the number of one of them,
@@ -289,16 +310,21 @@ class TexturedPhotogrammetryMesh:
         # Ensure that the actual data type is float, and record label names
         if texture_array.ndim == 2 and texture_array.shape[1] != 1:
             # If it is more than one column, it's assumed to be a real-valued
-            # quanitity and we try to cast it to a float
+            # quantity and we try to cast it to a float
             texture_array = texture_array.astype(float)
-            IDs_to_labels = None
+            derived_IDs_to_labels = None
         else:
-            texture_array, IDs_to_labels = ensure_float_labels(
+            texture_array, derived_IDs_to_labels = ensure_float_labels(
                 texture_array, full_array=all_discrete_texture_values
             )
 
-        if update_IDs_to_labels:
+        # If IDs to labels is explicitly provided, trust that
+        if IDs_to_labels is not None:
+            # TODO should do some type checking here
             self.IDs_to_labels = IDs_to_labels
+        # If not, but we can compute it, use that. Otherwise, we might want to force them to be set to None
+        elif use_derived_IDs_to_labels:
+            self.IDs_to_labels = derived_IDs_to_labels
 
         # Set the appropriate texture and optionally delete the other one
         if is_vertex_texture:
@@ -314,6 +340,7 @@ class TexturedPhotogrammetryMesh:
         self,
         texture: typing.Union[str, PATH_TYPE, np.ndarray, None],
         texture_column_name: typing.Union[None, PATH_TYPE] = None,
+        IDs_to_labels: typing.Union[None, dict] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
            one will be left as None
@@ -326,10 +353,15 @@ class TexturedPhotogrammetryMesh:
                   regions with different labels. These regions may be assigned based on the order of the rows.
                 * A raster file readable by rasterio. We may want to support using a subset of bands
             texture_column_name: The column to use as the label for a vector data input
+            IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
         """
         # The easy case, a texture is passed in directly
         if isinstance(texture, np.ndarray):
-            self.set_texture(texture_array=texture)
+            self.set_texture(
+                texture_array=texture,
+                IDs_to_labels=IDs_to_labels,
+                use_derived_IDs_to_labels=True,
+            )
         # If the texture is None, try to load it from the mesh
         # Note that this requires us to have not decimated yet
         elif texture is None:
@@ -349,8 +381,14 @@ class TexturedPhotogrammetryMesh:
                 texture_array = texture_array.astype(float)
                 texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
 
-                self.set_texture(texture_array)
+                self.set_texture(
+                    texture_array,
+                    IDs_to_labels=IDs_to_labels,
+                    use_derived_IDs_to_labels=True,
+                )
             else:
+                if IDs_to_labels is not None:
+                    self.IDs_to_labels = IDs_to_labels
                 # Assume that no texture will be needed, consider printing a warning
                 self.logger.warn("No texture provided")
         else:
@@ -376,6 +414,7 @@ class TexturedPhotogrammetryMesh:
             # Vector file
             if texture_array is None:
                 try:
+                    # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
                     texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
                         vector_source=texture,
@@ -399,7 +438,8 @@ class TexturedPhotogrammetryMesh:
             self.set_texture(
                 texture_array,
                 all_discrete_texture_values=all_values,
-                update_IDs_to_labels=True,
+                use_derived_IDs_to_labels=True,
+                IDs_to_labels=IDs_to_labels,
             )
 
     def select_mesh_ROI(
@@ -481,10 +521,8 @@ class TexturedPhotogrammetryMesh:
     def add_label(self, label_name, label_ID):
         self.IDs_to_labels[label_ID] = label_name
 
-    def get_label_names(self):
-        if self.IDs_to_labels is None:
-            return None
-        return list(self.IDs_to_labels.values())
+    def get_IDs_to_labels(self):
+        return self.IDs_to_labels
 
     def create_pytorch3d_mesh(
         self,
@@ -1090,7 +1128,7 @@ class TexturedPhotogrammetryMesh:
 
         # Optionally apply the texture to the mesh
         if set_mesh_texture:
-            self.set_texture(labels)
+            self.set_texture(labels, use_derived_IDs_to_labels=False)
 
         return labels
 

@@ -1,33 +1,25 @@
-import logging
-import tempfile
 import typing
 from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import pyproj
 import rasterio as rio
-from rasterstats import zonal_stats
-from rasterio.plot import reshape_as_image
-from rastervision.core.data import ClassConfig
-from rastervision.core.data.utils import make_ss_scene
-from rastervision.core.evaluation import SemanticSegmentationEvaluator
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from IPython.core.debugger import set_trace
+from rasterio.plot import reshape_as_image
+from rasterstats import zonal_stats
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from multiview_mapping_toolkit.constants import (
-    PATH_TYPE,
-    TEN_CLASS_VIS_KWARGS,
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
+    PATH_TYPE,
+    TEN_CLASS_VIS_KWARGS,
 )
 from multiview_mapping_toolkit.utils.geospatial import (
-    ensure_geometric_CRS,
-    reproject_raster,
-    get_overlap_vector,
-    get_overlap_raster,
     coerce_to_geoframe,
+    ensure_geometric_CRS,
+    get_overlap_raster,
 )
 
 
@@ -93,106 +85,6 @@ def plot_geodata(
         data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
 
 
-def make_ss_scene_vec_or_rast(
-    class_config, image_file, label_file, validate_vector_label=True
-):
-    image_data = rio.open(image_file)
-
-    if image_data.crs != pyproj.CRS.from_epsg(4326):
-        temp_image_file = tempfile.NamedTemporaryFile(mode="w+", suffix=".tif")
-        reproject_raster(image_file, temp_image_file.name)
-        image_file = temp_image_file.name
-
-    kwargs = {"class_config": class_config, "image_uri": image_file}
-    is_raster_label = check_if_raster(label_file)
-
-    temp_label_file_manager = None
-
-    if is_raster_label:
-        kwargs["label_raster_uri"] = label_file
-        kwargs["label_raster_source_kw"] = dict(allow_streaming=True)
-    else:
-        if validate_vector_label:
-            label_data = gpd.read_file(label_file)
-            if CLASS_ID_KEY not in label_data.columns:
-                if len(label_data) != len(class_config.names) - 1:
-                    # TODO see if "class" is there and create labels based on the class names
-                    raise ValueError(
-                        f"{CLASS_ID_KEY} not set and the number of rows is not the same as the number of classes"
-                    )
-                label_data[CLASS_ID_KEY] = label_data.index
-                # Create a temp file where we add the class_ID field
-                temp_label_file_manager = tempfile.NamedTemporaryFile(
-                    mode="w+", suffix=".geojson"
-                )
-                label_file = temp_label_file_manager.name
-                logging.warn(f"Created temp file {label_file}")
-                # Dump data to tempfile
-                label_data.to_file(label_file)
-            if label_data.crs != pyproj.CRS.from_epsg(4326):
-                temp_label_file_manager = tempfile.NamedTemporaryFile(
-                    mode="w+", suffix=".geojson"
-                )
-                label_file = temp_label_file_manager.name
-                label_data.to_crs(pyproj.CRS.from_epsg(4326))
-                label_data.to_file(label_file)
-
-        kwargs["label_vector_uri"] = label_file
-
-    return make_ss_scene(**kwargs), kwargs, temp_label_file_manager
-
-
-def compute_rastervision_evaluation_metrics(
-    image_file: PATH_TYPE,
-    prediction_file: PATH_TYPE,
-    groundtruth_file: PATH_TYPE,
-    class_names: list[str],
-    vis_savefile: str = None,
-):
-    image_file = str(image_file)
-    prediction_file = str(prediction_file)
-    groundtruth_file = str(groundtruth_file)
-
-    class_config = ClassConfig(names=class_names)
-    class_config.ensure_null_class()
-
-    logging.info("Creating prediction scenes")
-    prediction_scene, prediction_kwargs, prediction_temp = make_ss_scene_vec_or_rast(
-        class_config=class_config, image_file=image_file, label_file=prediction_file
-    )
-    gt_scene, gt_kwargs, gt_temp = make_ss_scene_vec_or_rast(
-        class_config=class_config, image_file=image_file, label_file=groundtruth_file
-    )
-    # Do visualizations after creating the scene to ensure that the file has the class_ID field
-    if vis_savefile is not None:
-        logging.info("Visualizing")
-
-        f, axs = plt.subplots(1, 2)
-        plot_geodata(
-            prediction_file if prediction_temp is None else prediction_temp.name,
-            ax=axs[0],
-        )
-        plot_geodata(groundtruth_file if gt_temp is None else gt_temp.name, ax=axs[1])
-
-        axs[0].set_title("Predictions")
-        axs[1].set_title("Ground truth")
-        plt.savefig(vis_savefile)
-        plt.close()
-        return
-
-    logging.info("Getting label arrays")
-    prediction_labels = prediction_scene.label_source.get_labels()
-    gt_labels = gt_scene.label_source.get_labels()
-
-    logging.info("Computing metrics")
-    evaluator = SemanticSegmentationEvaluator(class_config)
-    evaluation = evaluator.evaluate_predictions(
-        ground_truth=gt_labels, predictions=prediction_labels
-    )
-
-    return evaluation
-
-
 def cf_from_vector_vector(
     predicted_df: gpd.GeoDataFrame,
     true_df: gpd.GeoDataFrame,
@@ -229,7 +121,7 @@ def cf_from_vector_vector(
     return confusion_matrix, column_values
 
 
-def compute_evaluation_metrics_no_rastervision(
+def compute_confusion_matrix_from_geospatial(
     prediction_file: PATH_TYPE,
     groundtruth_file: PATH_TYPE,
     class_names: list[str],
@@ -321,8 +213,6 @@ def compute_evaluation_metrics_no_rastervision(
         plt.close()
 
     accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0]))
-
-    print(f"Accuracy {accuracy}")
 
     return cf_matrix, classes, accuracy
 
