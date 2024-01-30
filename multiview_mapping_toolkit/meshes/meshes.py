@@ -262,7 +262,7 @@ class TexturedPhotogrammetryMesh:
         IDs_to_labels: typing.Union[None, dict] = None,
         all_discrete_texture_values: typing.Union[typing.List, None] = None,
         is_vertex_texture: typing.Union[bool, None] = None,
-        force_update_IDs_to_labels: bool = False,
+        use_derived_IDs_to_labels: bool = False,
         delete_existing: bool = True,
     ):
         """Set the internal texture representation
@@ -275,7 +275,7 @@ class TexturedPhotogrammetryMesh:
                 Are all the texture values known to be discrete, representing IDs. Computed from the data if not set. Defaults to None.
             is_vertex_texture (typing.Union[bool, None], optional):
                 Are the texture values supposed to correspond to the vertices. Computed from the data if not set. Defaults to None.
-            force_update_IDs_to_labels (bool, optional): Force an update to the IDs_to_labels field even if None is derived from data. Defaults to False.
+            use_derived_IDs_to_labels (bool, optional): Use IDs to labels derived from data if not explicitly provided. Defaults to False.
             delete_existing (bool, optional): Delete the existing texture when the other one (face, vertex) is set. Defaults to True.
 
         Raises:
@@ -323,7 +323,7 @@ class TexturedPhotogrammetryMesh:
             # TODO should do some type checking here
             self.IDs_to_labels = IDs_to_labels
         # If not, but we can compute it, use that. Otherwise, we might want to force them to be set to None
-        elif derived_IDs_to_labels is not None or force_update_IDs_to_labels:
+        elif use_derived_IDs_to_labels:
             self.IDs_to_labels = derived_IDs_to_labels
 
         # Set the appropriate texture and optionally delete the other one
@@ -359,8 +359,8 @@ class TexturedPhotogrammetryMesh:
         if isinstance(texture, np.ndarray):
             self.set_texture(
                 texture_array=texture,
-                force_update_IDs_to_labels=True,
                 IDs_to_labels=IDs_to_labels,
+                use_derived_IDs_to_labels=True,
             )
         # If the texture is None, try to load it from the mesh
         # Note that this requires us to have not decimated yet
@@ -383,8 +383,8 @@ class TexturedPhotogrammetryMesh:
 
                 self.set_texture(
                     texture_array,
-                    force_update_IDs_to_labels=True,
                     IDs_to_labels=IDs_to_labels,
+                    use_derived_IDs_to_labels=True,
                 )
             else:
                 if IDs_to_labels is not None:
@@ -438,7 +438,7 @@ class TexturedPhotogrammetryMesh:
             self.set_texture(
                 texture_array,
                 all_discrete_texture_values=all_values,
-                force_update_IDs_to_labels=True,
+                use_derived_IDs_to_labels=True,
                 IDs_to_labels=IDs_to_labels,
             )
 
@@ -521,10 +521,8 @@ class TexturedPhotogrammetryMesh:
     def add_label(self, label_name, label_ID):
         self.IDs_to_labels[label_ID] = label_name
 
-    def get_label_names(self):
-        if self.IDs_to_labels is None:
-            return None
-        return list(self.IDs_to_labels.values())
+    def get_IDs_to_labels(self):
+        return self.IDs_to_labels
 
     def create_pytorch3d_mesh(
         self,
@@ -1130,7 +1128,7 @@ class TexturedPhotogrammetryMesh:
 
         # Optionally apply the texture to the mesh
         if set_mesh_texture:
-            self.set_texture(labels)
+            self.set_texture(labels, use_derived_IDs_to_labels=False)
 
         return labels
 
