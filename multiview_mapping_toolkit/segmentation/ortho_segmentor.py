@@ -52,8 +52,8 @@ def parse_windows_from_files(
     # Create windows from coords
     windows = [
         Window(
-            row_off=int(coord[0]),
-            col_off=int(coord[1]),
+            col_off=int(coord[0]),
+            row_off=int(coord[1]),
             width=int(coord[2]),
             height=int(coord[3]),
         )
@@ -135,11 +135,12 @@ def write_chips(
         output_folder.mkdir(exist_ok=True, parents=True)
 
         # Set up the ROI now that we have the working CRS
-        if ROI_file is not None and label_gdf is not None:
+        if ROI_file is not None:
             ROI_gdf = gpd.read_file(ROI_file).to_crs(working_CRS)
             ROI_geometry = ROI_gdf.dissolve().geometry.values[0]
-            # Crop the labels dataframe to the ROI
-            label_gdf = label_gdf.intersection(ROI_geometry)
+            if label_gdf is not None:
+                # Crop the labels dataframe to the ROI
+                label_gdf = label_gdf.intersection(ROI_geometry)
         else:
             ROI_geometry = None
 
@@ -160,6 +161,7 @@ def write_chips(
                 window_polygon = Polygon(geospatial_corners)
 
                 if not ROI_geometry.intersects(window_polygon):
+                    # Skip writing this chip if it doesn't intersect the ROI
                     continue
 
             if label_gdf is not None:
@@ -261,8 +263,8 @@ def assemble_tiled_predictions(
             counts_savefile,
             "w+",
             driver="GTiff",
-            height=extent.width,
-            width=extent.height,
+            height=extent.height,
+            width=extent.width,
             count=num_classes,
             dtype=count_dtype,
             crs=src.crs,
@@ -279,7 +281,6 @@ def assemble_tiled_predictions(
                 pred = read_image_or_numpy(pred_file)
 
                 if pred.shape != (window.height, window.width):
-                    set_trace()
                     raise ValueError("Size of pred does not match window")
 
                 # We want to downweight portions at the edge so we create a ramped weighting mask
