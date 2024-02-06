@@ -1574,6 +1574,10 @@ class TexturedPhotogrammetryMesh:
         if enable_ssao:
             plotter.enable_ssao()
 
+        # Create parent folder if none exists
+        if screenshot_filename is not None:
+            Path(screenshot_filename).parent.mkdir(parents=True, exist_ok=True)
+
         # Show
         return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
 
