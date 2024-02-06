@@ -524,6 +524,12 @@ class TexturedPhotogrammetryMesh:
     def get_IDs_to_labels(self):
         return self.IDs_to_labels
 
+    def get_label_names(self):
+        self.logger.warning(
+            "This method will be deprecated in favor of get_IDs_to_labels since it doesn't handle non-sequential indices"
+        )
+        return list(self.IDs_to_labels.values())
+
     def create_pytorch3d_mesh(
         self,
         vert_texture: np.ndarray = None,
