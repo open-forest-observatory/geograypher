@@ -528,6 +528,8 @@ class TexturedPhotogrammetryMesh:
         self.logger.warning(
             "This method will be deprecated in favor of get_IDs_to_labels since it doesn't handle non-sequential indices"
         )
+        if self.IDs_to_labels is None:
+            return None
         return list(self.IDs_to_labels.values())
 
     def create_pytorch3d_mesh(
