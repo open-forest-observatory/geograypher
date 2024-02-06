@@ -90,6 +90,7 @@ def cf_from_vector_vector(
     true_df: gpd.GeoDataFrame,
     column_name: str,
     column_values: list[str] = None,
+    include_unlabeled_class: bool = True,
 ):
     if not isinstance(predicted_df, gpd.GeoDataFrame):
         predicted_df = gpd.read_file(predicted_df)
@@ -118,6 +119,21 @@ def cf_from_vector_vector(
             intersection_area = pred_multipolygon.intersection(true_multipolygon).area
             confusion_matrix[i, j] = intersection_area
 
+    if include_unlabeled_class:
+        # Compute the sum of labeled predictions per ground truth class
+        labeled_areas = np.sum(confusion_matrix, axis=1)
+        # Compute the area of each ground truth class
+        total_areas = grouped_true_df.area.values
+        # TODO this isn't correct if predictions are overlapping
+        unlabeled_areas = total_areas - labeled_areas
+
+        # Create a cf matrix with an un-labeled class
+        confusion_matrix_w_unlabeled = np.zeros(
+            (confusion_matrix.shape[0] + 1, confusion_matrix.shape[1] + 1)
+        )
+        confusion_matrix_w_unlabeled[:-1, :-1] = confusion_matrix
+        confusion_matrix_w_unlabeled[:-1, -1] = unlabeled_areas
+        confusion_matrix = confusion_matrix_w_unlabeled
     return confusion_matrix, column_values
 
 
@@ -181,22 +197,11 @@ def compute_confusion_matrix_from_geospatial(
                 CLASS_NAMES_KEY, drop=True
             ).reindex(class_names)
 
-            per_class_area, classes = cf_from_vector_vector(
+            cf_matrix, classes = cf_from_vector_vector(
                 predicted_df=prediction_gdf,
                 true_df=groundtruth_gdf,
                 column_name=column_name,
             )
-            # Compute the sum of labeled predictions per ground truth class
-            labeled_areas = np.sum(per_class_area, axis=1)
-            # Compute the area of each ground truth class
-            total_areas = groundtruth_gdf.area.values
-            # TODO this isn't correct if predictions are overlapping
-            unlabeled_areas = total_areas - labeled_areas
-
-            # Create a cf matrix with an un-labeled class
-            cf_matrix = np.zeros((len(class_names) + 1, len(class_names) + 1))
-            cf_matrix[:-1, :-1] = per_class_area
-            cf_matrix[:-1, -1] = unlabeled_areas
 
         class_names.append("unlabeled")
 
@@ -212,7 +217,7 @@ def compute_confusion_matrix_from_geospatial(
         plt.savefig(vis_savefile)
         plt.close()
 
-    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0]))
+    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)
 
     return cf_matrix, classes, accuracy
 
