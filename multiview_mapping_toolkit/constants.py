@@ -28,6 +28,18 @@ EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)
 EXAMPLE_LABELS_FILENAME = Path(
     DATA_FOLDER, "example_Emerald_Point_data", "inputs", "labels.geojson"
 )
+EXAMPLE_IDS_TO_LABELS = {
+    0: "ABCO",
+    1: "ABMA",
+    2: "CADE",
+    3: "PI",
+    4: "PICO",
+    5: "PIJE",
+    6: "PILA",
+    7: "PIPO",
+    8: "SALSCO",
+    9: "TSME",
+}
 # The mesh exported from Metashape
 EXAMPLE_MESH_FILENAME = Path(
     DATA_FOLDER, "example_Emerald_Point_data", "inputs", "mesh.ply"
