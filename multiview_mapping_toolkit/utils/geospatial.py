@@ -7,19 +7,19 @@ import numpy as np
 import pyproj
 import rasterio as rio
 from geopandas import GeoDataFrame, GeoSeries
+from IPython.core.debugger import set_trace
 from rasterstats import zonal_stats
 from shapely import (
+    Geometry,
     MultiPolygon,
     Polygon,
-    intersection,
     difference,
-    union,
-    Geometry,
+    intersection,
     make_valid,
+    union,
 )
 from shapely.geometry import box
 from tqdm import tqdm
-from IPython.core.debugger import set_trace
 
 from multiview_mapping_toolkit.constants import PATH_TYPE
 

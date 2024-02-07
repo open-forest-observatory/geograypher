@@ -2,7 +2,7 @@ import logging
 import typing
 
 import shapely
-from shapely import unary_union, simplify
+from shapely import simplify, unary_union
 from tqdm import tqdm
 
 logger = logging.getLogger("geometric")
