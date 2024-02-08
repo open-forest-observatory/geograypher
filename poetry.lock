@@ -931,6 +931,27 @@ test = ["pickleshare", "pytest (<7.1)", "pytest-asyncio (<0.22)", "testpath"]
 test-extra = ["curio", "matplotlib (!=3.2.0)", "nbformat", "numpy (>=1.22)", "pandas", "pickleshare", "pytest (<7.1)", "pytest-asyncio (<0.22)", "testpath", "trio"]
 
 [[package]]
+name = "ipywidgets"
+version = "8.1.1"
+description = "Jupyter interactive widgets"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "ipywidgets-8.1.1-py3-none-any.whl", hash = "sha256:2b88d728656aea3bbfd05d32c747cfd0078f9d7e159cf982433b58ad717eed7f"},
+    {file = "ipywidgets-8.1.1.tar.gz", hash = "sha256:40211efb556adec6fa450ccc2a77d59ca44a060f4f9f136833df59c9f538e6e8"},
+]
+
+[package.dependencies]
+comm = ">=0.1.3"
+ipython = ">=6.1.0"
+jupyterlab-widgets = ">=3.0.9,<3.1.0"
+traitlets = ">=4.3.1"
+widgetsnbextension = ">=4.0.9,<4.1.0"
+
+[package.extras]
+test = ["ipykernel", "jsonschema", "pytest (>=3.6.0)", "pytest-cov", "pytz"]
+
+[[package]]
 name = "jedi"
 version = "0.19.1"
 description = "An autocompletion tool for Python that can be used for text editors."
@@ -1002,6 +1023,17 @@ traitlets = ">=5.3"
 [package.extras]
 docs = ["myst-parser", "pydata-sphinx-theme", "sphinx-autodoc-typehints", "sphinxcontrib-github-alt", "sphinxcontrib-spelling", "traitlets"]
 test = ["ipykernel", "pre-commit", "pytest", "pytest-cov", "pytest-timeout"]
+
+[[package]]
+name = "jupyterlab-widgets"
+version = "3.0.9"
+description = "Jupyter interactive widgets for JupyterLab"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "jupyterlab_widgets-3.0.9-py3-none-any.whl", hash = "sha256:3cf5bdf5b897bf3bccf1c11873aa4afd776d7430200f765e0686bd352487b58d"},
+    {file = "jupyterlab_widgets-3.0.9.tar.gz", hash = "sha256:6005a4e974c7beee84060fdfba341a3218495046de8ae3ec64888e5fe19fdb4c"},
+]
 
 [[package]]
 name = "kiwisolver"
@@ -2545,6 +2577,34 @@ files = [
 wslink = ">=1.12.2"
 
 [[package]]
+name = "trame-vtk"
+version = "2.8.0"
+description = "VTK widgets for trame"
+optional = false
+python-versions = "*"
+files = [
+    {file = "trame-vtk-2.8.0.tar.gz", hash = "sha256:341bff8b20bc422637b5abe3e55d92785b7ce8d0314d094398c705ae64f3946d"},
+    {file = "trame_vtk-2.8.0-py3-none-any.whl", hash = "sha256:1be403dbf16756c275fe73e9afca0a55dd56477b90db3bb0ef23daa3a47cc54d"},
+]
+
+[package.dependencies]
+trame-client = "*"
+
+[[package]]
+name = "trame-vuetify"
+version = "2.4.2"
+description = "Vuetify widgets for trame"
+optional = false
+python-versions = "*"
+files = [
+    {file = "trame-vuetify-2.4.2.tar.gz", hash = "sha256:85989236e9fb743448e807fe7ee341b8d65c0970cf95669cc5924c42053df9f6"},
+    {file = "trame_vuetify-2.4.2-py3-none-any.whl", hash = "sha256:7723a620a604aed5c2d9c4d577a76d8dfc8b41ba8f1b49b8b2ba02ce45961a22"},
+]
+
+[package.dependencies]
+trame-client = "*"
+
+[[package]]
 name = "typing-extensions"
 version = "4.6.3"
 description = "Backported and Experimental Type Hints for Python 3.7+"
@@ -2628,6 +2688,17 @@ python-versions = "*"
 files = [
     {file = "wcwidth-0.2.9-py2.py3-none-any.whl", hash = "sha256:9a929bd8380f6cd9571a968a9c8f4353ca58d7cd812a4822bba831f8d685b223"},
     {file = "wcwidth-0.2.9.tar.gz", hash = "sha256:a675d1a4a2d24ef67096a04b85b02deeecd8e226f57b5e3a72dbb9ed99d27da8"},
+]
+
+[[package]]
+name = "widgetsnbextension"
+version = "4.0.9"
+description = "Jupyter interactive widgets for Jupyter Notebook"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "widgetsnbextension-4.0.9-py3-none-any.whl", hash = "sha256:91452ca8445beb805792f206e560c1769284267a30ceb1cec9f5bcc887d15175"},
+    {file = "widgetsnbextension-4.0.9.tar.gz", hash = "sha256:3c1f5e46dc1166dfd40a42d685e6a51396fd34ff878742a3e47c6f0cc4a2a385"},
 ]
 
 [[package]]
@@ -2752,4 +2823,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "dc415c539dba6fe99644c4df6661a8d343cbba08dd7d86650abf41fb638d8ba7"
+content-hash = "d969cd909173fa7023ad1e8370da10b0691b56025a7dbe4048a3735c03436f71"
