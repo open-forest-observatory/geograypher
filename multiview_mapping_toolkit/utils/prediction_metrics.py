@@ -6,13 +6,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rasterio as rio
 from IPython.core.debugger import set_trace
+from rasterio.plot import reshape_as_image
+from rasterstats import zonal_stats
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
-from multiview_mapping_toolkit.constants import PATH_TYPE, TEN_CLASS_VIS_KWARGS
+from multiview_mapping_toolkit.constants import (
+    CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
+    PATH_TYPE,
+    TEN_CLASS_VIS_KWARGS,
+)
 from multiview_mapping_toolkit.utils.geospatial import (
+    coerce_to_geoframe,
     ensure_geometric_CRS,
     get_overlap_raster,
-    get_overlap_vector,
 )
 
 
@@ -30,15 +37,20 @@ def plot_geodata(
     filename,
     ax,
     raster_downsample_factor=0.1,
-    class_column="class_id",
+    class_column=CLASS_NAMES_KEY,
     ignore_class=255,
     vis_kwargs=TEN_CLASS_VIS_KWARGS,
 ):
-    vmin, vmax = vis_kwargs["clim"]
+    if "clim" in vis_kwargs:
+        vmin, vmax = vis_kwargs["clim"]
+    else:
+        vmin, vmax = (None, None)
+
+    cmap = vis_kwargs.pop("cmap", None)
     if check_if_raster(filename):
         with rio.open(filename) as dataset:
             # resample data to target shape
-            data = dataset.read(
+            raster = dataset.read(
                 out_shape=(
                     dataset.count,
                     int(dataset.height * raster_downsample_factor),
@@ -46,14 +58,31 @@ def plot_geodata(
                 ),
                 resampling=rio.enums.Resampling.bilinear,
             )
-        data = data[0].astype(float)
-        data[data == ignore_class] = np.nan
-        plt.colorbar(
-            ax.imshow(data, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"]), ax=ax
-        )
+
+        single_channel = raster.shape[0] == 1
+
+        if single_channel:
+            img = np.squeeze(raster).astype(float)
+            img[img == ignore_class] = np.nan
+        else:
+            img = reshape_as_image(raster)
+            # Auto brighten if dark
+            # walrus operator to avoid re-computing the mean
+            if img.shape[2] == 3:
+                mean_img = np.mean(img)
+            elif img.shape[2] == 4:
+                mean_img = np.mean(img[img[..., 3] > 0, :3])
+            else:
+                raise ValueError()
+
+            if mean_img < 50:
+                img = np.clip((img * (50 / mean_img)), 0, 255).astype(np.uint8)
+        cb = ax.imshow(img, vmin=vmin, vmax=vmax, cmap=cmap)
+        if single_channel:
+            plt.colorbar(cb)
     else:
         data = gpd.read_file(filename)
-        data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=vis_kwargs["cmap"])
+        data.plot(class_column, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
 
 
 def cf_from_vector_vector(
@@ -61,6 +90,7 @@ def cf_from_vector_vector(
     true_df: gpd.GeoDataFrame,
     column_name: str,
     column_values: list[str] = None,
+    include_unlabeled_class: bool = True,
 ):
     if not isinstance(predicted_df, gpd.GeoDataFrame):
         predicted_df = gpd.read_file(predicted_df)
@@ -89,6 +119,21 @@ def cf_from_vector_vector(
             intersection_area = pred_multipolygon.intersection(true_multipolygon).area
             confusion_matrix[i, j] = intersection_area
 
+    if include_unlabeled_class:
+        # Compute the sum of labeled predictions per ground truth class
+        labeled_areas = np.sum(confusion_matrix, axis=1)
+        # Compute the area of each ground truth class
+        total_areas = grouped_true_df.area.values
+        # TODO this isn't correct if predictions are overlapping
+        unlabeled_areas = total_areas - labeled_areas
+
+        # Create a cf matrix with an un-labeled class
+        confusion_matrix_w_unlabeled = np.zeros(
+            (confusion_matrix.shape[0] + 1, confusion_matrix.shape[1] + 1)
+        )
+        confusion_matrix_w_unlabeled[:-1, :-1] = confusion_matrix
+        confusion_matrix_w_unlabeled[:-1, -1] = unlabeled_areas
+        confusion_matrix = confusion_matrix_w_unlabeled
     return confusion_matrix, column_values
 
 
@@ -96,29 +141,72 @@ def compute_confusion_matrix_from_geospatial(
     prediction_file: PATH_TYPE,
     groundtruth_file: PATH_TYPE,
     class_names: list[str],
+    vis_raster_file: typing.Union[PATH_TYPE, None] = None,
     vis_savefile: str = None,
+    vis: bool = True,
     normalize: bool = True,
-    column_name=None,
+    remap_raster_inds=None,
+    column_name=CLASS_NAMES_KEY,
 ):
     pred_is_raster = check_if_raster(prediction_file)
     gt_is_raster = check_if_raster(groundtruth_file)
 
-    if gt_is_raster and pred_is_raster:
-        raise NotImplementedError()
-    elif not gt_is_raster and pred_is_raster:
-        cf_matrix, classes = get_overlap_raster(groundtruth_file, prediction_file)
-    elif gt_is_raster and not pred_is_raster:
-        # TODO use get_overlap_raster and flip the order, but make sure to properly threshold area
-        raise NotImplementedError()
-    elif not gt_is_raster and not pred_is_raster:
-        cf_matrix, classes = get_overlap_vector(
-            unlabeled_df=groundtruth_file,
-            classes_df=prediction_file,
+    if vis:
+        has_vis_raster_file = int(vis_raster_file is not None)
+        _, axs = plt.subplots(1, 2 + has_vis_raster_file)
+
+        if has_vis_raster_file > 0:
+            plot_geodata(vis_raster_file, ax=axs[0], vis_kwargs={})
+            axs[0].set_title("Reference\n raster file")
+
+        plot_geodata(
+            prediction_file,
+            ax=axs[0 + has_vis_raster_file],
+            class_column=column_name,
+        )
+        plot_geodata(
+            groundtruth_file,
+            ax=axs[1 + has_vis_raster_file],
             class_column=column_name,
         )
 
+        axs[0 + has_vis_raster_file].set_title("Predictions")
+        axs[1 + has_vis_raster_file].set_title("Ground truth")
+        # TODO make this more flexible
+        plt.show()
+
+    if gt_is_raster:
+        raise NotImplementedError()
+    else:
+        groundtruth_gdf = coerce_to_geoframe(groundtruth_file)
+        groundtruth_gdf = groundtruth_gdf.set_index(CLASS_NAMES_KEY, drop=True).reindex(
+            class_names
+        )
+
+        if pred_is_raster:
+            ret = zonal_stats(groundtruth_gdf, str(prediction_file), categorical=True)
+
+            cf_matrix = np.array([list(x.values()) for x in ret])
+            if remap_raster_inds is not None:
+                cf_matrix = cf_matrix[:, tuple(remap_raster_inds)]
+            cf_matrix = np.pad(cf_matrix, pad_width=((0, 1), (0, 1)))
+            classes = class_names
+        else:
+            prediction_gdf = coerce_to_geoframe(prediction_file)
+            prediction_gdf = prediction_gdf.set_index(
+                CLASS_NAMES_KEY, drop=True
+            ).reindex(class_names)
+
+            cf_matrix, classes = cf_from_vector_vector(
+                predicted_df=prediction_gdf,
+                true_df=groundtruth_gdf,
+                column_name=column_name,
+            )
+
+        class_names.append("unlabeled")
+
     if normalize:
-        cf_matrix /= cf_matrix.sum()
+        cf_matrix = cf_matrix / cf_matrix.sum()
 
     conf_disp = ConfusionMatrixDisplay(cf_matrix, display_labels=class_names)
     conf_disp.plot()
@@ -129,7 +217,7 @@ def compute_confusion_matrix_from_geospatial(
         plt.savefig(vis_savefile)
         plt.close()
 
-    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0]))
+    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)
 
     return cf_matrix, classes, accuracy
 
