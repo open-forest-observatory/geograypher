@@ -519,7 +519,8 @@ class TexturedPhotogrammetryMesh:
         return subset_mesh
 
     def add_label(self, label_name, label_ID):
-        self.IDs_to_labels[label_ID] = label_name
+        if label_ID is not np.nan:
+            self.IDs_to_labels[label_ID] = label_name
 
     def get_IDs_to_labels(self):
         return self.IDs_to_labels
