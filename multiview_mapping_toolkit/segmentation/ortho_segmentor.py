@@ -254,17 +254,18 @@ def assemble_tiled_predictions(
 
     # Parse the filenames to get the windows
     # TODO consider using the extent to only write a file for the minimum encolsing rectangle
-    windows, extent = parse_windows_from_files(pred_files)
+    windows, _ = parse_windows_from_files(pred_files)
 
     # Aggregate predictions
     with rio.open(raster_input_file) as src:
         # Create file to store counts that is the same as the input raster except it has num_classes number of bands
+        # TODO make this only the size of the extent computed by parse_windows_from_files
         with rio.open(
             counts_savefile,
             "w+",
             driver="GTiff",
-            height=extent.height,
-            width=extent.width,
+            height=src.height,
+            width=src.width,
             count=num_classes,
             dtype=count_dtype,
             crs=src.crs,
