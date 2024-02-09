@@ -1012,9 +1012,9 @@ class TexturedPhotogrammetryMesh:
 
         # Set nodata locations to nan
         # TODO figure out if it will ever be a problem to take the first value
-        sampled_raster_values[
-            sampled_raster_values == raster.nodatavals[0]
-        ] = nodata_fill_value
+        sampled_raster_values[sampled_raster_values == raster.nodatavals[0]] = (
+            nodata_fill_value
+        )
 
         if return_verts_in_CRS:
             return sampled_raster_values, verts_in_raster_CRS
@@ -1116,20 +1116,22 @@ class TexturedPhotogrammetryMesh:
             ground_mask = np.logical_and(is_labeled, ground_mask)
 
         # Get the existing label names
-        label_names = self.get_label_names()
+        IDs_to_labels = self.get_IDs_to_labels()
 
-        if label_names is None and ground_ID is None:
+        if IDs_to_labels is None and ground_ID is None:
             # This means that the label is continous, so the concept of ID is meaningless
             ground_ID = np.nan
-        elif label_names is not None and ground_class_name in label_names:
+        elif IDs_to_labels is not None and ground_class_name in IDs_to_labels:
             # If the ground class name is already in the list, set newly-predicted vertices to that class
-            ground_ID = label_names.find(ground_class_name)
-        elif label_names is not None:
+            ground_ID = IDs_to_labels.find(ground_class_name)
+        elif IDs_to_labels is not None:
             # If the label names are present, and the class is not already included, add it as the last element
             if ground_ID is None:
                 # Set it to the first unused ID
-                ground_ID = len(label_names)
-            self.add_label(label_name=ground_class_name, label_ID=ground_ID)
+                # TODO improve this since it should be the max plus one
+                ground_ID = len(IDs_to_labels)
+
+        self.add_label(label_name=ground_class_name, label_ID=ground_ID)
 
         # Replace mask for ground_vertices
         labels[ground_mask, 0] = ground_ID
