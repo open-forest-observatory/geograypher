@@ -36,29 +36,21 @@ def get_str_from_window(window: Window, raster_file, suffix):
 
 
 def parse_windows_from_files(
-    files: list[Path], sep: str = ":"
+    files: list[Path], sep: str = ":", return_in_extent_coords: bool = True
 ) -> tuple[list[Window], Window]:
     """Return the boxes and extent from a list of filenames
 
     Args:
         files (list[Path]): List of filenames
         sep (str): Seperator between elements
+        return_in_extent_coords (bool): Return in the coordinate frame of the extent
 
     Returns:
         tuple[list[Window], Window]: List of windows for each file and extent
     """
     # Split the coords out, currently ignorign the filename as the first element
     coords = [file.stem.split(sep)[1:] for file in files]
-    # Create windows from coords
-    windows = [
-        Window(
-            col_off=int(coord[0]),
-            row_off=int(coord[1]),
-            width=int(coord[2]),
-            height=int(coord[3]),
-        )
-        for coord in coords
-    ]
+
     # Compute the extents as the min/max of the boxes
     coords_array = np.array(coords).astype(int)
 
@@ -67,6 +59,22 @@ def parse_windows_from_files(
     xmax = np.max(coords_array[:, 2] + coords_array[:, 0])
     ymax = np.max(coords_array[:, 3] + coords_array[:, 1])
     extent = Window(row_off=ymin, col_off=xmin, width=xmax - xmin, height=ymax - ymin)
+
+    if return_in_extent_coords:
+        # Subtract out x and y min so it's w.r.t. the extent coordinates
+        coords_array[:, 0] = coords_array[:, 0] - xmin
+        coords_array[:, 1] = coords_array[:, 1] - ymin
+
+    # Create windows from coords
+    windows = [
+        Window(
+            col_off=coord[0],
+            row_off=coord[1],
+            width=coord[2],
+            height=coord[3],
+        )
+        for coord in coords_array.astype(int)
+    ]
 
     return windows, extent
 
@@ -254,22 +262,24 @@ def assemble_tiled_predictions(
 
     # Parse the filenames to get the windows
     # TODO consider using the extent to only write a file for the minimum encolsing rectangle
-    windows, _ = parse_windows_from_files(pred_files)
+    windows, extent = parse_windows_from_files(pred_files, return_in_extent_coords=True)
 
     # Aggregate predictions
     with rio.open(raster_input_file) as src:
         # Create file to store counts that is the same as the input raster except it has num_classes number of bands
         # TODO make this only the size of the extent computed by parse_windows_from_files
+        extent_transform = src.window_transform(extent)
+
         with rio.open(
             counts_savefile,
             "w+",
             driver="GTiff",
-            height=src.height,
-            width=src.width,
+            height=extent.height,
+            width=extent.width,
             count=num_classes,
             dtype=count_dtype,
             crs=src.crs,
-            transform=src.transform,
+            transform=extent_transform,
         ) as dst:
             # Create
             pred_weighting_dict = {}
