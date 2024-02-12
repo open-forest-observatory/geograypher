@@ -231,6 +231,7 @@ def compute_confusion_matrix_from_geospatial(
 def compute_and_show_cf(
     pred_labels: list,
     gt_labels: list,
+    labels: typing.Union[None, typing.List[str]] = None,
     use_labels_from: str = "both",
     vis: bool = True,
     savefile: typing.Union[None, PATH_TYPE] = None,
@@ -240,18 +241,20 @@ def compute_and_show_cf(
     Args:
         pred_labels (list): _description_
         gt_labels (list): _description_
+        labels (None, list): The labels to use for the axes
         use_labels_from (str, optional): _description_. Defaults to "gt".
     """
-    if use_labels_from == "gt":
-        labels = np.unique(list(gt_labels))
-    elif use_labels_from == "pred":
-        labels = np.unique(list(pred_labels))
-    elif use_labels_from == "both":
-        labels = np.unique(list(pred_labels) + list(gt_labels))
-    else:
-        raise ValueError(
-            f"Must use labels from gt, pred, or both but instead was {use_labels_from}"
-        )
+    if labels is None:
+        if use_labels_from == "gt":
+            labels = np.unique(list(gt_labels))
+        elif use_labels_from == "pred":
+            labels = np.unique(list(pred_labels))
+        elif use_labels_from == "both":
+            labels = np.unique(list(pred_labels) + list(gt_labels))
+        else:
+            raise ValueError(
+                f"Must use labels from gt, pred, or both but instead was {use_labels_from}"
+            )
 
     cf_matrix = confusion_matrix(y_true=gt_labels, y_pred=pred_labels, labels=labels)
 
