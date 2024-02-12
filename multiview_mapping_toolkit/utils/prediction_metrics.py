@@ -64,6 +64,7 @@ def plot_geodata(
         if single_channel:
             img = np.squeeze(raster).astype(float)
             img[img == ignore_class] = np.nan
+            interpolation = "none"
         else:
             img = reshape_as_image(raster)
             # Auto brighten if dark
@@ -77,7 +78,12 @@ def plot_geodata(
 
             if mean_img < 50:
                 img = np.clip((img * (50 / mean_img)), 0, 255).astype(np.uint8)
-        cb = ax.imshow(img, vmin=vmin, vmax=vmax, cmap=cmap)
+
+            interpolation = "antialiased"
+
+        cb = ax.imshow(
+            img, vmin=vmin, vmax=vmax, cmap=cmap, interpolation=interpolation
+        )
         if single_channel:
             plt.colorbar(cb)
     else:
