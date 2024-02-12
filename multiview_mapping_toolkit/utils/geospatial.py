@@ -8,11 +8,20 @@ import pyproj
 import rasterio as rio
 from geopandas import GeoDataFrame, GeoSeries
 from rasterstats import zonal_stats
-from shapely import MultiPolygon, Polygon, intersection, union
+from shapely import (
+    MultiPolygon,
+    Polygon,
+    intersection,
+    difference,
+    union,
+    Geometry,
+    make_valid,
+)
 from shapely.geometry import box
 from tqdm import tqdm
+from IPython.core.debugger import set_trace
 
-from multiview_mapping_toolkit.config import PATH_TYPE
+from multiview_mapping_toolkit.constants import PATH_TYPE
 
 
 def ensure_geometric_CRS(geodata):
@@ -30,6 +39,42 @@ def get_projected_CRS(lat, lon, assume_western_hem=True):
     epgs_code = 32700 - round((45 + lat) / 90) * 100 + round((183 + lon) / 6)
     crs = pyproj.CRS.from_epsg(epgs_code)
     return crs
+
+
+def ensure_non_overlapping_polygons(
+    geometries: typing.Union[typing.List[Geometry], gpd.GeoDataFrame],
+    inplace: bool = False,
+):
+    # Make sure geometries is a list of shapely objects
+    if isinstance(geometries, gpd.GeoDataFrame):
+        original_gdf = geometries
+        geometries = geometries.geometry.tolist()
+    else:
+        original_gdf = None
+
+    output_geometries = [None] * len(geometries)
+    union_of_added_geoms = MultiPolygon()
+
+    areas = [geom.area for geom in geometries]
+    sorted_inds = np.argsort(areas)
+
+    for ind in sorted_inds:
+        # Get the input geometry and ensure it's valid
+        geom = make_valid(geometries[ind])
+        # Subtract the union of all
+        geom_to_add = difference(geom, union_of_added_geoms)
+        output_geometries[ind] = geom_to_add
+        # Add the original geom, not the difference'd one, to avoid boundary artifacts
+        union_of_added_geoms = union(geom, union_of_added_geoms)
+
+    if original_gdf is None:
+        return output_geometries
+    elif inplace:
+        original_gdf.geometry = output_geometries
+    else:
+        output_gdf = original_gdf.copy()
+        output_gdf.geometry = output_geometries
+        return output_gdf
 
 
 def find_union_of_intersections(list_of_multipolygons, crs, vis=False):
@@ -191,9 +236,9 @@ def get_overlap_vector(
     unlabeled_df_intersecting_classes["index"] = unlabeled_df_intersecting_classes.index
 
     # Add area field to each
-    unlabeled_df_intersecting_classes[
-        "unlabeled_area"
-    ] = unlabeled_df_intersecting_classes.area
+    unlabeled_df_intersecting_classes["unlabeled_area"] = (
+        unlabeled_df_intersecting_classes.area
+    )
 
     # Find the intersecting geometries
     # We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified
@@ -209,15 +254,25 @@ def get_overlap_vector(
 
     # TODO look more into this part, something seems wrong
     overlay["overlapping_area"] = overlay.area
-    overlay["per_class_area_fraction"] = (
-        overlay["overlapping_area"] / overlay["unlabeled_area"]
-    )
+    # overlay["per_class_area_fraction"] = (
+    #    overlay["overlapping_area"] / overlay["unlabeled_area"]
+    # )
     # Aggregating the results
     # WARNING Make sure that this is a list and not a tuple or it gets considered one key
     logging.info("computing groupby")
+
+    # If the two dataframes have a column with the same name, they will be renamed
+    if (
+        f"{class_column}_1" in overlay.columns
+        and f"{class_column}_2" in overlay.columns
+    ):
+        aggregatation_class_column = f"{class_column}_1"
+    else:
+        aggregatation_class_column = class_column
+
     # Groupby and aggregate
-    grouped_by = overlay.groupby(by=["index", class_column])
-    aggregated = grouped_by.agg({"per_class_area_fraction": "sum"})
+    grouped_by = overlay.groupby(by=["index", aggregatation_class_column])
+    aggregated = grouped_by.agg({"overlapping_area": "sum"})
 
     # Extract the original class names
     unique_class_names = sorted(classes_df[class_column].unique().tolist())
@@ -230,18 +285,18 @@ def get_overlap_vector(
     )
 
     for r in aggregated.iterrows():
-        (index, class_name), area_fraction = r
+        (index, class_name), area = r
         # The index is the index from the original unlabeled dataset, but we need the index into the subset
         unlabled_object_ind = unique_index_values.index(index)
         # Transform the class name into a class index
         class_ind = unique_class_names.index(class_name)
         # Set the value to the area of the overlap between that unlabeled object and given class
-        counts_matrix[unlabled_object_ind, class_ind] = float(area_fraction.iloc[0])
+        counts_matrix[unlabled_object_ind, class_ind] = float(area.iloc[0])
 
     if normalize:
         counts_matrix = counts_matrix / np.sum(counts_matrix, axis=1, keepdims=True)
 
-    return counts_matrix, intersection_IDs
+    return counts_matrix, intersection_IDs, unique_class_names
 
 
 # https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio

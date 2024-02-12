@@ -52,7 +52,6 @@ def parse_sensors(sensors):
     sensors_dict = {}
 
     for sensor in sensors:
-
         sensor_dict = {}
 
         sensor_dict["image_width"] = int(sensor[0].get("width"))

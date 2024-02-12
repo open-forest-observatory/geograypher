@@ -3,16 +3,13 @@ import json
 from pathlib import Path
 
 from multiview_mapping_toolkit.utils.prediction_metrics import (
-    compute_rastervision_evaluation_metrics,
+    compute_confusion_matrix_from_geospatial,
 )
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--raster-file", type=Path, required=True, help="Path to image raster file"
     )
     parser.add_argument(
         "--prediction-file",
@@ -27,6 +24,9 @@ def parse_args():
         help="Path to vector or raster label file",
     )
     parser.add_argument("--class-names", nargs="+")
+    parser.add_argument("--vis-savefile")
+    parser.add_argument("--normalize", action="store_true")
+    parser.add_argument("--column-name")
     parser.add_argument(
         "--metrics-output-file",
         type=Path,
@@ -40,13 +40,11 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    evaluation = compute_rastervision_evaluation_metrics(
-        args.raster_file, args.prediction_file, args.groundtruth_file, args.class_names
+    cf_matrix, classes, accuracy = compute_confusion_matrix_from_geospatial(
+        prediction_file=args.prediction_file,
+        groundtruth_file=args.groundtruth_file,
+        class_names=args.class_names,
+        vis_savefile=args.vis_savefile,
+        normalize=args.normalize,
+        column_name=args.column_name,
     )
-    eval_json = evaluation.to_json()
-    if args.metrics_output_file is not None:
-        with open(args.metrics_output_file, "w") as outfile_h:
-            json.dump(eval_json, outfile_h)
-    else:
-        print(eval_json)
-    breakpoint()

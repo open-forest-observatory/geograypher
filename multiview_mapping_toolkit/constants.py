@@ -15,6 +15,8 @@ DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 
 VERT_ID = "vert_ID"
+CLASS_ID_KEY = "class_ID"
+CLASS_NAMES_KEY = "class_names"
 NULL_TEXTURE_FLOAT_VALUE = -1
 NULL_TEXTURE_INT_VALUE = 255
 LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
@@ -26,6 +28,18 @@ EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)
 EXAMPLE_LABELS_FILENAME = Path(
     DATA_FOLDER, "example_Emerald_Point_data", "inputs", "labels.geojson"
 )
+EXAMPLE_IDS_TO_LABELS = {
+    0: "ABCO",
+    1: "ABMA",
+    2: "CADE",
+    3: "PI",
+    4: "PICO",
+    5: "PIJE",
+    6: "PILA",
+    7: "PIPO",
+    8: "SALSCO",
+    9: "TSME",
+}
 # The mesh exported from Metashape
 EXAMPLE_MESH_FILENAME = Path(
     DATA_FOLDER, "example_Emerald_Point_data", "inputs", "mesh.ply"
@@ -96,8 +110,8 @@ def hex_to_rgb(value):
 MATPLOTLIB_PALLETE = [
     hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
 ]
-TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (0, 9)}
-TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (0, 19)}
+TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (-0.5, 9.5)}
+TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (-0.5, 19.5)}
 
 ## Outputs
 EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(

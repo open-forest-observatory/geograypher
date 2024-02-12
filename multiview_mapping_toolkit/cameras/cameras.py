@@ -17,7 +17,7 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.config import EXAMPLE_INTRINSICS, PATH_TYPE
+from multiview_mapping_toolkit.constants import EXAMPLE_INTRINSICS, PATH_TYPE
 from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
 )
