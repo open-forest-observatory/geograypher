@@ -236,9 +236,9 @@ def get_overlap_vector(
     unlabeled_df_intersecting_classes["index"] = unlabeled_df_intersecting_classes.index
 
     # Add area field to each
-    unlabeled_df_intersecting_classes[
-        "unlabeled_area"
-    ] = unlabeled_df_intersecting_classes.area
+    unlabeled_df_intersecting_classes["unlabeled_area"] = (
+        unlabeled_df_intersecting_classes.area
+    )
 
     # Find the intersecting geometries
     # We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified
@@ -296,7 +296,7 @@ def get_overlap_vector(
     if normalize:
         counts_matrix = counts_matrix / np.sum(counts_matrix, axis=1, keepdims=True)
 
-    return counts_matrix, intersection_IDs
+    return counts_matrix, intersection_IDs, unique_class_names
 
 
 # https://stackoverflow.com/questions/60288953/how-to-change-the-crs-of-a-raster-with-rasterio
