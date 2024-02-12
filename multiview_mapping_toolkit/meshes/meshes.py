@@ -836,7 +836,7 @@ class TexturedPhotogrammetryMesh:
         export_file: PATH_TYPE = None,
         export_crs: pyproj.CRS = LAT_LON_EPSG_CODE,
         label_names: typing.Tuple = None,
-        ensure_non_overlapping: bool = True,
+        ensure_non_overlapping: bool = False,
         simplify_tol: float = 0.0,
         drop_nan: bool = True,
         vis: bool = True,
