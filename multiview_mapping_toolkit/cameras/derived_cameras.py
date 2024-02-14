@@ -11,6 +11,37 @@ from multiview_mapping_toolkit.utils.parsing import (
 )
 
 
+def update_lists(
+    camera,
+    image_folder,
+    cam_to_world_transforms,
+    image_filenames,
+    sensor_IDs,
+    lon_lats,
+):
+    transform = camera.find("transform")
+    if transform is None:
+        # skipping unaligned camera
+        return
+    # If valid, parse into numpy array
+    cam_to_world_transforms.append(np.fromstring(transform.text, sep=" ").reshape(4, 4))
+
+    # The label should contain the image path
+    # TODO see if we want to do any fixup here, or punt to automate-metashape
+    image_filenames.append(Path(image_folder, camera.get("label")))
+    # This says which sensor model it came from
+    sensor_IDs.append(int(camera.get("sensor_id")))
+    # Try to get the lat lon information
+    reference = camera.find("reference")
+    try:
+        lon_lat = (float(reference.get("x")), float(reference.get("y")))
+        # TODO see what error this would throw if those aren't set
+    except:
+        lon_lat = None
+
+    lon_lats.append(lon_lat)
+
+
 class MetashapeCameraSet(PhotogrammetryCameraSet):
     def __init__(
         self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, default_focal=None
@@ -43,31 +74,27 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
         cameras = chunk[2]
         # Iterate over metashape cameras and fill out required information
-        for camera in cameras:
-            # 4x4 transform
-            transform = camera.find("transform")
-            if transform is None:
-                # skipping unaligned camera
-                continue
-            # If valid, parse into numpy array
-            cam_to_world_transforms.append(
-                np.fromstring(transform.text, sep=" ").reshape(4, 4)
-            )
-
-            # The label should contain the image path
-            # TODO see if we want to do any fixup here, or punt to automate-metashape
-            image_filenames.append(Path(image_folder, camera.get("label")))
-            # This says which sensor model it came from
-            sensor_IDs.append(int(camera.get("sensor_id")))
-            # Try to get the lat lon information
-            reference = camera.find("reference")
-            try:
-                lon_lat = (float(reference.get("x")), float(reference.get("y")))
-                # TODO see what error this would throw if those aren't set
-            except:
-                lon_lat = None
-
-            lon_lats.append(lon_lat)
+        for cam_or_group in cameras:
+            if cam_or_group.tag == "group":
+                for cam in cam_or_group:
+                    update_lists(
+                        cam,
+                        image_folder,
+                        cam_to_world_transforms,
+                        image_filenames,
+                        sensor_IDs,
+                        lon_lats,
+                    )
+            else:
+                # 4x4 transform
+                update_lists(
+                    cam_or_group,
+                    image_folder,
+                    cam_to_world_transforms,
+                    image_filenames,
+                    sensor_IDs,
+                    lon_lats,
+                )
 
         # Actually construct the camera objects using the base class
         super().__init__(
