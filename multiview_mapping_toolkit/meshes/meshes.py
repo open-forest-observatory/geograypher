@@ -1501,6 +1501,7 @@ class TexturedPhotogrammetryMesh:
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
         mesh_kwargs: typing.Dict = None,
+        interactive_jupyter: bool = False,
         plotter_kwargs: typing.Dict = {},
         enable_ssao: bool = True,
         force_xvfb: bool = False,
@@ -1513,6 +1514,7 @@ class TexturedPhotogrammetryMesh:
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
             vis_scalars: Scalars to show
             mesh_kwargs: dict of keyword arguments for the mesh
+            interactive_jupyter (bool): should jupyter windows be interactive. This doesn't always work, especially on VSCode.
             plotter_kwargs: dict of keyword arguments for the plotter
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
@@ -1560,6 +1562,9 @@ class TexturedPhotogrammetryMesh:
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
             mesh_kwargs["annotations"] = self.IDs_to_labels
             scalar_bar_args["n_labels"] = 0
+
+        if "jupyter_backend" not in plotter_kwargs and not interactive_jupyter:
+            plotter_kwargs["jupyter_backend"] = "static"
 
         # Add the mesh
         plotter.add_mesh(
