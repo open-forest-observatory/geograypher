@@ -272,3 +272,42 @@ def compute_and_show_cf(
     accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)
 
     return cf_matrix, labels, accuracy
+
+
+def compute_comprehensive_metrics(cf_matrix: np.ndarray, class_names: typing.List[str]):
+    accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)
+
+    num_classes = cf_matrix.shape[0]
+
+    per_class_dict = {}
+
+    for i, class_name in zip(range(num_classes), class_names):
+        true_positives = cf_matrix[i, i]
+        num_true = np.sum(cf_matrix[i, :])
+        num_pred = np.sum(cf_matrix[:, i])
+        recall = true_positives / num_true
+        precision = true_positives / num_pred
+
+        per_class_dict[class_name] = {
+            "recall": recall,
+            "precision": precision,
+            "num_true": num_true,
+        }
+
+    precisions = np.array([v["precision"] for v in per_class_dict.values()])
+    recalls = np.array([v["recall"] for v in per_class_dict.values()])
+    num_trues = np.array([v["num_true"] for v in per_class_dict.values()])
+
+    precisions = np.nan_to_num(precisions)
+
+    any_trues = num_trues > 0
+
+    class_averaged_recall = np.mean(recalls[any_trues])
+    class_averaged_precision = np.mean(precisions[any_trues])
+
+    return {
+        "accuracy": accuracy,
+        "class_averaged_recall": class_averaged_recall,
+        "class_averaged_precision": class_averaged_precision,
+        "per_class": per_class_dict,
+    }
