@@ -465,10 +465,18 @@ class PhotogrammetryCameraSet:
         self.image_folder = image_folder
 
         if validate_images:
-            missing_images = self.find_mising_images()
+            missing_images, invalid_images = self.find_mising_images()
             if len(missing_images) > 0:
-                print(missing_images)
-                raise ValueError("Missing images displayed above")
+                print(f"Deleting {len(missing_images)} missing images")
+                valid_images = np.where(np.logical_not(invalid_images))[0]
+                self.image_filenames = np.array(self.image_filenames)[
+                    valid_images
+                ].tolist()
+                self.cam_to_world_transforms = np.array(self.cam_to_world_transforms)[
+                    valid_images
+                ].tolist()
+                self.sensor_IDs = np.array(self.sensor_IDs)[valid_images].tolist()
+                self.lon_lats = np.array(self.lon_lats)[valid_images].tolist()
 
         self.cameras = []
 
@@ -485,12 +493,15 @@ class PhotogrammetryCameraSet:
             self.cameras.append(new_camera)
 
     def find_mising_images(self):
-        invalid_images = []
+        invalid_mask = []
         for image_file in self.image_filenames:
             if not image_file.is_file():
-                invalid_images.append(image_file)
+                invalid_mask.append(True)
+            else:
+                invalid_mask.append(False)
+        invalid_images = np.array(self.image_filenames)[np.array(invalid_mask)].tolist()
 
-        return invalid_images
+        return invalid_images, invalid_mask
 
     def n_cameras(self) -> int:
         """Return the number of cameras"""
