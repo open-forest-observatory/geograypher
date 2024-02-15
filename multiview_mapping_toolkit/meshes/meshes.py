@@ -664,6 +664,36 @@ class TexturedPhotogrammetryMesh:
 
         return points
 
+    def get_faces_2d_gdf(self, crs: pyproj.CRS, include_3d_2d_ratio: bool = False):
+        self.logger.info("Computing faces in working CRS")
+        # Get the mesh vertices in the desired export CRS
+        verts_in_crs = self.get_vertices_in_CRS(crs)
+        # Get a triangle in geospatial coords for each face
+        # (n_faces, 3 points, xyz)
+        faces = verts_in_crs[self.faces]
+        # Drop the z axis
+        faces_2d = faces[..., :2]
+
+        # Extract the faces for each unique label
+
+        face_tuples = [tuple(map(tuple, a)) for a in faces_2d]
+        face_polygons = [
+            Polygon(face_tuple)
+            for face_tuple in tqdm(face_tuples, desc=f"Converting faces to polygons")
+        ]
+        self.logger.info("Creating dataframe of faces")
+        # Convert these faces to multipolygons
+
+        faces_gdf = gpd.GeoDataFrame(
+            geometry=face_polygons,
+            crs=crs,
+        )
+
+        if include_3d_2d_ratio:
+            breakpoint()
+
+        return faces_gdf
+
     # Transform labels face<->vertex methods
 
     def face_to_vert_texture(self, face_IDs):
@@ -873,8 +903,7 @@ class TexturedPhotogrammetryMesh:
         # Compute the working projected CRS
         # This is important because having things in meters makes things easier
         self.logger.info("Computing working CRS")
-        verts_in_lon_lat = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)
-        lon, lat, _ = verts_in_lon_lat[0]
+        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
         working_CRS = get_projected_CRS(lon=lon, lat=lat)
 
         if face_labels is None:
@@ -886,30 +915,9 @@ class TexturedPhotogrammetryMesh:
 
         face_labels = np.squeeze(face_labels)
 
-        self.logger.info("Computing faces in working CRS")
-        # Get the mesh vertices in the desired export CRS
-        verts_in_crs = self.get_vertices_in_CRS(working_CRS)
-        # Get a triangle in geospatial coords for each face
-        # (n_faces, 3 points, xyz)
-        faces = verts_in_crs[self.faces]
-        # Drop the z axis
-        faces_2d = faces[..., :2]
+        faces_gdf = self.get_faces_2d_gdf(crs=working_CRS)
+        faces_gdf[CLASS_ID_KEY] = face_labels.tolist()
 
-        # Extract the faces for each unique label
-
-        face_tuples = [tuple(map(tuple, a)) for a in faces_2d]
-        face_polygons = [
-            Polygon(face_tuple)
-            for face_tuple in tqdm(face_tuples, desc=f"Converting faces to polygons")
-        ]
-        self.logger.info("Creating dataframe of faces")
-        # Convert these faces to multipolygons
-
-        faces_gdf = gpd.GeoDataFrame(
-            {CLASS_ID_KEY: face_labels.tolist()},
-            geometry=face_polygons,
-            crs=working_CRS,
-        )
         self.logger.info("Creating dataframe of multipolygons")
         unique_IDs = np.unique(face_labels)
         if drop_nan:
