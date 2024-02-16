@@ -118,7 +118,7 @@ conda create -n MVMT python=3.9 -y
 conda activate MVMT
 ```
 
-You could run into issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9
+For internal collaborators working on /ofo-share, you could run into issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.
 
 ```
 python
@@ -135,10 +135,14 @@ Use the output and change the permissions using chmod.
 
 ```
 # What the command should look like: 
-sudo chmod ugo+rwx <CONDA ENV LOCATION>/bin/python3.9
+chmod ugo+x <CONDA ENV LOCATION>/bin/python3.9
 ```
 
 If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
+
+```
+curl -sSL https://install.python-poetry.org | python3 -
+```
 
 For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
 
