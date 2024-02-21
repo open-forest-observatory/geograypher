@@ -1563,8 +1563,11 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs["annotations"] = self.IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
-        if "jupyter_backend" not in plotter_kwargs and not interactive_jupyter:
-            plotter_kwargs["jupyter_backend"] = "static"
+        if "jupyter_backend" not in plotter_kwargs:
+            if interactive_jupyter:
+                plotter_kwargs["jupyter_backend"] = "trame"
+            else:
+                plotter_kwargs["jupyter_backend"] = "static"
 
         # Add the mesh
         plotter.add_mesh(
