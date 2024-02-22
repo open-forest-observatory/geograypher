@@ -582,7 +582,12 @@ class PhotogrammetryCameraSet:
         )
         return cameras
 
-    def save_images(self, output_folder, copy=False):
+    def save_images(self, output_folder, copy=False, remove_folder: bool = True):
+        if remove_folder:
+            if os.path.isdir(output_folder):
+                print(f"about to remove {output_folder}")
+                shutil.rmtree(output_folder)
+
         for i in tqdm(range(len(self.cameras))):
             output_file = Path(
                 output_folder, self.get_image_filename(i, absolute=False)
