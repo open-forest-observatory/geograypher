@@ -1558,7 +1558,9 @@ class TexturedPhotogrammetryMesh:
         if is_rgb and np.max(vis_scalars) > 1.0:
             vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
 
-        scalar_bar_args = {"vertical": True, "n_colors": max(self.IDs_to_labels.keys()) + 1}
+        scalar_bar_args = {"vertical": True}
+        if self.IDs_to_labels is not None:
+            scalar_bar_args["n_colors"] = max(self.IDs_to_labels.keys()) + 1
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
             mesh_kwargs["annotations"] = self.IDs_to_labels
             scalar_bar_args["n_labels"] = 0
