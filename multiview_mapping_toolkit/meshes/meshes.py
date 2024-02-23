@@ -873,7 +873,44 @@ class TexturedPhotogrammetryMesh:
         self,
         face_labels: np.ndarray,
         polygons: typing.Union[PATH_TYPE, gpd.GeoDataFrame],
+        face_weighting: typing.Union[None, np.ndarray] = None,
+        return_class_labels: bool = True,
+        unknown_class_label: str = "unknown",
     ):
+        """Assign a class label to polygons using labels per face
+
+        Args:
+            face_labels (np.ndarray): (n_faces,) array of integer labels
+            polygons (typing.Union[PATH_TYPE, gpd.GeoDataFrame]): Geospatial polygons to be labeled
+            face_weighting (typing.Union[None, np.ndarray], optional):
+                (n_faces,) array of scalar weights for each face, to be multiplied with the
+                contribution of this face. Defaults to None.
+            return_class_labels: (bool, optional):
+                Return string representation of class labels rather than float. Defaults to True.
+            unknown_class_label (str, optional):
+                Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
+
+        Raises:
+            ValueError: if faces_labels or face_weighting is not 1D
+
+        Returns:
+            list(typing.Union[str, int]):
+                (n_polygons,) list of labels. Either float values, represnting integer IDs or nan,
+                or string values representing the class label
+        """
+        # Premptive error checking before expensive operations
+        face_labels = np.squeeze(face_labels)
+        if face_labels.ndim != 1:
+            raise ValueError(
+                f"Faces labels must be one-dimensional, but is {face_labels.ndim}"
+            )
+        if face_weighting is not None:
+            face_weighting = np.squeeze(face_weighting)
+            if face_weighting.ndim != 1:
+                raise ValueError(
+                    f"Faces labels must be one-dimensional, but is {face_weighting.ndim}"
+                )
+
         # Ensure that the input is a geopandas dataframe
         polygons_gdf = coerce_to_geoframe(polygons)
         # Extract just the geometry
@@ -885,10 +922,19 @@ class TexturedPhotogrammetryMesh:
         polygons_gdf.to_crs(working_CRS, inplace=True)
 
         # Get the faces of the mesh as a geopandas dataframe
-        # Also include the predicted face as a column in the dataframe
+        # Also include the predicted face labels as a column in the dataframe
         faces_2d_gdf = self.get_faces_2d_gdf(
             working_CRS, include_3d_2d_ratio=True, data_dict={CLASS_ID_KEY: face_labels}
         )
+
+        # If a per-face weighting is provided, multiply that with the 3d to 2d ratio
+        if face_weighting is not None:
+            faces_2d_gdf["face_weighting"] = (
+                faces_2d_gdf[RATIO_3D_2D_KEY] * face_weighting
+            )
+        # If not, just use the ratio
+        else:
+            faces_2d_gdf["face_weighting"] = faces_2d_gdf[RATIO_3D_2D_KEY]
 
         # Set the precision to avoid approximate coliniearity errors
         faces_2d_gdf["geometry"] = shapely.set_precision(
@@ -897,34 +943,57 @@ class TexturedPhotogrammetryMesh:
         polygons_gdf["geometry"] = shapely.set_precision(
             polygons_gdf.geometry.values, 1e-6
         )
-        polygons_gdf["polygon_ID"] = polygons_gdf.index
+        # Set the ID field so it's available after the overlay operation
+        # Note that polygons_gdf.index is a bad choice, because this df could be a subset of another
+        # one and the index would not start from 0
+        polygons_gdf["polygon_ID"] = np.arange(len(polygons_gdf))
 
+        # Perform the overlay between faces and polygons. This is the most expensive step
+        self.logger.info("Starting overlay")
         start = time()
         overlay = polygons_gdf.overlay(
             faces_2d_gdf, how="identity", keep_geom_type=False
         )
-        print(f"Overlay time: {time() - start}")
-        # Drop nan
+        self.logger.info(f"Overlay time: {time() - start}")
+
+        # Drop nan, for polygons without faces
         overlay.dropna(inplace=True)
-        overlay["weighted_area"] = overlay.area * overlay[RATIO_3D_2D_KEY]
+        # Compute the weighted area for each face, which may have been broken up by the overlay
+        overlay["weighted_area"] = overlay.area * overlay["face_weighting"]
 
-        print(overlay)
-        breakpoint()
+        self.logger.info(overlay)
         start = time()
+        # For each polygon, for each class, sum all columns
+        # NOTE the two keys must be represented as a list or they will be considered one tuple-valued key
         dissolved = overlay.dissolve(["polygon_ID", CLASS_ID_KEY], aggfunc=np.sum)
-        print(f"Dissolve time: {time() - start}")
+        self.logger.info(f"Dissolve time: {time() - start}")
 
-        num_classes = np.max(face_labels) + 1
+        # Build a matrix representation of the aggregated weighted area
+        num_classes = int(np.max(face_labels)) + 1
         weighted_area_matrix = np.zeros((len(polygons_gdf), num_classes))
-
         for r in dissolved.iterrows():
             (index, class_ID), vals = r
-            print(index, class_ID, vals)
             index = int(index)
             class_ID = int(class_ID)
             weighted_area_matrix[index, class_ID] = vals["weighted_area"]
-        print(weighted_area_matrix)
-        breakpoint()
+
+        # Find the highest-weighted prediction per polygon
+        predicted_class_IDs = np.argmax(weighted_area_matrix, axis=1).astype(float)
+        # Determine which polygons had no predictions
+        null_mask = np.sum(weighted_area_matrix, axis=1) == 0
+        predicted_class_IDs[null_mask] = np.nan
+
+        # Post-process to string label names if requested and IDs_to_labels exists
+        if return_class_labels and (
+            (IDs_to_labels := self.get_IDs_to_labels()) is not None
+        ):
+            # convert the IDs into labels
+            # Any label marked as nan is set to the unknown class label, since we had no predictions for it
+            predicted_class_IDs = [
+                (IDs_to_labels[int(pi)] if np.isfinite(pi) else unknown_class_label)
+                for pi in predicted_class_IDs
+            ]
+        return predicted_class_IDs
 
     def export_face_labels_vector(
         self,
