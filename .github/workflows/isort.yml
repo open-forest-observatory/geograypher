@@ -12,11 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Determine Branch Name
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+          else
+            BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})
+            echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Pull latest changes
-        run: git pull origin ${{ github.ref }}
+        with:
+          ref: ${{ env.BRANCH_NAME }}
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -26,17 +34,8 @@ jobs:
       - name: Run Isort
         run: pip install isort==5.13.2 && isort .
 
-      - name: Determine Branch Name
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
-          else
-            BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})
-            echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          fi
-      
       - name: Push changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Apply formatting changes
-          branch: ${{ github.head_ref }}
+      
