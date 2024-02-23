@@ -58,6 +58,7 @@ def parse_sensors(sensors):
         sensor_dict["image_height"] = int(sensor[0].get("height"))
 
         calibration = sensor.find("calibration")
+
         if calibration is None:
             raise ValueError("No calibration provided")
 
