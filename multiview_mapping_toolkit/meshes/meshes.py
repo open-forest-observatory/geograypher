@@ -3,8 +3,10 @@ import logging
 import sys
 import typing
 from pathlib import Path
+from time import time
 
 import geopandas as gpd
+import shapely
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -34,6 +36,7 @@ from multiview_mapping_toolkit.cameras import (
 from multiview_mapping_toolkit.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
+    RATIO_3D_2D_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
@@ -49,6 +52,7 @@ from multiview_mapping_toolkit.utils.geospatial import (
     ensure_geometric_CRS,
     ensure_non_overlapping_polygons,
     get_projected_CRS,
+    coerce_to_geoframe,
 )
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
 from multiview_mapping_toolkit.utils.numeric import compute_3D_triangle_area
@@ -664,33 +668,38 @@ class TexturedPhotogrammetryMesh:
 
         return points
 
-    def get_faces_2d_gdf(self, crs: pyproj.CRS, include_3d_2d_ratio: bool = False):
+    def get_faces_2d_gdf(
+        self, crs: pyproj.CRS, include_3d_2d_ratio: bool = False, data_dict: dict = {}
+    ):
         self.logger.info("Computing faces in working CRS")
         # Get the mesh vertices in the desired export CRS
         verts_in_crs = self.get_vertices_in_CRS(crs)
         # Get a triangle in geospatial coords for each face
         # (n_faces, 3 points, xyz)
         faces = verts_in_crs[self.faces]
-        # Drop the z axis
         faces_2d = faces[..., :2]
 
-        # Extract the faces for each unique label
+        if include_3d_2d_ratio:
+            ratios = []
+            for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
+                area, area_2d = compute_3D_triangle_area(face)
+                ratios.append(area / area_2d)
+            data_dict[RATIO_3D_2D_KEY] = ratios
 
-        face_tuples = [tuple(map(tuple, a)) for a in faces_2d]
+        faces_2d_tuples = [tuple(map(tuple, a)) for a in faces_2d]
         face_polygons = [
             Polygon(face_tuple)
-            for face_tuple in tqdm(face_tuples, desc=f"Converting faces to polygons")
+            for face_tuple in tqdm(
+                faces_2d_tuples, desc=f"Converting faces to polygons"
+            )
         ]
         self.logger.info("Creating dataframe of faces")
-        # Convert these faces to multipolygons
 
         faces_gdf = gpd.GeoDataFrame(
+            data=data_dict,
             geometry=face_polygons,
             crs=crs,
         )
-
-        if include_3d_2d_ratio:
-            breakpoint()
 
         return faces_gdf
 
@@ -860,6 +869,63 @@ class TexturedPhotogrammetryMesh:
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
 
+    def label_polygons(
+        self,
+        face_labels: np.ndarray,
+        polygons: typing.Union[PATH_TYPE, gpd.GeoDataFrame],
+    ):
+        # Ensure that the input is a geopandas dataframe
+        polygons_gdf = coerce_to_geoframe(polygons)
+        # Extract just the geometry
+        polygons_gdf = polygons_gdf[["geometry"]]
+
+        # Get the working CRS as the geometric CRS corresponding to the first vertex in the mesh
+        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
+        working_CRS = get_projected_CRS(lon=lon, lat=lat)
+        polygons_gdf.to_crs(working_CRS, inplace=True)
+
+        # Get the faces of the mesh as a geopandas dataframe
+        # Also include the predicted face as a column in the dataframe
+        faces_2d_gdf = self.get_faces_2d_gdf(
+            working_CRS, include_3d_2d_ratio=True, data_dict={CLASS_ID_KEY: face_labels}
+        )
+
+        # Set the precision to avoid approximate coliniearity errors
+        faces_2d_gdf["geometry"] = shapely.set_precision(
+            faces_2d_gdf.geometry.values, 1e-6
+        )
+        polygons_gdf["geometry"] = shapely.set_precision(
+            polygons_gdf.geometry.values, 1e-6
+        )
+        polygons_gdf["polygon_ID"] = polygons_gdf.index
+
+        start = time()
+        overlay = polygons_gdf.overlay(
+            faces_2d_gdf, how="identity", keep_geom_type=False
+        )
+        print(f"Overlay time: {time() - start}")
+        # Drop nan
+        overlay.dropna(inplace=True)
+        overlay["weighted_area"] = overlay.area * overlay[RATIO_3D_2D_KEY]
+
+        print(overlay)
+        breakpoint()
+        start = time()
+        dissolved = overlay.dissolve(["polygon_ID", CLASS_ID_KEY], aggfunc=np.sum)
+        print(f"Dissolve time: {time() - start}")
+
+        num_classes = np.max(face_labels) + 1
+        weighted_area_matrix = np.zeros((len(polygons_gdf), num_classes))
+
+        for r in dissolved.iterrows():
+            (index, class_ID), vals = r
+            print(index, class_ID, vals)
+            index = int(index)
+            class_ID = int(class_ID)
+            weighted_area_matrix[index, class_ID] = vals["weighted_area"]
+        print(weighted_area_matrix)
+        breakpoint()
+
     def export_face_labels_vector(
         self,
         face_labels: typing.Union[np.ndarray, None] = None,
@@ -915,8 +981,8 @@ class TexturedPhotogrammetryMesh:
 
         face_labels = np.squeeze(face_labels)
 
-        faces_gdf = self.get_faces_2d_gdf(crs=working_CRS)
-        faces_gdf[CLASS_ID_KEY] = face_labels.tolist()
+        data_dict = {CLASS_ID_KEY: face_labels.tolist()}
+        faces_gdf = self.get_faces_2d_gdf(crs=working_CRS, data_dict=data_dict)
 
         self.logger.info("Creating dataframe of multipolygons")
         unique_IDs = np.unique(face_labels)
