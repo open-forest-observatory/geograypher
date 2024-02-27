@@ -1,4 +1,4 @@
-# Multi-View Mapping Toolkit (MVMT)
+# Geograypher: Multiview Semantic Reasoning with Geospatial Data
 
 This tool is designed for multi-view image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tool is designed to be generalizable.
 
