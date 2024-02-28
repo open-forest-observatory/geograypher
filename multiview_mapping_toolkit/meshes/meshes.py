@@ -8,6 +8,7 @@ from time import time
 import geopandas as gpd
 import shapely
 import matplotlib.pyplot as plt
+import networkx
 import numpy as np
 import pandas as pd
 import pyproj
@@ -46,6 +47,15 @@ from multiview_mapping_toolkit.constants import (
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
     VIS_FOLDER,
+)
+from multiview_mapping_toolkit.segmentation.derived_segmentors import (
+    TabularRectangleSegmentor,
+)
+from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
+from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
+from multiview_mapping_toolkit.utils.numeric import (
+    compute_approximate_ray_intersection,
+    triangulate_rays_lstsq,
 )
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
 from multiview_mapping_toolkit.utils.geospatial import (
@@ -1636,10 +1646,101 @@ class TexturedPhotogrammetryMesh:
 
         return label_img
 
+    def aggreate_detections(
+        self,
+        camera_set: PhotogrammetryCameraSet,
+        segmentor: TabularRectangleSegmentor,
+        similarity_threshold=0.0002,
+        use_negative_edges=False,
+    ):
+        # Extract the rays from each of the cameras
+        # Note that these are all still in the local coordinate frame of the mesh
+        all_starts = []
+        all_directions = []
+        all_image_IDs = []
+
+        plotter = pv.Plotter()
+        for i in range(camera_set.n_cameras()):
+            filename = str(camera_set.get_image_filename(i))
+            centers = segmentor.get_detection_centers(filename)
+            camera = camera_set.get_camera_by_index(i)
+            # TODO make a "cast_rays" or similar function
+            line_segments = camera.vis_rays(pixel_coords_ij=centers, plotter=plotter)
+            if line_segments is not None:
+                starts = line_segments[0::2]
+                ends = line_segments[1::2]
+                directions = ends - starts
+                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
+                directions = directions / lengths
+                all_starts.append(starts)
+                all_directions.append(directions)
+                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
+        all_starts = np.concatenate(all_starts, axis=0)
+        all_directions = np.concatenate(all_directions, axis=0)
+        all_image_IDs = np.concatenate(all_image_IDs, axis=0)
+
+        # Compute the distance matrix
+        num_dets = all_starts.shape[0]
+        dists = np.full((num_dets, num_dets), fill_value=np.nan)
+
+        for i in tqdm(range(num_dets)):
+            for j in range(i, num_dets):
+                A = all_starts[i]
+                B = all_starts[j]
+                a = all_directions[i]
+                b = all_directions[j]
+                dist, valid = compute_approximate_ray_intersection(A, a, B, b)
+
+                dists[i, j] = dist if valid else np.nan
+
+        # Build a graph from the dists
+        dists[dists > similarity_threshold] = np.nan
+
+        finite = np.isfinite(dists)
+        i_inds, j_inds = np.where(finite)
+
+        positive_edges = [
+            (i, j, {"weight": 1 / dists[i, j]}) for i, j in zip(i_inds, j_inds)
+        ]
+
+        negative_edges = []
+        if use_negative_edges:
+            for image_ID in range(max(all_image_IDs)):
+                inds = np.where(all_image_IDs == image_ID)[0]
+                for i, node_i_ind in enumerate(inds):
+                    for node_j_ind in inds[i + 1 :]:
+                        negative_edges.append(
+                            (
+                                node_i_ind,
+                                node_j_ind,
+                                {"weight": -0.0001 / similarity_threshold},
+                            )
+                        )
+
+        G = networkx.Graph(positive_edges)
+        communities = networkx.community.louvain_communities(
+            G, weight="weight", resolution=2
+        )
+        communities = sorted(communities, key=len, reverse=True)
+
+        community_points = []
+        for community in communities:
+            community = np.array(list(community))
+            community_starts = all_starts[community]
+            community_directions = all_directions[community]
+            community_points.append(
+                triangulate_rays_lstsq(community_starts, community_directions)
+            )
+        community_points = np.vstack(community_points)
+        print(community_points)
+
+        breakpoint()
+
     # Visualization and saving methods
     def vis(
         self,
-        interactive=True,
+        plotter: pv.Plotter = None,
+        interactive: bool = True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
         vis_scalars=None,
@@ -1652,6 +1753,7 @@ class TexturedPhotogrammetryMesh:
         """Show the mesh and cameras
 
         Args:
+            plotter (pyvista.Plotter, optional): Plotter to use, else one will be created
             off_screen (bool, optional): Show offscreen
             camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
             screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
@@ -1674,8 +1776,9 @@ class TexturedPhotogrammetryMesh:
                 # More than 20 class or continous values
                 mesh_kwargs = {}
 
-        # Create the plotter which may be onscreen or off
-        plotter = pv.Plotter(off_screen=off_screen)
+        if plotter is None:
+            # Create the plotter which may be onscreen or off
+            plotter = pv.Plotter(off_screen=off_screen)
 
         # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
