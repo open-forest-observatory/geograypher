@@ -44,10 +44,7 @@ def update_lists(
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
     def __init__(
-        self,
-        camera_file: PATH_TYPE,
-        image_folder: PATH_TYPE,
-        validate_images: bool = False,
+        self, camera_file: PATH_TYPE, image_folder: PATH_TYPE, validate_images: bool = False,
     ):
         """Parse the information about the camera intrinsics and extrinsics
 
