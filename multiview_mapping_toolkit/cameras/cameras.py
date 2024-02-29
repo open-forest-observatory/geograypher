@@ -2,7 +2,7 @@ import os
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import List, Tuple, Union, Dict
+from typing import Dict, List, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
@@ -18,9 +18,7 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_mapping_toolkit.constants import EXAMPLE_INTRINSICS, PATH_TYPE
-from multiview_mapping_toolkit.utils.geospatial import (
-    ensure_geometric_CRS,
-)
+from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
 
 

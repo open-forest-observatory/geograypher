@@ -1,7 +1,8 @@
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 from imageio import imread
-import matplotlib.pyplot as plt
 
 from multiview_mapping_toolkit.constants import (
     NULL_TEXTURE_INT_VALUE,

@@ -6,7 +6,6 @@ from pathlib import Path
 from time import time
 
 import geopandas as gpd
-import shapely
 import matplotlib.pyplot as plt
 import networkx
 import numpy as np
@@ -14,6 +13,7 @@ import pandas as pd
 import pyproj
 import pyvista as pv
 import rasterio as rio
+import shapely
 import skimage
 import torch
 from IPython.core.debugger import set_trace
@@ -37,12 +37,12 @@ from multiview_mapping_toolkit.cameras import (
 from multiview_mapping_toolkit.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
-    RATIO_3D_2D_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
     NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
+    RATIO_3D_2D_KEY,
     TEN_CLASS_VIS_KWARGS,
     TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
@@ -51,21 +51,19 @@ from multiview_mapping_toolkit.constants import (
 from multiview_mapping_toolkit.segmentation.derived_segmentors import (
     TabularRectangleSegmentor,
 )
-from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
-from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
-from multiview_mapping_toolkit.utils.numeric import (
-    compute_approximate_ray_intersection,
-    triangulate_rays_lstsq,
-)
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
 from multiview_mapping_toolkit.utils.geospatial import (
+    coerce_to_geoframe,
     ensure_geometric_CRS,
     ensure_non_overlapping_polygons,
     get_projected_CRS,
-    coerce_to_geoframe,
 )
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
-from multiview_mapping_toolkit.utils.numeric import compute_3D_triangle_area
+from multiview_mapping_toolkit.utils.numeric import (
+    compute_3D_triangle_area,
+    compute_approximate_ray_intersection,
+    triangulate_rays_lstsq,
+)
 from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
 
 
