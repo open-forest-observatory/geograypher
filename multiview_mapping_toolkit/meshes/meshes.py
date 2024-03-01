@@ -1557,10 +1557,15 @@ class TexturedPhotogrammetryMesh:
         # Data in the range [0, 255] must
         if is_rgb and np.max(vis_scalars) > 1.0:
             vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
-
+        tab20_colors = ['#1f77b4', '#aec7e8', '#ff7f0e', '#ffbb78', '#2ca02c',
+                '#98df8a', '#d62728', '#ff9896', '#9467bd', '#c5b0d5',
+                '#8c564b', '#c49c94', '#e377c2', '#f7b6d2', '#7f7f7f',
+                '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5']
         scalar_bar_args = {"vertical": True}
-        if self.IDs_to_labels is not None:
-            scalar_bar_args["n_colors"] = max(self.IDs_to_labels.keys()) + 1
+        if self.get_IDs_to_labels() is not None:
+            scalar_bar_args["n_colors"] = max(self.get_IDs_to_labels().keys()) + 1
+            mesh_kwargs["cmap"] = tab20_colors[0:max(self.get_IDs_to_labels().keys()) + 1]
+            mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
             mesh_kwargs["annotations"] = self.IDs_to_labels
             scalar_bar_args["n_labels"] = 0
