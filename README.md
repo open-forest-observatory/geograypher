@@ -184,6 +184,11 @@ If this happens, you can fix it by symlinking to the system version. I don't kno
 ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
 ```
 
+If you want to be able to call MVMT fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
+```
+pip install -e <path to your clone of the MVMT repo>
+```
+
 ### Example data
 
 The public example data is in `data/example_Emerald_Point_data` . You can run notebooks in the `examples` folder to see how to interact with this data. You can download this data using Google Drive from this [folder](https://drive.google.com/drive/folders/1gs5MkutQJEfg7tVnv01gzrf9NisAO5AT?usp=drive_link). Once you've downloaded it, extract it into the `data` folder. 
