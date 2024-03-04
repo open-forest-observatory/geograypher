@@ -150,8 +150,6 @@ If you haven't already, install [poetry](https://python-poetry.org/docs/):
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
-
 Now use this to install the majority of dependencies. First `cd` to the directory containing the `geograypher` repo. Then run:
 
 ```
