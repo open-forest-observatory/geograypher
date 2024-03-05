@@ -113,44 +113,50 @@ Use this instead of `MVMT` in future steps.
 
 ### Creating a new environment
 
+> For internal collaborators working on `/ofo-share`, you can opt to store the new environment on `/ofo-share` so that you can access it from any VM. First make sure the location where you want to store the env is set to the deafault for conda:
+>
+> ```
+> conda config --append envs_dirs /ofo-share/repos-<yourname>/conda/envs/
+> conda config --append pkgs_dirs /ofo-share/repos-<yourname>/conda/pkgs/
+> ```
+>
+> You will need to run the above two lines on all new VMs before you can activate the env.
+
+Create and activate the environment:
+
 ```
 conda create -n MVMT python=3.9 -y
 conda activate MVMT
 ```
 
-For internal collaborators working on /ofo-share, you could run into issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.
+> For internal collaborators working on /ofo-share, you could run into permissions issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.
+> 
+> ```
+> python
+> python3.9
+> ```
+> 
+> If you get a permission denied error, get the location of the python executable inside of your conda environment (from the error message). 
+> 
+> Use the output and change the permissions using chmod. What the command should look like: 
+> 
+> ```
+> chmod ugo+x <CONDA ENV LOCATION>/bin/python3.9
+> ```
 
-```
-python
-python3.9
-```
-
-If you get a permission denied error, find the location of the python executable inside of your environment that you want to change using the following command:
-
-```
-which python
-```
-
-Use the output and change the permissions using chmod.
-
-```
-# What the command should look like: 
-chmod ugo+x <CONDA ENV LOCATION>/bin/python3.9
-```
-
-If you haven't already, install [poetry](https://python-poetry.org/docs/). Now use this to install the majority of dependencies.
+If you haven't already, install [poetry](https://python-poetry.org/docs/):
 
 ```
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-For some reason, poetry may not work if it's not in a graphical session. I think some form of authentication token is managed differently.
+Now use this to install the majority of dependencies. First `cd` to the directory containing the `geograypher` repo. Then run:
 
 ```
 poetry install
 ```
 
-Now install the `pytorch3d` dependencies that can't be installed with `poetry`.
+Now install the `pytorch3d` dependencies that can't be installed with `poetry`:
 
 ```
 conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
@@ -176,6 +182,11 @@ If this happens, you can fix it by symlinking to the system version. I don't kno
 
 ```
 ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
+```
+
+If you want to be able to call MVMT fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
+```
+pip install -e <path to your clone of the MVMT repo>
 ```
 
 ### Example data
