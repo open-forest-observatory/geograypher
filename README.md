@@ -96,7 +96,7 @@ There are two ways to use this tool. If you are an internal collaborator working
 
 ### Using existing environment
 
-Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed `conda` on your JetStream. Then you can tell `conda` to look in the following places for environments and packages.
+This is for internal collaborators working on Jetstream2. Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed `conda` on your Jetstream. Note that the following steps assums a conda config file already exists on your VM, and that it points to your local user's home directory for conda envs and pkgs. You can check this with `conda config --show` and look at the values under `pkgs_dirs` and `envs_dirs`. Then you can tell `conda` to look, secondarily, in the following additional places for environments and packages. 
 
 ```
 conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
@@ -116,8 +116,8 @@ Use this instead of `MVMT` in future steps.
 > For internal collaborators working on `/ofo-share`, you can opt to store the new environment on `/ofo-share` so that you can access it from any VM. First make sure the location where you want to store the env is set to the deafault for conda:
 >
 > ```
-> conda config --append envs_dirs /ofo-share/repos-<yourname>/conda/envs/
-> conda config --append pkgs_dirs /ofo-share/repos-<yourname>/conda/pkgs/
+> conda config --prepend envs_dirs /ofo-share/repos-<yourname>/conda/envs/
+> conda config --prepend pkgs_dirs /ofo-share/repos-<yourname>/conda/pkgs/
 > ```
 >
 > You will need to run the above two lines on all new VMs before you can activate the env.
