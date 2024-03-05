@@ -113,7 +113,7 @@ Use this instead of `MVMT` in future steps.
 
 ### Creating a new environment
 
-> For internal collaborators working on `/ofo-share`, you can opt to store the new environment on `/ofo-share` so that you can access it from any VM. First make sure the location where you want to store the env is set to the deafault for conda:
+> For internal collaborators working on `/ofo-share`, you can opt to store the new environment on `/ofo-share` so that you can access it from any VM. First make sure the location where you want to store the env is set to the default for conda:
 >
 > ```
 > conda config --prepend envs_dirs /ofo-share/repos-<yourname>/conda/envs/
