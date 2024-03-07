@@ -9,8 +9,15 @@ import rasterio as rio
 from geopandas import GeoDataFrame, GeoSeries
 from IPython.core.debugger import set_trace
 from rasterstats import zonal_stats
-from shapely import (Geometry, MultiPolygon, Polygon, difference, intersection,
-                     make_valid, union)
+from shapely import (
+    Geometry,
+    MultiPolygon,
+    Polygon,
+    difference,
+    intersection,
+    make_valid,
+    union,
+)
 from shapely.geometry import box
 from tqdm import tqdm
 

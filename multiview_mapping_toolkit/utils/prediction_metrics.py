@@ -287,6 +287,7 @@ def compute_comprehensive_metrics(cf_matrix: np.ndarray, class_names: typing.Lis
             "recall": recall,
             "precision": precision,
             "num_true": num_true,
+            "num_pred": num_pred,
         }
 
     precisions = np.array([v["precision"] for v in per_class_dict.values()])

@@ -1,5 +1,0 @@
-outs:
-- md5: 8614f4ee98c6c9c50c4f40daaa609845
-  size: 112485968
-  hash: md5
-  path: aggregated_face_labels.npy
