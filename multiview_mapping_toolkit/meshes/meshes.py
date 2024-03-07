@@ -1824,6 +1824,11 @@ class TexturedPhotogrammetryMesh:
         )
         # If the camera set is provided, show this too
         if camera_set is not None:
+            # Adjust the frustum scale if the mesh came from metashape
+            if self.local_to_epgs_4978_transform is not None:
+                transform_determinant = np.linalg.det(self.local_to_epgs_4978_transform[:3, :3])
+                scale_factor = np.cbrt(transform_determinant)
+                frustum_scale = frustum_scale / scale_factor
             camera_set.vis(
                 plotter, add_orientation_cube=False, frustum_scale=frustum_scale
             )
