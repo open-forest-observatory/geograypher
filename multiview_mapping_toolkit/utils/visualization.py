@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from imageio import imread
 
-from multiview_mapping_toolkit.constants import (NULL_TEXTURE_INT_VALUE,
-                                                 TEN_CLASS_VIS_KWARGS)
+from multiview_mapping_toolkit.constants import (
+    NULL_TEXTURE_INT_VALUE,
+    TEN_CLASS_VIS_KWARGS,
+)
 
 
 def show_segmentation_labels(

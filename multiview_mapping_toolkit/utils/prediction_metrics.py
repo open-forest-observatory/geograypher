@@ -10,12 +10,17 @@ from rasterio.plot import reshape_as_image
 from rasterstats import zonal_stats
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
-from multiview_mapping_toolkit.constants import (CLASS_ID_KEY, CLASS_NAMES_KEY,
-                                                 PATH_TYPE,
-                                                 TEN_CLASS_VIS_KWARGS)
-from multiview_mapping_toolkit.utils.geospatial import (coerce_to_geoframe,
-                                                        ensure_geometric_CRS,
-                                                        get_overlap_raster)
+from multiview_mapping_toolkit.constants import (
+    CLASS_ID_KEY,
+    CLASS_NAMES_KEY,
+    PATH_TYPE,
+    TEN_CLASS_VIS_KWARGS,
+)
+from multiview_mapping_toolkit.utils.geospatial import (
+    coerce_to_geoframe,
+    ensure_geometric_CRS,
+    get_overlap_raster,
+)
 
 
 def check_if_raster(filename):

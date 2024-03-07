@@ -17,17 +17,23 @@ import shapely
 import skimage
 import torch
 from IPython.core.debugger import set_trace
-from pytorch3d.renderer import (AmbientLights, HardGouraudShader,
-                                MeshRasterizer, RasterizationSettings,
-                                TexturesVertex)
+from pytorch3d.renderer import (
+    AmbientLights,
+    HardGouraudShader,
+    MeshRasterizer,
+    RasterizationSettings,
+    TexturesVertex,
+)
 from pytorch3d.structures import Meshes
 from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.cameras import (PhotogrammetryCamera,
-                                               PhotogrammetryCameraSet)
+from multiview_mapping_toolkit.cameras import (
+    PhotogrammetryCamera,
+    PhotogrammetryCameraSet,
+)
 from multiview_mapping_toolkit.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,

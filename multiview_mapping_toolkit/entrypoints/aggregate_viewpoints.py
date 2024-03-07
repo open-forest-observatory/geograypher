@@ -6,11 +6,16 @@ import numpy as np
 
 from multiview_mapping_toolkit.cameras import MetashapeCameraSet
 from multiview_mapping_toolkit.constants import (
-    EXAMPLE_CAMERAS_FILENAME, EXAMPLE_IMAGE_FOLDER, EXAMPLE_MESH_FILENAME,
-    EXAMPLE_PREDICTED_LABELS_FOLDER)
+    EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_IMAGE_FOLDER,
+    EXAMPLE_MESH_FILENAME,
+    EXAMPLE_PREDICTED_LABELS_FOLDER,
+)
 from multiview_mapping_toolkit.meshes import TexturedPhotogrammetryMesh
 from multiview_mapping_toolkit.segmentation import (
-    LookUpSegmentor, SegmentorPhotogrammetryCameraSet)
+    LookUpSegmentor,
+    SegmentorPhotogrammetryCameraSet,
+)
 
 
 def parse_args():
