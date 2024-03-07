@@ -14,42 +14,25 @@ import rasterio as rio
 import skimage
 import torch
 from IPython.core.debugger import set_trace
-from pytorch3d.renderer import (
-    AmbientLights,
-    HardGouraudShader,
-    MeshRasterizer,
-    RasterizationSettings,
-    TexturesVertex,
-)
+from pytorch3d.renderer import (AmbientLights, HardGouraudShader,
+                                MeshRasterizer, RasterizationSettings,
+                                TexturesVertex)
 from pytorch3d.structures import Meshes
 from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.cameras import (
-    PhotogrammetryCamera,
-    PhotogrammetryCameraSet,
-)
+from multiview_mapping_toolkit.cameras import (PhotogrammetryCamera,
+                                               PhotogrammetryCameraSet)
 from multiview_mapping_toolkit.constants import (
-    CLASS_ID_KEY,
-    CLASS_NAMES_KEY,
-    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
-    LAT_LON_EPSG_CODE,
-    NULL_TEXTURE_FLOAT_VALUE,
-    NULL_TEXTURE_INT_VALUE,
-    PATH_TYPE,
-    TEN_CLASS_VIS_KWARGS,
-    TWENTY_CLASS_VIS_KWARGS,
-    VERT_ID,
-    VIS_FOLDER,
-)
+    CLASS_ID_KEY, CLASS_NAMES_KEY, EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    LAT_LON_EPSG_CODE, NULL_TEXTURE_FLOAT_VALUE, NULL_TEXTURE_INT_VALUE,
+    PATH_TYPE, TEN_CLASS_VIS_KWARGS, TWENTY_CLASS_VIS_KWARGS, VERT_ID,
+    VIS_FOLDER)
 from multiview_mapping_toolkit.utils.geometric import batched_unary_union
 from multiview_mapping_toolkit.utils.geospatial import (
-    ensure_geometric_CRS,
-    ensure_non_overlapping_polygons,
-    get_projected_CRS,
-)
+    ensure_geometric_CRS, ensure_non_overlapping_polygons, get_projected_CRS)
 from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
 from multiview_mapping_toolkit.utils.numeric import compute_3D_triangle_area
 from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
