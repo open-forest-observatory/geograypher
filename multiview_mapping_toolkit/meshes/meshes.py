@@ -1546,7 +1546,7 @@ class TexturedPhotogrammetryMesh:
                 '#c7c7c7', '#bcbd22', '#dbdb8d', '#17becf', '#9edae5']
         scalar_bar_args = {"vertical": True}
         if self.get_IDs_to_labels() is not None:
-            scalar_bar_args["n_colors"] = max(self.get_IDs_to_labels().keys()) + 1
+            #scalar_bar_args["n_colors"] = max(self.get_IDs_to_labels().keys()) + 1
             mesh_kwargs["cmap"] = tab20_colors[0:max(self.get_IDs_to_labels().keys()) + 1]
             mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
