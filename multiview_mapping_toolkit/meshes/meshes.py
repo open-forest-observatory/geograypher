@@ -1747,6 +1747,7 @@ class TexturedPhotogrammetryMesh:
         plotter_kwargs: typing.Dict = {},
         enable_ssao: bool = True,
         force_xvfb: bool = False,
+        frustum_scale: float = 0.1,
     ):
         """Show the mesh and cameras
 
@@ -1823,7 +1824,9 @@ class TexturedPhotogrammetryMesh:
         )
         # If the camera set is provided, show this too
         if camera_set is not None:
-            camera_set.vis(plotter, add_orientation_cube=False)
+            camera_set.vis(
+                plotter, add_orientation_cube=False, frustum_scale=frustum_scale
+            )
 
         # Enable screen space shading
         if enable_ssao:
