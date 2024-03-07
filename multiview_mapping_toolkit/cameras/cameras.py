@@ -530,9 +530,11 @@ class PhotogrammetryCameraSet:
                 self.image_filenames = np.array(self.image_filenames)[
                     valid_images
                 ].tolist()
-                self.cam_to_world_transforms = np.array(self.cam_to_world_transforms)[
-                    valid_images
-                ].tolist()
+                # Avoid calling .tolist() because this will recursively set all elements to lists
+                # when this should be a list of np.arrays
+                self.cam_to_world_transforms = [
+                    x for x in np.array(self.cam_to_world_transforms)[valid_images]
+                ]
                 self.sensor_IDs = np.array(self.sensor_IDs)[valid_images].tolist()
                 self.lon_lats = np.array(self.lon_lats)[valid_images].tolist()
 
