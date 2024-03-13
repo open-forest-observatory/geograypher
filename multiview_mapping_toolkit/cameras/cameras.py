@@ -3,7 +3,6 @@ import shutil
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
-from scipy.spatial.distance import pdist
 
 import geopandas as gpd
 import numpy as np
@@ -13,6 +12,7 @@ import pyvista as pv
 import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
+from scipy.spatial.distance import pdist
 from shapely import Point
 from skimage.io import imread
 from skimage.transform import resize
