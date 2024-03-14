@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Union
 
-import matplotlib.pyplot as plt
 import matplotlib.colors
+import matplotlib.pyplot as plt
 import pyproj
 
 ## Typing constants
