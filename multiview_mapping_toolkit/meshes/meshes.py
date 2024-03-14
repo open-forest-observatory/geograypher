@@ -6,8 +6,8 @@ from pathlib import Path
 from time import time
 
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import matplotlib.colors
+import matplotlib.pyplot as plt
 import networkx
 import numpy as np
 import pandas as pd
