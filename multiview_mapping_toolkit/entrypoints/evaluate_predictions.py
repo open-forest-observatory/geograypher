@@ -2,8 +2,9 @@ import argparse
 import json
 from pathlib import Path
 
-from multiview_mapping_toolkit.utils.prediction_metrics import \
-    compute_confusion_matrix_from_geospatial
+from multiview_mapping_toolkit.utils.prediction_metrics import (
+    compute_confusion_matrix_from_geospatial,
+)
 
 
 def parse_args():

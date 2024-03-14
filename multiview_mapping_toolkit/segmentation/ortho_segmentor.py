@@ -14,8 +14,7 @@ from rasterio.windows import Window
 from shapely import Polygon
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import (NULL_TEXTURE_INT_VALUE,
-                                                 PATH_TYPE)
+from multiview_mapping_toolkit.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from multiview_mapping_toolkit.utils.io import read_image_or_numpy
 from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
 

@@ -4,9 +4,14 @@ from pathlib import Path
 
 from multiview_mapping_toolkit.cameras import MetashapeCameraSet
 from multiview_mapping_toolkit.constants import (
-    EXAMPLE_CAMERAS_FILENAME, EXAMPLE_DTM_FILE, EXAMPLE_IMAGE_FOLDER,
-    EXAMPLE_MESH_FILENAME, EXAMPLE_RENDERED_LABELS_FOLDER,
-    EXAMPLE_STANDARDIZED_LABELS_FILENAME, TEN_CLASS_VIS_KWARGS)
+    EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_DTM_FILE,
+    EXAMPLE_IMAGE_FOLDER,
+    EXAMPLE_MESH_FILENAME,
+    EXAMPLE_RENDERED_LABELS_FOLDER,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+    TEN_CLASS_VIS_KWARGS,
+)
 from multiview_mapping_toolkit.meshes import TexturedPhotogrammetryMesh
 
 

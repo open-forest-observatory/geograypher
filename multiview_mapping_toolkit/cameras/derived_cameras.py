@@ -5,8 +5,10 @@ import numpy as np
 
 from multiview_mapping_toolkit.cameras import PhotogrammetryCameraSet
 from multiview_mapping_toolkit.constants import PATH_TYPE
-from multiview_mapping_toolkit.utils.parsing import (parse_sensors,
-                                                     parse_transform_metashape)
+from multiview_mapping_toolkit.utils.parsing import (
+    parse_sensors,
+    parse_transform_metashape,
+)
 
 
 def update_lists(
