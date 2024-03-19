@@ -1770,12 +1770,20 @@ class TexturedPhotogrammetryMesh:
         if mesh_kwargs is None:
             mesh_kwargs = {}
             if self.is_discrete_texture() and len(self.get_label_names()) <= 10:
-                tab10_colors = [matplotlib.colors.to_hex(c) for c in plt.get_cmap('tab10').colors]
-                mesh_kwargs["cmap"] = tab10_colors[0:max(self.get_IDs_to_labels().keys()) + 1]
+                tab10_colors = [
+                    matplotlib.colors.to_hex(c) for c in plt.get_cmap("tab10").colors
+                ]
+                mesh_kwargs["cmap"] = tab10_colors[
+                    0 : max(self.get_IDs_to_labels().keys()) + 1
+                ]
                 mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
             elif self.is_discrete_texture() and len(self.get_label_names()) <= 20:
-                tab20_colors = [matplotlib.colors.to_hex(c) for c in plt.get_cmap('tab20').colors]
-                mesh_kwargs["cmap"] = tab20_colors[0:max(self.get_IDs_to_labels().keys()) + 1]
+                tab20_colors = [
+                    matplotlib.colors.to_hex(c) for c in plt.get_cmap("tab20").colors
+                ]
+                mesh_kwargs["cmap"] = tab20_colors[
+                    0 : max(self.get_IDs_to_labels().keys()) + 1
+                ]
                 mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
 
         if plotter is None:
@@ -1805,7 +1813,7 @@ class TexturedPhotogrammetryMesh:
         # Data in the range [0, 255] must
         if is_rgb and np.max(vis_scalars) > 1.0:
             vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
-        #tab20_colors = [tab20(i) for i in np.linspace(0, 1, 20)]
+        # tab20_colors = [tab20(i) for i in np.linspace(0, 1, 20)]
         scalar_bar_args = {"vertical": True}
         if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
             mesh_kwargs["annotations"] = self.IDs_to_labels
