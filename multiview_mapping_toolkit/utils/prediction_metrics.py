@@ -282,13 +282,18 @@ def compute_comprehensive_metrics(cf_matrix: np.ndarray, class_names: typing.Lis
     per_class_dict = {}
 
     for i, class_name in zip(range(num_classes), class_names):
+        total = np.sum(cf_matrix)
         true_positives = cf_matrix[i, i]
         num_true = np.sum(cf_matrix[i, :])
         num_pred = np.sum(cf_matrix[:, i])
         recall = true_positives / num_true
         precision = true_positives / num_pred
 
+        true_neg = total + true_positives - num_true - num_pred
+        acc = (true_positives + true_neg) / np.sum(cf_matrix)
+
         per_class_dict[class_name] = {
+            "acc": acc,
             "recall": recall,
             "precision": precision,
             "num_true": num_true,
