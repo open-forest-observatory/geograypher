@@ -732,12 +732,14 @@ class PhotogrammetryCameraSet:
         if plotter is None:
             plotter = pv.Plotter()
             show = True
-        
+
         # Determine pairwise distance between each camera and set frustum_scale to 1/120th of the maximum distance found
         max_distance = 0
         if frustum_scale is None and self.n_cameras() >= 2:
-            camera_translation_matrices = np.array([transform[:3, 3] for transform in self.cam_to_world_transforms])
-            distances = pdist(camera_translation_matrices, metric='euclidean')
+            camera_translation_matrices = np.array(
+                [transform[:3, 3] for transform in self.cam_to_world_transforms]
+            )
+            distances = pdist(camera_translation_matrices, metric="euclidean")
             max_distance = np.max(distances)
             frustum_scale = max_distance / 120 if max_distance > 0 else 1
 
