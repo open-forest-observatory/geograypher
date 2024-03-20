@@ -18,7 +18,11 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import EXAMPLE_INTRINSICS, PATH_TYPE
+from multiview_mapping_toolkit.constants import (
+    DEFAULT_FRUSTUM_SCALE,
+    EXAMPLE_INTRINSICS,
+    PATH_TYPE,
+)
 from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
 
@@ -733,15 +737,23 @@ class PhotogrammetryCameraSet:
             plotter = pv.Plotter()
             show = True
 
-        # Determine pairwise distance between each camera and set frustum_scale to 1/120th of the maximum distance found
-        max_distance = 0
-        if frustum_scale is None and self.n_cameras() >= 2:
-            camera_translation_matrices = np.array(
-                [transform[:3, 3] for transform in self.cam_to_world_transforms]
-            )
-            distances = pdist(camera_translation_matrices, metric="euclidean")
-            max_distance = np.max(distances)
-            frustum_scale = max_distance / 120 if max_distance > 0 else 1
+        # If the scale is None, set it
+        if frustum_scale is None:
+            # If there are more than two cameras, set it inteligently
+            if self.n_cameras() >= 2:
+                # Determine pairwise distance between each camera and set frustum_scale
+                # to 1/120th of the maximum distance found
+                camera_translation_matrices = np.array(
+                    [transform[:3, 3] for transform in self.cam_to_world_transforms]
+                )
+                distances = pdist(camera_translation_matrices, metric="euclidean")
+                max_distance = np.max(distances)
+                frustum_scale = (
+                    (max_distance / 120) if max_distance > 0 else DEFAULT_FRUSTUM_SCALE
+                )
+            # else, set it to a default
+            else:
+                frustum_scale = DEFAULT_FRUSTUM_SCALE
 
         for camera in self.cameras:
             camera.vis(plotter, frustum_scale=frustum_scale)
