@@ -19,9 +19,9 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from multiview_mapping_toolkit.constants import (
+    DEFAULT_FRUSTUM_SCALE,
     EXAMPLE_INTRINSICS,
     PATH_TYPE,
-    DEFAULT_FRUSTUM_SCALE,
 )
 from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
