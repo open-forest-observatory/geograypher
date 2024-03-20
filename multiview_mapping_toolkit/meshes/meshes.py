@@ -1749,6 +1749,7 @@ class TexturedPhotogrammetryMesh:
         enable_ssao: bool = True,
         force_xvfb: bool = False,
         frustum_scale: float = None,
+        IDs_to_labels: typing.Union[None, dict] = None,
     ):
         """Show the mesh and cameras
 
@@ -1762,30 +1763,31 @@ class TexturedPhotogrammetryMesh:
             interactive_jupyter (bool): should jupyter windows be interactive. This doesn't always work, especially on VSCode.
             plotter_kwargs: dict of keyword arguments for the plotter
             frustum_scale (float, optional): Size of cameras in world units
+            IDs_to_labels ([None, dict], optional):
+                Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh IDs_to_labels if unset.
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
         if off_screen or force_xvfb:
             pv.start_xvfb()
 
+        if IDs_to_labels is None:
+            IDs_to_labels = self.get_IDs_to_labels()
+
         # Set the mesh kwargs if not set
         if mesh_kwargs is None:
             mesh_kwargs = {}
-            if self.is_discrete_texture() and len(self.get_label_names()) <= 10:
-                tab10_colors = [
-                    matplotlib.colors.to_hex(c) for c in plt.get_cmap("tab10").colors
-                ]
-                mesh_kwargs["cmap"] = tab10_colors[
-                    0 : max(self.get_IDs_to_labels().keys()) + 1
-                ]
-                mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
-            elif self.is_discrete_texture() and len(self.get_label_names()) <= 20:
-                tab20_colors = [
-                    matplotlib.colors.to_hex(c) for c in plt.get_cmap("tab20").colors
-                ]
-                mesh_kwargs["cmap"] = tab20_colors[
-                    0 : max(self.get_IDs_to_labels().keys()) + 1
-                ]
-                mesh_kwargs["clim"] = (-0.5, max(self.get_IDs_to_labels().keys()) + 0.5)
+
+            if IDs_to_labels is not None:
+                max_ID = max(IDs_to_labels.keys())
+                if max_ID < 20:
+                    colors = [
+                        matplotlib.colors.to_hex(c)
+                        for c in plt.get_cmap(
+                            ("tab10" if max_ID < 10 else "tab20")
+                        ).colors
+                    ]
+                    mesh_kwargs["cmap"] = colors[0 : max_ID + 1]
+                    mesh_kwargs["clim"] = (-0.5, max_ID + 0.5)
 
         if plotter is None:
             # Create the plotter which may be onscreen or off
@@ -1811,13 +1813,13 @@ class TexturedPhotogrammetryMesh:
             else (vis_scalars.ndim == 2 and vis_scalars.shape[1] > 1)
         )
 
-        # Data in the range [0, 255] must
+        # Data in the range [0, 255] must be uint8 type
         if is_rgb and np.max(vis_scalars) > 1.0:
             vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
-        # tab20_colors = [tab20(i) for i in np.linspace(0, 1, 20)]
+
         scalar_bar_args = {"vertical": True}
-        if self.is_discrete_texture() and "annotations" not in mesh_kwargs:
-            mesh_kwargs["annotations"] = self.IDs_to_labels
+        if IDs_to_labels is not None and "annotations" not in mesh_kwargs:
+            mesh_kwargs["annotations"] = IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
         if "jupyter_backend" not in plotter_kwargs:

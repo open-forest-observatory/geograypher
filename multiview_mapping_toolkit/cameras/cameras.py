@@ -18,7 +18,11 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import EXAMPLE_INTRINSICS, PATH_TYPE
+from multiview_mapping_toolkit.constants import (
+    EXAMPLE_INTRINSICS,
+    PATH_TYPE,
+    DEFAULT_FRUSTUM_SCALE,
+)
 from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
 from multiview_mapping_toolkit.utils.image import get_GPS_exif
 
@@ -741,7 +745,11 @@ class PhotogrammetryCameraSet:
             )
             distances = pdist(camera_translation_matrices, metric="euclidean")
             max_distance = np.max(distances)
-            frustum_scale = max_distance / 120 if max_distance > 0 else 1
+            frustum_scale = (
+                max_distance / 120 if max_distance > 0 else DEFAULT_FRUSTUM_SCALE
+            )
+        else:
+            frustum_scale = DEFAULT_FRUSTUM_SCALE
 
         for camera in self.cameras:
             camera.vis(plotter, frustum_scale=frustum_scale)
