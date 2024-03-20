@@ -885,6 +885,7 @@ class TexturedPhotogrammetryMesh:
         face_weighting: typing.Union[None, np.ndarray] = None,
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
+        dissolve_precision: typing.Union[float, None] = 1e-8,
     ):
         """Assign a class label to polygons using labels per face
 
@@ -898,6 +899,8 @@ class TexturedPhotogrammetryMesh:
                 Return string representation of class labels rather than float. Defaults to True.
             unknown_class_label (str, optional):
                 Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
+            numerical_precision: (Union[float, None], optional)
+                Precision for geospatial operations. Used to avoid issues with near-parallel lines
 
         Raises:
             ValueError: if faces_labels or face_weighting is not 1D
@@ -921,19 +924,16 @@ class TexturedPhotogrammetryMesh:
                 )
 
         # Ensure that the input is a geopandas dataframe
-        polygons_gdf = coerce_to_geoframe(polygons)
+        polygons_gdf = ensure_geometric_CRS(coerce_to_geoframe(polygons))
         # Extract just the geometry
         polygons_gdf = polygons_gdf[["geometry"]]
-
-        # Get the working CRS as the geometric CRS corresponding to the first vertex in the mesh
-        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
-        working_CRS = get_projected_CRS(lon=lon, lat=lat)
-        polygons_gdf.to_crs(working_CRS, inplace=True)
 
         # Get the faces of the mesh as a geopandas dataframe
         # Also include the predicted face labels as a column in the dataframe
         faces_2d_gdf = self.get_faces_2d_gdf(
-            working_CRS, include_3d_2d_ratio=True, data_dict={CLASS_ID_KEY: face_labels}
+            polygons_gdf.crs,
+            include_3d_2d_ratio=True,
+            data_dict={CLASS_ID_KEY: face_labels},
         )
 
         # If a per-face weighting is provided, multiply that with the 3d to 2d ratio
@@ -946,10 +946,10 @@ class TexturedPhotogrammetryMesh:
             faces_2d_gdf["face_weighting"] = faces_2d_gdf[RATIO_3D_2D_KEY]
 
         # Set the precision to avoid approximate coliniearity errors
-        faces_2d_gdf["geometry"] = shapely.set_precision(
+        faces_2d_gdf.geometry = shapely.set_precision(
             faces_2d_gdf.geometry.values, 1e-6
         )
-        polygons_gdf["geometry"] = shapely.set_precision(
+        polygons_gdf.geometry = shapely.set_precision(
             polygons_gdf.geometry.values, 1e-6
         )
         # Set the ID field so it's available after the overlay operation
@@ -972,6 +972,10 @@ class TexturedPhotogrammetryMesh:
 
         self.logger.info(overlay)
         start = time()
+        # Set the precision to avoid numerical issues from near-colinear lines
+        overlay.geometry = shapely.set_precision(
+            overlay.geometry.values, dissolve_precision
+        )
         # For each polygon, for each class, sum all columns
         # NOTE the two keys must be represented as a list or they will be considered one tuple-valued key
         dissolved = overlay.dissolve(["polygon_ID", CLASS_ID_KEY], aggfunc=np.sum)
