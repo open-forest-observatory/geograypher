@@ -1767,17 +1767,22 @@ class TexturedPhotogrammetryMesh:
                 Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh IDs_to_labels if unset.
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
+        # Start offscreen rendering if needed
         if off_screen or force_xvfb:
             pv.start_xvfb()
 
+        # If the IDs to labels is not set, use the default ones for this mesh
         if IDs_to_labels is None:
             IDs_to_labels = self.get_IDs_to_labels()
 
         # Set the mesh kwargs if not set
         if mesh_kwargs is None:
+            # This needs to be a dict, even if it's empty
             mesh_kwargs = {}
 
+            # If there are discrete labels, set the colormap and limits inteligently
             if IDs_to_labels is not None:
+                # Compute the largest ID
                 max_ID = max(IDs_to_labels.keys())
                 if max_ID < 20:
                     colors = [
