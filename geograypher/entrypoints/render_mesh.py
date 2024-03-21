@@ -2,8 +2,8 @@ import argparse
 import logging
 from pathlib import Path
 
-from multiview_mapping_toolkit.cameras import MetashapeCameraSet
-from multiview_mapping_toolkit.constants import (
+from geograypher.cameras import MetashapeCameraSet
+from geograypher.constants import (
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_DTM_FILE,
     EXAMPLE_IMAGE_FOLDER,
@@ -12,7 +12,7 @@ from multiview_mapping_toolkit.constants import (
     EXAMPLE_STANDARDIZED_LABELS_FILENAME,
     TEN_CLASS_VIS_KWARGS,
 )
-from multiview_mapping_toolkit.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes import TexturedPhotogrammetryMesh
 
 
 def parse_args():

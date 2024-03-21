@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from multiview_mapping_toolkit.segmentation import OrthoSegmentor
+from geograypher.segmentation import OrthoSegmentor
 
 
 def parse_args():

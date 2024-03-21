@@ -14,9 +14,9 @@ from rasterio.windows import Window
 from shapely import Polygon
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
-from multiview_mapping_toolkit.utils.io import read_image_or_numpy
-from multiview_mapping_toolkit.utils.numeric import create_ramped_weighting
+from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
+from geograypher.utils.io import read_image_or_numpy
+from geograypher.utils.numeric import create_ramped_weighting
 
 
 def create_windows(dataset_h_w, window_size, window_stride):

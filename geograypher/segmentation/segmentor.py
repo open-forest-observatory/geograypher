@@ -4,7 +4,7 @@ from copy import deepcopy
 import numpy as np
 from torch import NoneType
 
-from multiview_mapping_toolkit.cameras import PhotogrammetryCameraSet
+from geograypher.cameras import PhotogrammetryCameraSet
 
 
 class Segmentor:
