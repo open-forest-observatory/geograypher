@@ -899,7 +899,7 @@ class TexturedPhotogrammetryMesh:
                 Return string representation of class labels rather than float. Defaults to True.
             unknown_class_label (str, optional):
                 Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
-            numerical_precision: (Union[float, None], optional)
+            dissolve_precision: (Union[float, None], optional)
                 Precision for geospatial operations. Used to avoid issues with near-parallel lines
 
         Raises:
