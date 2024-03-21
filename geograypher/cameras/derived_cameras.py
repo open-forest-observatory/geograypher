@@ -5,10 +5,7 @@ import numpy as np
 
 from geograypher.cameras import PhotogrammetryCameraSet
 from geograypher.constants import PATH_TYPE
-from geograypher.utils.parsing import (
-    parse_sensors,
-    parse_transform_metashape,
-)
+from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
 
 def update_lists(

@@ -12,10 +12,7 @@ from geograypher.constants import (
     EXAMPLE_PREDICTED_LABELS_FOLDER,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.segmentation import (
-    LookUpSegmentor,
-    SegmentorPhotogrammetryCameraSet,
-)
+from geograypher.segmentation import LookUpSegmentor, SegmentorPhotogrammetryCameraSet
 
 
 def parse_args():

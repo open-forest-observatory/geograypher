@@ -31,10 +31,7 @@ from skimage.transform import resize
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
-from geograypher.cameras import (
-    PhotogrammetryCamera,
-    PhotogrammetryCameraSet,
-)
+from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
@@ -49,9 +46,7 @@ from geograypher.constants import (
     VERT_ID,
     VIS_FOLDER,
 )
-from geograypher.segmentation.derived_segmentors import (
-    TabularRectangleSegmentor,
-)
+from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
