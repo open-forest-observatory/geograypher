@@ -31,11 +31,11 @@ from skimage.transform import resize
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.cameras import (
+from geograypher.cameras import (
     PhotogrammetryCamera,
     PhotogrammetryCameraSet,
 )
-from multiview_mapping_toolkit.constants import (
+from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
@@ -49,23 +49,23 @@ from multiview_mapping_toolkit.constants import (
     VERT_ID,
     VIS_FOLDER,
 )
-from multiview_mapping_toolkit.segmentation.derived_segmentors import (
+from geograypher.segmentation.derived_segmentors import (
     TabularRectangleSegmentor,
 )
-from multiview_mapping_toolkit.utils.geometric import batched_unary_union
-from multiview_mapping_toolkit.utils.geospatial import (
+from geograypher.utils.geometric import batched_unary_union
+from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
     ensure_non_overlapping_polygons,
     get_projected_CRS,
 )
-from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
-from multiview_mapping_toolkit.utils.numeric import (
+from geograypher.utils.indexing import ensure_float_labels
+from geograypher.utils.numeric import (
     compute_3D_triangle_area,
     compute_approximate_ray_intersection,
     triangulate_rays_lstsq,
 )
-from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
+from geograypher.utils.parsing import parse_transform_metashape
 
 
 class TexturedPhotogrammetryMesh:

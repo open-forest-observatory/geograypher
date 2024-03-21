@@ -18,9 +18,9 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import EXAMPLE_INTRINSICS, PATH_TYPE
-from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
-from multiview_mapping_toolkit.utils.image import get_GPS_exif
+from geograypher.constants import EXAMPLE_INTRINSICS, PATH_TYPE
+from geograypher.utils.geospatial import ensure_geometric_CRS
+from geograypher.utils.image import get_GPS_exif
 
 
 class PhotogrammetryCamera:

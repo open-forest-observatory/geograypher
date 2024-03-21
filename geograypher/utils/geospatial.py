@@ -21,7 +21,7 @@ from shapely import (
 from shapely.geometry import box
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import PATH_TYPE
+from geograypher.constants import PATH_TYPE
 
 
 def ensure_geometric_CRS(geodata):
