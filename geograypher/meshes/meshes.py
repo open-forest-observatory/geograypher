@@ -1755,7 +1755,7 @@ class TexturedPhotogrammetryMesh:
         plotter_kwargs: typing.Dict = {},
         enable_ssao: bool = True,
         force_xvfb: bool = False,
-        frustum_scale: float = None,
+        frustum_scale: float = 2,
     ):
         """Show the mesh and cameras
 
