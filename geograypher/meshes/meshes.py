@@ -406,37 +406,45 @@ class TexturedPhotogrammetryMesh:
 
             # Name of scalar in the mesh
             try:
-                texture_array = self.pyvista_mesh[texture]
-            except (KeyError, ValueError):
                 self.logger.warn(
-                    "Could not read texture as a scalar from the pyvista mesh"
+                    "Trying to read texture as a scalar from the pyvista mesh:"
                 )
+                texture_array = self.pyvista_mesh[texture]
+                self.logger.warn("- success")
+            except (KeyError, ValueError):
+                self.logger.warn("- failed")
 
             # Numpy file
             if texture_array is None:
                 try:
+                    self.logger.warn("Trying to read texture as a numpy file:")
                     texture_array = np.load(texture, allow_pickle=True)
+                    self.logger.warn("- success")
                 except:
-                    self.logger.warn("Could not read texture as a numpy file")
+                    self.logger.warn("- failed")
 
             # Vector file
             if texture_array is None:
                 try:
+                    self.logger.warn("Trying to read texture as vector file:")
                     # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
                     texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
                         vector_source=texture,
                     )
+                    self.logger.warn("- success")
                 except IndexError:
-                    self.logger.warn("Could not read texture as vector file")
+                    self.logger.warn("- failed")
 
             # Raster file
             if texture_array is None:
                 try:
                     # TODO
+                    self.logger.warn("Trying to read as texture as raster file: ")
                     texture_array = self.get_vert_values_from_raster_file(texture)
+                    self.logger.warn("- success")
                 except:
-                    self.logger.warn("Could not read texture as raster file")
+                    self.logger.warn("- failed")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
             if texture_array is None:
@@ -1859,7 +1867,11 @@ class TexturedPhotogrammetryMesh:
             Path(screenshot_filename).parent.mkdir(parents=True, exist_ok=True)
 
         # Show
-        return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
+        return plotter.show(
+            screenshot=screenshot_filename,
+            title="Geograypher mesh viewer",
+            **plotter_kwargs,
+        )
 
     def save_renders_pytorch3d(
         self,

@@ -662,10 +662,7 @@ class PhotogrammetryCameraSet:
 
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
-        return [
-            x.get_lon_lat()
-            for x in tqdm(self.cameras, desc="Loading GPS data for camera set")
-        ]
+        return [x.get_lon_lat() for x in self.cameras]
 
     def get_subset_ROI(
         self,
