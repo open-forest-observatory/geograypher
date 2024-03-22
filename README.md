@@ -209,7 +209,7 @@ There is one script for each of these workflows. They each have a variety of com
 
 ```
 conda activate geograypher
-python geograypher/entrypoints/mesh_render.py --help
+python geograypher/entrypoints/render_labels.py --help
 python geograypher/entrypoints/aggregate_viewpoints.py --help
 python geograypher/entrypoints/orthomosaic_predictions.py --help
 ```

@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument(
         "--mesh-file",
         default=EXAMPLE_MESH_FILENAME,
-        help="Path to the Metashape-exported mesh file, with associated transform .csv",
+        help="Path to the Metashape-exported mesh file",
     )
     parser.add_argument(
         "--cameras-file",
@@ -51,7 +51,7 @@ def parse_args():
     )
     parser.add_argument(
         "--subset-images-savefolder",
-        help="Where to save the subset of images near the labeled data",
+        help="Where to save the subset of images for which labels are generated",
         type=Path,
     )
     parser.add_argument(
@@ -100,7 +100,9 @@ def parse_args():
         default=1,
         help="Downsample the mesh to this fraction of vertices for increased performance but lower quality",
     )
-    parser.add_argument("--vis", action="store_true", help="Show mesh")
+    parser.add_argument(
+        "--vis", action="store_true", help="Show mesh and rendered labels"
+    )
 
     args = parser.parse_args()
     return args
