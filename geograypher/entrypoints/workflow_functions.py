@@ -1,13 +1,13 @@
-import numpy as np
 import typing
-import geopandas as gpd
-import shapely
 from pathlib import Path
 
+import geopandas as gpd
+import numpy as np
+import shapely
 
-from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
+from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.visualization import show_segmentation_labels
 
 

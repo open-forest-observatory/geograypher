@@ -2,14 +2,14 @@ import argparse
 import logging
 from pathlib import Path
 
-from geograypher.entrypoints.workflow_functions import render_labels
 from geograypher.constants import (
-    EXAMPLE_MESH_FILENAME,
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IMAGE_FOLDER,
-    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+    EXAMPLE_MESH_FILENAME,
     EXAMPLE_RENDERED_LABELS_FOLDER,
+    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
 )
+from geograypher.entrypoints.workflow_functions import render_labels
 
 
 def parse_args():
