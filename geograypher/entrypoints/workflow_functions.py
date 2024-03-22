@@ -8,6 +8,8 @@ import shapely
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
+from geograypher.segmentation import SegmentorPhotogrammetryCameraSet
+from geograypher.segmentation.derived_segmentors import LookUpSegmentor
 from geograypher.utils.visualization import show_segmentation_labels
 
 
@@ -139,3 +141,106 @@ def render_labels(
             image_folder=image_folder,
             num_show=10,
         )
+
+
+def aggregate_images(
+    mesh_file,
+    cameras_file,
+    image_folder,
+    label_folder,
+    mesh_transform_file: typing.Union[PATH_TYPE, None] = None,
+    DTM_file: typing.Union[PATH_TYPE, None] = None,
+    height_above_ground_threshold=2.0,
+    ROI=None,
+    ROI_buffer_radius_meters=50,
+    IDs_to_labels=None,
+    mesh_downsample=1.0,
+    aggregate_image_scale=1.0,
+    aggregated_face_values_savefile: typing.Union[PATH_TYPE, None] = None,
+    predicted_face_classes_savefile: typing.Union[PATH_TYPE, None] = None,
+    top_down_vector_projection_savefile: typing.Union[PATH_TYPE, None] = None,
+    vis: bool = False,
+):
+    ## Create the camera set
+    # Do the camera operations first because they are fast and good initial error checking
+    camera_set = MetashapeCameraSet(cameras_file, image_folder)
+
+    # If the ROI is not None, subset to cameras within a buffer distance of the ROI
+    # TODO let get_subset_ROI accept a None ROI and return the full camera set
+    if ROI is not None:
+        # Extract cameras near the training data
+        camera_set = camera_set.get_subset_ROI(
+            ROI=ROI, buffer_radius_meters=ROI_buffer_radius_meters
+        )
+
+    if mesh_transform_file is None:
+        mesh_transform_file = cameras_file
+
+    ## Create the mesh
+    mesh = TexturedPhotogrammetryMesh(
+        mesh_file,
+        transform_filename=mesh_transform_file,
+        ROI=ROI,
+        ROI_buffer_meters=ROI_buffer_radius_meters,
+        IDs_to_labels=IDs_to_labels,
+        downsample_target=mesh_downsample,
+    )
+
+    # Show the mesh if requested
+    if vis:
+        mesh.vis(camera_set=camera_set)
+
+    # Create a segmentor object to load in the predictions
+    segmentor = LookUpSegmentor(
+        base_folder=image_folder,
+        lookup_folder=label_folder,
+        num_classes=np.max(list(mesh.get_IDs_to_labels().keys())) + 1,
+    )
+    # Create a camera set that returns the segmented images instead of the original ones
+    segmentor_camera_set = SegmentorPhotogrammetryCameraSet(
+        camera_set, segmentor=segmentor
+    )
+
+    ## Perform aggregation
+    # this is the slow step
+    aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d(
+        segmentor_camera_set,
+        image_scale=aggregate_image_scale,
+    )
+    # If requested, save this data
+    if aggregated_face_values_savefile is not None:
+        Path(aggregated_face_values_savefile).parent.mkdir(exist_ok=True, parents=True)
+        np.save(aggregated_face_values_savefile, aggregated_face_labels)
+
+    # Find the most common class per face
+    predicted_face_classes = np.argmax(
+        aggregated_face_labels, axis=1, keepdims=True
+    ).astype(float)
+
+    # If requested, label the ground faces
+    if DTM_file is not None and height_above_ground_threshold is not None:
+        predicted_face_classes = mesh.label_ground_class(
+            labels=predicted_face_classes,
+            height_above_ground_threshold=height_above_ground_threshold,
+            DTM_file=DTM_file,
+            ground_ID=np.nan,
+            set_mesh_texture=False,
+        )
+
+    if predicted_face_classes_savefile is not None:
+        Path(predicted_face_classes_savefile).parent.mkdir(exist_ok=True, parents=True)
+        np.save(predicted_face_classes_savefile, predicted_face_classes)
+
+    if vis:
+        # Show the mesh with predicted classes
+        mesh.vis(vis_scalars=predicted_face_classes)
+
+    # # Export the prediction to a vector file
+    label_names = None  # TODO figure out what these should be
+
+    mesh.export_face_labels_vector(
+        face_labels=np.squeeze(predicted_face_classes),
+        export_file=top_down_vector_projection_savefile,
+        label_names=label_names,
+        vis=True,
+    )
