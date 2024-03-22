@@ -148,6 +148,7 @@ def aggregate_images(
     cameras_file,
     image_folder,
     label_folder,
+    subset_images_folder: typing.Union[PATH_TYPE, None] = None,
     mesh_transform_file: typing.Union[PATH_TYPE, None] = None,
     DTM_file: typing.Union[PATH_TYPE, None] = None,
     height_above_ground_threshold=2.0,
@@ -167,7 +168,10 @@ def aggregate_images(
 
     # If the ROI is not None, subset to cameras within a buffer distance of the ROI
     # TODO let get_subset_ROI accept a None ROI and return the full camera set
-    if ROI is not None:
+    if subset_images_folder is not None:
+        camera_set = camera_set.get_cameras_in_folder(subset_images_folder)
+
+    if ROI is not None and ROI_buffer_radius_meters is not None:
         # Extract cameras near the training data
         camera_set = camera_set.get_subset_ROI(
             ROI=ROI, buffer_radius_meters=ROI_buffer_radius_meters
@@ -235,12 +239,9 @@ def aggregate_images(
         # Show the mesh with predicted classes
         mesh.vis(vis_scalars=predicted_face_classes)
 
-    # # Export the prediction to a vector file
-    label_names = None  # TODO figure out what these should be
-
+    # TODO this should be updated to take IDs_to_labels
     mesh.export_face_labels_vector(
         face_labels=np.squeeze(predicted_face_classes),
         export_file=top_down_vector_projection_savefile,
-        label_names=label_names,
         vis=True,
     )

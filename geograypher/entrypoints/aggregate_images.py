@@ -36,6 +36,9 @@ def parse_args():
         help="Path to the folder of labels to be aggregated onto the mesh. Must be in the same structure as the images.",
     )
     parser.add_argument(
+        "--subset-images-folder", help="Use only images from this subset"
+    )
+    parser.add_argument(
         "--mesh-transform-file",
         help="Transform from the mesh coordinates to the earth-centered, earth-fixed frame.",
     )
@@ -53,12 +56,14 @@ def parse_args():
     parser.add_argument("--ROI", help="Geofile region of interest to crop the mesh to")
     parser.add_argument(
         "--ROI-buffer-radius-meters",
+        default=50,
         type=float,
         help="Keep points within this distance of the provided ROI object, if unset, everything will be kept",
     )
     parser.add_argument(
         "--IDs-to-labels",
         default=EXAMPLE_IDS_TO_LABELS,
+        type=dict,
     )
     parser.add_argument(
         "--mesh-downsample",
