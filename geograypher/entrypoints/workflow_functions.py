@@ -31,6 +31,44 @@ def render_labels(
     mesh_downsample: float = 1,
     vis: bool = False,
 ):
+    """Renders image-based labels using geospatial ground truth data
+
+    Args:
+        mesh_file (PATH_TYPE):
+            Path to the Metashape-exported mesh file
+        cameras_file (PATH_TYPE):
+            Path to the MetaShape-exported .xml cameras file
+        image_folder (PATH_TYPE):
+            Path to the folder of images used to create the mesh
+        texture (typing.Union[PATH_TYPE, np.ndarray, None]):
+            See TexturedPhotogrammetryMesh.load_texture
+        render_savefolder (PATH_TYPE):
+            Where to save the rendered labels
+        transform_file (typing.Union[PATH_TYPE, None], optional):
+            File containing the transform from local coordinates to EPSG:4978. Defaults to None.
+        subset_images_savefolder (typing.Union[PATH_TYPE, None], optional):
+            Where to save the subset of images for which labels are generated. Defaults to None.
+        texture_column_name (typing.Union[str, None], optional):
+            Column to use in vector file for texture information". Defaults to None.
+        DTM_file (typing.Union[PATH_TYPE, None], optional):
+            Path to a DTM file to use for ground thresholding. Defaults to None.
+        ground_height_threshold (typing.Union[float, None], optional):
+            Set points under this height to ground. Only applicable if DTM_file is provided. Defaults to None.
+        render_ground_class (bool, optional):
+            Should the ground class be included in the renders or deleted.. Defaults to False.
+        textured_mesh_savefile (typing.Union[PATH_TYPE, None], optional):
+            Where to save the textured and subsetted mesh, if needed in the future. Defaults to None.
+        ROI (typing.Union[PATH_TYPE, gpd.GeoDataFrame, shapely.MultiPolygon, None], optional):
+            The region of interest to render labels for. Defaults to None.
+        ROI_buffer_radius_meters (float, optional):
+            The distance in meters to include around the ROI. Defaults to 50.
+        render_image_scale (float, optional):
+            Downsample the images to this fraction of the size for increased performance but lower quality. Defaults to 1.
+        mesh_downsample (float, optional):
+            Downsample the mesh to this fraction of vertices for increased performance but lower quality. Defaults to 1.
+        vis (bool, optional):
+            Show mesh and rendered labels. Defaults to False.
+    """
     ## Determine the ROI
     # If the ROI is unset and the texture is a spatial file, set the ROI to that
     if ROI is None and isinstance(texture, (str, Path, gpd.GeoDataFrame)):
