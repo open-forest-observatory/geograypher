@@ -165,23 +165,47 @@ def aggregate_images(
     """Aggregate labels from multiple viewpoints onto the surface of the mesh
 
     Args:
-        mesh_file (PATH_TYPE): Path to the Metashape-exported mesh file
-        cameras_file (PATH_TYPE): Path to the MetaShape-exported .xml cameras file
-        image_folder (PATH_TYPE): Path to the folder of images used to create the mesh
-        label_folder (PATH_TYPE): Path to the folder of labels to be aggregated onto the mesh. Must be in the same structure as the images
-        subset_images_folder (typing.Union[PATH_TYPE, None], optional): Use only images from this subset. Defaults to None.
-        mesh_transform_file (typing.Union[PATH_TYPE, None], optional): Transform from the mesh coordinates to the earth-centered, earth-fixed frame. Can be a 4x4 matrix represented as a .csv, or a Metashape cameras file containing the information. Defaults to None.
-        DTM_file (typing.Union[PATH_TYPE, None], optional): Path to a digital terrain model file to remove ground points. Defaults to None.
-        height_above_ground_threshold (float, optional): Height in meters above the DTM to consider ground. Only used if DTM_file is set. Defaults to 2.0.
-        ROI (typing.Union[PATH_TYPE, None], optional): Geofile region of interest to crop the mesh to. Defaults to None.
-        ROI_buffer_radius_meters (float, optional): Keep points within this distance of the provided ROI object, if unset, everything will be kept. Defaults to 50.
-        IDs_to_labels (typing.Union[dict, None], optional): Maps from integer IDs to human-readable class name labels. Defaults to None.
-        mesh_downsample (float, optional): Downsample the mesh to this fraction of vertices for increased performance but lower quality. Defaults to 1.0.
-        aggregate_image_scale (float, optional): Downsample the labels before aggregation for faster runtime but lower quality. Defaults to 1.0.
-        aggregated_face_values_savefile (typing.Union[PATH_TYPE, None], optional): Where to save the aggregated image values as a numpy array. Defaults to None.
-        predicted_face_classes_savefile (typing.Union[PATH_TYPE, None], optional): Where to save the most common label per face texture as a numpy array. Defaults to None.
-        top_down_vector_projection_savefile (typing.Union[PATH_TYPE, None], optional): Where to export the predicted map. Defaults to None.
-        vis (bool, optional): Show the mesh model and predicted results. Defaults to False.
+        mesh_file (PATH_TYPE):
+            Path to the Metashape-exported mesh file
+        cameras_file (PATH_TYPE):
+            Path to the MetaShape-exported .xml cameras file
+        image_folder (PATH_TYPE):
+            Path to the folder of images used to create the mesh
+        label_folder (PATH_TYPE):
+            Path to the folder of labels to be aggregated onto the mesh. Must be in the same
+            structure as the images
+        subset_images_folder (typing.Union[PATH_TYPE, None], optional):
+            Use only images from this subset. Defaults to None.
+        mesh_transform_file (typing.Union[PATH_TYPE, None], optional):
+            Transform from the mesh coordinates to the earth-centered, earth-fixed frame. Can be a
+            4x4 matrix represented as a .csv, or a Metashape cameras file containing the
+            information. Defaults to None.
+        DTM_file (typing.Union[PATH_TYPE, None], optional):
+            Path to a digital terrain model file to remove ground points. Defaults to None.
+        height_above_ground_threshold (float, optional):
+            Height in meters above the DTM to consider ground. Only used if DTM_file is set.
+            Defaults to 2.0.
+        ROI (typing.Union[PATH_TYPE, None], optional):
+            Geofile region of interest to crop the mesh to. Defaults to None.
+        ROI_buffer_radius_meters (float, optional):
+            Keep points within this distance of the provided ROI object, if unset, everything will
+            be kept. Defaults to 50.
+        IDs_to_labels (typing.Union[dict, None], optional):
+            Maps from integer IDs to human-readable class name labels. Defaults to None.
+        mesh_downsample (float, optional):
+            Downsample the mesh to this fraction of vertices for increased performance but lower
+            quality. Defaults to 1.0.
+        aggregate_image_scale (float, optional):
+            Downsample the labels before aggregation for faster runtime but lower quality. Defaults
+            to 1.0.
+        aggregated_face_values_savefile (typing.Union[PATH_TYPE, None], optional):
+            Where to save the aggregated image values as a numpy array. Defaults to None.
+        predicted_face_classes_savefile (typing.Union[PATH_TYPE, None], optional):
+            Where to save the most common label per face texture as a numpy array. Defaults to None.
+        top_down_vector_projection_savefile (typing.Union[PATH_TYPE, None], optional):
+            Where to export the predicted map. Defaults to None.
+        vis (bool, optional):
+            Show the mesh model and predicted results. Defaults to False.
     """
     ## Create the camera set
     # Do the camera operations first because they are fast and good initial error checking
