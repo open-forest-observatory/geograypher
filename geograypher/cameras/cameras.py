@@ -722,7 +722,7 @@ class PhotogrammetryCameraSet:
             plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
             show (bool, optional): Show the results instead of waiting for other content to be added
-            frustum_scale (float, optional): Size of cameras in world units
+            frustum_scale (float, optional): Size of cameras in world units. If None, will set to 1/120th of the maximum distance between two cameras.
             force_xvfb (bool, optional): Force a headless rendering backend
         """
 
@@ -731,14 +731,16 @@ class PhotogrammetryCameraSet:
             show = True
 
         # Determine pairwise distance between each camera and set frustum_scale to 1/120th of the maximum distance found
-        max_distance = 0
-        if frustum_scale is None and self.n_cameras() >= 2:
-            camera_translation_matrices = np.array(
-                [transform[:3, 3] for transform in self.cam_to_world_transforms]
-            )
-            distances = pdist(camera_translation_matrices, metric="euclidean")
-            max_distance = np.max(distances)
-            frustum_scale = max_distance / 120 if max_distance > 0 else 1
+        if frustum_scale is None:
+            if self.n_cameras() >= 2:
+                camera_translation_matrices = np.array(
+                    [transform[:3, 3] for transform in self.cam_to_world_transforms]
+                )
+                distances = pdist(camera_translation_matrices, metric="euclidean")
+                max_distance = np.max(distances)
+                frustum_scale = (max_distance / 120) if max_distance > 0 else 1
+            else:
+                frustum_scale = 1
 
         for camera in self.cameras:
             camera.vis(plotter, frustum_scale=frustum_scale)
