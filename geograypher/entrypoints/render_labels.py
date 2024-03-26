@@ -15,7 +15,6 @@ from geograypher.constants import (
     EXAMPLE_STANDARDIZED_LABELS_FILENAME,
     PATH_TYPE,
 )
-from geograypher.entrypoints.workflow_functions import render_labels
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.visualization import show_segmentation_labels
 
