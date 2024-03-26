@@ -1628,11 +1628,16 @@ class TexturedPhotogrammetryMesh:
         # Use the indexing method
         if shade_by_indexing:
             # Extract the pixel to face correspondences
+            # Note that if you profile this code, it may look like this line takes a long time.
+            # In reality, the GPU code is executing asynchronously from the cpu so it waits here to
+            # catch up. If you want accurate timing, but potentially slower execution, use
+            # torch.cuda.synchronize() as described here:
+            # https://discuss.pytorch.org/t/copy-tensor-from-cuda-to-cpu-is-too-slow/13056/6
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
             # Index into the texture image
             flat_labels = texture[pix_to_face]
-            # Remap the value pixels that don't correspond to a face, which are labeled -1
             if set_null_texture_to_value is not None:
+                # Remap the value pixels that don't correspond to a face, which are labeled -1
                 flat_labels[pix_to_face == -1] = set_null_texture_to_value
 
             # Reshape from flat to an array
