@@ -13,7 +13,6 @@ from geograypher.constants import (
     EXAMPLE_PREDICTED_LABELS_FOLDER,
     PATH_TYPE,
 )
-from geograypher.entrypoints.workflow_functions import aggregate_images
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.segmentation import SegmentorPhotogrammetryCameraSet
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
