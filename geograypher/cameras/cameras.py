@@ -649,7 +649,10 @@ class PhotogrammetryCameraSet:
                 print(f"about to remove {output_folder}")
                 shutil.rmtree(output_folder)
 
-        for i in tqdm(range(len(self.cameras))):
+        for i in tqdm(
+            range(len(self.cameras)),
+            f"{'copying' if copy else 'linking'} images to {output_folder}",
+        ):
             output_file = Path(
                 output_folder, self.get_image_filename(i, absolute=False)
             )
