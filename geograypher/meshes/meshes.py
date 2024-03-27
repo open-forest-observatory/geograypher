@@ -71,7 +71,7 @@ class TexturedPhotogrammetryMesh:
         transform_filename: PATH_TYPE = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
-        IDs_to_labels: typing.Union[None, dict] = None,
+        IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
         ROI=None,
         ROI_buffer_meters: float = 0,
         require_transform: bool = False,
@@ -84,7 +84,7 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
             texture_column_name: The name of the column to use for a vectorfile input
-            IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
+            IDs_to_labels (typing.Union[PATH_TYPE, dict, None]): dictionary or file containing the mapping from integer IDs to string class names
         """
         self.downsample_target = downsample_target
 
@@ -123,6 +123,16 @@ class TexturedPhotogrammetryMesh:
         )
         # Load the texture
         self.logger.info("Loading texture")
+        # load IDs_to_labels
+        if IDs_to_labels == None and isinstance(mesh, PATH_TYPE):
+            dir = Path(mesh.parent)
+            # Check if the IDs_to_labels file exists in the directory
+            for file in dir.iterdir():
+                if 'IDs_to_labels.json' in file.name:
+                    IDs_to_labels = file.name
+        if isinstance(IDs_to_labels, PATH_TYPE):
+            with open(IDs_to_labels, 'r') as file:
+                IDs_to_labels = json.load(file)
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
@@ -327,8 +337,8 @@ class TexturedPhotogrammetryMesh:
             )
 
         # If IDs to labels is explicitly provided, trust that
-        if IDs_to_labels is not None:
-            # TODO should do some type checking here
+        # TODO should do some type checking here
+        if isinstance(IDs_to_labels, dict):
             self.IDs_to_labels = IDs_to_labels
         # If not, but we can compute it, use that. Otherwise, we might want to force them to be set to None
         elif use_derived_IDs_to_labels:
@@ -348,7 +358,7 @@ class TexturedPhotogrammetryMesh:
         self,
         texture: typing.Union[str, PATH_TYPE, np.ndarray, None],
         texture_column_name: typing.Union[None, PATH_TYPE] = None,
-        IDs_to_labels: typing.Union[None, dict] = None,
+        IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
            one will be left as None
@@ -851,6 +861,17 @@ class TexturedPhotogrammetryMesh:
             return labeled_verts, all_values
         # Else return a dict of all requested values
         return labeled_verts_dict, all_values_dict
+    
+    def save_IDs_to_labels(self, savepath: PATH_TYPE):
+        savepath = Path(savepath)
+        savepath.mkdir(parents=True, exist_ok=True)
+
+        # Save the classes filename
+        if self.is_discrete_texture():
+            IDs_to_labels_file = Path(savepath, "IDs_to_labels.json")
+            self.logger.info(f"Saving IDs_to_labels to {str(IDs_to_labels_file)}")
+            with open(IDs_to_labels_file, "w") as outfile_h:
+                json.dump(self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4)
 
     def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
         # TODO consider moving most of this functionality to a utils file
@@ -880,6 +901,7 @@ class TexturedPhotogrammetryMesh:
         Path(savepath).parent.mkdir(parents=True, exist_ok=True)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
+        self.IDs_to_labels(savepath)
 
     def label_polygons(
         self,
@@ -1906,17 +1928,14 @@ class TexturedPhotogrammetryMesh:
         if camera_indices is None:
             camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
-
+        
+        # create output folder for classes and images
         output_folder = Path(output_folder)
         output_folder.mkdir(parents=True, exist_ok=True)
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
-        if self.is_discrete_texture():
-            IDs_to_labels_file = Path(output_folder, "IDs_to_labels.json")
-            self.logger.info(f"Saving IDs_to_labels to {str(IDs_to_labels_file)}")
-            with open(IDs_to_labels_file, "w") as outfile_h:
-                json.dump(self.IDs_to_labels, outfile_h, ensure_ascii=False, indent=4)
+        self.save_IDs_to_labels(output_folder)
 
         for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(
