@@ -864,7 +864,6 @@ class TexturedPhotogrammetryMesh:
     
     def save_IDs_to_labels(self, savepath: PATH_TYPE):
         savepath = Path(savepath)
-        savepath.mkdir(parents=True, exist_ok=True)
 
         # Save the classes filename
         if self.is_discrete_texture():
@@ -901,7 +900,7 @@ class TexturedPhotogrammetryMesh:
         Path(savepath).parent.mkdir(parents=True, exist_ok=True)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
-        self.IDs_to_labels(savepath)
+        self.save_IDs_to_labels(savepath)
 
     def label_polygons(
         self,
