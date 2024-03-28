@@ -124,13 +124,13 @@ class TexturedPhotogrammetryMesh:
         # Load the texture
         self.logger.info("Loading texture")
         # load IDs_to_labels
-        if IDs_to_labels == None and isinstance(mesh, PATH_TYPE):
-            dir = Path(mesh.parent)
-            # Check if the IDs_to_labels file exists in the directory
-            for file in dir.iterdir():
+        # if IDs_to_labels not provided, check the directory of the mesh and get the file if found
+        if IDs_to_labels == None and isinstance(mesh, PATH_TYPE.__args__):
+            for file in mesh.parent.iterdir():
                 if 'IDs_to_labels.json' in file.name:
                     IDs_to_labels = file.name
-        if isinstance(IDs_to_labels, PATH_TYPE):
+        # convert IDs_to_labels from file to dict
+        if isinstance(IDs_to_labels, PATH_TYPE.__args__):
             with open(IDs_to_labels, 'r') as file:
                 IDs_to_labels = json.load(file)
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
@@ -872,6 +872,7 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels_file, "w") as outfile_h:
                 json.dump(self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4)
 
+
     def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
         # TODO consider moving most of this functionality to a utils file
         if save_vert_texture:
@@ -900,7 +901,7 @@ class TexturedPhotogrammetryMesh:
         Path(savepath).parent.mkdir(parents=True, exist_ok=True)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
-        self.save_IDs_to_labels(savepath)
+        self.save_IDs_to_labels(savepath.parent)
 
     def label_polygons(
         self,
