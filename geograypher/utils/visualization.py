@@ -1,13 +1,13 @@
-from pathlib import Path
 import typing
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from imageio import imread
 
 from geograypher.constants import (
-    PATH_TYPE,
     NULL_TEXTURE_INT_VALUE,
+    PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
 )
 
