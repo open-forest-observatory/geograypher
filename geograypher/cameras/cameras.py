@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
@@ -659,7 +660,10 @@ class PhotogrammetryCameraSet:
             output_file.parent.mkdir(parents=True, exist_ok=True)
             src_file = self.get_image_filename(i, absolute=True)
             if copy:
-                shutil.copy(src_file, output_file)
+                try:
+                    shutil.copy(src_file, output_file)
+                except FileNotFoundError:
+                    logging.warning(f"Could not find {src_file}")
             else:
                 os.symlink(src_file, output_file)
 
