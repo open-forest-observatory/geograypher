@@ -144,7 +144,7 @@ def render_labels(
         output_folder=render_savefolder,
     )
 
-    if labels_vis_folder is not None:
+    if vis or labels_vis_folder is not None:
         # Show some examples of the rendered labels side-by-side with the real images
         show_segmentation_labels(
             label_folder=render_savefolder,
