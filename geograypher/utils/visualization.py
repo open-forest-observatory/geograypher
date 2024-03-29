@@ -1,15 +1,21 @@
 from pathlib import Path
+import typing
 
 import matplotlib.pyplot as plt
 import numpy as np
 from imageio import imread
 
-from geograypher.constants import NULL_TEXTURE_INT_VALUE, TEN_CLASS_VIS_KWARGS
+from geograypher.constants import (
+    PATH_TYPE,
+    NULL_TEXTURE_INT_VALUE,
+    TEN_CLASS_VIS_KWARGS,
+)
 
 
 def show_segmentation_labels(
     label_folder,
     image_folder,
+    savefolder: typing.Union[None, PATH_TYPE] = None,
     null_label=NULL_TEXTURE_INT_VALUE,
     imshow_kwargs=TEN_CLASS_VIS_KWARGS,
     num_show=10,
@@ -19,7 +25,10 @@ def show_segmentation_labels(
     rendered_files = list(Path(label_folder).rglob("*" + label_suffix))
     np.random.shuffle(rendered_files)
 
-    for rendered_file in rendered_files[:num_show]:
+    if savefolder is not None:
+        Path(savefolder).mkdir(parents=True, exist_ok=True)
+
+    for i, rendered_file in enumerate(rendered_files[:num_show]):
         image_file = Path(
             image_folder, rendered_file.relative_to(label_folder)
         ).with_suffix(image_suffix)
@@ -36,5 +45,9 @@ def show_segmentation_labels(
             vmin=imshow_kwargs["clim"][0],
             vmax=imshow_kwargs["clim"][1],
         )
-        plt.show()
-        plt.close()
+        if savefolder is None:
+            plt.show()
+        else:
+            output_file = Path(savefolder, f"rendered_label_{i:03}.png")
+            plt.savefig(output_file)
+            plt.close()
