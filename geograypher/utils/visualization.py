@@ -10,6 +10,7 @@ from geograypher.constants import (
     PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
 )
+from geograypher.utils.files import ensure_folder
 
 
 def show_segmentation_labels(
@@ -26,7 +27,7 @@ def show_segmentation_labels(
     np.random.shuffle(rendered_files)
 
     if savefolder is not None:
-        Path(savefolder).mkdir(parents=True, exist_ok=True)
+        ensure_folder(savefolder)
 
     for i, rendered_file in enumerate(rendered_files[:num_show]):
         image_file = Path(

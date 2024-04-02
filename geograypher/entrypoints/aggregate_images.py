@@ -16,6 +16,7 @@ from geograypher.constants import (
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.segmentation import SegmentorPhotogrammetryCameraSet
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
+from geograypher.utils.files import ensure_containing_folder
 
 
 def aggregate_images(
@@ -133,7 +134,7 @@ def aggregate_images(
     )
     # If requested, save this data
     if aggregated_face_values_savefile is not None:
-        Path(aggregated_face_values_savefile).parent.mkdir(exist_ok=True, parents=True)
+        ensure_containing_folder(aggregated_face_values_savefile)
         np.save(aggregated_face_values_savefile, aggregated_face_labels)
 
     # Find the most common class per face
@@ -152,7 +153,7 @@ def aggregate_images(
         )
 
     if predicted_face_classes_savefile is not None:
-        Path(predicted_face_classes_savefile).parent.mkdir(exist_ok=True, parents=True)
+        ensure_containing_folder(predicted_face_classes_savefile)
         np.save(predicted_face_classes_savefile, predicted_face_classes)
 
     if vis:
