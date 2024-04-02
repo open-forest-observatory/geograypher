@@ -13,6 +13,17 @@ from geograypher.constants import (
 from geograypher.utils.files import ensure_folder
 
 
+def create_composite(RGB_image, label_image, label_weight=0.5):
+
+    composite = (1 - label_weight) * RGB_image + label_weight * label_image
+    composite = np.clip(
+        np.concatenate((RGB_image, composite, combined), axis=1),
+        0,
+        1,
+    )
+    return composite
+
+
 def show_segmentation_labels(
     label_folder,
     image_folder,

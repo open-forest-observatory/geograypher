@@ -49,6 +49,7 @@ from geograypher.constants import (
 from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
+from geograypher.utils.visualization import create_composite
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
@@ -1891,12 +1892,10 @@ class TexturedPhotogrammetryMesh:
         self,
         camera_set: PhotogrammetryCameraSet,
         render_image_scale=1.0,
-        camera_indices=None,
         output_folder: PATH_TYPE = Path(VIS_FOLDER, "renders"),
         make_composites: bool = False,
-        blend_composite: bool = True,
         save_native_resolution: bool = False,
-        set_null_texture_to_value: float = 255,
+        set_null_texture_to_value: float = NULL_TEXTURE_INT_VALUE,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
@@ -1908,13 +1907,8 @@ class TexturedPhotogrammetryMesh:
             camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
             render_folder (PATH_TYPE, optional): Save images to this folder within vis. Default "renders"
             make_composites (bool, optional): Should a triple composite the original image be saved
-            blend_composite (bool, optional): Should the real and rendered image be saved, rather than inserting a channel of the render into the real
+            set_null_texture_to_value (float, optional): What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
         """
-        # Render each image individually.
-        # TODO this could be accelerated by inteligent batching
-        if camera_indices is None:
-            camera_indices = np.arange(camera_set.n_cameras())
-            np.random.shuffle(camera_indices)
 
         ensure_folder(output_folder)
         self.logger.info(f"Saving renders to {output_folder}")
@@ -1926,13 +1920,20 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels_file, "w") as outfile_h:
                 json.dump(self.IDs_to_labels, outfile_h, ensure_ascii=False, indent=4)
 
-        for i in tqdm(camera_indices, desc="Saving renders"):
+        for i in tqdm(camera_set.n_cameras(), desc="Saving renders"):
+            # Render the labels
             rendered = self.render_pytorch3d(
                 camera_set=camera_set,
                 camera_index=i,
                 image_scale=render_image_scale,
                 set_null_texture_to_value=set_null_texture_to_value,
             )
+
+            ## All this is post-processing to visualize the rendered label.
+            # rendered could either be a one channel image of integer IDs,
+            # a one-channel image of scalars, or a three-channel image of
+            # RGB. It could also be multi-channel image corresponding to anything,
+            # but we don't expect that yet
 
             # Clip channels if needed
             if rendered.ndim == 3:
@@ -1942,6 +1943,7 @@ class TexturedPhotogrammetryMesh:
                 native_size = camera_set.get_camera_by_index(i).get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
+                # TODO this will need to be fixed for multi-channel images since I don't think resize works
                 rendered = resize(
                     rendered,
                     native_size,
@@ -1949,23 +1951,14 @@ class TexturedPhotogrammetryMesh:
                 )
 
             if make_composites:
-                real_img = camera_set.get_camera_by_index(i).get_image(
+                RGB_image = camera_set.get_camera_by_index(i).get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
                 )[..., :3]
+                rendered = create_composite(RGB_image=RGB_image, label_image=rendered)
 
-                if blend_composite:
-                    combined = (real_img + rendered) / 2.0
-                else:
-                    combined = real_img.copy().astype(float)
-                    combined[..., 0] = rendered[..., 0]
-                rendered = np.clip(
-                    np.concatenate((real_img, rendered, combined), axis=1),
-                    0,
-                    1,
-                )
-
-            # rendered = (rendered * 255).astype(np.uint8)
             rendered = rendered.astype(np.uint8)
+
+            # Saving
             output_filename = Path(
                 output_folder, camera_set.get_image_filename(i, absolute=False)
             )
