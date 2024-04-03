@@ -1,10 +1,19 @@
+import argparse
 import typing
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 
-from geograypher.constants import PATH_TYPE, PRED_CLASS_ID_KEY
+from geograypher.constants import (
+    EXAMPLE_CAMERAS_FILENAME,
+    EXAMPLE_IDS_TO_LABELS,
+    EXAMPLE_IMAGE_FOLDER,
+    EXAMPLE_MESH_FILENAME,
+    EXAMPLE_PREDICTED_LABELS_FOLDER,
+    PATH_TYPE,
+    PRED_CLASS_ID_KEY,
+)
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.files import ensure_containing_folder
 
@@ -98,3 +107,68 @@ def label_polygons(
     geospatial_polygons[PRED_CLASS_ID_KEY] = polygon_labels
     ensure_containing_folder(geospatial_polygons_labeled_savefile)
     geospatial_polygons.to_file(geospatial_polygons_labeled_savefile)
+
+
+def parse_args():
+    description = (
+        "This script labels indidual geospatial polgyons from per-face aggregated predictions. "
+        + "All of the arguments are passed to "
+        + "geograypher.entrypoints.label_polygons "
+        + "which has the following documentation:\n\n"
+        + label_polygons.__doc__
+    )
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description=description
+    )
+    parser.add_argument(
+        "--mesh-file",
+        default=EXAMPLE_MESH_FILENAME,
+    )
+    parser.add_argument(
+        "--mesh-transform-file",
+        default=EXAMPLE_CAMERAS_FILENAME,
+    )
+    parser.add_argument(
+        "--aggregate-face-values-file",
+    )
+    parser.add_argument(
+        "--geospatial-polygons-to-label",
+    )
+    parser.add_argument(
+        "--geospatial-polygons-labeled-savefile",
+    )
+    parser.add_argument(
+        "--mesh-downsample",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--DTM-file",
+    )
+    parser.add_argument(
+        "--height-above-ground-threshold",
+        type=float,
+        default=2,
+    )
+    parser.add_argument("--ground-voting-weight")
+    parser.add_argument("--ROI")
+    parser.add_argument(
+        "--ROI-buffer-radius-meters",
+        default=50,
+        type=float,
+    )
+    parser.add_argument(
+        "--IDs-to-labels",
+        default=EXAMPLE_IDS_TO_LABELS,
+        type=dict,
+    )
+
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # Parse command line args
+    args = parse_args()
+    # Pass command line args to aggregate_images
+    label_polygons(**args.__dict__)
