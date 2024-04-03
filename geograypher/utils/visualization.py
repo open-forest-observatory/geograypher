@@ -3,7 +3,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from imageio import imread
+from imageio import imread, imwrite
 
 from geograypher.constants import (
     NULL_TEXTURE_INT_VALUE,
@@ -14,13 +14,28 @@ from geograypher.utils.files import ensure_folder
 
 
 def create_composite(RGB_image, label_image, label_weight=0.5):
+    if RGB_image.ndim != 3 or RGB_image.shape[2] != 3:
+        raise ValueError("Invalid RGB error")
 
-    composite = (1 - label_weight) * RGB_image + label_weight * label_image
-    composite = np.clip(
-        np.concatenate((RGB_image, composite, combined), axis=1),
-        0,
-        1,
-    )
+    if RGB_image.dtype == np.uint8:
+        # Rescale to float range and implicitly cast
+        RGB_image = RGB_image / 255
+
+    if not (label_image.ndim == 3 and label_image.shape[2] == 3):
+        if label_image.dtype == np.uint8:
+            null_mask = label_image == NULL_TEXTURE_INT_VALUE
+            # This produces a float colormapped values based on the indices
+            label_image = plt.cm.tab10(label_image)[..., :3]
+            label_image[null_mask] = 0
+        else:
+            print("continous")
+            breakpoint()
+    # Determine if the label image needs to be colormapped into a 3 channel image
+
+    overlay = ((1 - label_weight) * RGB_image) + (label_weight * label_image)
+    composite = np.concatenate((label_image, RGB_image, overlay), axis=1)
+    # Cast to np.uint8 for saving
+    composite = (composite * 255).astype(np.uint8)
     return composite
 
 
@@ -46,20 +61,12 @@ def show_segmentation_labels(
         ).with_suffix(image_suffix)
 
         image = imread(image_file)
-        render = imread(rendered_file).astype(float)
-        render[render == null_label] = np.nan
-        _, ax = plt.subplots(1, 2)
-        ax[0].imshow(image)
-        ax[1].imshow(
-            render,
-            interpolation="none",
-            cmap=imshow_kwargs["cmap"],
-            vmin=imshow_kwargs["clim"][0],
-            vmax=imshow_kwargs["clim"][1],
-        )
+        render = imread(rendered_file)
+        composite = create_composite(image, render)
+
         if savefolder is None:
+            plt.imshow(composite)
             plt.show()
         else:
             output_file = Path(savefolder, f"rendered_label_{i:03}.png")
-            plt.savefig(output_file)
-            plt.close()
+            imwrite(output_file, composite)
