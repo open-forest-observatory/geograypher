@@ -16,12 +16,12 @@ from geograypher.constants import (
     PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
 )
+from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
     get_overlap_raster,
 )
-from geograypher.utils.files import ensure_containing_folder
 
 
 def check_if_raster(filename):
