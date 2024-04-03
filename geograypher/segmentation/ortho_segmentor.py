@@ -104,10 +104,9 @@ def write_chips(
     label_remap=None,
     drop_transparency=True,
     remove_old=True,
-    output_suffix=".jpg",
+    output_suffix=".JPG",
     ROI_file=None,
     background_ind=NULL_TEXTURE_INT_VALUE,
-    brightness_multiplier=1.0,
 ):
     if remove_old and os.path.isdir(output_folder):
         shutil.rmtree(output_folder)
@@ -209,9 +208,6 @@ def write_chips(
 
                 windowed_img[mask, :] = 0
 
-            if brightness_multiplier != 1.0:
-                windowed_img = (windowed_img * brightness_multiplier).astype(np.uint8)
-
             output_file_name = Path(
                 output_folder,
                 get_str_from_window(
@@ -219,7 +215,11 @@ def write_chips(
                 ),
             )
             imwrite(
-                output_file_name, pad_to_full_size(windowed_img, (chip_size, chip_size))
+                output_file_name,
+                pad_to_full_size(
+                    windowed_img,
+                    (chip_size, chip_size),
+                ),
             )
 
 
