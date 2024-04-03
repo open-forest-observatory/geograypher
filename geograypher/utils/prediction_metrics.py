@@ -21,6 +21,7 @@ from geograypher.utils.geospatial import (
     ensure_geometric_CRS,
     get_overlap_raster,
 )
+from geograypher.utils.files import ensure_containing_folder
 
 
 def check_if_raster(filename):
@@ -266,6 +267,7 @@ def compute_and_show_cf(
         if savefile is None:
             plt.show()
         else:
+            ensure_containing_folder(savefile)
             plt.savefig(savefile)
 
     # TODO compute more comprehensive metrics here
