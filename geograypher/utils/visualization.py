@@ -22,14 +22,14 @@ def create_composite(RGB_image, label_image, label_weight=0.5):
         RGB_image = RGB_image / 255
 
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
+        null_mask = label_image == NULL_TEXTURE_INT_VALUE
         if label_image.dtype == np.uint8:
-            null_mask = label_image == NULL_TEXTURE_INT_VALUE
             # This produces a float colormapped values based on the indices
             label_image = plt.cm.tab10(label_image)[..., :3]
-            label_image[null_mask] = 0
         else:
-            print("continous")
-            breakpoint()
+            # TODO this should be properly scaled
+            label_image = plt.cm.viridis(label_image)[..., :3]
+        label_image[null_mask] = 0
     # Determine if the label image needs to be colormapped into a 3 channel image
 
     overlay = ((1 - label_weight) * RGB_image) + (label_weight * label_image)
