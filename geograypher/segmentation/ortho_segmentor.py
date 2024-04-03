@@ -1,3 +1,5 @@
+import os
+import shutil
 import tempfile
 import typing
 from pathlib import Path
@@ -101,13 +103,14 @@ def write_chips(
     label_column=None,
     label_remap=None,
     drop_transparency=True,
+    remove_old=True,
     output_suffix=".jpg",
     ROI_file=None,
     background_ind=NULL_TEXTURE_INT_VALUE,
     brightness_multiplier=1.0,
 ):
-    # Create the output folder if not present
-    ensure_folder(output_folder)
+    if remove_old and os.path.isdir(output_folder):
+        shutil.rmtree(output_folder)
 
     if label_vector_file is not None:
         label_gdf = gpd.read_file(label_vector_file)
@@ -140,6 +143,7 @@ def write_chips(
             output_folder = Path(output_folder, "imgs")
 
             ensure_folder(labels_folder)
+        ensure_folder(output_folder)
 
         # Set up the ROI now that we have the working CRS
         if ROI_file is not None:
