@@ -13,7 +13,26 @@ from geograypher.constants import (
 from geograypher.utils.files import ensure_folder
 
 
-def create_composite(RGB_image, label_image, label_weight=0.5):
+def create_composite(
+    RGB_image: np.ndarray, label_image: np.ndarray, label_blending_weight: float = 0.5
+):
+    """Create a three-panel composite with an RGB image and a label
+
+    Args:
+        RGB_image (np.ndarray):
+            (h, w, 3) rgb image to be used directly as one panel
+        label_image (np.ndarray):
+            (h, w) image containing either integer labels or float scalars. Will be colormapped
+            prior to display.
+        label_blending_weight (float, optional):
+            Opacity for the label in the blended composite. Defaults to 0.5.
+
+    Raises:
+        ValueError: If the RGB image cannot be interpreted as such
+
+    Returns:
+        np.ndarray: (h, 3*w, 3) horizontally composited image
+    """
     if RGB_image.ndim != 3 or RGB_image.shape[2] != 3:
         raise ValueError("Invalid RGB error")
 
@@ -32,7 +51,9 @@ def create_composite(RGB_image, label_image, label_weight=0.5):
         label_image[null_mask] = 0
     # Determine if the label image needs to be colormapped into a 3 channel image
 
-    overlay = ((1 - label_weight) * RGB_image) + (label_weight * label_image)
+    overlay = ((1 - label_blending_weight) * RGB_image) + (
+        label_blending_weight * label_image
+    )
     composite = np.concatenate((label_image, RGB_image, overlay), axis=1)
     # Cast to np.uint8 for saving
     composite = (composite * 255).astype(np.uint8)
