@@ -1547,6 +1547,7 @@ class TexturedPhotogrammetryMesh:
         camera_index: int,
         image_scale: float = 1.0,
         enable_ssao: bool = False,
+        label_render: bool = False
     ):
         """Render an image from the viewpoint of a single camera. Note that the principle point is ignored.
 
@@ -1574,11 +1575,23 @@ class TexturedPhotogrammetryMesh:
         # Set up the pyvista plotter
         plotter = pv.Plotter(off_screen=True)
         # Add the mesh
-        plotter.add_mesh(
-            self.pyvista_mesh,
-            scalars=texture,
-            rgb=is_RGB,
-        )
+        if label_render:
+            texture = np.nan_to_num(texture, nan=NULL_TEXTURE_INT_VALUE)
+            texture = texture/NULL_TEXTURE_INT_VALUE
+            new_texture = np.tile(texture, (1,3))
+            plotter.add_mesh(
+                self.pyvista_mesh,
+                scalars=new_texture,
+                rgb=True,
+                diffuse=0.0,
+                ambient=1.0
+            )
+        else:
+            plotter.add_mesh(
+                self.pyvista_mesh,
+                scalars=texture,
+                rgb=is_RGB
+            )
         # Set the camera to the requested viewpoint
         plotter.camera = pv_camera
 
