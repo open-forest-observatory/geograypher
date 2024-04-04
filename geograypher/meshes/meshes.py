@@ -84,7 +84,7 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
             texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
             texture_column_name: The name of the column to use for a vectorfile input
-            IDs_to_labels (typing.Union[PATH_TYPE, dict, None]): dictionary or file containing the mapping from integer IDs to string class names
+            IDs_to_labels (typing.Union[PATH_TYPE, dict, None]): dictionary or JSON file containing the mapping from integer IDs to string class names
         """
         self.downsample_target = downsample_target
 
@@ -125,10 +125,10 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Loading texture")
         # load IDs_to_labels
         # if IDs_to_labels not provided, check the directory of the mesh and get the file if found
-        if IDs_to_labels == None and isinstance(mesh, PATH_TYPE.__args__):
-            for file in mesh.parent.iterdir():
-                if 'IDs_to_labels.json' in file.name:
-                    IDs_to_labels = file.name
+        if IDs_to_labels is None and isinstance(mesh, PATH_TYPE.__args__):
+                possible_json = Path(Path(mesh).stem + '_IDs_to_labels.json')
+                if possible_json.exists():
+                    IDs_to_labels = possible_json
         # convert IDs_to_labels from file to dict
         if isinstance(IDs_to_labels, PATH_TYPE.__args__):
             with open(IDs_to_labels, 'r') as file:
@@ -863,14 +863,22 @@ class TexturedPhotogrammetryMesh:
         return labeled_verts_dict, all_values_dict
     
     def save_IDs_to_labels(self, savepath: PATH_TYPE):
-        savepath = Path(savepath)
+        """saves the contents of the IDs_to_labels to the file savepath provided
+
+        Args:
+            savepath (PATH_TYPE): path to the file where the data must be saved
+        """
 
         # Save the classes filename
+        savepath = Path(savepath)
+        savepath.parent.mkdir(parents=True, exist_ok=True)
         if self.is_discrete_texture():
-            IDs_to_labels_file = Path(savepath, "IDs_to_labels.json")
-            self.logger.info(f"Saving IDs_to_labels to {str(IDs_to_labels_file)}")
-            with open(IDs_to_labels_file, "w") as outfile_h:
+            self.logger.info("discrete texture, saving classes")
+            self.logger.info(f"Saving IDs_to_labels to {str(savepath)}")
+            with open(savepath, "w") as outfile_h:
                 json.dump(self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4)
+        else:
+            self.logger.warn("non-discrete texture, not saving classes")
 
 
     def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
@@ -901,7 +909,7 @@ class TexturedPhotogrammetryMesh:
         Path(savepath).parent.mkdir(parents=True, exist_ok=True)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
-        self.save_IDs_to_labels(savepath.parent)
+        self.save_IDs_to_labels(Path(savepath).stem + '_IDs_to_labels.json')
 
     def label_polygons(
         self,
@@ -1935,7 +1943,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
-        self.save_IDs_to_labels(output_folder)
+        self.save_IDs_to_labels(output_folder + 'IDs_to_labels.json')
 
         for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(
