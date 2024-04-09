@@ -889,7 +889,7 @@ class TexturedPhotogrammetryMesh:
         face_weighting: typing.Union[None, np.ndarray] = None,
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
-        dissolve_precision: typing.Union[float, None] = 1e-8,
+        dissolve_precision: typing.Union[float, None] = 1e-7,
     ):
         """Assign a class label to polygons using labels per face
 
@@ -977,6 +977,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(overlay)
         start = time()
         # Set the precision to avoid numerical issues from near-colinear lines
+        overlay.geometry = overlay.geometry.make_valid()
         overlay.geometry = shapely.set_precision(
             overlay.geometry.values, dissolve_precision
         )
