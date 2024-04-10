@@ -135,9 +135,6 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels, 'r') as file:
                 IDs_to_labels = json.load(file)
                 IDs_to_labels = {int(id):label for id,label in IDs_to_labels.items()}
-                for id,label in IDs_to_labels.items():
-                    IDs_to_labels[int(id)] = label
-                    IDs_to_labels.pop(id)
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
