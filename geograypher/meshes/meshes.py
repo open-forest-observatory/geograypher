@@ -127,13 +127,17 @@ class TexturedPhotogrammetryMesh:
         # load IDs_to_labels
         # if IDs_to_labels not provided, check the directory of the mesh and get the file if found
         if IDs_to_labels is None and isinstance(mesh, PATH_TYPE.__args__):
-                possible_json = Path(Path(mesh).stem + '_IDs_to_labels.json')
-                if possible_json.exists():
-                    IDs_to_labels = possible_json
+            possible_json = Path(Path(mesh).stem + '_IDs_to_labels.json')
+            if possible_json.exists():
+                IDs_to_labels = possible_json
         # convert IDs_to_labels from file to dict
         if isinstance(IDs_to_labels, PATH_TYPE.__args__):
             with open(IDs_to_labels, 'r') as file:
                 IDs_to_labels = json.load(file)
+                IDs_to_labels = {int(id):label for id,label in IDs_to_labels.items()}
+                for id,label in IDs_to_labels.items():
+                    IDs_to_labels[int(id)] = label
+                    IDs_to_labels.pop(id)
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
@@ -871,8 +875,7 @@ class TexturedPhotogrammetryMesh:
         """
 
         # Save the classes filename
-        savepath = Path(savepath)
-        savepath.parent.mkdir(parents=True, exist_ok=True)
+        ensure_containing_folder(savepath)
         if self.is_discrete_texture():
             self.logger.info("discrete texture, saving classes")
             self.logger.info(f"Saving IDs_to_labels to {str(savepath)}")
