@@ -1,3 +1,4 @@
+import json
 import typing
 from pathlib import Path
 
@@ -11,6 +12,64 @@ from geograypher.constants import (
     TEN_CLASS_VIS_KWARGS,
 )
 from geograypher.utils.files import ensure_folder
+
+
+def get_vis_options_from_IDs_to_labels(
+    IDs_to_labels: typing.Union[None, dict],
+    cmap_continous: str = "viridis",
+    cmap_10_classes: str = "tab10",
+    cmap_20_classes: str = "tab20",
+    cmap_many_classes: str = "viridis",
+):
+    """Determine vis options based on a given IDs_to_labels object
+
+    Args:
+        IDs_to_labels (typing.Union[None, dict]): _description_
+        cmap_continous (str, optional):
+            Colormap to use if the values are continous. Defaults to "viridis".
+        cmap_10_classes (str, optional):
+            Colormap to use if the values are discrete and there are 10 or fewer classes. Defaults to "tab10".
+        cmap_20_classes (str, optional):
+            Colormap to use if the values are discrete and there are 11-20 classes. Defaults to "tab20".
+        cmap_many_classes (str, optional):
+            Colormap to use if there are more than 20 classes. Defaults to "viridis".
+
+    Returns:
+        dict: Containing the cmap, vmin/vmax, and whether the colormap is discrete
+    """
+    # This could be written in fewer lines of code but I kept it intentionally explicit
+
+    if IDs_to_labels is None:
+        # No IDs_to_labels means it's continous
+        cmap = cmap_continous
+        vmin = None
+        vmax = None
+        discrete = False
+    else:
+        # Otherwise, we can determine the max class ID
+        max_ID = np.max(list(IDs_to_labels.keys()))
+
+        if max_ID < 10:
+            # 10 or fewer discrete classes
+            cmap = cmap_10_classes
+            vmin = -0.5
+            vmax = 9.5
+            discrete = True
+        elif max_ID < 20:
+            # 11-20 discrete classes
+            cmap = cmap_20_classes
+            vmin = -0.5
+            vmax = 19.5
+            discrete = True
+        else:
+            # More than 20 classes. There are no good discrete colormaps for this, so we generally
+            # fall back on displaying it with a continous colormap
+            cmap = cmap_many_classes
+            vmin = None
+            vmax = None
+            discrete = False
+
+    return {"cmap": cmap, "vmin": vmin, "vmax": vmax, "discrete": discrete}
 
 
 def create_composite(
@@ -47,19 +106,27 @@ def create_composite(
         RGB_image = RGB_image / 255
 
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
-        null_mask = label_image == NULL_TEXTURE_INT_VALUE
-        if IDs_to_labels is not None:
-            # This produces a float colormapped values based on the indices
-            label_image = plt.cm.tab10(label_image)[..., :3]
+        vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
+        cmap = plt.get_cmap(vis_options["cmap"])
+        if vis_options["discrete"]:
+            null_mask = label_image == NULL_TEXTURE_INT_VALUE
         else:
-            # TODO this should be properly scaled
-            label_image = plt.cm.viridis(label_image)[..., :3]
-        label_image[null_mask] = 0
-    # Determine if the label image needs to be colormapped into a 3 channel image
+            # Shift
+            label_image = label_image - np.nanmin(label_image)
+            # Scale
+            label_image = label_image / np.nanmax(label_image)
 
+        # Perform the colormapping
+        label_image = cmap(label_image)[..., :3]
+        # Mask invalid values if it was a discrete texture
+        if vis_options["discrete"]:
+            label_image[null_mask] = 0
+
+    # Create a blended image
     overlay = ((1 - label_blending_weight) * RGB_image) + (
         label_blending_weight * label_image
     )
+    # Concatenate the images horizonally
     composite = np.concatenate((label_image, RGB_image, overlay), axis=1)
     # Cast to np.uint8 for saving
     composite = (composite * 255).astype(np.uint8)
@@ -70,8 +137,6 @@ def show_segmentation_labels(
     label_folder,
     image_folder,
     savefolder: typing.Union[None, PATH_TYPE] = None,
-    null_label=NULL_TEXTURE_INT_VALUE,
-    imshow_kwargs=TEN_CLASS_VIS_KWARGS,
     num_show=10,
     label_suffix=".png",
     image_suffix=".JPG",
@@ -82,6 +147,13 @@ def show_segmentation_labels(
     if savefolder is not None:
         ensure_folder(savefolder)
 
+    if (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists():
+        with open(IDs_to_labels_file, "r") as infile:
+            IDs_to_labels = json.load(infile)
+            IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
+    else:
+        IDs_to_labels = None
+
     for i, rendered_file in enumerate(rendered_files[:num_show]):
         image_file = Path(
             image_folder, rendered_file.relative_to(label_folder)
@@ -89,7 +161,7 @@ def show_segmentation_labels(
 
         image = imread(image_file)
         render = imread(rendered_file)
-        composite = create_composite(image, render)
+        composite = create_composite(image, render, IDs_to_labels=IDs_to_labels)
 
         if savefolder is None:
             plt.imshow(composite)
