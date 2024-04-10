@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from copy import deepcopy
@@ -18,13 +19,10 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.constants import (
-    DEFAULT_FRUSTUM_SCALE,
-    EXAMPLE_INTRINSICS,
-    PATH_TYPE,
-)
-from multiview_mapping_toolkit.utils.geospatial import ensure_geometric_CRS
-from multiview_mapping_toolkit.utils.image import get_GPS_exif
+from geograypher.constants import DEFAULT_FRUSTUM_SCALE, EXAMPLE_INTRINSICS, PATH_TYPE
+from geograypher.utils.files import ensure_containing_folder
+from geograypher.utils.geospatial import ensure_geometric_CRS
+from geograypher.utils.image import get_GPS_exif
 
 
 class PhotogrammetryCamera:
@@ -653,23 +651,26 @@ class PhotogrammetryCameraSet:
                 print(f"about to remove {output_folder}")
                 shutil.rmtree(output_folder)
 
-        for i in tqdm(range(len(self.cameras))):
+        for i in tqdm(
+            range(len(self.cameras)),
+            f"{'copying' if copy else 'linking'} images to {output_folder}",
+        ):
             output_file = Path(
                 output_folder, self.get_image_filename(i, absolute=False)
             )
-            output_file.parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(output_file)
             src_file = self.get_image_filename(i, absolute=True)
             if copy:
-                shutil.copy(src_file, output_file)
+                try:
+                    shutil.copy(src_file, output_file)
+                except FileNotFoundError:
+                    logging.warning(f"Could not find {src_file}")
             else:
                 os.symlink(src_file, output_file)
 
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
-        return [
-            x.get_lon_lat()
-            for x in tqdm(self.cameras, desc="Loading GPS data for camera set")
-        ]
+        return [x.get_lon_lat() for x in self.cameras]
 
     def get_subset_ROI(
         self,
@@ -729,7 +730,7 @@ class PhotogrammetryCameraSet:
             plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
             add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
             show (bool, optional): Show the results instead of waiting for other content to be added
-            frustum_scale (float, optional): Size of cameras in world units
+            frustum_scale (float, optional): Size of cameras in world units. If None, will set to 1/120th of the maximum distance between two cameras.
             force_xvfb (bool, optional): Force a headless rendering backend
         """
 
@@ -737,12 +738,9 @@ class PhotogrammetryCameraSet:
             plotter = pv.Plotter()
             show = True
 
-        # If the scale is None, set it
+        # Determine pairwise distance between each camera and set frustum_scale to 1/120th of the maximum distance found
         if frustum_scale is None:
-            # If there are more than two cameras, set it inteligently
             if self.n_cameras() >= 2:
-                # Determine pairwise distance between each camera and set frustum_scale
-                # to 1/120th of the maximum distance found
                 camera_translation_matrices = np.array(
                     [transform[:3, 3] for transform in self.cam_to_world_transforms]
                 )

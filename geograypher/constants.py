@@ -17,6 +17,7 @@ VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 
 VERT_ID = "vert_ID"
 CLASS_ID_KEY = "class_ID"
+PRED_CLASS_ID_KEY = "pred_class_ID"
 CLASS_NAMES_KEY = "class_names"
 RATIO_3D_2D_KEY = "ratio_3d_2d"
 NULL_TEXTURE_FLOAT_VALUE = -1

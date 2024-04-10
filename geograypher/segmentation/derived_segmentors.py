@@ -5,8 +5,8 @@ import pandas as pd
 from imageio import imread
 from skimage.transform import resize
 
-from multiview_mapping_toolkit.constants import PATH_TYPE
-from multiview_mapping_toolkit.segmentation import Segmentor
+from geograypher.constants import PATH_TYPE
+from geograypher.segmentation import Segmentor
 
 
 class BrightnessSegmentor(Segmentor):

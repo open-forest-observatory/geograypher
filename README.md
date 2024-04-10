@@ -1,10 +1,10 @@
 # Geograypher: Multiview Semantic Reasoning with Geospatial Data
 
-This tool is designed for multi-view image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tool is designed to be generalizable.
+This tool is designed for multiview image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tool is designed to be generalizable.
 
 In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrammetry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrammetry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image. 
 
-One task that this can support is multi-view classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transferred to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averaging scheme to come up with a final land cover prediction for that location. The other task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
+One task that this can support is multiview classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transferred to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averaging scheme to come up with a final land cover prediction for that location. The other task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
 
 # Conceptual workflow
 
@@ -30,7 +30,7 @@ You use structure from motion to build a 3D model of your scene and also estimat
   <img alt="Photogrammetry result" src="docs/images/textured_scene_render.png" width="50%">
 </p>
 
-Up to this point, you have been following a fairly standard workflow. A common practice at this point would be to generate a top-down, 2D orthomosaic of the scene and do any prediction tasks, such as deep learning model training or inference, using this data. Instead, you decide it's important to maintain the high quality of the raw images and be able to see the sides of your objects when you are generating predictions. This is where MVMT comes in. 
+Up to this point, you have been following a fairly standard workflow. A common practice at this point would be to generate a top-down, 2D orthomosaic of the scene and do any prediction tasks, such as deep learning model training or inference, using this data. Instead, you decide it's important to maintain the high quality of the raw images and be able to see the sides of your objects when you are generating predictions. This is where geograypher comes in. 
 
 Using your field reference map and the 3D model from photogrammetry, you determine which portions of your 3D scene correspond to each object. This is shown below, with the colors now representing the classification label.
 
@@ -103,13 +103,13 @@ conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
 conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
 ```
 
-Now you should see all of my conda environments when you do `conda env list` . The one you want is `MVMT-stable` , and can be activated as follows:
+Now you should see all of my conda environments when you do `conda env list` . The one you want is `geograypher-stable` , and can be activated as follows:
 
 ```
-conda activate MVMT-stable
+conda activate geograypher-stable
 ```
 
-Use this instead of `MVMT` in future steps.
+Use this instead of `geograypher` in future steps.
 
 ### Creating a new environment
 
@@ -125,8 +125,8 @@ Use this instead of `MVMT` in future steps.
 Create and activate the environment:
 
 ```
-conda create -n MVMT python=3.9 -y
-conda activate MVMT
+conda create -n geograypher python=3.9 -y
+conda activate geograypher
 ```
 
 > For internal collaborators working on /ofo-share, you could run into permissions issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.
@@ -184,9 +184,9 @@ If this happens, you can fix it by symlinking to the system version. I don't kno
 ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
 ```
 
-If you want to be able to call MVMT fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
+If you want to be able to call geograypher fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
 ```
-pip install -e <path to your clone of the MVMT repo>
+pip install -e <path to your clone of the geograypher repo>
 ```
 
 ### Example data
@@ -195,9 +195,9 @@ The public example data is in `data/example_Emerald_Point_data` . You can run no
 
 ### Using your own data
 
-If you have a Metashape scene with the location of cameras, a mesh, and geospatial information, you can likely use MVMT. If you are using the Metashape GUI, you must do an important step before exporting the mesh model. Metashape stores the mesh in an arbitrary coordinate system that's optimized for viewing and will export it as such. To fix this, in the Metashape GUI you need to do `Model->Transform Object->Reset Transform` , then save the mesh with the local coordinates option. The cameras can be exported without any special considerations.
+If you have a Metashape scene with the location of cameras, a mesh, and geospatial information, you can likely use geograypher. If you are using the Metashape GUI, you must do an important step before exporting the mesh model. Metashape stores the mesh in an arbitrary coordinate system that's optimized for viewing and will export it as such. To fix this, in the Metashape GUI you need to do `Model->Transform Object->Reset Transform` , then save the mesh with the local coordinates option. The cameras can be exported without any special considerations.
 
-You can also use our scripted workflow for running Metashape, [automate-metashape](https://github.com/open-forest-observatory/automate-metashape). The cameras and the `local` mesh export will be properly formatted for use with MVMT.
+You can also use our scripted workflow for running Metashape, [automate-metashape](https://github.com/open-forest-observatory/automate-metashape). The cameras and the `local` mesh export will be properly formatted for use with geograypher.
 
 ### Running
 
@@ -208,15 +208,15 @@ It also provides functionality for making predictions on top-down orthomosaics. 
 There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
 
 ```
-conda activate MVMT
-python multiview_prediction_toolkit/entrypoints/mesh_render.py --help
-python multiview_prediction_toolkit/entrypoints/aggregate_viewpoints.py --help
-python multiview_prediction_toolkit/entrypoints/orthomosaic_predictions.py --help
+conda activate geograypher
+python geograypher/entrypoints/render_labels.py --help
+python geograypher/entrypoints/aggregate_viewpoints.py --help
+python geograypher/entrypoints/orthomosaic_predictions.py --help
 ```
 
 Quality metrics can be computed using the evaluation script
 
 ```
-conda activate MVMT
-python multiview_prediction_toolkit/entrypoints/evaluate_predictions.py --help
+conda activate geograypher
+python geograypher/entrypoints/evaluate_predictions.py --help
 ```

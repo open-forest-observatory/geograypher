@@ -10,13 +10,14 @@ from rasterio.plot import reshape_as_image
 from rasterstats import zonal_stats
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
-from multiview_mapping_toolkit.constants import (
+from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     PATH_TYPE,
     TEN_CLASS_VIS_KWARGS,
 )
-from multiview_mapping_toolkit.utils.geospatial import (
+from geograypher.utils.files import ensure_containing_folder
+from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
     get_overlap_raster,
@@ -234,15 +235,25 @@ def compute_and_show_cf(
     labels: typing.Union[None, typing.List[str]] = None,
     use_labels_from: str = "both",
     vis: bool = True,
-    savefile: typing.Union[None, PATH_TYPE] = None,
+    cf_plot_savefile: typing.Union[None, PATH_TYPE] = None,
+    cf_np_savefile: typing.Union[None, PATH_TYPE] = None,
 ):
     """_summary_
 
     Args:
         pred_labels (list): _description_
         gt_labels (list): _description_
-        labels (None, list): The labels to use for the axes
-        use_labels_from (str, optional): _description_. Defaults to "gt".
+        labels (typing.Union[None, typing.List[str]], optional): _description_. Defaults to None.
+        use_labels_from (str, optional): _description_. Defaults to "both".
+        vis (bool, optional): _description_. Defaults to True.
+        cf_plot_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.
+        cf_np_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
     """
     if labels is None:
         if use_labels_from == "gt":
@@ -263,10 +274,15 @@ def compute_and_show_cf(
             confusion_matrix=cf_matrix, display_labels=labels
         )
         cf_disp.plot()
-        if savefile is None:
+        if cf_plot_savefile is None:
             plt.show()
         else:
-            plt.savefig(savefile)
+            ensure_containing_folder(cf_plot_savefile)
+            plt.savefig(cf_plot_savefile)
+
+    if cf_np_savefile:
+        ensure_containing_folder(cf_np_savefile)
+        np.save(cf_np_savefile, cf_matrix)
 
     # TODO compute more comprehensive metrics here
     accuracy = np.sum(cf_matrix * np.eye(cf_matrix.shape[0])) / np.sum(cf_matrix)

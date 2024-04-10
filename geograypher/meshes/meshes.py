@@ -31,11 +31,8 @@ from skimage.transform import resize
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
-from multiview_mapping_toolkit.cameras import (
-    PhotogrammetryCamera,
-    PhotogrammetryCameraSet,
-)
-from multiview_mapping_toolkit.constants import (
+from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
+from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
@@ -49,23 +46,22 @@ from multiview_mapping_toolkit.constants import (
     VERT_ID,
     VIS_FOLDER,
 )
-from multiview_mapping_toolkit.segmentation.derived_segmentors import (
-    TabularRectangleSegmentor,
-)
-from multiview_mapping_toolkit.utils.geometric import batched_unary_union
-from multiview_mapping_toolkit.utils.geospatial import (
+from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
+from geograypher.utils.files import ensure_containing_folder, ensure_folder
+from geograypher.utils.geometric import batched_unary_union
+from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
     ensure_non_overlapping_polygons,
     get_projected_CRS,
 )
-from multiview_mapping_toolkit.utils.indexing import ensure_float_labels
-from multiview_mapping_toolkit.utils.numeric import (
+from geograypher.utils.indexing import ensure_float_labels
+from geograypher.utils.numeric import (
     compute_3D_triangle_area,
     compute_approximate_ray_intersection,
     triangulate_rays_lstsq,
 )
-from multiview_mapping_toolkit.utils.parsing import parse_transform_metashape
+from geograypher.utils.parsing import parse_transform_metashape
 
 
 class TexturedPhotogrammetryMesh:
@@ -411,37 +407,45 @@ class TexturedPhotogrammetryMesh:
 
             # Name of scalar in the mesh
             try:
-                texture_array = self.pyvista_mesh[texture]
-            except (KeyError, ValueError):
                 self.logger.warn(
-                    "Could not read texture as a scalar from the pyvista mesh"
+                    "Trying to read texture as a scalar from the pyvista mesh:"
                 )
+                texture_array = self.pyvista_mesh[texture]
+                self.logger.warn("- success")
+            except (KeyError, ValueError):
+                self.logger.warn("- failed")
 
             # Numpy file
             if texture_array is None:
                 try:
+                    self.logger.warn("Trying to read texture as a numpy file:")
                     texture_array = np.load(texture, allow_pickle=True)
+                    self.logger.warn("- success")
                 except:
-                    self.logger.warn("Could not read texture as a numpy file")
+                    self.logger.warn("- failed")
 
             # Vector file
             if texture_array is None:
                 try:
+                    self.logger.warn("Trying to read texture as vector file:")
                     # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
                     texture_array, all_values = self.get_values_for_verts_from_vector(
                         column_names=texture_column_name,
                         vector_source=texture,
                     )
+                    self.logger.warn("- success")
                 except IndexError:
-                    self.logger.warn("Could not read texture as vector file")
+                    self.logger.warn("- failed")
 
             # Raster file
             if texture_array is None:
                 try:
                     # TODO
+                    self.logger.warn("Trying to read as texture as raster file: ")
                     texture_array = self.get_vert_values_from_raster_file(texture)
+                    self.logger.warn("- success")
                 except:
-                    self.logger.warn("Could not read texture as raster file")
+                    self.logger.warn("- failed")
 
             # Error out if not set, since we assume the intent was to have a texture at this point
             if texture_array is None:
@@ -874,7 +878,7 @@ class TexturedPhotogrammetryMesh:
             vert_texture = None
 
         # Create folder if it doesn't exist
-        Path(savepath).parent.mkdir(parents=True, exist_ok=True)
+        ensure_containing_folder(savepath)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
 
@@ -885,6 +889,7 @@ class TexturedPhotogrammetryMesh:
         face_weighting: typing.Union[None, np.ndarray] = None,
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
+        dissolve_precision: typing.Union[float, None] = 1e-7,
     ):
         """Assign a class label to polygons using labels per face
 
@@ -898,6 +903,8 @@ class TexturedPhotogrammetryMesh:
                 Return string representation of class labels rather than float. Defaults to True.
             unknown_class_label (str, optional):
                 Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
+            dissolve_precision: (Union[float, None], optional)
+                Precision for geospatial operations. Used to avoid issues with near-parallel lines
 
         Raises:
             ValueError: if faces_labels or face_weighting is not 1D
@@ -921,19 +928,16 @@ class TexturedPhotogrammetryMesh:
                 )
 
         # Ensure that the input is a geopandas dataframe
-        polygons_gdf = coerce_to_geoframe(polygons)
+        polygons_gdf = ensure_geometric_CRS(coerce_to_geoframe(polygons))
         # Extract just the geometry
         polygons_gdf = polygons_gdf[["geometry"]]
-
-        # Get the working CRS as the geometric CRS corresponding to the first vertex in the mesh
-        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
-        working_CRS = get_projected_CRS(lon=lon, lat=lat)
-        polygons_gdf.to_crs(working_CRS, inplace=True)
 
         # Get the faces of the mesh as a geopandas dataframe
         # Also include the predicted face labels as a column in the dataframe
         faces_2d_gdf = self.get_faces_2d_gdf(
-            working_CRS, include_3d_2d_ratio=True, data_dict={CLASS_ID_KEY: face_labels}
+            polygons_gdf.crs,
+            include_3d_2d_ratio=True,
+            data_dict={CLASS_ID_KEY: face_labels},
         )
 
         # If a per-face weighting is provided, multiply that with the 3d to 2d ratio
@@ -946,10 +950,10 @@ class TexturedPhotogrammetryMesh:
             faces_2d_gdf["face_weighting"] = faces_2d_gdf[RATIO_3D_2D_KEY]
 
         # Set the precision to avoid approximate coliniearity errors
-        faces_2d_gdf["geometry"] = shapely.set_precision(
+        faces_2d_gdf.geometry = shapely.set_precision(
             faces_2d_gdf.geometry.values, 1e-6
         )
-        polygons_gdf["geometry"] = shapely.set_precision(
+        polygons_gdf.geometry = shapely.set_precision(
             polygons_gdf.geometry.values, 1e-6
         )
         # Set the ID field so it's available after the overlay operation
@@ -972,6 +976,11 @@ class TexturedPhotogrammetryMesh:
 
         self.logger.info(overlay)
         start = time()
+        # Set the precision to avoid numerical issues from near-colinear lines
+        overlay.geometry = overlay.geometry.make_valid()
+        overlay.geometry = shapely.set_precision(
+            overlay.geometry.values, dissolve_precision
+        )
         # For each polygon, for each class, sum all columns
         # NOTE the two keys must be represented as a list or they will be considered one tuple-valued key
         dissolved = overlay.dissolve(["polygon_ID", CLASS_ID_KEY], aggfunc=np.sum)
@@ -1621,11 +1630,16 @@ class TexturedPhotogrammetryMesh:
         # Use the indexing method
         if shade_by_indexing:
             # Extract the pixel to face correspondences
+            # Note that if you profile this code, it may look like this line takes a long time.
+            # In reality, the GPU code is executing asynchronously from the cpu so it waits here to
+            # catch up. If you want accurate timing, but potentially slower execution, use
+            # torch.cuda.synchronize() as described here:
+            # https://discuss.pytorch.org/t/copy-tensor-from-cuda-to-cpu-is-too-slow/13056/6
             pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
             # Index into the texture image
             flat_labels = texture[pix_to_face]
-            # Remap the value pixels that don't correspond to a face, which are labeled -1
             if set_null_texture_to_value is not None:
+                # Remap the value pixels that don't correspond to a face, which are labeled -1
                 flat_labels[pix_to_face == -1] = set_null_texture_to_value
 
             # Reshape from flat to an array
@@ -1864,10 +1878,14 @@ class TexturedPhotogrammetryMesh:
 
         # Create parent folder if none exists
         if screenshot_filename is not None:
-            Path(screenshot_filename).parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(screenshot_filename)
 
         # Show
-        return plotter.show(screenshot=screenshot_filename, **plotter_kwargs)
+        return plotter.show(
+            screenshot=screenshot_filename,
+            title="Geograypher mesh viewer",
+            **plotter_kwargs,
+        )
 
     def save_renders_pytorch3d(
         self,
@@ -1898,8 +1916,7 @@ class TexturedPhotogrammetryMesh:
             camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
 
-        output_folder = Path(output_folder)
-        output_folder.mkdir(parents=True, exist_ok=True)
+        ensure_folder(output_folder)
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
@@ -1953,7 +1970,7 @@ class TexturedPhotogrammetryMesh:
                 output_folder, camera_set.get_image_filename(i, absolute=False)
             )
             # This may create nested folders in the output dir
-            output_filename.parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(output_filename)
             output_filename = str(output_filename.with_suffix(".png"))
             # Save the image
             skimage.io.imsave(output_filename, rendered, check_contrast=False)

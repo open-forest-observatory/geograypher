@@ -2,13 +2,15 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+import pyproj
 
-from multiview_mapping_toolkit.cameras import PhotogrammetryCameraSet
-from multiview_mapping_toolkit.constants import PATH_TYPE
-from multiview_mapping_toolkit.utils.parsing import (
-    parse_sensors,
-    parse_transform_metashape,
+from geograypher.cameras import PhotogrammetryCameraSet
+from geograypher.constants import (
+    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    LAT_LON_EPSG_CODE,
+    PATH_TYPE,
 )
+from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
 
 def update_lists(
@@ -17,7 +19,6 @@ def update_lists(
     cam_to_world_transforms,
     image_filenames,
     sensor_IDs,
-    lon_lats,
 ):
     transform = camera.find("transform")
     if transform is None:
@@ -32,14 +33,6 @@ def update_lists(
     # This says which sensor model it came from
     sensor_IDs.append(int(camera.get("sensor_id")))
     # Try to get the lat lon information
-    reference = camera.find("reference")
-    try:
-        lon_lat = (float(reference.get("x")), float(reference.get("y")))
-        # TODO see what error this would throw if those aren't set
-    except:
-        lon_lat = None
-
-    lon_lats.append(lon_lat)
 
 
 class MetashapeCameraSet(PhotogrammetryCameraSet):
@@ -73,7 +66,6 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         image_filenames = []
         cam_to_world_transforms = []
         sensor_IDs = []
-        lon_lats = []
 
         cameras = chunk[2]
         # Iterate over metashape cameras and fill out required information
@@ -86,7 +78,6 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                         cam_to_world_transforms,
                         image_filenames,
                         sensor_IDs,
-                        lon_lats,
                     )
             else:
                 # 4x4 transform
@@ -96,8 +87,30 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                     cam_to_world_transforms,
                     image_filenames,
                     sensor_IDs,
-                    lon_lats,
                 )
+
+        # Compute the lat lon using the transforms, because the reference values recorded in the file
+        # reflect the EXIF values, not the optimized ones
+
+        # Get the transform from the chunk to the earth-centered, earth-fixed (ECEF) frame
+        chunk_to_epsg4327 = parse_transform_metashape(camera_file=camera_file)
+
+        # Compute the location of each camera in ECEF
+        cam_locs_in_epsg4327 = []
+        for cam_to_world_transform in cam_to_world_transforms:
+            cam_loc_in_chunk = cam_to_world_transform[:, 3:]
+            cam_locs_in_epsg4327.append(chunk_to_epsg4327 @ cam_loc_in_chunk)
+        cam_locs_in_epsg4327 = np.concatenate(cam_locs_in_epsg4327, axis=1)[:3].T
+        # Transform these points into lat-lon-alt
+        transformer = pyproj.Transformer.from_crs(
+            EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, LAT_LON_EPSG_CODE
+        )
+        lat, lon, _ = transformer.transform(
+            xx=cam_locs_in_epsg4327[:, 0],
+            yy=cam_locs_in_epsg4327[:, 1],
+            zz=cam_locs_in_epsg4327[:, 2],
+        )
+        lon_lats = list(zip(lon, lat))
 
         # Actually construct the camera objects using the base class
         super().__init__(
