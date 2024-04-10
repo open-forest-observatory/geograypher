@@ -19,7 +19,7 @@ from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from geograypher.constants import EXAMPLE_INTRINSICS, PATH_TYPE
+from geograypher.constants import DEFAULT_FRUSTUM_SCALE, EXAMPLE_INTRINSICS, PATH_TYPE
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import ensure_geometric_CRS
 from geograypher.utils.image import get_GPS_exif
@@ -746,9 +746,12 @@ class PhotogrammetryCameraSet:
                 )
                 distances = pdist(camera_translation_matrices, metric="euclidean")
                 max_distance = np.max(distances)
-                frustum_scale = (max_distance / 120) if max_distance > 0 else 1
+                frustum_scale = (
+                    (max_distance / 120) if max_distance > 0 else DEFAULT_FRUSTUM_SCALE
+                )
+            # else, set it to a default
             else:
-                frustum_scale = 1
+                frustum_scale = DEFAULT_FRUSTUM_SCALE
 
         for camera in self.cameras:
             camera.vis(plotter, frustum_scale=frustum_scale)
