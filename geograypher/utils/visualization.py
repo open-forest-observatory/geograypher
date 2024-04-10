@@ -14,7 +14,10 @@ from geograypher.utils.files import ensure_folder
 
 
 def create_composite(
-    RGB_image: np.ndarray, label_image: np.ndarray, label_blending_weight: float = 0.5
+    RGB_image: np.ndarray,
+    label_image: np.ndarray,
+    label_blending_weight: float = 0.5,
+    IDs_to_labels: typing.Union[None, dict] = None,
 ):
     """Create a three-panel composite with an RGB image and a label
 
@@ -26,6 +29,9 @@ def create_composite(
             prior to display.
         label_blending_weight (float, optional):
             Opacity for the label in the blended composite. Defaults to 0.5.
+        IDs_to_labels (typing.Union[None, dict], optional):
+            Mapping from integer IDs to string labels. Used to compute colormap. If None, a
+            continous colormap is used. Defaults to None.
 
     Raises:
         ValueError: If the RGB image cannot be interpreted as such
@@ -42,7 +48,7 @@ def create_composite(
 
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
         null_mask = label_image == NULL_TEXTURE_INT_VALUE
-        if label_image.dtype == np.uint8:
+        if IDs_to_labels is not None:
             # This produces a float colormapped values based on the indices
             label_image = plt.cm.tab10(label_image)[..., :3]
         else:
