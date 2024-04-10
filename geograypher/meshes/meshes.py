@@ -127,14 +127,14 @@ class TexturedPhotogrammetryMesh:
         # load IDs_to_labels
         # if IDs_to_labels not provided, check the directory of the mesh and get the file if found
         if IDs_to_labels is None and isinstance(mesh, PATH_TYPE.__args__):
-            possible_json = Path(Path(mesh).stem + '_IDs_to_labels.json')
+            possible_json = Path(Path(mesh).stem + "_IDs_to_labels.json")
             if possible_json.exists():
                 IDs_to_labels = possible_json
         # convert IDs_to_labels from file to dict
         if isinstance(IDs_to_labels, PATH_TYPE.__args__):
-            with open(IDs_to_labels, 'r') as file:
+            with open(IDs_to_labels, "r") as file:
                 IDs_to_labels = json.load(file)
-                IDs_to_labels = {int(id):label for id,label in IDs_to_labels.items()}
+                IDs_to_labels = {int(id): label for id, label in IDs_to_labels.items()}
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
@@ -863,7 +863,7 @@ class TexturedPhotogrammetryMesh:
             return labeled_verts, all_values
         # Else return a dict of all requested values
         return labeled_verts_dict, all_values_dict
-    
+
     def save_IDs_to_labels(self, savepath: PATH_TYPE):
         """saves the contents of the IDs_to_labels to the file savepath provided
 
@@ -877,10 +877,11 @@ class TexturedPhotogrammetryMesh:
             self.logger.info("discrete texture, saving classes")
             self.logger.info(f"Saving IDs_to_labels to {str(savepath)}")
             with open(savepath, "w") as outfile_h:
-                json.dump(self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4)
+                json.dump(
+                    self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4
+                )
         else:
             self.logger.warn("non-discrete texture, not saving classes")
-
 
     def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
         # TODO consider moving most of this functionality to a utils file
@@ -910,7 +911,7 @@ class TexturedPhotogrammetryMesh:
         ensure_containing_folder(savepath)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
-        self.save_IDs_to_labels(Path(savepath).stem + '_IDs_to_labels.json')
+        self.save_IDs_to_labels(Path(savepath).stem + "_IDs_to_labels.json")
 
     def label_polygons(
         self,
@@ -1950,7 +1951,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
-        self.save_IDs_to_labels(output_folder + 'IDs_to_labels.json')
+        self.save_IDs_to_labels(output_folder + "IDs_to_labels.json")
 
         for i in tqdm(camera_indices, desc="Saving renders"):
             rendered = self.render_pytorch3d(
