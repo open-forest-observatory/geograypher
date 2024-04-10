@@ -1,3 +1,5 @@
+import os
+import shutil
 import tempfile
 import typing
 from pathlib import Path
@@ -15,6 +17,7 @@ from shapely import Polygon
 from tqdm import tqdm
 
 from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
+from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.io import read_image_or_numpy
 from geograypher.utils.numeric import create_ramped_weighting
 
@@ -100,13 +103,14 @@ def write_chips(
     label_column=None,
     label_remap=None,
     drop_transparency=True,
+    remove_old=True,
     output_suffix=".jpg",
     ROI_file=None,
     background_ind=NULL_TEXTURE_INT_VALUE,
     brightness_multiplier=1.0,
 ):
-    # Create the output folder if not present
-    Path(output_folder).mkdir(exist_ok=True, parents=True)
+    if remove_old and os.path.isdir(output_folder):
+        shutil.rmtree(output_folder)
 
     if label_vector_file is not None:
         label_gdf = gpd.read_file(label_vector_file)
@@ -138,9 +142,8 @@ def write_chips(
             labels_folder = Path(output_folder, "anns")
             output_folder = Path(output_folder, "imgs")
 
-            labels_folder.mkdir(exist_ok=True, parents=True)
-
-        output_folder.mkdir(exist_ok=True, parents=True)
+            ensure_folder(labels_folder)
+        ensure_folder(output_folder)
 
         # Set up the ROI now that we have the working CRS
         if ROI_file is not None:
@@ -254,7 +257,7 @@ def assemble_tiled_predictions(
     # If the user didn't specify where to write the counts, create a tempfile that will be deleted
     if counts_savefile is None:
         # Create the containing folder if required
-        class_savefile.parent.mkdir(exist_ok=True, parents=True)
+        ensure_containing_folder(class_savefile)
         counts_savefile_manager = tempfile.NamedTemporaryFile(
             mode="w+", suffix=".tif", dir=class_savefile.parent
         )

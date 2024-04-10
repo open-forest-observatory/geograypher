@@ -47,6 +47,7 @@ from geograypher.constants import (
     VIS_FOLDER,
 )
 from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
+from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
@@ -906,7 +907,7 @@ class TexturedPhotogrammetryMesh:
             vert_texture = None
 
         # Create folder if it doesn't exist
-        Path(savepath).parent.mkdir(parents=True, exist_ok=True)
+        ensure_containing_folder(savepath)
         # Actually save the mesh
         self.pyvista_mesh.save(savepath, texture=vert_texture)
         self.save_IDs_to_labels(Path(savepath).stem + '_IDs_to_labels.json')
@@ -918,7 +919,7 @@ class TexturedPhotogrammetryMesh:
         face_weighting: typing.Union[None, np.ndarray] = None,
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
-        dissolve_precision: typing.Union[float, None] = 1e-8,
+        dissolve_precision: typing.Union[float, None] = 1e-7,
     ):
         """Assign a class label to polygons using labels per face
 
@@ -1006,6 +1007,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(overlay)
         start = time()
         # Set the precision to avoid numerical issues from near-colinear lines
+        overlay.geometry = overlay.geometry.make_valid()
         overlay.geometry = shapely.set_precision(
             overlay.geometry.values, dissolve_precision
         )
@@ -1899,7 +1901,7 @@ class TexturedPhotogrammetryMesh:
 
         # Create parent folder if none exists
         if screenshot_filename is not None:
-            Path(screenshot_filename).parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(screenshot_filename)
 
         # Show
         return plotter.show(
@@ -1936,10 +1938,8 @@ class TexturedPhotogrammetryMesh:
         if camera_indices is None:
             camera_indices = np.arange(camera_set.n_cameras())
             np.random.shuffle(camera_indices)
-        
-        # create output folder for classes and images
-        output_folder = Path(output_folder)
-        output_folder.mkdir(parents=True, exist_ok=True)
+
+        ensure_folder(output_folder)
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
@@ -1989,7 +1989,7 @@ class TexturedPhotogrammetryMesh:
                 output_folder, camera_set.get_image_filename(i, absolute=False)
             )
             # This may create nested folders in the output dir
-            output_filename.parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(output_filename)
             output_filename = str(output_filename.with_suffix(".png"))
             # Save the image
             skimage.io.imsave(output_filename, rendered, check_contrast=False)

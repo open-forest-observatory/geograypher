@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from copy import deepcopy
@@ -19,6 +20,7 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from geograypher.constants import EXAMPLE_INTRINSICS, PATH_TYPE
+from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import ensure_geometric_CRS
 from geograypher.utils.image import get_GPS_exif
 
@@ -656,10 +658,13 @@ class PhotogrammetryCameraSet:
             output_file = Path(
                 output_folder, self.get_image_filename(i, absolute=False)
             )
-            output_file.parent.mkdir(parents=True, exist_ok=True)
+            ensure_containing_folder(output_file)
             src_file = self.get_image_filename(i, absolute=True)
             if copy:
-                shutil.copy(src_file, output_file)
+                try:
+                    shutil.copy(src_file, output_file)
+                except FileNotFoundError:
+                    logging.warning(f"Could not find {src_file}")
             else:
                 os.symlink(src_file, output_file)
 

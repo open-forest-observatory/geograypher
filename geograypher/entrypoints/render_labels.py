@@ -38,6 +38,8 @@ def render_labels(
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
     vis: bool = False,
+    mesh_vis_file: typing.Union[PATH_TYPE, None] = None,
+    labels_vis_folder: typing.Union[PATH_TYPE, None] = None,
 ):
     """Renders image-based labels using geospatial ground truth data
 
@@ -74,8 +76,10 @@ def render_labels(
             Downsample the images to this fraction of the size for increased performance but lower quality. Defaults to 1.
         mesh_downsample (float, optional):
             Downsample the mesh to this fraction of vertices for increased performance but lower quality. Defaults to 1.
-        vis (bool, optional):
-            Show mesh and rendered labels. Defaults to False.
+        mesh_vis (typing.Union[PATH_TYPE, None])
+            Path to save the visualized mesh instead of showing it interactively. Only applicable if vis=True. Defaults to None.
+        labels_vis (typing.Union[PATH_TYPE, None])
+            Defaults to None.
     """
     ## Determine the ROI
     # If the ROI is unset and the texture is a spatial file, set the ROI to that
@@ -129,8 +133,8 @@ def render_labels(
         mesh.save_mesh(textured_mesh_savefile)
 
     # Show the cameras and mesh if requested
-    if vis:
-        mesh.vis(camera_set=training_camera_set)
+    if vis or mesh_vis_file is not None:
+        mesh.vis(camera_set=training_camera_set, screenshot_filename=mesh_vis_file)
 
     # Render the labels and save them. This is the slow step.
     mesh.save_renders_pytorch3d(
@@ -140,11 +144,12 @@ def render_labels(
         output_folder=render_savefolder,
     )
 
-    if vis:
+    if vis or labels_vis_folder is not None:
         # Show some examples of the rendered labels side-by-side with the real images
         show_segmentation_labels(
             label_folder=render_savefolder,
             image_folder=image_folder,
+            savefolder=labels_vis_folder,
             num_show=10,
         )
 
@@ -228,6 +233,8 @@ def parse_args():
         default=1,
     )
     parser.add_argument("--vis", action="store_true")
+    parser.add_argument("--mesh-vis-file", type=Path)
+    parser.add_argument("--labels-vis-folder", type=Path)
 
     args = parser.parse_args()
     return args

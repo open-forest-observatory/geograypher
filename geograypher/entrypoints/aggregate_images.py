@@ -16,6 +16,7 @@ from geograypher.constants import (
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.segmentation import SegmentorPhotogrammetryCameraSet
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
+from geograypher.utils.files import ensure_containing_folder
 
 
 def aggregate_images(
@@ -31,6 +32,7 @@ def aggregate_images(
     ROI_buffer_radius_meters: float = 50,
     IDs_to_labels: typing.Union[dict, None] = None,
     mesh_downsample: float = 1.0,
+    n_aggregation_clusters: typing.Union[int, None] = None,
     aggregate_image_scale: float = 1.0,
     aggregated_face_values_savefile: typing.Union[PATH_TYPE, None] = None,
     predicted_face_classes_savefile: typing.Union[PATH_TYPE, None] = None,
@@ -70,6 +72,8 @@ def aggregate_images(
         mesh_downsample (float, optional):
             Downsample the mesh to this fraction of vertices for increased performance but lower
             quality. Defaults to 1.0.
+        n_aggregation_clusters (typing.Union[int, None]):
+            If set, aggregate with this many clusters. Defaults to None.
         aggregate_image_scale (float, optional):
             Downsample the labels before aggregation for faster runtime but lower quality. Defaults
             to 1.0.
@@ -127,13 +131,25 @@ def aggregate_images(
 
     ## Perform aggregation
     # this is the slow step
-    aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d(
-        segmentor_camera_set,
-        image_scale=aggregate_image_scale,
-    )
+    if n_aggregation_clusters is None:
+        # Aggregate full mesh at once
+        aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d(
+            segmentor_camera_set,
+            image_scale=aggregate_image_scale,
+        )
+    else:
+        # TODO consider whether buffer distance should be tunable. This is fairly conservative
+        # but won't neccisarily capture everything
+        aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d_by_cluster(
+            segmentor_camera_set,
+            image_scale=aggregate_image_scale,
+            buffer_dist_meters=100,
+            n_clusters=n_aggregation_clusters,
+            vis_clusters=False,
+        )
     # If requested, save this data
     if aggregated_face_values_savefile is not None:
-        Path(aggregated_face_values_savefile).parent.mkdir(exist_ok=True, parents=True)
+        ensure_containing_folder(aggregated_face_values_savefile)
         np.save(aggregated_face_values_savefile, aggregated_face_labels)
 
     # Find the most common class per face
@@ -152,7 +168,7 @@ def aggregate_images(
         )
 
     if predicted_face_classes_savefile is not None:
-        Path(predicted_face_classes_savefile).parent.mkdir(exist_ok=True, parents=True)
+        ensure_containing_folder(predicted_face_classes_savefile)
         np.save(predicted_face_classes_savefile, predicted_face_classes)
 
     if vis:
