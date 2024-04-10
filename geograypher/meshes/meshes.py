@@ -49,7 +49,6 @@ from geograypher.constants import (
 from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
-from geograypher.utils.visualization import create_composite
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_geometric_CRS,
@@ -63,6 +62,7 @@ from geograypher.utils.numeric import (
     triangulate_rays_lstsq,
 )
 from geograypher.utils.parsing import parse_transform_metashape
+from geograypher.utils.visualization import create_composite
 
 
 class TexturedPhotogrammetryMesh:
