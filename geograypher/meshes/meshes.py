@@ -266,7 +266,10 @@ class TexturedPhotogrammetryMesh:
             if self.face_texture is not None:
                 return self.standardize_texture(self.face_texture)
             elif try_verts_faces_conversion:
-                self.set_texture(self.vert_to_face_texture(self.vertex_texture))
+                face_texture = self.vert_to_face_texture(
+                    self.vertex_texture, discrete=self.is_discrete_texture()
+                )
+                self.set_texture(face_texture)
                 return self.face_texture
             else:
                 raise ValueError(
@@ -744,7 +747,7 @@ class TexturedPhotogrammetryMesh:
             # matching_IDs = face_IDs[matching_inds]
             # most_common_ind = Counter(matching_IDs).most_common(1)
 
-    def vert_to_face_texture(self, vert_IDs):
+    def vert_to_face_texture(self, vert_IDs, discrete=True):
         if vert_IDs is None:
             raise ValueError("None")
 
@@ -755,28 +758,32 @@ class TexturedPhotogrammetryMesh:
             )
 
         # Each row contains the IDs of each vertex
-        IDs_per_face = vert_IDs[self.faces]
-        # Now we need to "vote" for the best one
-        max_ID = int(np.nanmax(vert_IDs))
-        # TODO consider using unique if these indices are sparse
-        counts_per_class_per_face = np.array(
-            [np.sum(IDs_per_face == i, axis=1) for i in range(max_ID + 1)]
-        ).T
-        # Check which entires had no classes reported and mask them out
-        # TODO consider removing these rows beforehand
-        zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
-        # We want to fairly tiebreak since np.argmax will always take th first index
-        # This is hard to do in a vectorized way, so we just add a small random value
-        # independently to each element
-        counts_per_class_per_face = (
-            counts_per_class_per_face
-            + np.random.random(counts_per_class_per_face.shape) * 0.5
-        )
-        most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
-        # Set any faces with zero counts to the null value
-        most_common_class_per_face[zeros_mask] = NULL_TEXTURE_FLOAT_VALUE
+        values_per_face = vert_IDs[self.faces]
+        if discrete:
+            # Now we need to "vote" for the best one
+            max_ID = int(np.nanmax(vert_IDs))
+            # TODO consider using unique if these indices are sparse
+            counts_per_class_per_face = np.array(
+                [np.sum(values_per_face == i, axis=1) for i in range(max_ID + 1)]
+            ).T
+            # Check which entires had no classes reported and mask them out
+            # TODO consider removing these rows beforehand
+            zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
+            # We want to fairly tiebreak since np.argmax will always take th first index
+            # This is hard to do in a vectorized way, so we just add a small random value
+            # independently to each element
+            counts_per_class_per_face = (
+                counts_per_class_per_face
+                + np.random.random(counts_per_class_per_face.shape) * 0.5
+            )
+            most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
+            # Set any faces with zero counts to the null value
+            most_common_class_per_face[zeros_mask] = NULL_TEXTURE_FLOAT_VALUE
 
-        return most_common_class_per_face
+            return most_common_class_per_face
+        else:
+            average_value_per_face = np.mean(values_per_face, axis=1)
+            return average_value_per_face
 
     # Operations on vector data
     def get_values_for_verts_from_vector(
@@ -1629,7 +1636,7 @@ class TexturedPhotogrammetryMesh:
         camera_set: PhotogrammetryCameraSet,
         camera_index: int,
         image_scale: float = 1.0,
-        shade_by_indexing: bool = None,
+        shade_by_indexing: bool = True,
         set_null_texture_to_value: float = None,
     ):
         """Render an image from the viewpoint of a single camera
@@ -1642,9 +1649,6 @@ class TexturedPhotogrammetryMesh:
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
             shade_by_indexing (bool, optional): Use indexing rather than a pytorch3d shader. Useful for integer labels
         """
-        if shade_by_indexing is None:
-            shade_by_indexing = self.is_discrete_texture()
-
         # TODO clean up
         texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
         # Get the texture and set it
