@@ -1900,14 +1900,18 @@ class TexturedPhotogrammetryMesh:
         """Render an image from the viewpoint of each specified camera and save a composite
 
         Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            camera_set (PhotogrammetryCameraSet):
+                Camera set to use for rendering
             render_image_scale (float, optional):
                 Multiplier on the real image scale to obtain size for rendering. Lower values
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-            camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
-            render_folder (PATH_TYPE, optional): Save images to this folder within vis. Default "renders"
-            make_composites (bool, optional): Should a triple composite the original image be saved
-            set_null_texture_to_value (float, optional): What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
+            render_folder (PATH_TYPE, optional):
+                Save images to this folder. Defaults to Path(VIS_FOLDER, "renders")
+            make_composites (bool, optional):
+                Should a triple pane composite with the original image be saved rather than the
+                raw label
+            set_null_texture_to_value (float, optional):
+                What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
         """
 
         ensure_folder(output_folder)
@@ -1920,7 +1924,7 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels_file, "w") as outfile_h:
                 json.dump(self.IDs_to_labels, outfile_h, ensure_ascii=False, indent=4)
 
-        for i in tqdm(camera_set.n_cameras(), desc="Saving renders"):
+        for i in tqdm(range(camera_set.n_cameras()), desc="Saving renders"):
             # Render the labels
             rendered = self.render_pytorch3d(
                 camera_set=camera_set,
@@ -1935,11 +1939,7 @@ class TexturedPhotogrammetryMesh:
             # RGB. It could also be multi-channel image corresponding to anything,
             # but we don't expect that yet
 
-            # Clip channels if needed
-            if rendered.ndim == 3:
-                rendered = rendered[..., :3]
-
-            if save_native_resolution:
+            if save_native_resolution and render_image_scale != 1:
                 native_size = camera_set.get_camera_by_index(i).get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
@@ -1953,10 +1953,16 @@ class TexturedPhotogrammetryMesh:
             if make_composites:
                 RGB_image = camera_set.get_camera_by_index(i).get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
-                )[..., :3]
-                rendered = create_composite(RGB_image=RGB_image, label_image=rendered)
-
-            rendered = rendered.astype(np.uint8)
+                )
+                rendered = create_composite(
+                    RGB_image=RGB_image,
+                    label_image=rendered,
+                    IDs_to_labels=self.get_IDs_to_labels(),
+                )
+            else:
+                # Clip channels if needed
+                if rendered.ndim == 3:
+                    rendered = rendered[..., :3]
 
             # Saving
             output_filename = Path(
@@ -1964,6 +1970,11 @@ class TexturedPhotogrammetryMesh:
             )
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
-            output_filename = str(output_filename.with_suffix(".png"))
-            # Save the image
-            skimage.io.imsave(output_filename, rendered, check_contrast=False)
+            if rendered.dtype == np.uint8:
+                output_filename = str(output_filename.with_suffix(".png"))
+                # Save the image
+                skimage.io.imsave(output_filename, rendered, check_contrast=False)
+            else:
+                output_filename = str(output_filename.with_suffix(".npy"))
+                # Save the image
+                np.save(output_filename, rendered)
