@@ -31,6 +31,7 @@ def label_polygons(
     ROI: typing.Union[PATH_TYPE, None] = None,
     ROI_buffer_radius_meters: float = 50,
     IDs_to_labels: typing.Union[dict, None] = None,
+    vis_mesh: bool = False,
 ):
     """
     Label each polygon with the most commonly predicted class as computed by the weighted sum of 3D
@@ -70,7 +71,9 @@ def label_polygons(
     """
     # Load this first because it's quick
     aggregated_face_values = np.load(aggregated_face_values_file)
-    predicted_face_classes = np.argmax(aggregated_face_values, axis=1)
+    predicted_face_classes = np.argmax(aggregated_face_values, axis=1).astype(float)
+    no_preds_mask = np.all(np.logical_not(np.isfinite(aggregated_face_values)), axis=1)
+    predicted_face_classes[no_preds_mask] = np.nan
 
     ## Create the mesh
     mesh = TexturedPhotogrammetryMesh(
@@ -81,6 +84,9 @@ def label_polygons(
         IDs_to_labels=IDs_to_labels,
         downsample_target=mesh_downsample,
     )
+
+    if vis_mesh:
+        mesh.vis(vis_scalars=predicted_face_classes)
 
     # Extract which vertices are labeled as ground
     # TODO check that the types are correct here
@@ -95,6 +101,13 @@ def label_polygons(
     ground_weighting = 1 - (
         (1 - ground_voting_weight) * ground_mask_faces.astype(float)
     )
+    if vis_mesh:
+        ground_masked_predicted_face_classes = predicted_face_classes.copy()
+        ground_masked_predicted_face_classes[ground_mask_faces.grounastype(bool)] = (
+            np.nan
+        )
+        mesh.vis(vis_scalars=ground_masked_predicted_face_classes)
+
     # Perform per-polygon labeling
     polygon_labels = mesh.label_polygons(
         face_labels=predicted_face_classes,
