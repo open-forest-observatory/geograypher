@@ -88,7 +88,7 @@ def aggregate_images(
     """
     ## Create the camera set
     # Do the camera operations first because they are fast and good initial error checking
-    camera_set = MetashapeCameraSet(cameras_file, image_folder)
+    camera_set = MetashapeCameraSet(cameras_file, image_folder, validate_images=True)
 
     # If the ROI is not None, subset to cameras within a buffer distance of the ROI
     # TODO let get_subset_ROI accept a None ROI and return the full camera set
