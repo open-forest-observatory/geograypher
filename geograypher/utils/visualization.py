@@ -77,6 +77,7 @@ def create_composite(
     label_image: np.ndarray,
     label_blending_weight: float = 0.5,
     IDs_to_labels: typing.Union[None, dict] = None,
+    grayscale_RGB_overlay: bool = True,
 ):
     """Create a three-panel composite with an RGB image and a label
 
@@ -91,6 +92,8 @@ def create_composite(
         IDs_to_labels (typing.Union[None, dict], optional):
             Mapping from integer IDs to string labels. Used to compute colormap. If None, a
             continous colormap is used. Defaults to None.
+        grayscale_RGB_overlay (bool):
+            Convert the RGB image to grayscale in the overlay. Default is True.
 
     Raises:
         ValueError: If the RGB image cannot be interpreted as such
@@ -108,22 +111,31 @@ def create_composite(
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
         vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
         cmap = plt.get_cmap(vis_options["cmap"])
-        if vis_options["discrete"]:
-            null_mask = label_image == NULL_TEXTURE_INT_VALUE
-        else:
+        null_mask = label_image == NULL_TEXTURE_INT_VALUE
+        if not vis_options["discrete"]:
             # Shift
             label_image = label_image - np.nanmin(label_image)
-            # Scale
-            label_image = label_image / np.nanmax(label_image)
+            # Find the max value that's not the null vlaue
+            valid_pixels = label_image[np.logical_not(null_mask)]
+            if valid_pixels.size > 0:
+                # TODO this might have to be changed to nanmax in the future
+                max_value = np.max(valid_pixels)
+                # Scale
+                label_image = label_image / max_value
 
         # Perform the colormapping
         label_image = cmap(label_image)[..., :3]
-        # Mask invalid values if it was a discrete texture
-        if vis_options["discrete"]:
-            label_image[null_mask] = 0
+        # Mask invalid values
+        label_image[null_mask] = 0
 
     # Create a blended image
-    overlay = ((1 - label_blending_weight) * RGB_image) + (
+    if grayscale_RGB_overlay:
+        RGB_for_composite = np.tile(
+            np.mean(RGB_image, axis=2, keepdims=True), (1, 1, 3)
+        )
+    else:
+        RGB_for_composite = RGB_image
+    overlay = ((1 - label_blending_weight) * RGB_for_composite) + (
         label_blending_weight * label_image
     )
     # Concatenate the images horizonally
@@ -131,6 +143,18 @@ def create_composite(
     # Cast to np.uint8 for saving
     composite = (composite * 255).astype(np.uint8)
     return composite
+
+
+def read_img_npy(filename):
+    try:
+        return imread(filename)
+    except:
+        pass
+
+    try:
+        return np.load(filename)
+    except:
+        pass
 
 
 def show_segmentation_labels(
@@ -160,7 +184,7 @@ def show_segmentation_labels(
         ).with_suffix(image_suffix)
 
         image = imread(image_file)
-        render = imread(rendered_file)
+        render = read_img_npy(rendered_file)
         composite = create_composite(image, render, IDs_to_labels=IDs_to_labels)
 
         if savefolder is None:
