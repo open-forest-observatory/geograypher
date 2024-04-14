@@ -90,7 +90,6 @@ class TexturedPhotogrammetryMesh:
 
         self.pyvista_mesh = None
         self.pytorch3d_mesh = None
-        self.newMesh = None
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
@@ -1390,7 +1389,6 @@ class TexturedPhotogrammetryMesh:
             _, fragments = self.get_rasterization_results_pytorch3d(
                 cameras=batch_cameras, image_scale=image_scale
             )
-
             # Do the update step independently for each of the images
             # Iterate over number of cameras in each batch
             for i in range(batch_cameras.n_cameras()): 
