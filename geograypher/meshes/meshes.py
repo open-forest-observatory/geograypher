@@ -1413,6 +1413,7 @@ class TexturedPhotogrammetryMesh:
                 # Index the image to fill this array
                 # TODO find a way to do this better if there are multiple pixels per face
                 # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
+                # Adjust face indices for batch offset in extended meshes, excluding invalid face indices 
                 pix_to_face[pix_to_face != -1] -= self.pyvista_mesh.n_faces * i
                 new_texture[pix_to_face] = img[flat_i_inds, flat_j_inds]
                 # Update the face colors
