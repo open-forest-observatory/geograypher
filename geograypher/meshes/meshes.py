@@ -1316,6 +1316,30 @@ class TexturedPhotogrammetryMesh:
 
         return labels
 
+    def pix2face(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        **kwargs,
+    ) -> np.ndarray:
+        """Compute the face that a ray from each pixel would intersect for each camera
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                A single camera or set of cameras. For each camera, the correspondences between
+                pixels and the face IDs of the mesh will be computed. The images of all cameras
+                are assumed to be the same size.
+
+        Raises:
+            NotImplementedError: If not implemented by the subclass
+
+        Returns:
+            np.ndarray: For each camera, there is an array that is the shape of an image and
+            contains the integer face index for the ray originating at that pixel. If the input is
+            a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
+            (n_cameras, h, w). Not that a one-length camera set will have a leading singleton dim.
+        """
+        raise NotImplementedError("Abstract method")
+
     # Visualization and saving methods
     def vis(
         self,
