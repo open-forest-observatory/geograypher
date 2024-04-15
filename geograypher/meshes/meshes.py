@@ -1357,7 +1357,6 @@ class TexturedPhotogrammetryMesh:
         return labels
 
     # Expensive pixel-to-vertex operations
-
     def get_rasterization_results_pytorch3d(
         self,
         cameras: typing.Union[PhotogrammetryCameraSet, PhotogrammetryCamera],
@@ -1566,83 +1565,6 @@ class TexturedPhotogrammetryMesh:
         normalized_face_texture = all_textures / np.expand_dims(all_counts, 1)
         return normalized_face_texture, all_textures, all_counts
 
-    def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
-        """
-        Aggregate the information from all images onto the mesh without considering occlusion
-        or distortion parameters
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for aggregation
-        """
-        # Initialize a masked array to record values
-        summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-
-        counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-        for i in tqdm(range(len(camera_set.cameras))):
-            # This is actually the bottleneck in the whole process
-            img = camera_set[i].load_image()
-            colors_per_vertex = camera_set.cameras[i].project_mesh_verts(
-                self.pyvista_mesh.points, img, device=self.device
-            )
-            summed_values = summed_values + colors_per_vertex.data
-            counts[np.logical_not(colors_per_vertex.mask)] = (
-                counts[np.logical_not(colors_per_vertex.mask)] + 1
-            )
-        mean_colors = (summed_values / counts).astype(np.uint8)
-        plotter = pv.Plotter()
-        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
-        plotter.show()
-
-    def render_pyvista(
-        self,
-        camera_set,
-        camera_index: int,
-        image_scale: float = 1.0,
-        enable_ssao: bool = False,
-    ):
-        """Render an image from the viewpoint of a single camera. Note that the principle point is ignored.
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
-            camera_index (int): which camera to render
-            image_scale (float, optional):
-                Multiplier on the real image scale to obtain size for rendering. Lower values
-                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-        """
-        # Get the pyvista camera and image size
-        pv_camera = camera_set[camera_index].get_pyvista_camera()
-        image_size = camera_set[camera_index].get_image_size()
-
-        # Transform image size appropriately
-        scaled_image_size_xy = (
-            int(round(image_size[1] * image_scale)),
-            int(round(image_size[0] * image_scale)),
-        )
-
-        # Get the texture from the mesh
-        texture = self.get_texture(request_vertex_texture=False)
-        is_RGB = texture.shape[1] == 3
-
-        # Set up the pyvista plotter
-        plotter = pv.Plotter(off_screen=True)
-        # Add the mesh
-        plotter.add_mesh(
-            self.pyvista_mesh,
-            scalars=texture,
-            rgb=is_RGB,
-        )
-        # Set the camera to the requested viewpoint
-        plotter.camera = pv_camera
-
-        if enable_ssao:
-            plotter.enable_ssao()
-            # plotter.renderer.enable_ssao(radius=3)
-        # Perform the rendering operation
-        rendered_img = plotter.screenshot(
-            window_size=scaled_image_size_xy,
-        )
-        return rendered_img
-
     def render_pytorch3d(
         self,
         camera_set: PhotogrammetryCameraSet,
@@ -1705,96 +1627,6 @@ class TexturedPhotogrammetryMesh:
             label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
 
         return label_img
-
-    def aggreate_detections(
-        self,
-        camera_set: PhotogrammetryCameraSet,
-        segmentor: TabularRectangleSegmentor,
-        similarity_threshold=0.0002,
-        use_negative_edges=False,
-    ):
-        # Extract the rays from each of the cameras
-        # Note that these are all still in the local coordinate frame of the mesh
-        all_starts = []
-        all_directions = []
-        all_image_IDs = []
-
-        plotter = pv.Plotter()
-        for i in range(len(camera_set)):
-            filename = str(camera_set.get_image_filename(i))
-            centers = segmentor.get_detection_centers(filename)
-            camera = camera_set[i]
-            # TODO make a "cast_rays" or similar function
-            line_segments = camera.vis_rays(pixel_coords_ij=centers, plotter=plotter)
-            if line_segments is not None:
-                starts = line_segments[0::2]
-                ends = line_segments[1::2]
-                directions = ends - starts
-                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
-                directions = directions / lengths
-                all_starts.append(starts)
-                all_directions.append(directions)
-                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
-        all_starts = np.concatenate(all_starts, axis=0)
-        all_directions = np.concatenate(all_directions, axis=0)
-        all_image_IDs = np.concatenate(all_image_IDs, axis=0)
-
-        # Compute the distance matrix
-        num_dets = all_starts.shape[0]
-        dists = np.full((num_dets, num_dets), fill_value=np.nan)
-
-        for i in tqdm(range(num_dets)):
-            for j in range(i, num_dets):
-                A = all_starts[i]
-                B = all_starts[j]
-                a = all_directions[i]
-                b = all_directions[j]
-                dist, valid = compute_approximate_ray_intersection(A, a, B, b)
-
-                dists[i, j] = dist if valid else np.nan
-
-        # Build a graph from the dists
-        dists[dists > similarity_threshold] = np.nan
-
-        finite = np.isfinite(dists)
-        i_inds, j_inds = np.where(finite)
-
-        positive_edges = [
-            (i, j, {"weight": 1 / dists[i, j]}) for i, j in zip(i_inds, j_inds)
-        ]
-
-        negative_edges = []
-        if use_negative_edges:
-            for image_ID in range(max(all_image_IDs)):
-                inds = np.where(all_image_IDs == image_ID)[0]
-                for i, node_i_ind in enumerate(inds):
-                    for node_j_ind in inds[i + 1 :]:
-                        negative_edges.append(
-                            (
-                                node_i_ind,
-                                node_j_ind,
-                                {"weight": -0.0001 / similarity_threshold},
-                            )
-                        )
-
-        G = networkx.Graph(positive_edges)
-        communities = networkx.community.louvain_communities(
-            G, weight="weight", resolution=2
-        )
-        communities = sorted(communities, key=len, reverse=True)
-
-        community_points = []
-        for community in communities:
-            community = np.array(list(community))
-            community_starts = all_starts[community]
-            community_directions = all_directions[community]
-            community_points.append(
-                triangulate_rays_lstsq(community_starts, community_directions)
-            )
-        community_points = np.vstack(community_points)
-        print(community_points)
-
-        breakpoint()
 
     # Visualization and saving methods
     def vis(
