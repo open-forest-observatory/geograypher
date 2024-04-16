@@ -1340,6 +1340,29 @@ class TexturedPhotogrammetryMesh:
         """
         raise NotImplementedError("Abstract method")
 
+    def render_texture(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        **kwargs,
+    ) -> np.ndarray:
+        """"""
+        if isinstance(cameras, PhotogrammetryCamera):
+            # The goal is to construct a camera set of length one from the single camera.
+            # Unfortunately, there's no method to do this currently.
+            # TODO implement constructor that takes a list of PhotogrammetryCamera objects
+            cameras = PhotogrammetryCameraSet([cameras])
+        elif not isinstance(cameras, PhotogrammetryCameraSet):
+            raise TypeError()
+
+        # TODO I think we'll need to implement a method to allow the camera set to be iterable
+        renders = []
+        for batch_start in range(0, len(cameras) - batch_size, batch_size):
+            batch_end = batch_start + batch_size
+            # TODO might need to implement the indexing operation for the camera set
+            batch_cameras = cameras[batch_start:batch_end]
+            batch_pix2face = self.pix2face()
+
     # Visualization and saving methods
     def vis(
         self,
