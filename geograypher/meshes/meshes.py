@@ -8,7 +8,6 @@ from time import time
 import geopandas as gpd
 import matplotlib.colors
 import matplotlib.pyplot as plt
-import networkx
 import numpy as np
 import pandas as pd
 import pyproj
@@ -16,19 +15,9 @@ import pyvista as pv
 import rasterio as rio
 import shapely
 import skimage
-import torch
-from IPython.core.debugger import set_trace
-from pytorch3d.renderer import (
-    AmbientLights,
-    HardGouraudShader,
-    MeshRasterizer,
-    RasterizationSettings,
-    TexturesVertex,
-)
-from pytorch3d.structures import Meshes
-from shapely import MultiPolygon, Point, Polygon
+
+from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
-from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
@@ -41,12 +30,9 @@ from geograypher.constants import (
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
-    TEN_CLASS_VIS_KWARGS,
-    TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
     VIS_FOLDER,
 )
-from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
@@ -58,8 +44,6 @@ from geograypher.utils.geospatial import (
 from geograypher.utils.indexing import ensure_float_labels
 from geograypher.utils.numeric import (
     compute_3D_triangle_area,
-    compute_approximate_ray_intersection,
-    triangulate_rays_lstsq,
 )
 from geograypher.utils.parsing import parse_transform_metashape
 from geograypher.utils.visualization import create_composite, create_pv_plotter
@@ -103,12 +87,6 @@ class TexturedPhotogrammetryMesh:
         # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
         self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-            torch.cuda.set_device(self.device)
-        else:
-            self.device = torch.device("cpu")
-
         # Load the transform
         self.logger.info("Loading transform to EPSG:4326")
         self.load_transform_to_epsg_4326(
@@ -138,7 +116,6 @@ class TexturedPhotogrammetryMesh:
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
-
     def load_mesh(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
@@ -1560,7 +1537,7 @@ class TexturedPhotogrammetryMesh:
             **plotter_kwargs,
         )
 
-    def save_renders_pytorch3d(
+    def save_renders(
         self,
         camera_set: PhotogrammetryCameraSet,
         render_image_scale=1.0,
