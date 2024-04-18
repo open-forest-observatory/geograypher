@@ -1366,7 +1366,61 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Not that a one-length camera set will have a leading singleton dim.
         """
-        raise NotImplementedError("Abstract method")
+        if isinstance(cameras, PhotogrammetryCameraSet):
+            pix2face_list = []
+            for camera in cameras:
+                pix2face_list.append(self.pix2face(camera))
+            pix2face = np.stack(pix2face_list, axis=-1)
+            return pix2face
+
+        plotter = pv.Plotter(off_screen=True)
+        n_faces = self.faces.shape[0]
+        ID_values = np.arange(n_faces)
+        n_channels = int(np.ceil(np.emath.logn(256, n_faces)))
+        channel_multipliers = [256**i for i in range(n_channels)]
+        base_256_encoding = [
+            np.mod(np.floor(ID_values / m).astype(int), 256)
+            for m in channel_multipliers
+        ]
+        n_padding = n_channels % 3
+        # Add additional zeros layers to make it a multiple of 3
+        base_256_encoding.extend([np.zeros(n_faces)] * n_padding)
+
+        # Assume that all images are the same size
+        image_size = cameras.get_image_size()
+        # Transform image size appropriately
+        scaled_image_size_xy = (
+            int(round(image_size[1])),
+            int(round(image_size[0])),
+        )
+
+        pix2face = np.zeros(image_size)
+
+        for chunk_ind in range(int(len(base_256_encoding) / 3)):
+            chunk_scalars = np.stack(
+                base_256_encoding[3 * chunk_ind : 3 * (chunk_ind + 1)], axis=1
+            ).astype(np.uint8)
+
+            plotter.add_mesh(
+                self.pyvista_mesh,
+                scalars=chunk_scalars.copy(),
+                rgb=True,
+                diffuse=0.0,
+                ambient=1.0,
+            )
+            rendered_img = plotter.screenshot(
+                window_size=scaled_image_size_xy,
+            )
+            for i in range(3):
+                pix2face = pix2face + (
+                    rendered_img[..., i] * channel_multipliers[chunk_ind * 3 + i]
+                )
+        pix2face[pix2face > n_faces] = -1
+        plt.imshow(pix2face, vmin=0, vmax=n_faces)
+        plt.colorbar()
+        plt.show()
+
+        return pix2face
 
     def render_texture(
         self,
@@ -1389,7 +1443,7 @@ class TexturedPhotogrammetryMesh:
             batch_end = batch_start + batch_size
             # TODO might need to implement the indexing operation for the camera set
             batch_cameras = cameras[batch_start:batch_end]
-            batch_pix2face = self.pix2face()
+            batch_pix2face = self.pix2face(cameras=batch_cameras)
 
     # Visualization and saving methods
     def vis(
