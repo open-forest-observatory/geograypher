@@ -1302,15 +1302,16 @@ class TexturedPhotogrammetryMesh:
                 A single camera or set of cameras. For each camera, the correspondences between
                 pixels and the face IDs of the mesh will be computed. The images of all cameras
                 are assumed to be the same size.
-
-        Raises:
-            NotImplementedError: If not implemented by the subclass
+            render_img_scale (float):
+                Create a pix2face map that is this fraction of the original image scale. Defaults
+                to 1.
 
         Returns:
             np.ndarray: For each camera, there is an array that is the shape of an image and
-            contains the integer face index for the ray originating at that pixel. If the input is
+            contains the integer face index for the ray originating at that pixel. Any pixel for
+            which the given ray does not intersect a face is given a value of -1. If the input is
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
-            (n_cameras, h, w). Not that a one-length camera set will have a leading singleton dim.
+            (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
@@ -1392,9 +1393,30 @@ class TexturedPhotogrammetryMesh:
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
         render_img_scale: float = 1,
-        **kwargs,
-    ) -> np.ndarray:
-        """"""
+        **pix2face_kwargs,
+    ):
+        """
+        Render the texture from the viewpoint of each camera in cameras. Note that this is a
+        generator so if you want to actually execute the computation, call list(*) on the output
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                Either a single camera or a camera set. The texture will be rendered from the
+                perspective of each one
+            batch_size (int, optional):
+                The batch size for pix2face. Defaults to 1.
+            render_img_scale (float, optional):
+                The rendered image will be this fraction of the original image corresponding to the
+                virtual camera. Defaults to 1.
+
+        Raises:
+            TypeError: If cameras is not the correct type
+
+        Yields:
+            np.ndarray:
+               The pix2face array for the next camera. The shape is
+               (int(img_h*render_img_scale), int(img_w*render_img_scale)).
+        """
         if isinstance(cameras, PhotogrammetryCamera):
             # Construct a camera set of length one
             cameras = PhotogrammetryCameraSet([cameras])
