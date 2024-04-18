@@ -1817,7 +1817,7 @@ class TexturedPhotogrammetryMesh:
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
         # Start offscreen rendering if needed
-        if off_screen or force_xvfb:
+        if force_xvfb:
             pv.start_xvfb()
 
         # If the IDs to labels is not set, use the default ones for this mesh
