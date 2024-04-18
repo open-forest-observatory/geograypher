@@ -618,10 +618,10 @@ class PhotogrammetryCameraSet:
         return subset_camera_set
 
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
-        return self.get_camera_by_index(index).get_image(image_scale=image_scale)
+        return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: int, absolute=False):
-        filename = self.get_camera_by_index(index).image_filename
+        filename = self[index].image_filename
         if not absolute:
             filename = Path(filename).relative_to(self.image_folder)
         return filename
