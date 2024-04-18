@@ -1440,7 +1440,9 @@ class TexturedPhotogrammetryMesh:
             batch_cameras = cameras[batch_start:batch_end]
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
-                cameras=batch_cameras, render_img_scale=render_img_scale, **pix2face_kwargs
+                cameras=batch_cameras,
+                render_img_scale=render_img_scale,
+                **pix2face_kwargs,
             )
 
             # Iterate over the batch dimension
@@ -1463,6 +1465,37 @@ class TexturedPhotogrammetryMesh:
                 rendered_img = rendered_flattened.reshape(img_shape + (texture_dim,))
                 yield rendered_img
 
+    def project_images(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
+        **pix2face_kwargs,
+    ):
+        n_faces = self.faces.shape[0]
+
+        # Iterate over batch of the cameras
+        batch_stop = max(len(cameras) - batch_size + 1, 1)
+        for batch_start in range(0, batch_stop, batch_size):
+            batch_end = batch_start + batch_size
+            batch_cameras = cameras[batch_start:batch_end]
+            # Compute a batch of pix2face correspondences. This is likely the slowest step
+            batch_pix2face = self.pix2face(
+                cameras=batch_cameras,
+                render_img_scale=aggregate_img_scale,
+                **pix2face_kwargs,
+            )
+            for pix2face, camera in zip(batch_pix2face, batch_cameras):
+                img = camera.get_image(aggregate_img_scale)
+                flat_img = np.reshape(img, (img.shape[0] * img.shape[1], -1))
+                textured_faces = np.full(
+                    (n_faces, flat_img.shape[1]), fill_value=np.nan
+                )
+                flat_pix2face = pix2face.flatten()
+                # TODO this creates ill-defined behavior if multiple pixels map to the same face
+                # my guess is the later pixel in the flattened array will override the former
+                textured_faces[flat_pix2face] = flat_img
+                yield textured_faces
 
     # Visualization and saving methods
     def vis(
