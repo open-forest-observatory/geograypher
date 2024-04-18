@@ -15,7 +15,6 @@ import pyvista as pv
 import rasterio as rio
 import shapely
 import skimage
-
 from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
@@ -42,9 +41,7 @@ from geograypher.utils.geospatial import (
     get_projected_CRS,
 )
 from geograypher.utils.indexing import ensure_float_labels
-from geograypher.utils.numeric import (
-    compute_3D_triangle_area,
-)
+from geograypher.utils.numeric import compute_3D_triangle_area
 from geograypher.utils.parsing import parse_transform_metashape
 from geograypher.utils.visualization import create_composite
 
@@ -1296,6 +1293,7 @@ class TexturedPhotogrammetryMesh:
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        render_img_scale: float = 1,
         **kwargs,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
@@ -1315,41 +1313,54 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Not that a one-length camera set will have a leading singleton dim.
         """
+        # If a set of cameras is passed in, call this method on each camera and concatenate
+        # Other derived methods might be able to compute a batch of renders and once, but pyvista
+        # cannot as far as I can tell
         if isinstance(cameras, PhotogrammetryCameraSet):
-            pix2face_list = []
-            for camera in cameras:
-                pix2face_list.append(self.pix2face(camera))
-            pix2face = np.stack(pix2face_list, axis=-1)
+            pix2face_list = [
+                self.pix2face(camera, render_img_scale=render_img_scale)
+                for camera in cameras
+            ]
+            pix2face = np.stack(pix2face_list, axis=0)
             return pix2face
 
+        ## Single camera case
+
+        # Create the plotter
         plotter = pv.Plotter(off_screen=True)
+        # This is important so there aren't intermediate values
+        plotter.disable_anti_aliasing()
+
+        ## Compute the base 256 encoding of the face ID
         n_faces = self.faces.shape[0]
         ID_values = np.arange(n_faces)
+
+        # determine how many channels will be required to represent the number of faces
         n_channels = int(np.ceil(np.emath.logn(256, n_faces)))
         channel_multipliers = [256**i for i in range(n_channels)]
+
+        # Compute the encoding of each value, least significant value first
         base_256_encoding = [
             np.mod(np.floor(ID_values / m).astype(int), 256)
             for m in channel_multipliers
         ]
+
+        # ensure that there's a multiple of three channels
         n_padding = n_channels % 3
-        # Add additional zeros layers to make it a multiple of 3
         base_256_encoding.extend([np.zeros(n_faces)] * n_padding)
 
         # Assume that all images are the same size
-        image_size = cameras.get_image_size()
-        # Transform image size appropriately
-        scaled_image_size_xy = (
-            int(round(image_size[1])),
-            int(round(image_size[0])),
-        )
+        image_size = cameras.get_image_size(image_scale=render_img_scale)
 
-        pix2face = np.zeros(image_size)
-
+        # Initialize pix2face
+        pix2face = np.zeros(image_size, dtype=int)
+        # Iterate over three-channel chunks. Each will be encoded as RGB and rendered
         for chunk_ind in range(int(len(base_256_encoding) / 3)):
             chunk_scalars = np.stack(
                 base_256_encoding[3 * chunk_ind : 3 * (chunk_ind + 1)], axis=1
             ).astype(np.uint8)
 
+            # Add the mesh with the associated scalars
             plotter.add_mesh(
                 self.pyvista_mesh,
                 scalars=chunk_scalars.copy(),
@@ -1357,17 +1368,23 @@ class TexturedPhotogrammetryMesh:
                 diffuse=0.0,
                 ambient=1.0,
             )
+
+            # Perform rendering, this is the slow step
             rendered_img = plotter.screenshot(
-                window_size=scaled_image_size_xy,
+                window_size=(image_size[1], image_size[0]),
             )
+            # Take the rendered values and interpret them as the encoded value
             for i in range(3):
-                pix2face = pix2face + (
-                    rendered_img[..., i] * channel_multipliers[chunk_ind * 3 + i]
-                )
+                channel_multiplier = channel_multipliers[chunk_ind * 3 + i]
+                channel_value = (rendered_img[..., i] * channel_multiplier).astype(int)
+                pix2face += channel_value
+
+        # Mask out pixels for which the mesh was not visible
+        # This is because the background will render as white
+        # If there happen to be an exact power of (256^3) number of faces, the last one may get
+        # erronously masked. This seems like a minimal concern but it could be addressed by adding
+        # another channel or something like that
         pix2face[pix2face > n_faces] = -1
-        plt.imshow(pix2face, vmin=0, vmax=n_faces)
-        plt.colorbar()
-        plt.show()
 
         return pix2face
 
@@ -1375,24 +1392,57 @@ class TexturedPhotogrammetryMesh:
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
+        render_img_scale: float = 1,
         **kwargs,
     ) -> np.ndarray:
         """"""
         if isinstance(cameras, PhotogrammetryCamera):
-            # The goal is to construct a camera set of length one from the single camera.
-            # Unfortunately, there's no method to do this currently.
-            # TODO implement constructor that takes a list of PhotogrammetryCamera objects
+            # Construct a camera set of length one
             cameras = PhotogrammetryCameraSet([cameras])
         elif not isinstance(cameras, PhotogrammetryCameraSet):
             raise TypeError()
 
-        # TODO I think we'll need to implement a method to allow the camera set to be iterable
+        # Get the face texture from the mesh
+        # TODO consider whether the user should be able to pass a texture to this method. It could
+        # make the user's life easier but makes this method more complex
+        face_texture = self.get_texture(
+            request_vertex_texture=False, try_verts_faces_conversion=True
+        )
+        texture_dim = face_texture.shape[1]
+
         renders = []
-        for batch_start in range(0, len(cameras) - batch_size, batch_size):
+        # Iterate over batch of the cameras
+        batch_stop = max(len(cameras) - batch_size + 1, 1)
+        for batch_start in range(0, batch_stop, batch_size):
             batch_end = batch_start + batch_size
-            # TODO might need to implement the indexing operation for the camera set
             batch_cameras = cameras[batch_start:batch_end]
-            batch_pix2face = self.pix2face(cameras=batch_cameras)
+            # Compute a batch of pix2face correspondences. This is likely the slowest step
+            batch_pix2face = self.pix2face(
+                cameras=batch_cameras, render_img_scale=render_img_scale
+            )
+
+            # Iterate over the batch dimension
+            for pix2face in batch_pix2face:
+                # Record the original shape of the image
+                img_shape = pix2face.shape[:2]
+                # Flatten for indexing
+                pix2face = pix2face.flatten()
+                # Compute which pixels intersected the mesh
+                mesh_pixel_inds = np.where(pix2face != -1)[0]
+                # Initialize and all-nan array
+                rendered_flattened = np.full(
+                    (pix2face.shape[0], texture_dim), fill_value=np.nan
+                )
+                # Fill the values for which correspondences exist
+                rendered_flattened[mesh_pixel_inds] = face_texture[
+                    pix2face[mesh_pixel_inds]
+                ]
+                # reshape to an image, where the last dimension is the texture dimension
+                rendered_img = rendered_flattened.reshape(img_shape + (texture_dim,))
+                renders.append(rendered_img)
+
+        renders = np.stack(renders, 0)
+        return renders
 
     # Visualization and saving methods
     def vis(
