@@ -10,8 +10,6 @@ import numpy as np
 import numpy.ma as ma
 import pyproj
 import pyvista as pv
-import torch
-from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import Point
