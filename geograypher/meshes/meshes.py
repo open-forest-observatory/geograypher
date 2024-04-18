@@ -1381,6 +1381,8 @@ class TexturedPhotogrammetryMesh:
         plotter = pv.Plotter(off_screen=True)
         # This is important so there aren't intermediate values
         plotter.disable_anti_aliasing()
+        # Set the camera to the corresponding viewpoint
+        plotter.camera = cameras.get_pyvista_camera()
 
         ## Compute the base 256 encoding of the face ID
         n_faces = self.faces.shape[0]
