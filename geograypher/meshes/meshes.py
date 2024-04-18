@@ -1294,7 +1294,6 @@ class TexturedPhotogrammetryMesh:
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         render_img_scale: float = 1,
-        **kwargs,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
 
@@ -1410,7 +1409,6 @@ class TexturedPhotogrammetryMesh:
         )
         texture_dim = face_texture.shape[1]
 
-        renders = []
         # Iterate over batch of the cameras
         batch_stop = max(len(cameras) - batch_size + 1, 1)
         for batch_start in range(0, batch_stop, batch_size):
@@ -1418,7 +1416,7 @@ class TexturedPhotogrammetryMesh:
             batch_cameras = cameras[batch_start:batch_end]
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
-                cameras=batch_cameras, render_img_scale=render_img_scale
+                cameras=batch_cameras, render_img_scale=render_img_scale, **pix2face_kwargs
             )
 
             # Iterate over the batch dimension
@@ -1439,10 +1437,8 @@ class TexturedPhotogrammetryMesh:
                 ]
                 # reshape to an image, where the last dimension is the texture dimension
                 rendered_img = rendered_flattened.reshape(img_shape + (texture_dim,))
-                renders.append(rendered_img)
+                yield rendered_img
 
-        renders = np.stack(renders, 0)
-        return renders
 
     # Visualization and saving methods
     def vis(
