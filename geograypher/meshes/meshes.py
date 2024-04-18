@@ -1439,7 +1439,7 @@ class TexturedPhotogrammetryMesh:
 
         return pix2face
 
-    def render_texture(
+    def render_flat(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
