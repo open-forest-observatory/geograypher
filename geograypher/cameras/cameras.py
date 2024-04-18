@@ -467,7 +467,8 @@ class PhotogrammetryCamera:
 class PhotogrammetryCameraSet:
     def __init__(
         self,
-        cam_to_world_transforms: List[np.ndarray],
+        cameras: Union[None, PhotogrammetryCamera, List[PhotogrammetryCamera]] = None,
+        cam_to_world_transforms: Union[None, List[np.ndarray]] = None,
         intrinsic_params_per_sensor_type: Dict[int, Dict[str, float]] = {
             0: EXAMPLE_INTRINSICS
         },
@@ -491,6 +492,13 @@ class PhotogrammetryCameraSet:
         Raises:
             ValueError: _description_
         """
+        # Create an object using the supplied cameras
+        if cameras is not None:
+            if isinstance(cameras, PhotogrammetryCamera):
+                cameras = [cameras]
+            self.cameras = cameras
+            return
+
         # Standardization
         n_transforms = len(cam_to_world_transforms)
 
@@ -555,6 +563,17 @@ class PhotogrammetryCameraSet:
             )
             self.cameras.append(new_camera)
 
+    def __len__(self):
+        return self.n_cameras()
+
+    def __getitem__(self, slice):
+        subset_cameras = self.cameras[slice]
+        if isinstance(subset_cameras, PhotogrammetryCamera):
+            # this is just one item indexed
+            return subset_cameras
+        # else, wrap the list of cameras in a CameraSet
+        return PhotogrammetryCameraSet(subset_cameras)
+
     def find_mising_images(self):
         invalid_mask = []
         for image_file in self.image_filenames:
@@ -573,11 +592,6 @@ class PhotogrammetryCameraSet:
     def n_image_channels(self) -> int:
         """Return the number of channels in the image"""
         return 3
-
-    def get_camera_by_index(self, index: int) -> PhotogrammetryCamera:
-        if index >= len(self.cameras):
-            raise ValueError("Requested camera ind larger than list")
-        return self.cameras[index]
 
     def get_cameras_in_folder(self, folder: PATH_TYPE):
         """Return the camera set with cameras corresponding to images in that folder
