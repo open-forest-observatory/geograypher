@@ -1724,15 +1724,12 @@ class TexturedPhotogrammetryMesh:
         # Save the classes filename
         self.save_IDs_to_labels(Path(output_folder, "IDs_to_labels.json"))
 
-        for i in tqdm(range(len(camera_set)), desc="Saving renders"):
-            # Render the labels
-            rendered = self.render_pytorch3d(
-                camera_set=camera_set,
-                camera_index=i,
-                image_scale=render_image_scale,
-                set_null_texture_to_value=set_null_texture_to_value,
-            )
+        # Create the generator object to render the images
+        # Since this is a generator, this will be fast
+        render_gen = self.render_flat(camera_set, render_img_scale=render_image_scale)
 
+        # The computation only happens when items are requested from the generator
+        for rendered, camera in tqdm(zip(render_gen, camera_set), total=len(camera_set), desc="Computing and saving renders"):
             ## All this is post-processing to visualize the rendered label.
             # rendered could either be a one channel image of integer IDs,
             # a one-channel image of scalars, or a three-channel image of
@@ -1740,7 +1737,7 @@ class TexturedPhotogrammetryMesh:
             # but we don't expect that yet
 
             if save_native_resolution and render_image_scale != 1:
-                native_size = camera_set[i].get_image_size()
+                native_size = camera.get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
                 # TODO this will need to be fixed for multi-channel images since I don't think resize works
@@ -1751,7 +1748,7 @@ class TexturedPhotogrammetryMesh:
                 )
 
             if make_composites:
-                RGB_image = camera_set[i].get_image(
+                RGB_image = camera.get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
                 )
                 rendered = create_composite(
@@ -1766,7 +1763,7 @@ class TexturedPhotogrammetryMesh:
 
             # Saving
             output_filename = Path(
-                output_folder, camera_set.get_image_filename(i, absolute=False)
+                output_folder, camera.image_filename
             )
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
