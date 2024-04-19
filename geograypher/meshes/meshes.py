@@ -1497,6 +1497,63 @@ class TexturedPhotogrammetryMesh:
                 textured_faces[flat_pix2face] = flat_img
                 yield textured_faces
 
+    def aggregate_projected_images(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
+        return_all: bool = False,
+        **kwargs,
+    ):
+        project_images_generator = self.project_images(
+            cameras=cameras,
+            batch_size=batch_size,
+            aggregate_img_scale=aggregate_img_scale,
+            **kwargs,
+        )
+
+        if return_all:
+            all_projections = []
+
+        # TODO this should be a convenience method
+        n_faces = self.faces.shape[0]
+
+        projection_counts = np.zeros(n_faces)
+        summed_projection = None
+
+        for projection_for_image in project_images_generator:
+            if return_all:
+                all_projections.append(projection_for_image)
+
+            if summed_projection is None:
+                summed_projection = projection_for_image.astype(float)
+            else:
+                summed_projection = np.nansum(
+                    [summed_projection, projection_for_image], axis=0
+                )
+
+            projected_faces = np.any(np.isfinite(projection_for_image), axis=1).astype(
+                int
+            )
+            projection_counts += projected_faces
+
+        no_projections = projection_counts == 0
+        summed_projection[no_projections] = np.nan
+
+        additional_information = {
+            "projection_counts": projection_counts,
+            "summed_projections": summed_projection,
+        }
+
+        if return_all:
+            additional_information["all_projections"] = all_projections
+
+        average_projections = np.divide(
+            summed_projection, np.expand_dims(projection_counts, 1)
+        )
+
+        return average_projections, additional_information
+
     # Visualization and saving methods
     def vis(
         self,
