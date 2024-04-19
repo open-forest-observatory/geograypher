@@ -1,7 +1,7 @@
 import logging
 import os
 import shutil
-from copy import deepcopy
+from copy import copy, deepcopy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -126,6 +126,12 @@ class PhotogrammetryCamera:
                 self.lon_lat = (-self.lon_lat[0], self.lon_lat[1])
 
         return self.lon_lat
+
+    def get_image_filename(self, index: int, absolute=False):
+        filename = copy(self.image_filename)
+        if not absolute:
+            filename = Path(filename).relative_to(self.image_folder)
+        return filename
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -621,10 +627,7 @@ class PhotogrammetryCameraSet:
         return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: int, absolute=False):
-        filename = self[index].image_filename
-        if not absolute:
-            filename = Path(filename).relative_to(self.image_folder)
-        return filename
+        return self[index].get_image_filename(absolute=absolute)
 
     def get_pytorch3d_camera(self, device: str):
         """
