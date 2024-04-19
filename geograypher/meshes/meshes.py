@@ -1368,9 +1368,7 @@ class TexturedPhotogrammetryMesh:
         if isinstance(cameras, PhotogrammetryCamera):
             image_size = cameras.get_image_size(image_scale=image_scale)
         else:
-            image_size = cameras.get_camera_by_index(0).get_image_size(
-                image_scale=image_scale
-            )
+            image_size = cameras[0].get_image_size(image_scale=image_scale)
 
         raster_settings = RasterizationSettings(
             image_size=image_size,
@@ -1569,7 +1567,7 @@ class TexturedPhotogrammetryMesh:
         counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
         for i in tqdm(range(len(camera_set.cameras))):
             # This is actually the bottleneck in the whole process
-            img = camera_set.get_camera_by_index(i).load_image()
+            img = camera_set[i].load_image()
             colors_per_vertex = camera_set.cameras[i].project_mesh_verts(
                 self.pyvista_mesh.points, img, device=self.device
             )
@@ -1599,8 +1597,8 @@ class TexturedPhotogrammetryMesh:
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
         """
         # Get the pyvista camera and image size
-        pv_camera = camera_set.get_camera_by_index(camera_index).get_pyvista_camera()
-        image_size = camera_set.get_camera_by_index(camera_index).get_image_size()
+        pv_camera = camera_set[camera_index].get_pyvista_camera()
+        image_size = camera_set[camera_index].get_image_size()
 
         # Transform image size appropriately
         scaled_image_size_xy = (
@@ -1656,7 +1654,7 @@ class TexturedPhotogrammetryMesh:
         self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
 
         # Get the photogrametery camera
-        pg_camera = camera_set.get_camera_by_index(camera_index)
+        pg_camera = camera_set[camera_index]
 
         # Compute the pixel-to-vertex correspondences, this is expensive
         p3d_camera, fragments = self.get_rasterization_results_pytorch3d(
@@ -1709,10 +1707,10 @@ class TexturedPhotogrammetryMesh:
         all_image_IDs = []
 
         plotter = pv.Plotter()
-        for i in range(camera_set.n_cameras()):
+        for i in range(len(camera_set)):
             filename = str(camera_set.get_image_filename(i))
             centers = segmentor.get_detection_centers(filename)
-            camera = camera_set.get_camera_by_index(i)
+            camera = camera_set[i]
             # TODO make a "cast_rays" or similar function
             line_segments = camera.vis_rays(pixel_coords_ij=centers, plotter=plotter)
             if line_segments is not None:
@@ -1955,7 +1953,7 @@ class TexturedPhotogrammetryMesh:
         # Save the classes filename
         self.save_IDs_to_labels(Path(output_folder, "IDs_to_labels.json"))
 
-        for i in tqdm(range(camera_set.n_cameras()), desc="Saving renders"):
+        for i in tqdm(range(len(camera_set)), desc="Saving renders"):
             # Render the labels
             rendered = self.render_pytorch3d(
                 camera_set=camera_set,
@@ -1971,7 +1969,7 @@ class TexturedPhotogrammetryMesh:
             # but we don't expect that yet
 
             if save_native_resolution and render_image_scale != 1:
-                native_size = camera_set.get_camera_by_index(i).get_image_size()
+                native_size = camera_set[i].get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
                 # TODO this will need to be fixed for multi-channel images since I don't think resize works
@@ -1982,7 +1980,7 @@ class TexturedPhotogrammetryMesh:
                 )
 
             if make_composites:
-                RGB_image = camera_set.get_camera_by_index(i).get_image(
+                RGB_image = camera_set[i].get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
                 )
                 rendered = create_composite(
