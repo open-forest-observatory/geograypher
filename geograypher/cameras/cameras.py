@@ -737,15 +737,27 @@ class PhotogrammetryCameraSet:
         show: bool = False,
         frustum_scale: float = None,
         force_xvfb: bool = False,
+        interactive_jupyter: bool = False,
     ):
         """Visualize all the cameras
 
         Args:
-            plotter (pv.Plotter): Plotter to add the cameras to. If None, will be created and then plotted
-            add_orientation_cube (bool, optional): Add a cube to visualize the coordinate system. Defaults to False.
-            show (bool, optional): Show the results instead of waiting for other content to be added
-            frustum_scale (float, optional): Size of cameras in world units. If None, will set to 1/120th of the maximum distance between two cameras.
-            force_xvfb (bool, optional): Force a headless rendering backend
+            plotter (pv.Plotter):
+                Plotter to add the cameras to. If None, will be created and then plotted
+            add_orientation_cube (bool, optional):
+                Add a cube to visualize the coordinate system. Defaults to False.
+            show (bool, optional):
+                Show the results instead of waiting for other content to be added
+            frustum_scale (float, optional):
+                Size of cameras in world units. If None, will set to 1/120th of the maximum distance
+                between two cameras.
+            force_xvfb (bool, optional):
+                Force a headless rendering backend
+            interactive_jupyter (bool, optional):
+                Will allow you to interact with the visualization in your notebook if supported by
+                the notebook server. Otherwise will fail. Only applicable if `show=True`. Defaults
+                to False.
+
         """
 
         if plotter is None:
@@ -784,4 +796,4 @@ class PhotogrammetryCameraSet:
         if show:
             if force_xvfb:
                 pv.start_xvfb()
-            plotter.show()
+            plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
