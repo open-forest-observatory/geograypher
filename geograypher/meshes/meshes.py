@@ -1032,6 +1032,7 @@ class TexturedPhotogrammetryMesh:
         # Discard any faces which do not intersect the polygons
         # Dissolve the polygons to form one ROI
         merged_polygons = polygons_gdf.dissolve()
+        merged_polygons.geometry = merged_polygons.buffer(1)
         # Determine which face IDs intersect the ROI. This is slow
         self.logger.info("Starting sjoin")
         # TODO it may be substaintially faster to check whether the face vertices are in the merged
@@ -1041,6 +1042,8 @@ class TexturedPhotogrammetryMesh:
         faces_2d_gdf = gpd.sjoin(
             faces_2d_gdf, merged_polygons, how="left", predicate="within"
         )
+        # Drop faces not included
+        faces_2d_gdf = faces_2d_gdf.loc[faces_2d_gdf["index_right"].notna()]
 
         # Set the ID field so it's available after the overlay operation
         # Note that polygons_gdf.index is a bad choice, because this df could be a subset of another
@@ -1075,7 +1078,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(f"Dissolve time: {time() - start}")
 
         # Build a matrix representation of the aggregated weighted area
-        num_classes = int(np.max(face_labels)) + 1
+        num_classes = int(np.nanmax(face_labels)) + 1
         weighted_area_matrix = np.zeros((len(polygons_gdf), num_classes))
         # TODO determine if this is needed and/or sufficient
         dissolved.dropna(inplace=True)
