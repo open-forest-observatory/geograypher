@@ -1953,7 +1953,7 @@ class TexturedPhotogrammetryMesh:
         self.logger.info(f"Saving renders to {output_folder}")
 
         # Save the classes filename
-        self.save_IDs_to_labels(output_folder + "IDs_to_labels.json")
+        self.save_IDs_to_labels(Path(output_folder, "IDs_to_labels.json"))
 
         for i in tqdm(range(camera_set.n_cameras()), desc="Saving renders"):
             # Render the labels
