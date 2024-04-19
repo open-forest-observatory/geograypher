@@ -62,6 +62,7 @@ from geograypher.utils.numeric import (
     triangulate_rays_lstsq,
 )
 from geograypher.utils.parsing import parse_transform_metashape
+from geograypher.utils.visualization import create_composite
 
 
 class TexturedPhotogrammetryMesh:
@@ -1926,30 +1927,27 @@ class TexturedPhotogrammetryMesh:
         self,
         camera_set: PhotogrammetryCameraSet,
         render_image_scale=1.0,
-        camera_indices=None,
         output_folder: PATH_TYPE = Path(VIS_FOLDER, "renders"),
         make_composites: bool = False,
-        blend_composite: bool = True,
         save_native_resolution: bool = False,
-        set_null_texture_to_value: float = 255,
+        set_null_texture_to_value: float = NULL_TEXTURE_INT_VALUE,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
         Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
+            camera_set (PhotogrammetryCameraSet):
+                Camera set to use for rendering
             render_image_scale (float, optional):
                 Multiplier on the real image scale to obtain size for rendering. Lower values
                 yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-            camera_indices (ArrayLike | NoneType, optional): Indices to render. If None, render all in a random order
-            render_folder (PATH_TYPE, optional): Save images to this folder within vis. Default "renders"
-            make_composites (bool, optional): Should a triple composite the original image be saved
-            blend_composite (bool, optional): Should the real and rendered image be saved, rather than inserting a channel of the render into the real
+            render_folder (PATH_TYPE, optional):
+                Save images to this folder. Defaults to Path(VIS_FOLDER, "renders")
+            make_composites (bool, optional):
+                Should a triple pane composite with the original image be saved rather than the
+                raw label
+            set_null_texture_to_value (float, optional):
+                What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
         """
-        # Render each image individually.
-        # TODO this could be accelerated by inteligent batching
-        if camera_indices is None:
-            camera_indices = np.arange(camera_set.n_cameras())
-            np.random.shuffle(camera_indices)
 
         ensure_folder(output_folder)
         self.logger.info(f"Saving renders to {output_folder}")
@@ -1957,7 +1955,8 @@ class TexturedPhotogrammetryMesh:
         # Save the classes filename
         self.save_IDs_to_labels(output_folder + "IDs_to_labels.json")
 
-        for i in tqdm(camera_indices, desc="Saving renders"):
+        for i in tqdm(range(camera_set.n_cameras()), desc="Saving renders"):
+            # Render the labels
             rendered = self.render_pytorch3d(
                 camera_set=camera_set,
                 camera_index=i,
@@ -1965,14 +1964,17 @@ class TexturedPhotogrammetryMesh:
                 set_null_texture_to_value=set_null_texture_to_value,
             )
 
-            # Clip channels if needed
-            if rendered.ndim == 3:
-                rendered = rendered[..., :3]
+            ## All this is post-processing to visualize the rendered label.
+            # rendered could either be a one channel image of integer IDs,
+            # a one-channel image of scalars, or a three-channel image of
+            # RGB. It could also be multi-channel image corresponding to anything,
+            # but we don't expect that yet
 
-            if save_native_resolution:
+            if save_native_resolution and render_image_scale != 1:
                 native_size = camera_set.get_camera_by_index(i).get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
+                # TODO this will need to be fixed for multi-channel images since I don't think resize works
                 rendered = resize(
                     rendered,
                     native_size,
@@ -1980,28 +1982,30 @@ class TexturedPhotogrammetryMesh:
                 )
 
             if make_composites:
-                real_img = camera_set.get_camera_by_index(i).get_image(
+                RGB_image = camera_set.get_camera_by_index(i).get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
-                )[..., :3]
-
-                if blend_composite:
-                    combined = (real_img + rendered) / 2.0
-                else:
-                    combined = real_img.copy().astype(float)
-                    combined[..., 0] = rendered[..., 0]
-                rendered = np.clip(
-                    np.concatenate((real_img, rendered, combined), axis=1),
-                    0,
-                    1,
                 )
+                rendered = create_composite(
+                    RGB_image=RGB_image,
+                    label_image=rendered,
+                    IDs_to_labels=self.get_IDs_to_labels(),
+                )
+            else:
+                # Clip channels if needed
+                if rendered.ndim == 3:
+                    rendered = rendered[..., :3]
 
-            # rendered = (rendered * 255).astype(np.uint8)
-            rendered = rendered.astype(np.uint8)
+            # Saving
             output_filename = Path(
                 output_folder, camera_set.get_image_filename(i, absolute=False)
             )
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
-            output_filename = str(output_filename.with_suffix(".png"))
-            # Save the image
-            skimage.io.imsave(output_filename, rendered, check_contrast=False)
+            if rendered.dtype == np.uint8:
+                output_filename = str(output_filename.with_suffix(".png"))
+                # Save the image
+                skimage.io.imsave(output_filename, rendered, check_contrast=False)
+            else:
+                output_filename = str(output_filename.with_suffix(".npy"))
+                # Save the image
+                np.save(output_filename, rendered)
