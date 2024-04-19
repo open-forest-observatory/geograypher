@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 import geopandas as gpd
+import json
 import numpy as np
 import numpy.ma as ma
 import pyproj
@@ -69,6 +70,20 @@ class PhotogrammetryCamera:
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
+
+    def get_camera_hash(self):
+        transform_hash = self.cam_to_world_transform.tolist()
+        camera_settings = json.dumps({
+            'transform': transform_hash,
+            'f': self.f,
+            'cx': self.cx,
+            'cy': self.cy,
+            'image_width': self.image_width,
+            'image_height': self.image_height,
+            'distortion_params': self.distortion_params,
+            'lon_lat': self.lon_lat
+        }, sort_keys=True)
+        return hash(camera_settings)
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -563,6 +578,17 @@ class PhotogrammetryCameraSet:
                 image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )
             self.cameras.append(new_camera)
+
+    def get_camera_hash(self):
+        transform_hash = self.cam_to_world_transform.tolist()
+        camera_settings = json.dumps({
+            'transform': transform_hash,
+            'intrinsic_params_per_sensor_type': self.intrinsic_params_per_sensor_type,
+            'lon_lats': self.lon_lats,
+            'sensor_IDs': self.sensor_IDs,
+            'validate_images': self.validate_images
+        }, sort_keys=True)
+        return hash(camera_settings)
 
     def __len__(self):
         return self.n_cameras()

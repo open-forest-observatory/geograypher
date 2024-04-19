@@ -18,6 +18,7 @@ import skimage
 from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
+import ubelt as ub
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
@@ -1367,6 +1368,17 @@ class TexturedPhotogrammetryMesh:
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
+
+        mesh_hash = hash(self.pyvista_mesh.points.tobytes())
+        camera_hash = hash(self.cameras.get_camera_hash())
+
+        cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash])
+
+        pix2face = cacher.tryload(on_error='clear')
+
+        if pix2face is not None:
+            return pix2face
+
         if isinstance(cameras, PhotogrammetryCameraSet):
             pix2face_list = [
                 self.pix2face(camera, render_img_scale=render_img_scale)
@@ -1438,6 +1450,8 @@ class TexturedPhotogrammetryMesh:
         # erronously masked. This seems like a minimal concern but it could be addressed by adding
         # another channel or something like that
         pix2face[pix2face > n_faces] = -1
+
+        cacher.save(pix2face)
 
         return pix2face
 
