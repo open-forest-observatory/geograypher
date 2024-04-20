@@ -579,17 +579,6 @@ class PhotogrammetryCameraSet:
             )
             self.cameras.append(new_camera)
 
-    def get_camera_hash(self):
-        transform_hash = self.cam_to_world_transform.tolist()
-        camera_settings = json.dumps({
-            'transform': transform_hash,
-            'intrinsic_params_per_sensor_type': self.intrinsic_params_per_sensor_type,
-            'lon_lats': self.lon_lats,
-            'sensor_IDs': self.sensor_IDs,
-            'validate_images': self.validate_images
-        }, sort_keys=True)
-        return hash(camera_settings)
-
     def __len__(self):
         return self.n_cameras()
 
