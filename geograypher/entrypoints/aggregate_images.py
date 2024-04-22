@@ -15,7 +15,7 @@ from geograypher.constants import (
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
-from geograypher.segmentation.derived_segmentors import LookUpSegmentor
+from geograypher.predictors.derived_segmentors import LookUpSegmentor
 from geograypher.utils.files import ensure_containing_folder
 
 

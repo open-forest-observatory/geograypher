@@ -7,7 +7,7 @@ from imageio import imread
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
-from geograypher.segmentation import Segmentor
+from geograypher.predictors import Segmentor
 
 
 class BrightnessSegmentor(Segmentor):

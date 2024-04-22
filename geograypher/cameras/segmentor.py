@@ -4,7 +4,7 @@ from copy import deepcopy
 import numpy as np
 
 from geograypher.cameras import PhotogrammetryCameraSet
-from geograypher.segmentation import Segmentor
+from geograypher.predictors import Segmentor
 
 
 class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
