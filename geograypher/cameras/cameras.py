@@ -623,12 +623,12 @@ class PhotogrammetryCameraSet:
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self[index].get_image(image_scale=image_scale)
 
-    def get_image_filename(self, index: int, absolute=False):
+    def get_image_filename(self, index: int, absolute=True):
         filename = self.image_filenames[index]
         if absolute:
             return Path(filename)
         else:
-            return Path(filename).relative_to(self.get_image_folder()).resolve()
+            return Path(filename).relative_to(self.get_image_folder())
 
     def get_pytorch3d_camera(self, device: str):
         """
