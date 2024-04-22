@@ -127,12 +127,6 @@ class PhotogrammetryCamera:
 
         return self.lon_lat
 
-    def get_image_filename(self, absolute=False):
-        filename = copy(self.image_filename)
-        if not absolute:
-            filename = Path(filename).relative_to(self.image_folder)
-        return filename
-
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
     ):
@@ -627,7 +621,11 @@ class PhotogrammetryCameraSet:
         return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: int, absolute=False):
-        return self[index].get_image_filename(absolute=absolute)
+        filename = self[index].image_filename
+        if absolute:
+            return Path(filename)
+        else:
+            return Path(filename).relative_to(self.image_folder).resolve()
 
     def get_pytorch3d_camera(self, device: str):
         """
