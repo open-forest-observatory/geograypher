@@ -1,6 +1,7 @@
 import typing
-import numpy as np
 from copy import deepcopy
+
+import numpy as np
 
 from geograypher.cameras import PhotogrammetryCameraSet
 from geograypher.segmentation import Segmentor
