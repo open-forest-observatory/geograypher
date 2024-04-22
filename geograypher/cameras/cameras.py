@@ -574,6 +574,9 @@ class PhotogrammetryCameraSet:
         # else, wrap the list of cameras in a CameraSet
         return PhotogrammetryCameraSet(subset_cameras)
 
+    def get_image_folder(self):
+        return self.image_folder
+
     def find_mising_images(self):
         invalid_mask = []
         for image_file in self.image_filenames:
@@ -625,7 +628,7 @@ class PhotogrammetryCameraSet:
         if absolute:
             return Path(filename)
         else:
-            return Path(filename).relative_to(self.image_folder).resolve()
+            return Path(filename).relative_to(self.get_image_folder()).resolve()
 
     def get_pytorch3d_camera(self, device: str):
         """
