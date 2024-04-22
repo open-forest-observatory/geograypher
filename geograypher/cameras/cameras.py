@@ -127,7 +127,7 @@ class PhotogrammetryCamera:
 
         return self.lon_lat
 
-    def get_image_filename(self, index: int, absolute=False):
+    def get_image_filename(self, absolute=False):
         filename = copy(self.image_filename)
         if not absolute:
             filename = Path(filename).relative_to(self.image_folder)
