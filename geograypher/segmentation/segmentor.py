@@ -89,7 +89,7 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
 
     def get_image_by_index(self, index: int, image_scale: float = 1) -> np.ndarray:
         raw_image = self.base_camera_set.get_image_by_index(index, image_scale)
-        image_filename = self.base_camera_set.get_camera_by_index(index).image_filename
+        image_filename = self.base_camera_set.get_image_filename(index)
         segmented_image = self.segmentor.segment_image(
             raw_image, filename=image_filename, image_scale=image_scale
         )
