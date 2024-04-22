@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from geograypher.cameras import MetashapeCameraSet
+from geograypher.cameras import MetashapeCameraSet, SegmentorPhotogrammetryCameraSet
 from geograypher.constants import (
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IDS_TO_LABELS,
@@ -14,7 +14,6 @@ from geograypher.constants import (
     PATH_TYPE,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.cameras import SegmentorPhotogrammetryCameraSet
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
 from geograypher.utils.files import ensure_containing_folder
 
