@@ -14,7 +14,7 @@ from geograypher.constants import (
     PATH_TYPE,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.segmentation import SegmentorPhotogrammetryCameraSet
+from geograypher.cameras import SegmentorPhotogrammetryCameraSet
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
 from geograypher.utils.files import ensure_containing_folder
 

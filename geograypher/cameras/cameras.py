@@ -624,7 +624,7 @@ class PhotogrammetryCameraSet:
         return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: int, absolute=False):
-        filename = self[index].image_filename
+        filename = self.image_filenames[index]
         if absolute:
             return Path(filename)
         else:
