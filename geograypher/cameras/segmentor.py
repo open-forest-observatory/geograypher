@@ -1,4 +1,5 @@
 import typing
+import numpy as np
 from copy import deepcopy
 
 from geograypher.cameras import PhotogrammetryCameraSet
