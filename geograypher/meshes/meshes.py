@@ -6,6 +6,7 @@ import typing
 from pathlib import Path
 from time import time
 
+from scipy.sparse import csr_array
 import geopandas as gpd
 import matplotlib.colors
 import matplotlib.pyplot as plt
