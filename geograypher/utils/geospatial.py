@@ -21,11 +21,11 @@ from shapely import (
 from shapely.geometry import box
 from tqdm import tqdm
 
-from geograypher.constants import PATH_TYPE
+from geograypher.constants import PATH_TYPE, LAT_LON_EPSG_CODE
 
 
-def ensure_geometric_CRS(geodata):
-    if geodata.crs == pyproj.CRS.from_epsg(4326):
+def ensure_projected_CRS(geodata):
+    if geodata.crs == LAT_LON_EPSG_CODE:
         point = geodata["geometry"][0].centroid
         geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
         return geodata.to_crs(geometric_crs)
