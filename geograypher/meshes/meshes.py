@@ -1295,7 +1295,7 @@ class TexturedPhotogrammetryMesh:
         self      
     ):
         points = self.pyvista_mesh.points.tobytes()
-        edges = self.pyvista_mesh.extract_edges().tobytes()
+        edges = self.pyvista_mesh.extract_edges().points.tobytes()
         faces = self.pyvista_mesh.faces.tobytes()
         return hash(points + edges + faces)
 
@@ -1326,49 +1326,21 @@ class TexturedPhotogrammetryMesh:
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
 
-        # hash all information of a mesh
-        # mesh_hash = hash(self.pyvista_mesh.points.tobytes())
-
-        # camera_hash = hash(cameras.get_camera_hash())
-
-        # cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-
-        # pix2face = cacher.tryload(on_error='clear')
-
-        # if pix2face is not None:
-        #     return pix2face
+        # should cache store 1 pix2face mapping, or multiple (say if you have a camera set)
 
         if isinstance(cameras, PhotogrammetryCameraSet):
-            # pix2face_list = []
-            # for camera in cameras:
-            #     mesh_hash = self.get_mesh_hash() # not sure if i need to do this for every camera
-            #     camera_hash = camera.get_camera_hash()
-            #     cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-            #     pix2face = cacher.tryload(on_error='clear')
-            #     if pix2face is None: # pix2face = None, means cache expired
-            #         result = self.pix2face(camera, render_img_scale=render_img_scale)
-            #         pix2face_list.append(result)
-        
-            pix2face_dict = {}
+            pix2face_list = []
+            # each camera has its own pix2face correspondance with a mesh 
             for camera in cameras:
-                mesh_hash = self.get_mesh_hash() # not sure if i need to do this for every camera
+                mesh_hash = self.get_mesh_hash() 
                 camera_hash = camera.get_camera_hash()
                 cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
                 pix2face = cacher.tryload(on_error='clear')
                 if pix2face is None: # pix2face = None, means cache expired
                     result = self.pix2face(camera, render_img_scale=render_img_scale)
-                    pix2face_dict[camera] = result
-                    # pix2face_list.append(result)
-
-            # original code
-            # pix2face_list = [
-            #     # compute hash here for each camera
-            #     self.pix2face(camera, render_img_scale=render_img_scale)
-            #     for camera in cameras
-            # ]
-            
-            pix2face = np.stack(pix2face_dict, axis=0)
-            # pix2face = np.stack(pix2face_list, axis=0)
+                    pix2face_list.append(result)            
+            pix2face = np.stack(pix2face_list, axis=0)
+            # cacher.save(pix2face)
             return pix2face
         elif isinstance(cameras, PhotogrammetryCamera):
             mesh_hash = self.get_mesh_hash()
@@ -1377,6 +1349,16 @@ class TexturedPhotogrammetryMesh:
             pix2face = cacher.tryload(on_error='clear')
             if pix2face is not None:
                 return pix2face
+
+         # original code
+        # if isinstance(cameras, PhotogrammetryCameraSet):
+        #     pix2face_list = [
+        #         self.pix2face(camera, render_img_scale=render_img_scale)
+        #         for camera in cameras
+        #     ]
+        #     pix2face = np.stack(pix2face_list, axis=0)
+        #     return pix2face
+
 
         ## Single camera case
 
