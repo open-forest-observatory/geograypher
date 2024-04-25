@@ -1729,7 +1729,11 @@ class TexturedPhotogrammetryMesh:
         render_gen = self.render_flat(camera_set, render_img_scale=render_image_scale)
 
         # The computation only happens when items are requested from the generator
-        for rendered, camera in tqdm(zip(render_gen, camera_set), total=len(camera_set), desc="Computing and saving renders"):
+        for rendered, camera in tqdm(
+            zip(render_gen, camera_set),
+            total=len(camera_set),
+            desc="Computing and saving renders",
+        ):
             ## All this is post-processing to visualize the rendered label.
             # rendered could either be a one channel image of integer IDs,
             # a one-channel image of scalars, or a three-channel image of
@@ -1762,9 +1766,7 @@ class TexturedPhotogrammetryMesh:
                     rendered = rendered[..., :3]
 
             # Saving
-            output_filename = Path(
-                output_folder, camera.image_filename
-            )
+            output_filename = Path(output_folder, camera.image_filename)
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
