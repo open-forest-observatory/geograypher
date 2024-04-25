@@ -1528,16 +1528,16 @@ class TexturedPhotogrammetryMesh:
         # Iterate over batch of the cameras
         batch_stop = max(len(cameras) - batch_size + 1, 1)
         for batch_start in range(0, batch_stop, batch_size):
-            batch_end = batch_start + batch_size
-            batch_cameras = cameras[batch_start:batch_end]
+            batch_inds = list(range(batch_start, batch_start + batch_size))
+            batch_cameras = cameras.get_subset_cameras(batch_inds)
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
                 cameras=batch_cameras,
                 render_img_scale=aggregate_img_scale,
                 **pix2face_kwargs,
             )
-            for pix2face, camera in zip(batch_pix2face, batch_cameras):
-                img = camera.get_image(aggregate_img_scale)
+            for i, pix2face in enumerate(batch_pix2face):
+                img = cameras.get_image_by_index(batch_start + i, aggregate_img_scale)
                 flat_img = np.reshape(img, (img.shape[0] * img.shape[1], -1))
                 textured_faces = np.full(
                     (n_faces, flat_img.shape[1]), fill_value=np.nan
