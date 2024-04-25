@@ -164,6 +164,7 @@ def show_segmentation_labels(
     num_show=10,
     label_suffix=".png",
     image_suffix=".JPG",
+    IDs_to_labels=None,
 ):
     rendered_files = list(Path(label_folder).rglob("*" + label_suffix))
     np.random.shuffle(rendered_files)
@@ -171,12 +172,13 @@ def show_segmentation_labels(
     if savefolder is not None:
         ensure_folder(savefolder)
 
-    if (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists():
+    if (
+        IDs_to_labels is None
+        and (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists()
+    ):
         with open(IDs_to_labels_file, "r") as infile:
             IDs_to_labels = json.load(infile)
             IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
-    else:
-        IDs_to_labels = None
 
     for i, rendered_file in enumerate(rendered_files[:num_show]):
         image_file = Path(
