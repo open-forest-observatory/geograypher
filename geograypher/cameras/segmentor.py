@@ -8,7 +8,12 @@ from geograypher.segmentation import Segmentor
 
 
 class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
-    def __init__(self, base_camera_set: PhotogrammetryCameraSet, segmentor: Segmentor):
+    def __init__(
+        self,
+        base_camera_set: PhotogrammetryCameraSet,
+        segmentor: Segmentor,
+        dont_load_base_image: bool = True,
+    ):
         """Wraps a camera set to provide segmented versions of the image
 
         Args:
@@ -17,12 +22,16 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
         """
         self.base_camera_set = base_camera_set
         self.segmentor = segmentor
+        self.dont_load_base_image = dont_load_base_image
 
         # This should allow all un-overridden methods to work as expected
         self.cameras = self.base_camera_set.cameras
 
     def get_image_by_index(self, index: int, image_scale: float = 1) -> np.ndarray:
-        raw_image = self.base_camera_set.get_image_by_index(index, image_scale)
+        if self.dont_load_base_image:
+            raw_image = None
+        else:
+            raw_image = self.base_camera_set.get_image_by_index(index, image_scale)
         image_filename = self.base_camera_set.get_image_filename(index)
         segmented_image = self.segmentor.segment_image(
             raw_image, filename=image_filename, image_scale=image_scale
