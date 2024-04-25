@@ -697,7 +697,11 @@ class TexturedPhotogrammetryMesh:
         return points
 
     def get_faces_2d_gdf(
-        self, crs: pyproj.CRS, include_3d_2d_ratio: bool = False, data_dict: dict = {}
+        self,
+        crs: pyproj.CRS,
+        include_3d_2d_ratio: bool = False,
+        data_dict: dict = {},
+        faces_mask=None,
     ):
         self.logger.info("Computing faces in working CRS")
         # Get the mesh vertices in the desired export CRS
@@ -706,6 +710,10 @@ class TexturedPhotogrammetryMesh:
         # (n_faces, 3 points, xyz)
         faces = verts_in_crs[self.faces]
         faces_2d = faces[..., :2]
+
+        if faces_mask:
+            faces_2d = faces_2d[faces_mask]
+            data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
 
         if include_3d_2d_ratio:
             ratios = []
@@ -973,14 +981,19 @@ class TexturedPhotogrammetryMesh:
 
         # Get the faces of the mesh as a geopandas dataframe
         # Also include the predicted face labels as a column in the dataframe
+
+        faces_mask = np.isfinite(face_labels)
+
         faces_2d_gdf = self.get_faces_2d_gdf(
             polygons_gdf.crs,
             include_3d_2d_ratio=True,
             data_dict={CLASS_ID_KEY: face_labels},
+            faces_mask=faces_mask,
         )
 
         # If a per-face weighting is provided, multiply that with the 3d to 2d ratio
         if face_weighting is not None:
+            face_weighting = face_weighting[faces_mask]
             faces_2d_gdf["face_weighting"] = (
                 faces_2d_gdf[RATIO_3D_2D_KEY] * face_weighting
             )
