@@ -1295,9 +1295,8 @@ class TexturedPhotogrammetryMesh:
         self      
     ):
         points = self.pyvista_mesh.points.tobytes()
-        edges = self.pyvista_mesh.extract_edges().points.tobytes()
         faces = self.pyvista_mesh.faces.tobytes()
-        return hash(points + edges + faces)
+        return hash(points + faces)
 
     def pix2face(
         self,
@@ -1332,10 +1331,12 @@ class TexturedPhotogrammetryMesh:
             pix2face_list = []
             # each camera has its own pix2face correspondance with a mesh 
             for camera in cameras:
-                mesh_hash = self.get_mesh_hash() 
-                camera_hash = camera.get_camera_hash()
-                cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-                pix2face = cacher.tryload(on_error='clear')
+
+                # mesh_hash = self.get_mesh_hash() 
+                # camera_hash = camera.get_camera_hash()
+                # cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
+                # pix2face = cacher.tryload(on_error='clear')
+                
                 if pix2face is None: # pix2face = None, means cache expired
                     result = self.pix2face(camera, render_img_scale=render_img_scale)
                     pix2face_list.append(result)            
