@@ -34,14 +34,13 @@ class LookUpSegmentor(Segmentor):
         lookup_path = lookup_path.with_suffix(".png")
 
         image = imread(lookup_path)
-        resized_image = resize(
-            image,
-            (int(image.shape[0] * image_scale), int(image.shape[1] * image_scale)),
-            order=0,  # Nearest neighbor interpolation
-        )
-        one_hot_image = self.inds_to_one_hot(
-            resized_image, num_classes=self.num_classes
-        )
+        if image_scale != 1:
+            image = resize(
+                image,
+                (int(image.shape[0] * image_scale), int(image.shape[1] * image_scale)),
+                order=0,  # Nearest neighbor interpolation
+            )
+        one_hot_image = self.inds_to_one_hot(image, num_classes=self.num_classes)
         return one_hot_image
 
 
@@ -75,7 +74,9 @@ class TabularRectangleSegmentor(Segmentor):
         files = sorted(Path(self.pred_folder).glob("*" + self.predfile_extension))
         dfs = [pd.read_csv(f) for f in files]
 
-        self.labels_df = pd.concat(dfs)
+        self.labels_df = pd.concat(dfs, ignore_index=True)
+        if "instance_ID" not in self.labels_df.columns:
+            self.labels_df["instance_ID"] = self.labels_df.index
         self.grouped_labels_df = self.labels_df.groupby(by=self.image_path_key)
         self.image_names = list(self.grouped_labels_df.groups.keys())
         self.class_names = np.unique(self.labels_df[self.label_key]).tolist()
@@ -108,6 +109,10 @@ class TabularRectangleSegmentor(Segmentor):
             index_label[zeros_mask] = np.nan
             plt.imshow(index_label, vmin=0, vmax=10, cmap="tab10")
             plt.show()
+
+        if image_scale != 1.0:
+            output_size = (int(image_scale * x) for x in label_image.shape[:2])
+            label_image = resize(label_image, output_size, order=0)
 
         return label_image
 
