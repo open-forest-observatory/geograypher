@@ -45,7 +45,7 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
 
     def get_subset_cameras(self, inds: typing.List[int]):
         subset_camera_set = deepcopy(self)
-        subset_camera_set.cameras = [self.cameras[i] for i in inds]
+        subset_camera_set.cameras = [subset_camera_set.cameras[i] for i in inds]
         subset_camera_set.base_camera_set = (
             subset_camera_set.base_camera_set.get_subset_cameras(inds)
         )
