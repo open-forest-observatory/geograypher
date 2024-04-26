@@ -89,7 +89,6 @@ class TexturedPhotogrammetryMesh:
         self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
-        self.pytorch3d_mesh = None
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
@@ -575,14 +574,16 @@ class TexturedPhotogrammetryMesh:
             texture = None
 
         # Create the pytorch mesh
-        self.pytorch3d_mesh = Meshes(
+        pytorch3d_mesh = Meshes(
             verts=[torch.Tensor(self.pyvista_mesh.points).to(self.device)],
             faces=[torch.Tensor(self.faces).to(self.device)],
             textures=texture,
         ).to(self.device)
 
-        if batch_size != len(self.pytorch3d_mesh):
-            self.pytorch3d_mesh = self.pytorch3d_mesh.extend(batch_size)
+        if batch_size != len(pytorch3d_mesh):
+            pytorch3d_mesh = pytorch3d_mesh.extend(batch_size)
+
+        return pytorch3d_mesh
 
     # Vertex methods
 
@@ -1339,11 +1340,11 @@ class TexturedPhotogrammetryMesh:
             cameras=p3d_cameras, raster_settings=raster_settings
         ).to(self.device)
 
-        # Ensure that a pytorch3d mesh exists
-        self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+        # Create a pytorch3d mesh
+        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
 
         # Perform the expensive pytorch3d operation
-        fragments = rasterizer(self.pytorch3d_mesh)
+        fragments = rasterizer(pytorch3d_mesh)
         return p3d_cameras, fragments
 
     def aggregate_viewpoints_pytorch3d(
@@ -1611,7 +1612,7 @@ class TexturedPhotogrammetryMesh:
         # TODO clean up
         texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
         # Get the texture and set it
-        self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
+        pytorch3d_mesh = self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
 
         # Get the photogrametery camera
         pg_camera = camera_set.get_camera_by_index(camera_index)
@@ -1649,7 +1650,7 @@ class TexturedPhotogrammetryMesh:
             )
 
             # Render the images using the shader
-            label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
+            label_img = shader(fragments, pytorch3d_mesh)[0].cpu().numpy()
 
         return label_img
 
