@@ -1002,6 +1002,7 @@ class TexturedPhotogrammetryMesh:
         # Get the faces of the mesh as a geopandas dataframe
         # Also include the predicted face labels as a column in the dataframe
 
+        # Only get faces for which there is a non-nan label. Otherwise it is just additional compute
         faces_mask = np.isfinite(face_labels)
 
         faces_2d_gdf = self.get_faces_2d_gdf(
