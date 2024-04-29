@@ -15,6 +15,7 @@ from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import Point
+from shapely.geometry import Polygon, Multipolygon
 from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
@@ -704,25 +705,28 @@ class PhotogrammetryCameraSet:
 
     def get_subset_ROI(
         self,
-        ROI: Union[PATH_TYPE, gpd.GeoDataFrame],
+        ROI: Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, Multipolygon],
         buffer_radius: float = 0,
         is_geospatial: bool = None
     ): #TODO: wrap docstring at 100 
         """Return cameras that are within a radius of the provided geometry
 
         Args:
-            geodata (Union[PATH_TYPE, gpd.GeoDataFrame]): Geopandas dataframe or path to a geofile readable by geopandas
+            geodata (Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, Multipolygon]): 
+                Geopandas dataframe, path to a geofile readable by geopandas, or Shapely Polygon
+                /Multipolygon information that can be loaded into a geodataframe
             buffer_radius (float, optional): 
                 Return points within this buffer of the geometry. Defaults to 0. Represents 
                 meters if ROI is geospatial.
             is_geospatial (bool, optional): flag for user to indicate if ROI is geospatial or not
         """
-        # TODO: if we recieve polygons or multipolygons then we want to load them in a gdf
-        # change function params to accept shapely stuff
-        # change logic at the start
-
-
-        if not isinstance(ROI, gpd.GeoDataFrame):
+        # construct GeoDataFrame if not provided
+        if isinstance(ROI, Polygon) or isinstance(ROI, Multipolygon): 
+            if is_geospatial:
+                ROI = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[ROI])
+            else:
+                ROI = gpd.GeoDataFrame(index=[0], geometry=[ROI])
+        elif not isinstance(ROI, gpd.GeoDataFrame):
             # Read in the geofile
             ROI = gpd.read_file(ROI)
         
