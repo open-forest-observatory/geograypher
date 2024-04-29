@@ -103,9 +103,7 @@ def label_polygons(
     )
     if vis_mesh:
         ground_masked_predicted_face_classes = predicted_face_classes.copy()
-        ground_masked_predicted_face_classes[ground_mask_faces.grounastype(bool)] = (
-            np.nan
-        )
+        ground_masked_predicted_face_classes[ground_mask_faces.astype(bool)] = np.nan
         mesh.vis(vis_scalars=ground_masked_predicted_face_classes)
 
     # Perform per-polygon labeling
