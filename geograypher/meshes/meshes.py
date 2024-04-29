@@ -698,20 +698,41 @@ class TexturedPhotogrammetryMesh:
         crs: pyproj.CRS,
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
-        faces_mask=None,
-    ):
+        faces_mask: typing.Union[np.ndarray, None] = None,
+    ) -> gpd.GeoDataFrame:
+        """Get a geodataframe of triangles for the 2D projection of each face of the mesh
+
+        Args:
+            crs (pyproj.CRS):
+                Coordinate reference system of the dataframe
+            include_3d_2d_ratio (bool, optional):
+                Compute the ratio of the 3D area of the face to the 2D area. This relates to the
+                slope of the face relative to horizontal. The computed data will be stored in the
+                column corresponding to the value of RATIO_3D_2D_KEY. Defaults to False.
+            data_dict (dict, optional):
+                Additional information to add to the dataframe. It must be a dict where the keys
+                are the names of the columns and the data is a np.ndarray of n_faces elemenets.
+                Defaults to {}.
+            faces_mask (typing.Union[np.ndarray, None], optional):
+                A binary mask corresponding to which faces to return. Used to improve runtime of
+                creating the dataframe or downstream steps. Defaults to None.
+
+        Returns:
+            geopandas.GeoDataFrame: A dataframe for each triangular face
+        """
         self.logger.info("Computing faces in working CRS")
         # Get the mesh vertices in the desired export CRS
         verts_in_crs = self.get_vertices_in_CRS(crs)
         # Get a triangle in geospatial coords for each face
         # (n_faces, 3 points, xyz)
         faces = verts_in_crs[self.faces]
-        faces_2d = faces[..., :2]
 
-        if faces_mask:
-            faces_2d = faces_2d[faces_mask]
+        # Select only the requested faces
+        if faces_mask is not None:
+            faces = faces[faces_mask]
             data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
 
+        # Compute the ratio between the 3D area and the projected top-down 2D area
         if include_3d_2d_ratio:
             ratios = []
             for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
@@ -719,7 +740,8 @@ class TexturedPhotogrammetryMesh:
                 ratios.append(area / area_2d)
             data_dict[RATIO_3D_2D_KEY] = ratios
 
-        faces_2d_tuples = [tuple(map(tuple, a)) for a in faces_2d]
+        # Extract the first two columns and convert them to a list of tuples of tuples
+        faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
         face_polygons = [
             Polygon(face_tuple)
             for face_tuple in tqdm(
@@ -728,6 +750,7 @@ class TexturedPhotogrammetryMesh:
         ]
         self.logger.info("Creating dataframe of faces")
 
+        # Create the dataframe
         faces_gdf = gpd.GeoDataFrame(
             data=data_dict,
             geometry=face_polygons,
