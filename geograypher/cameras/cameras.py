@@ -15,12 +15,17 @@ from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import Point
-from shapely.geometry import Polygon, Multipolygon
+from shapely.geometry import Multipolygon, Polygon
 from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
 
-from geograypher.constants import DEFAULT_FRUSTUM_SCALE, EXAMPLE_INTRINSICS, PATH_TYPE, LAT_LON_EPSG_CODE
+from geograypher.constants import (
+    DEFAULT_FRUSTUM_SCALE,
+    EXAMPLE_INTRINSICS,
+    LAT_LON_EPSG_CODE,
+    PATH_TYPE,
+)
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif

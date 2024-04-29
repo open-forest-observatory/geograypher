@@ -21,7 +21,7 @@ from shapely import (
 from shapely.geometry import box
 from tqdm import tqdm
 
-from geograypher.constants import PATH_TYPE, LAT_LON_EPSG_CODE
+from geograypher.constants import LAT_LON_EPSG_CODE, PATH_TYPE
 
 
 def ensure_projected_CRS(geodata):
