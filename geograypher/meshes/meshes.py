@@ -574,7 +574,7 @@ class TexturedPhotogrammetryMesh:
         Args:
             vert_texture (np.ndarray, optional):
                 Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
-            batch_size (int): 
+            batch_size (int):
                 Number of copies of the mesh to create in a batch. Defaults to 1.
         """
 
@@ -1439,7 +1439,7 @@ class TexturedPhotogrammetryMesh:
             )
             # Do the update step independently for each of the images
             # Iterate over number of cameras in each batch
-            for i in range(batch_cameras.n_cameras()): 
+            for i in range(batch_cameras.n_cameras()):
                 # Load the image
                 img = batch_cameras.get_image_by_index(i, image_scale=image_scale)
                 img_shape = img.shape
@@ -1461,7 +1461,7 @@ class TexturedPhotogrammetryMesh:
                 # Index the image to fill this array
                 # TODO find a way to do this better if there are multiple pixels per face
                 # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
-                # Adjust face indices for batch offset in extended meshes, excluding invalid face indices 
+                # Adjust face indices for batch offset in extended meshes, excluding invalid face indices
                 pix_to_face[pix_to_face != -1] -= self.pyvista_mesh.n_faces * i
                 new_texture[pix_to_face] = img[flat_i_inds, flat_j_inds]
                 # Update the face colors
@@ -1661,7 +1661,9 @@ class TexturedPhotogrammetryMesh:
         # TODO clean up
         texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
         # Get the texture and set it
-        pytorch3d_mesh = self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
+        pytorch3d_mesh = self.create_pytorch3d_mesh(
+            vert_texture=None if shade_by_indexing else texture
+        )
 
         # Get the photogrametery camera
         pg_camera = camera_set[camera_index]
