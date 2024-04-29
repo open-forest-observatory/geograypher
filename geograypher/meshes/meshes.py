@@ -91,7 +91,6 @@ class TexturedPhotogrammetryMesh:
         self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
-        self.pytorch3d_mesh = None
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
@@ -568,7 +567,6 @@ class TexturedPhotogrammetryMesh:
     def create_pytorch3d_mesh(
         self,
         vert_texture: np.ndarray = None,
-        force_recreation: bool = False,
         batch_size: int = 1,
     ):
         """Create the pytorch_3d_mesh
@@ -576,12 +574,9 @@ class TexturedPhotogrammetryMesh:
         Args:
             vert_texture (np.ndarray, optional):
                 Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
-            force_recreation (bool, optional):
-                if True, create a new mesh even if one already exists
+            batch_size (int): 
+                Number of copies of the mesh to create in a batch. Defaults to 1.
         """
-        # No-op if a mesh exists already
-        if not force_recreation and self.pytorch3d_mesh is not None:
-            return
 
         # Create the texture object if provided
         if vert_texture is not None:
@@ -595,14 +590,16 @@ class TexturedPhotogrammetryMesh:
             texture = None
 
         # Create the pytorch mesh
-        self.pytorch3d_mesh = Meshes(
+        pytorch3d_mesh = Meshes(
             verts=[torch.Tensor(self.pyvista_mesh.points).to(self.device)],
             faces=[torch.Tensor(self.faces).to(self.device)],
             textures=texture,
         ).to(self.device)
 
-        if batch_size != 1 and len(self.pytorch3d_mesh) == 1:
-            self.pytorch3d_mesh = self.pytorch3d_mesh.extend(batch_size)
+        if batch_size != len(pytorch3d_mesh):
+            pytorch3d_mesh = pytorch3d_mesh.extend(batch_size)
+
+        return pytorch3d_mesh
 
     # Vertex methods
 
@@ -1395,10 +1392,11 @@ class TexturedPhotogrammetryMesh:
             cameras=p3d_cameras, raster_settings=raster_settings
         ).to(self.device)
 
-        # Ensure that a pytorch3d mesh exists
-        self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+        # Create a pytorch3d mesh
+        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
         # Perform the expensive pytorch3d operation
-        fragments = rasterizer(self.pytorch3d_mesh)
+        fragments = rasterizer(pytorch3d_mesh)
         return p3d_cameras, fragments
 
     def aggregate_viewpoints_pytorch3d(
@@ -1415,10 +1413,6 @@ class TexturedPhotogrammetryMesh:
             camera_set (PhotogrammetryCamera): Set of cameras to aggregate
             image_scale (float): Scale images
         """
-        if batch_size != 1:
-            raise NotImplementedError(
-                "Proper batching is not implemented, set batch size to 1"
-            )
         # This is where the colors will be aggregated
         # This should be big enough to not overflow
         n_channels = camera_set.n_image_channels()
@@ -1444,7 +1438,8 @@ class TexturedPhotogrammetryMesh:
                 cameras=batch_cameras, image_scale=image_scale
             )
             # Do the update step independently for each of the images
-            for i in range(batch_size):
+            # Iterate over number of cameras in each batch
+            for i in range(batch_cameras.n_cameras()): 
                 # Load the image
                 img = batch_cameras.get_image_by_index(i, image_scale=image_scale)
                 img_shape = img.shape
@@ -1466,6 +1461,8 @@ class TexturedPhotogrammetryMesh:
                 # Index the image to fill this array
                 # TODO find a way to do this better if there are multiple pixels per face
                 # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
+                # Adjust face indices for batch offset in extended meshes, excluding invalid face indices 
+                pix_to_face[pix_to_face != -1] -= self.pyvista_mesh.n_faces * i
                 new_texture[pix_to_face] = img[flat_i_inds, flat_j_inds]
                 # Update the face colors
                 face_texture = face_texture + new_texture
@@ -1664,7 +1661,7 @@ class TexturedPhotogrammetryMesh:
         # TODO clean up
         texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
         # Get the texture and set it
-        self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
+        pytorch3d_mesh = self.create_pytorch3d_mesh(vert_texture=None if shade_by_indexing else texture)
 
         # Get the photogrametery camera
         pg_camera = camera_set[camera_index]
@@ -1702,7 +1699,7 @@ class TexturedPhotogrammetryMesh:
             )
 
             # Render the images using the shader
-            label_img = shader(fragments, self.pytorch3d_mesh)[0].cpu().numpy()
+            label_img = shader(fragments, pytorch3d_mesh)[0].cpu().numpy()
 
         return label_img
 
