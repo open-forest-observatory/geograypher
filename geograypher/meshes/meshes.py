@@ -954,9 +954,10 @@ class TexturedPhotogrammetryMesh:
         face_labels: np.ndarray,
         polygons: typing.Union[PATH_TYPE, gpd.GeoDataFrame],
         face_weighting: typing.Union[None, np.ndarray] = None,
+        sjoin_overlay: bool = True,
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
-        dissolve_precision: typing.Union[float, None] = 1e-7,
+        buffer_dist_meters: float = 2.0,
     ):
         """Assign a class label to polygons using labels per face
 
@@ -966,12 +967,18 @@ class TexturedPhotogrammetryMesh:
             face_weighting (typing.Union[None, np.ndarray], optional):
                 (n_faces,) array of scalar weights for each face, to be multiplied with the
                 contribution of this face. Defaults to None.
+            sjoin_overlay (bool, optional):
+                Whether to use `gpd.sjoin` or `gpd.overlay` to compute the overlay. Sjoin is
+                substaintially faster, but only uses mesh faces that are entirely within the bounds
+                of the polygon, rather than computing the intersecting region for
+                partially-overlapping faces.
             return_class_labels: (bool, optional):
                 Return string representation of class labels rather than float. Defaults to True.
             unknown_class_label (str, optional):
                 Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
-            dissolve_precision: (Union[float, None], optional)
-                Precision for geospatial operations. Used to avoid issues with near-parallel lines
+            buffer_dist_meters: (Union[float, None], optional)
+                Only applicable if sjoin_overlay=False. In that case, include faces entirely within
+                the region that is this distance in meters from the polygons. Defaults to 2.0.
 
         Raises:
             ValueError: if faces_labels or face_weighting is not 1D
@@ -999,12 +1006,11 @@ class TexturedPhotogrammetryMesh:
         # Extract just the geometry
         polygons_gdf = polygons_gdf[["geometry"]]
 
-        # Get the faces of the mesh as a geopandas dataframe
-        # Also include the predicted face labels as a column in the dataframe
-
         # Only get faces for which there is a non-nan label. Otherwise it is just additional compute
         faces_mask = np.isfinite(face_labels)
 
+        # Get the faces of the mesh as a geopandas dataframe
+        # Include the predicted face labels as a column in the dataframe
         faces_2d_gdf = self.get_faces_2d_gdf(
             polygons_gdf.crs,
             include_3d_2d_ratio=True,
@@ -1029,71 +1035,72 @@ class TexturedPhotogrammetryMesh:
         polygons_gdf.geometry = shapely.set_precision(
             polygons_gdf.geometry.values, 1e-6
         )
-        # Discard any faces which do not intersect the polygons
-        # Dissolve the polygons to form one ROI
-        merged_polygons = polygons_gdf.dissolve()
-        merged_polygons.geometry = merged_polygons.buffer(1)
-        # Determine which face IDs intersect the ROI. This is slow
-        self.logger.info("Starting sjoin")
-        # TODO it may be substaintially faster to check whether the face vertices are in the merged
-        # polygon and keep all faces that have any vertices which overlap. This would be miss faces
-        # where only a small portion, but not the corners, overlapped. But I think that's fine.
-        # Use a spatial join to retain only the faces that are within the merged polygons
-        faces_2d_gdf = gpd.sjoin(
-            faces_2d_gdf, merged_polygons, how="left", predicate="within"
-        )
-        # Drop faces not included
-        faces_2d_gdf = faces_2d_gdf.loc[faces_2d_gdf["index_right"].notna()]
 
         # Set the ID field so it's available after the overlay operation
         # Note that polygons_gdf.index is a bad choice, because this df could be a subset of another
         # one and the index would not start from 0
         polygons_gdf["polygon_ID"] = np.arange(len(polygons_gdf))
 
-        # Perform the overlay between faces and polygons. This is expensive, but may be more or
-        # less expensive than the `intersects` call depending on the number of faces near the
-        # polygons to be labeled
-        self.logger.info("Starting overlay")
-        start = time()
-        overlay = polygons_gdf.overlay(
-            faces_2d_gdf, how="identity", keep_geom_type=False
-        )
-        self.logger.info(f"Overlay time: {time() - start}")
+        # Perform the overlay between faces and polygons.
+        # This is usually the most expensive opereration.
+        if sjoin_overlay:
+            self.logger.info("Starting `overlay`")
+            start = time()
+            overlay = gpd.sjoin(
+                faces_2d_gdf, polygons_gdf, how="left", predicate="within"
+            )
+            self.logger.info(f"Overlay time with gpd.sjoin: {time() - start}")
+        else:
+            # Since overlay is expensive, we first discard faces that are not near the polygons
 
-        # Drop nan, for polygons without faces
+            # Discard any faces which do not intersect the polygons
+            # Dissolve the polygons to form one ROI
+            merged_polygons = polygons_gdf.dissolve()
+            merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
+            # Determine which face IDs intersect the ROI. This is slow
+            self.logger.info("Starting `within`")
+
+            # Check which faces are fully within the buffered regions around the query polygons
+            # Note that using sjoin has been faster than any other approach I've tried, despite seeming
+            # to compute more information than something like gpd.within
+            contained_faces = gpd.sjoin(
+                faces_2d_gdf, merged_polygons, how="left", predicate="within"
+            )["index_right"].notna()
+            faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
+
+            start = time()
+            # Drop faces not included
+            overlay = polygons_gdf.overlay(
+                faces_2d_gdf, how="identity", keep_geom_type=False
+            )
+            self.logger.info(f"Overlay time with gpd.overlay: {time() - start}")
+
+        # Drop nan, for geometries that don't intersect the polygons
         overlay.dropna(inplace=True)
         # Compute the weighted area for each face, which may have been broken up by the overlay
         overlay["weighted_area"] = overlay.area * overlay["face_weighting"]
 
-        self.logger.info(overlay)
-        start = time()
-        # Set the precision to avoid numerical issues from near-colinear lines
-        overlay.geometry = overlay.geometry.make_valid()
-        overlay.geometry = shapely.set_precision(
-            overlay.geometry.values, dissolve_precision
+        weighted_area_df = overlay.loc[:, ["polygon_ID", CLASS_ID_KEY, "weighted_area"]]
+        aggregated_data = weighted_area_df.groupby(["polygon_ID", CLASS_ID_KEY]).agg(
+            np.sum
         )
-        # For each polygon, for each class, sum all columns
-        # NOTE the two keys must be represented as a list or they will be considered one tuple-valued key
-        dissolved = overlay.dissolve(["polygon_ID", CLASS_ID_KEY], aggfunc=np.sum)
-        self.logger.info(f"Dissolve time: {time() - start}")
+        # Compute the highest weighted class prediction
+        # Modified from https://stackoverflow.com/questions/27914360/python-pandas-idxmax-for-multiple-indexes-in-a-dataframe
+        max_rows = aggregated_data.loc[
+            aggregated_data.groupby(["polygon_ID"], sort=False)[
+                "weighted_area"
+            ].idxmax()
+        ].reset_index()
 
-        # Build a matrix representation of the aggregated weighted area
-        num_classes = int(np.nanmax(face_labels)) + 1
-        weighted_area_matrix = np.zeros((len(polygons_gdf), num_classes))
-        # TODO determine if this is needed and/or sufficient
-        dissolved.dropna(inplace=True)
+        # Make the class predictions a list of IDs with nans where no information is available
+        pred_subset_IDs = max_rows[CLASS_ID_KEY].to_numpy(dtype=float)
+        pred_subset_IDs[max_rows["weighted_area"].to_numpy() == 0] = np.nan
 
-        for r in dissolved.iterrows():
-            (index, class_ID), vals = r
-            index = int(index)
-            class_ID = int(class_ID)
-            weighted_area_matrix[index, class_ID] = vals["weighted_area"]
-
-        # Find the highest-weighted prediction per polygon
-        predicted_class_IDs = np.argmax(weighted_area_matrix, axis=1).astype(float)
-        # Determine which polygons had no predictions
-        null_mask = np.sum(weighted_area_matrix, axis=1) == 0
-        predicted_class_IDs[null_mask] = np.nan
+        predicted_class_IDs = np.full(len(polygons_gdf), np.nan)
+        predicted_class_IDs[max_rows["polygon_ID"].to_numpy(dtype=int)] = (
+            pred_subset_IDs
+        )
+        predicted_class_IDs = predicted_class_IDs.tolist()
 
         # Post-process to string label names if requested and IDs_to_labels exists
         if return_class_labels and (
