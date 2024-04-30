@@ -1080,10 +1080,9 @@ class TexturedPhotogrammetryMesh:
         # Compute the weighted area for each face, which may have been broken up by the overlay
         overlay["weighted_area"] = overlay.area * overlay["face_weighting"]
 
-        weighted_area_df = overlay.loc[:, ["polygon_ID", CLASS_ID_KEY, "weighted_area"]]
-        aggregated_data = weighted_area_df.groupby(["polygon_ID", CLASS_ID_KEY]).agg(
-            np.sum
-        )
+        # Extract only the neccessary columns
+        overlay = overlay.loc[:, ["polygon_ID", CLASS_ID_KEY, "weighted_area"]]
+        aggregated_data = overlay.groupby(["polygon_ID", CLASS_ID_KEY]).agg(np.sum)
         # Compute the highest weighted class prediction
         # Modified from https://stackoverflow.com/questions/27914360/python-pandas-idxmax-for-multiple-indexes-in-a-dataframe
         max_rows = aggregated_data.loc[
