@@ -971,7 +971,7 @@ class TexturedPhotogrammetryMesh:
                 Whether to use `gpd.sjoin` or `gpd.overlay` to compute the overlay. Sjoin is
                 substaintially faster, but only uses mesh faces that are entirely within the bounds
                 of the polygon, rather than computing the intersecting region for
-                partially-overlapping faces.
+                partially-overlapping faces. Defaults to True.
             return_class_labels: (bool, optional):
                 Return string representation of class labels rather than float. Defaults to True.
             unknown_class_label (str, optional):
