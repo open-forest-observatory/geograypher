@@ -14,7 +14,7 @@ import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
-from shapely import Point, Multipolygon, Polygon
+from shapely import Multipolygon, Point, Polygon
 from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
