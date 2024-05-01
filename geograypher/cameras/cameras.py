@@ -71,9 +71,10 @@ class PhotogrammetryCamera:
             False  # Only set to true if you can hold all images in memory
         )
 
-    def get_camera_hash(self):
+    def get_camera_hash(self, include_image_hash=False):
+        # Geometric information of hash
         transform_hash = self.cam_to_world_transform.tolist()
-        camera_settings = json.dumps({
+        camera_settings = {
             'transform': transform_hash,
             'f': self.f,
             'cx': self.cx,
@@ -82,8 +83,15 @@ class PhotogrammetryCamera:
             'image_height': self.image_height,
             'distortion_params': self.distortion_params,
             'lon_lat': self.lon_lat
-        }, sort_keys=True)
-        return hash(camera_settings)
+        }
+
+        # Include the image associated with the hash if specified
+        if include_image_hash:
+            camera_settings['image_filename'] = str(self.image_filename)
+        
+        camera_settings_data = json.dumps(camera_settings, sort_keys=True)
+
+        return hash(camera_settings_data)
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached

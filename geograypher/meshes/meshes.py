@@ -1324,44 +1324,24 @@ class TexturedPhotogrammetryMesh:
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
-
-        # should cache store 1 pix2face mapping, or multiple (say if you have a camera set)
-
         if isinstance(cameras, PhotogrammetryCameraSet):
-            pix2face_list = []
-            # each camera has its own pix2face correspondance with a mesh 
-            for camera in cameras:
-
-                # mesh_hash = self.get_mesh_hash() 
-                # camera_hash = camera.get_camera_hash()
-                # cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-                # pix2face = cacher.tryload(on_error='clear')
-                
-                if pix2face is None: # pix2face = None, means cache expired
-                    result = self.pix2face(camera, render_img_scale=render_img_scale)
-                    pix2face_list.append(result)            
+            pix2face_list = [
+                self.pix2face(camera, render_img_scale=render_img_scale)
+                for camera in cameras
+            ]            
             pix2face = np.stack(pix2face_list, axis=0)
-            # cacher.save(pix2face)
             return pix2face
-        elif isinstance(cameras, PhotogrammetryCamera):
-            mesh_hash = self.get_mesh_hash()
-            camera_hash = cameras.get_camera_hash()
-            cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-            pix2face = cacher.tryload(on_error='clear')
-            if pix2face is not None:
-                return pix2face
-
-         # original code
-        # if isinstance(cameras, PhotogrammetryCameraSet):
-        #     pix2face_list = [
-        #         self.pix2face(camera, render_img_scale=render_img_scale)
-        #         for camera in cameras
-        #     ]
-        #     pix2face = np.stack(pix2face_list, axis=0)
-        #     return pix2face
-
-
+        
         ## Single camera case
+
+        # Check if the cachce contains a valid pix2face for the camera based on the hash
+        mesh_hash = self.get_mesh_hash()
+        camera_hash = cameras.get_camera_hash()
+        cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
+        pix2face = cacher.tryload(on_error='clear')
+        # Cache is valid 
+        if pix2face is not None:
+            return pix2face
 
         # Create the plotter
         plotter = pv.Plotter(off_screen=True)
@@ -1425,6 +1405,7 @@ class TexturedPhotogrammetryMesh:
         # another channel or something like that
         pix2face[pix2face > n_faces] = -1
 
+        # Save the most recently computed pix2face correspondance in the cache
         cacher.save(pix2face)
 
         return pix2face
