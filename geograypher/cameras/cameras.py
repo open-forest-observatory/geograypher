@@ -94,6 +94,9 @@ class PhotogrammetryCamera:
 
         return image
 
+    def get_image_filename(self):
+        return self.image_filename
+
     def get_image_size(self, image_scale=1.0):
         """Return image size, potentially scaled
 
@@ -624,7 +627,7 @@ class PhotogrammetryCameraSet:
         return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: int, absolute=True):
-        filename = self.image_filenames[index]
+        filename = self.cameras[index].get_image_filename()
         if absolute:
             return Path(filename)
         else:
