@@ -15,10 +15,10 @@ import pyvista as pv
 import rasterio as rio
 import shapely
 import skimage
-from shapely import MultiPolygon, Polygon
-from skimage.transform import resize # might look into for cache
-from tqdm import tqdm
 import ubelt as ub
+from shapely import MultiPolygon, Polygon
+from skimage.transform import resize  # might look into for cache
+from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
