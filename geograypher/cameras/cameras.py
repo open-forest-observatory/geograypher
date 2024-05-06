@@ -72,6 +72,14 @@ class PhotogrammetryCamera:
         )
 
     def get_camera_hash(self, include_image_hash=False):
+        """Generates a hash value for the camera's geometry and optionally includes the image
+
+        Args:
+            include_image_hash (bool, optional): Whether to include the image filename in the hash computation. Defaults to false.
+
+        Returns:
+            int: A hash value representing the current state of the camera
+        """
         # Geometric information of hash
         transform_hash = self.cam_to_world_transform.tolist()
         camera_settings = {

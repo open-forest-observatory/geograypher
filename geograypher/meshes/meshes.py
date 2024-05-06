@@ -17,7 +17,7 @@ import shapely
 import skimage
 import ubelt as ub
 from shapely import MultiPolygon, Polygon
-from skimage.transform import resize  # might look into for cache
+from skimage.transform import resize
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
@@ -1294,6 +1294,11 @@ class TexturedPhotogrammetryMesh:
     def get_mesh_hash(
         self      
     ):
+        """Generates a hash value for the mesh based on its points and faces
+
+        Returns:
+            int: A hash value representing the current mesh.
+        """
         points = self.pyvista_mesh.points.tobytes()
         faces = self.pyvista_mesh.faces.tobytes()
         return hash(points + faces)
@@ -1328,13 +1333,18 @@ class TexturedPhotogrammetryMesh:
             pix2face_list = [
                 self.pix2face(camera, render_img_scale=render_img_scale)
                 for camera in cameras
-            ]            
+            ]on_error
             pix2face = np.stack(pix2face_list, axis=0)
             return pix2face
         
         ## Single camera case
 
-        # Check if the cachce contains a valid pix2face for the camera based on the hash
+        # Check if the cache contains a valid pix2face for the camera based on the dependencies
+        # Compute hashes for the mesh and camera to unique identify mesh+camera pair
+        # The cache will generate a unique key for each combination of the dependencies
+        # If the cache generated key matches a cache file on disk, pix2face will be filled with the correct correspondance
+        # If no match is found, recompute pix2face
+        # If there’s an error loading the cached data, then clear the cache's contents, signified by on_error='clear'
         mesh_hash = self.get_mesh_hash()
         camera_hash = cameras.get_camera_hash()
         cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
