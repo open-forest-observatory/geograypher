@@ -1290,9 +1290,9 @@ class TexturedPhotogrammetryMesh:
             self.set_texture(labels, use_derived_IDs_to_labels=False)
 
         return labels
-    
+
     def get_mesh_hash(
-        self      
+        self
     ):
         """Generates a hash value for the mesh based on its points and faces
 
@@ -1333,10 +1333,10 @@ class TexturedPhotogrammetryMesh:
             pix2face_list = [
                 self.pix2face(camera, render_img_scale=render_img_scale)
                 for camera in cameras
-            ]on_error
+            ]
             pix2face = np.stack(pix2face_list, axis=0)
             return pix2face
-        
+
         ## Single camera case
 
         # Check if the cache contains a valid pix2face for the camera based on the dependencies
@@ -1349,7 +1349,7 @@ class TexturedPhotogrammetryMesh:
         camera_hash = cameras.get_camera_hash()
         cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
         pix2face = cacher.tryload(on_error='clear')
-        # Cache is valid 
+        # Cache is valid
         if pix2face is not None:
             return pix2face
 
