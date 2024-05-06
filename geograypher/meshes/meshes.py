@@ -4,6 +4,7 @@ import sys
 import typing
 from pathlib import Path
 from time import time
+from scipy.spatial import KDTree
 
 import geopandas as gpd
 import matplotlib.colors
@@ -91,6 +92,7 @@ class TexturedPhotogrammetryMesh:
         self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
+        self.kdtree = None
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
@@ -162,6 +164,10 @@ class TexturedPhotogrammetryMesh:
             self.logger.info("Reading the mesh")
             self.pyvista_mesh = pv.read(mesh)
 
+        # make sure KD tree has vertices of original (undownsampled mesh)
+        if self.kdtree is None:
+            self.kdtree = KDTree(self.pyvista_mesh.points)
+
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
@@ -177,9 +183,18 @@ class TexturedPhotogrammetryMesh:
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
+            self.transfer_texture()
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
+
+    def transfer_texture(self):
+        # Ensure that texture data and KD-tree are available
+        if self.texture is not None and self.kdtree is not None:
+            target_points = self.pyvista_mesh.points  # mesh has already been downsampled
+            _, indices = self.kdtree.query(target_points)
+            transferred_texture = self.texture[indices]  
+            self.texture = transferred_texture  
 
     def load_transform_to_epsg_4326(
         self, transform_filename: PATH_TYPE, require_transform: bool = False
