@@ -71,7 +71,7 @@ class PhotogrammetryCamera:
             False  # Only set to true if you can hold all images in memory
         )
 
-    def get_camera_hash(self, include_image_hash=False):
+    def get_camera_hash(self, include_image_hash: bool = False):
         """Generates a hash value for the camera's geometry and optionally includes the image
 
         Args:
