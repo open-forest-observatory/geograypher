@@ -96,7 +96,7 @@ class PhotogrammetryCamera:
         # Include the image associated with the hash if specified
         if include_image_hash:
             camera_settings['image_filename'] = str(self.image_filename)
-        
+
         camera_settings_data = json.dumps(camera_settings, sort_keys=True)
 
         return hash(camera_settings_data)
