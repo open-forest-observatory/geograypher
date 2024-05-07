@@ -1360,6 +1360,7 @@ class TexturedPhotogrammetryMesh:
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         render_img_scale: float = 1,
+        use_cache: bool = False,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
 
@@ -1368,9 +1369,12 @@ class TexturedPhotogrammetryMesh:
                 A single camera or set of cameras. For each camera, the correspondences between
                 pixels and the face IDs of the mesh will be computed. The images of all cameras
                 are assumed to be the same size.
-            render_img_scale (float):
+            render_img_scale (float, optional):
                 Create a pix2face map that is this fraction of the original image scale. Defaults
                 to 1.
+            use_cache (bool, optional):
+                Should the cache be queried for pix2face correspondences and any computed values
+                saved to the cache. Defaults to False.
 
         Returns:
             np.ndarray: For each camera, there is an array that is the shape of an image and
@@ -1392,21 +1396,22 @@ class TexturedPhotogrammetryMesh:
 
         ## Single camera case
 
-        # Check if the cache contains a valid pix2face for the camera based on the dependencies
-        # Compute hashes for the mesh and camera to unique identify mesh+camera pair
-        # The cache will generate a unique key for each combination of the dependencies
-        # If the cache generated key matches a cache file on disk, pix2face will be filled with the correct correspondance
-        # If no match is found, recompute pix2face
-        # If there’s an error loading the cached data, then clear the cache's contents, signified by on_error='clear'
-        mesh_hash = self.get_mesh_hash()
-        camera_hash = cameras.get_camera_hash()
-        cacher = ub.Cacher(
-            "pix2face", depends=[mesh_hash, camera_hash, render_img_scale]
-        )
-        pix2face = cacher.tryload(on_error="clear")
-        ## Cache is valid
-        if pix2face is not None:
-            return pix2face
+        if use_cache:
+            # Check if the cache contains a valid pix2face for the camera based on the dependencies
+            # Compute hashes for the mesh and camera to unique identify mesh+camera pair
+            # The cache will generate a unique key for each combination of the dependencies
+            # If the cache generated key matches a cache file on disk, pix2face will be filled with the correct correspondance
+            # If no match is found, recompute pix2face
+            # If there’s an error loading the cached data, then clear the cache's contents, signified by on_error='clear'
+            mesh_hash = self.get_mesh_hash()
+            camera_hash = cameras.get_camera_hash()
+            cacher = ub.Cacher(
+                "pix2face", depends=[mesh_hash, camera_hash, render_img_scale]
+            )
+            pix2face = cacher.tryload(on_error="clear")
+            ## Cache is valid
+            if pix2face is not None:
+                return pix2face
 
         # This needs to be an attribute of the class because creating a large number of plotters
         # results in an un-fixable memory leak.
@@ -1472,8 +1477,9 @@ class TexturedPhotogrammetryMesh:
         # another channel or something like that
         pix2face[pix2face > n_faces] = -1
 
-        # Save the most recently computed pix2face correspondance in the cache
-        cacher.save(pix2face)
+        if use_cache:
+            # Save the most recently computed pix2face correspondance in the cache
+            cacher.save(pix2face)
 
         return pix2face
 
