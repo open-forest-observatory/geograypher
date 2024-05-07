@@ -78,6 +78,10 @@ class TexturedPhotogrammetryMesh:
         self.face_texture = None
         self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
+        # Create the plotter that will later be used to compute correspondences between pixels
+        # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
+        # plotters. See https://github.com/pyvista/pyvista/issues/2252
+        self.pix2face_plotter = pv.Plotter(off_screen=True)
 
         self.logger = logging.getLogger(f"mesh_{id(self)}")
         self.logger.setLevel(log_level)
@@ -1342,9 +1346,7 @@ class TexturedPhotogrammetryMesh:
 
         return labels
 
-    def get_mesh_hash(
-        self
-    ):
+    def get_mesh_hash(self):
         """Generates a hash value for the mesh based on its points and faces
 
         Returns:
@@ -1398,18 +1400,23 @@ class TexturedPhotogrammetryMesh:
         # If there’s an error loading the cached data, then clear the cache's contents, signified by on_error='clear'
         mesh_hash = self.get_mesh_hash()
         camera_hash = cameras.get_camera_hash()
-        cacher = ub.Cacher('pix2face', depends=[mesh_hash, camera_hash, render_img_scale])
-        pix2face = cacher.tryload(on_error='clear')
-        # Cache is valid
+        cacher = ub.Cacher(
+            "pix2face", depends=[mesh_hash, camera_hash, render_img_scale]
+        )
+        pix2face = cacher.tryload(on_error="clear")
+        ## Cache is valid
         if pix2face is not None:
             return pix2face
 
-        # Create the plotter
-        plotter = pv.Plotter(off_screen=True)
+        # This needs to be an attribute of the class because creating a large number of plotters
+        # results in an un-fixable memory leak.
+        # See https://github.com/pyvista/pyvista/issues/2252
+        # The first step is to clear it
+        self.pix2face_plotter.clear()
         # This is important so there aren't intermediate values
-        plotter.disable_anti_aliasing()
+        self.pix2face_plotter.disable_anti_aliasing()
         # Set the camera to the corresponding viewpoint
-        plotter.camera = cameras.get_pyvista_camera()
+        self.pix2face_plotter.camera = cameras.get_pyvista_camera()
 
         ## Compute the base 256 encoding of the face ID
         n_faces = self.faces.shape[0]
@@ -1439,9 +1446,8 @@ class TexturedPhotogrammetryMesh:
             chunk_scalars = np.stack(
                 base_256_encoding[3 * chunk_ind : 3 * (chunk_ind + 1)], axis=1
             ).astype(np.uint8)
-
             # Add the mesh with the associated scalars
-            plotter.add_mesh(
+            self.pix2face_plotter.add_mesh(
                 self.pyvista_mesh,
                 scalars=chunk_scalars.copy(),
                 rgb=True,
@@ -1450,7 +1456,7 @@ class TexturedPhotogrammetryMesh:
             )
 
             # Perform rendering, this is the slow step
-            rendered_img = plotter.screenshot(
+            rendered_img = self.pix2face_plotter.screenshot(
                 window_size=(image_size[1], image_size[0]),
             )
             # Take the rendered values and interpret them as the encoded value
