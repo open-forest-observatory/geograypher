@@ -189,7 +189,8 @@ class TexturedPhotogrammetryMesh:
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
     def transfer_texture(self):
-        if self.texture is not None and self.kdtree is not None:
+        if self.vertex_texture is not None and self.kdtree is not None:
+            # pull attirbutes from pyvista mesh and set them to the target mesh
             target_mesh = self.pyvista_mesh.points  # mesh has already been downsampled
 
             # query in source mesh
@@ -197,10 +198,10 @@ class TexturedPhotogrammetryMesh:
             _, indices = self.kdtree.query(target_mesh)  
 
             # create the new texture using the right indices from the original texture
-            downsampled_texture = self.texture[indices]
+            downsampled_texture = self.vertex_texture[indices]
 
             # apply new texture
-            self.texture = downsampled_texture  
+            self.vertex_texture = downsampled_texture
 
     def load_transform_to_epsg_4326(
         self, transform_filename: PATH_TYPE, require_transform: bool = False
