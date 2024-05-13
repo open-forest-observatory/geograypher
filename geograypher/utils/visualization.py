@@ -1,17 +1,44 @@
 import json
 import typing
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
 from imageio import imread, imwrite
 
-from geograypher.constants import (
-    NULL_TEXTURE_INT_VALUE,
-    PATH_TYPE,
-    TEN_CLASS_VIS_KWARGS,
-)
+from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from geograypher.utils.files import ensure_folder
+
+
+def create_pv_plotter(
+    off_screen: bool,
+    force_xvfb: bool = False,
+    plotter: typing.Union[None, pv.Plotter] = None,
+):
+    """Create a pyvista plotter while handling offscreen rendering
+
+    Args:
+        off_screen (bool):
+            Whether the plotter should be offscreen
+        force_xvfb (bool, optional):
+            Should XVFB be used for rendering by default. Defaults to False.
+        plotter ((None, pv.Plotter), optional):
+            Existing plotter to use, will just return it if not None. Defaults to None
+    """
+    # If a valid plotter has not been passed in create one
+    if not isinstance(plotter, pv.Plotter):
+        # Catch the warning that there is not xserver running
+        with warnings.catch_warnings(record=True) as w:
+            # Create the plotter which may be onscreen or off
+            plotter = pv.Plotter(off_screen=off_screen)
+
+        # Start xvfb if requested or the system is not running an xserver
+        if force_xvfb or (len(w) > 0 and "pyvista.start_xvfb()" in str(w[0].message)):
+            # Start a headless renderer
+            pv.start_xvfb()
+    return plotter
 
 
 def get_vis_options_from_IDs_to_labels(
