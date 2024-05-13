@@ -142,7 +142,7 @@ def render_labels(
         render_image_scale=render_image_scale,
         save_native_resolution=True,
         output_folder=render_savefolder,
-        make_composites=True,
+        make_composites=False,
     )
 
     if vis or labels_vis_folder is not None:
