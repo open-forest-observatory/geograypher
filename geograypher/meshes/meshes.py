@@ -81,7 +81,7 @@ class TexturedPhotogrammetryMesh:
         # Create the plotter that will later be used to compute correspondences between pixels
         # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
         # plotters. See https://github.com/pyvista/pyvista/issues/2252
-        self.pix2face_plotter = pv.Plotter(off_screen=True)
+        self.pix2face_plotter = create_pv_plotter(off_screen=True)
 
         self.logger = logging.getLogger(f"mesh_{id(self)}")
         self.logger.setLevel(log_level)
