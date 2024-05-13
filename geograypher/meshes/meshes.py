@@ -1614,7 +1614,11 @@ class TexturedPhotogrammetryMesh:
         projection_counts = np.zeros(n_faces)
         summed_projection = None
 
-        for projection_for_image in project_images_generator:
+        for projection_for_image in tqdm(
+            project_images_generator,
+            total=len(cameras),
+            desc="Aggregating projected viewpoints",
+        ):
             if return_all:
                 all_projections.append(projection_for_image)
 
