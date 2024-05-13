@@ -14,6 +14,8 @@ PATH_TYPE = Union[str, Path]
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 # Where to save vis data
 VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
+# Where to cache results
+CACHE_FOLDER = Path(Path(__file__).parent, "..", "cache").resolve()
 
 VERT_ID = "vert_ID"
 CLASS_ID_KEY = "class_ID"

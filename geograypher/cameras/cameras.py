@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -83,23 +84,25 @@ class PhotogrammetryCamera:
         # Geometric information of hash
         transform_hash = self.cam_to_world_transform.tolist()
         camera_settings = {
-            'transform': transform_hash,
-            'f': self.f,
-            'cx': self.cx,
-            'cy': self.cy,
-            'image_width': self.image_width,
-            'image_height': self.image_height,
-            'distortion_params': self.distortion_params,
-            'lon_lat': self.lon_lat
+            "transform": transform_hash,
+            "f": self.f,
+            "cx": self.cx,
+            "cy": self.cy,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "distortion_params": self.distortion_params,
+            "lon_lat": self.lon_lat,
         }
 
         # Include the image associated with the hash if specified
         if include_image_hash:
-            camera_settings['image_filename'] = str(self.image_filename)
+            camera_settings["image_filename"] = str(self.image_filename)
 
         camera_settings_data = json.dumps(camera_settings, sort_keys=True)
+        hasher = hashlib.sha256()
+        hasher.update(camera_settings_data.encode("utf-8"))
 
-        return hash(camera_settings_data)
+        return hasher.hexdigest()
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached

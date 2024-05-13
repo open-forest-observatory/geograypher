@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import sys
@@ -22,6 +23,7 @@ from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
+    CACHE_FOLDER,
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
@@ -1356,11 +1358,22 @@ class TexturedPhotogrammetryMesh:
         faces = self.pyvista_mesh.faces.tobytes()
         return hash(points + faces)
 
+    def get_mesh_hash(self):
+        """Generates a hash value for the mesh based on its points and faces
+        Returns:
+            int: A hash value representing the current mesh.
+        """
+        hasher = hashlib.sha256()
+        hasher.update(self.pyvista_mesh.points.tobytes())
+        hasher.update(self.pyvista_mesh.faces.tobytes())
+        return hasher.hexdigest()
+
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         render_img_scale: float = 1,
-        use_cache: bool = False,
+        use_cache: bool = True,
+        cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
 
@@ -1374,7 +1387,10 @@ class TexturedPhotogrammetryMesh:
                 to 1.
             use_cache (bool, optional):
                 Should the cache be queried for pix2face correspondences and any computed values
-                saved to the cache. Defaults to False.
+                saved to the cache. Defaults to True.
+            cache_folder ((PATH_TYPE, None), optional):
+                Where to check for and save to cached data. Only applicable if use_cache=True.
+                Defaults to CACHE_FOLDER
 
         Returns:
             np.ndarray: For each camera, there is an array that is the shape of an image and
@@ -1406,7 +1422,10 @@ class TexturedPhotogrammetryMesh:
             mesh_hash = self.get_mesh_hash()
             camera_hash = cameras.get_camera_hash()
             cacher = ub.Cacher(
-                "pix2face", depends=[mesh_hash, camera_hash, render_img_scale]
+                "pix2face",
+                depends=[mesh_hash, camera_hash, render_img_scale],
+                dpath=cache_folder,
+                verbose=1,
             )
             pix2face = cacher.tryload(on_error="clear")
             ## Cache is valid
