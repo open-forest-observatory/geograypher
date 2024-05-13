@@ -193,7 +193,7 @@ def show_segmentation_labels(
     image_folder,
     savefolder: typing.Union[None, PATH_TYPE] = None,
     num_show=10,
-    label_suffix=".png",
+    label_suffix=".npy",
     image_suffix=".JPG",
     IDs_to_labels=None,
 ):
