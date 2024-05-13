@@ -137,7 +137,7 @@ def render_labels(
         mesh.vis(camera_set=training_camera_set, screenshot_filename=mesh_vis_file)
 
     # Render the labels and save them. This is the slow step.
-    mesh.save_renders_pytorch3d(
+    mesh.save_renders(
         camera_set=training_camera_set,
         render_image_scale=render_image_scale,
         save_native_resolution=True,
