@@ -1854,29 +1854,39 @@ class TexturedPhotogrammetryMesh:
         interactive: bool = True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
-        vis_scalars=None,
+        vis_scalars: typing.Union[None, np.ndarray] = None,
         mesh_kwargs: typing.Dict = None,
         interactive_jupyter: bool = False,
         plotter_kwargs: typing.Dict = {},
         enable_ssao: bool = True,
         force_xvfb: bool = False,
-        frustum_scale: float = None,
+        frustum_scale: float = 2,
         IDs_to_labels: typing.Union[None, dict] = None,
     ):
         """Show the mesh and cameras
 
         Args:
-            plotter (pyvista.Plotter, optional): Plotter to use, else one will be created
-            off_screen (bool, optional): Show offscreen
-            camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
-            screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
-            vis_scalars: Scalars to show
-            mesh_kwargs: dict of keyword arguments for the mesh
-            interactive_jupyter (bool): should jupyter windows be interactive. This doesn't always work, especially on VSCode.
-            plotter_kwargs: dict of keyword arguments for the plotter
-            frustum_scale (float, optional): Size of cameras in world units
+            plotter (pyvista.Plotter, optional):
+                Plotter to use, else one will be created
+            off_screen (bool, optional):
+                Show offscreen
+            camera_set (PhotogrammetryCameraSet, optional):
+                Cameras to visualize. Defaults to None.
+            screenshot_filename (PATH_TYPE, optional):
+                Filepath to save to, will show interactively if None. Defaults to None.
+            vis_scalars (None, np.ndarray):
+                Scalars to show
+            mesh_kwargs:
+                dict of keyword arguments for the mesh
+            interactive_jupyter (bool):
+                Should jupyter windows be interactive. This doesn't always work, especially on VSCode.
+            plotter_kwargs:
+                dict of keyword arguments for the plotter
+            frustum_scale (float, optional):
+                Size of cameras in world units. Defaults to None.
             IDs_to_labels ([None, dict], optional):
-                Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh IDs_to_labels if unset.
+                Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh
+                IDs_to_labels if unset.
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
 
