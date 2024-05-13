@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import typing
+import warnings
 from pathlib import Path
 from time import time
 
@@ -1878,9 +1879,6 @@ class TexturedPhotogrammetryMesh:
                 Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh IDs_to_labels if unset.
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
-        # Start offscreen rendering if needed
-        if force_xvfb:
-            pv.start_xvfb()
 
         # If the IDs to labels is not set, use the default ones for this mesh
         if IDs_to_labels is None:
@@ -1905,9 +1903,15 @@ class TexturedPhotogrammetryMesh:
                     mesh_kwargs["cmap"] = colors[0 : max_ID + 1]
                     mesh_kwargs["clim"] = (-0.5, max_ID + 0.5)
 
-        if plotter is None:
-            # Create the plotter which may be onscreen or off
-            plotter = pv.Plotter(off_screen=off_screen)
+        # Catch the warning that there is not xserver running
+        with warnings.catch_warnings(record=True) as w:
+            if plotter is None:
+                # Create the plotter which may be onscreen or off
+                plotter = pv.Plotter(off_screen=off_screen)
+        # Start xvfb if requested or the system is not running an xserver
+        if force_xvfb or (len(w) > 0 and "pyvista.start_xvfb()" in str(w[0].message)):
+            # Start a headless renderer
+            pv.start_xvfb()
 
         # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
