@@ -1823,7 +1823,8 @@ class TexturedPhotogrammetryMesh:
         output_folder: PATH_TYPE = Path(VIS_FOLDER, "renders"),
         make_composites: bool = False,
         save_native_resolution: bool = False,
-        set_null_texture_to_value: float = NULL_TEXTURE_INT_VALUE,
+        cast_to_uint8: bool = True,
+        uint8_value_for_null_texture: np.uint8 = NULL_TEXTURE_INT_VALUE,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
@@ -1838,8 +1839,12 @@ class TexturedPhotogrammetryMesh:
             make_composites (bool, optional):
                 Should a triple pane composite with the original image be saved rather than the
                 raw label
-            set_null_texture_to_value (float, optional):
-                What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
+            cast_to_uint8: (bool, optional):
+                cast the float valued data to unit8 for saving efficiency. May dramatically increase
+                efficiency due to png compression
+            uint8_value_for_null_texture (np.uint8, optional):
+                What value to assign for values that can't be represented as unsigned 8-bit data.
+                Defaults to NULL_TEXTURE_INT_VALUE
         """
 
         ensure_folder(output_folder)
@@ -1891,6 +1896,19 @@ class TexturedPhotogrammetryMesh:
                 if rendered.ndim == 3:
                     rendered = rendered[..., :3]
 
+            if cast_to_uint8:
+                # Deterimine values that cannot be represented as uint8
+                mask = np.logical_or.reduce(
+                    [
+                        rendered < 0,
+                        rendered > 255,
+                        np.logical_not(np.isfinite(rendered)),
+                    ]
+                )
+                rendered[mask] = uint8_value_for_null_texture
+                # Cast and squeeze since you can't save a one-channel image
+                rendered = np.squeeze(rendered.astype(np.uint8))
+
             # Saving
             output_filename = Path(
                 output_folder, camera_set.get_image_filename(i, absolute=False)
@@ -1899,6 +1917,7 @@ class TexturedPhotogrammetryMesh:
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
                 output_filename = str(output_filename.with_suffix(".png"))
+
                 # Save the image
                 skimage.io.imsave(output_filename, rendered, check_contrast=False)
             else:

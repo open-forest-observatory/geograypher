@@ -142,7 +142,10 @@ def create_composite(
 
         vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
         cmap = plt.get_cmap(vis_options["cmap"])
-        null_mask = label_image == NULL_TEXTURE_INT_VALUE
+        null_mask = np.logical_or(
+            label_image == NULL_TEXTURE_INT_VALUE,
+            np.logical_not(np.isfinite(label_image)),
+        )
         if not vis_options["discrete"]:
             # Shift
             label_image = label_image - np.nanmin(label_image)
@@ -153,6 +156,9 @@ def create_composite(
                 max_value = np.max(valid_pixels)
                 # Scale
                 label_image = label_image / max_value
+        else:
+            # Convert it to an int so it's used to directly index the colormap
+            label_image = label_image.astype(np.uint8)
 
         # Perform the colormapping
         label_image = cmap(label_image)[..., :3]
@@ -193,7 +199,7 @@ def show_segmentation_labels(
     image_folder,
     savefolder: typing.Union[None, PATH_TYPE] = None,
     num_show=10,
-    label_suffix=".npy",
+    label_suffix=".png",
     image_suffix=".JPG",
     IDs_to_labels=None,
 ):
