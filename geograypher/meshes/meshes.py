@@ -28,7 +28,6 @@ from geograypher.constants import (
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
-    NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
@@ -749,9 +748,11 @@ class TexturedPhotogrammetryMesh:
                 counts_per_class_per_face
                 + np.random.random(counts_per_class_per_face.shape) * 0.5
             )
-            most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
-            # Set any faces with zero counts to the null value
-            most_common_class_per_face[zeros_mask] = NULL_TEXTURE_FLOAT_VALUE
+            most_common_class_per_face = np.argmax(
+                counts_per_class_per_face, axis=1
+            ).astype(float)
+            # Set any faces with zero counts to nan
+            most_common_class_per_face[zeros_mask] = np.nan
 
             return most_common_class_per_face
         else:
