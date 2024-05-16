@@ -2,7 +2,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pyproj
+from scipy.spatial.transform import Rotation
 
 from geograypher.cameras import PhotogrammetryCameraSet
 from geograypher.constants import (
@@ -120,5 +122,95 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             lon_lats=lon_lats,
             image_folder=image_folder,
             sensor_IDs=sensor_IDs,
+            validate_images=validate_images,
+        )
+
+
+class COLMAPCameraSet(PhotogrammetryCameraSet):
+    def __init__(
+        self,
+        cameras_file,
+        images_file,
+        image_folder=None,
+        validate_images: bool = False,
+    ):
+        cameras_data = pd.read_csv(
+            cameras_file,
+            sep=" ",
+            skiprows=[0, 1, 2],
+            header=None,
+            names=(
+                "CAMERA_ID",
+                "MODEL",
+                "WIDTH",
+                "HEIGHT",
+                "PARAMS_F",
+                "PARAMS_CX",
+                "PARAMS_CY",
+                "PARAMS_RADIAL",
+            ),
+        )
+        images_data = pd.read_csv(
+            images_file,
+            sep=" ",
+            skiprows=lambda x: (x in (0, 1, 2, 3) or x % 2),
+            header=None,
+            names=(
+                "IMAGE_ID",
+                "QW",
+                "QX",
+                "QY",
+                "QZ",
+                "TX",
+                "TY",
+                "TZ",
+                "CAMERA_ID",
+                "NAME",
+            ),
+            usecols=list(range(10)),
+        )
+
+        if np.any(cameras_data["MODEL"] != "SIMPLE_RADIAL"):
+            raise ValueError("Not a supported camera model")
+
+        # Parse the camera parameters
+        sensors_dict = {}
+        for _, row in cameras_data.iterrows():
+            # Note that the convention is for cx, cy to be defined from the center
+            # not the corner
+            sensor_dict = {
+                "image_width": row["WIDTH"],
+                "image_height": row["HEIGHT"],
+                "f": row["PARAMS_F"],
+                "cx": row["PARAMS_CX"] - row["WIDTH"] / 2,
+                "cy": row["PARAMS_CY"] - row["HEIGHT"] / 2,
+                "distortion_params": {"r": row["PARAMS_RADIAL"]},
+            }
+            sensors_dict[row["CAMERA_ID"]] = sensor_dict
+
+        cam_to_world_transforms = []
+        sensor_IDs = []
+        image_filenames = []
+
+        for _, row in images_data.iterrows():
+            rot_mat = Rotation.from_quat(
+                (row["QX"], row["QY"], row["QZ"], row["QW"])
+            ).as_matrix()
+            translation_vec = np.array([row["TX"], row["TY"], row["TZ"]])
+            world_to_cam = np.eye(4)
+            world_to_cam[:3, :3] = rot_mat
+            world_to_cam[:3, 3] = translation_vec
+            cam_to_world = np.linalg.inv(world_to_cam)
+            cam_to_world_transforms.append(cam_to_world)
+
+            sensor_IDs.append(row["CAMERA_ID"])
+            image_filenames.append(Path(row["NAME"]))
+
+        super().__init__(
+            cam_to_world_transforms=cam_to_world_transforms,
+            intrinsic_params_per_sensor_type=sensors_dict,
+            image_filenames=image_filenames,
+            sensor_IDs=sensor_IDs,
+            image_folder=image_folder,
             validate_images=validate_images,
         )
