@@ -204,7 +204,7 @@ class COLMAPCameraSet(PhotogrammetryCameraSet):
             cam_to_world_transforms.append(cam_to_world)
 
             sensor_IDs.append(row["CAMERA_ID"])
-            image_filenames.append(Path(row["NAME"]))
+            image_filenames.append(Path(image_folder, row["NAME"]))
 
         super().__init__(
             cam_to_world_transforms=cam_to_world_transforms,
