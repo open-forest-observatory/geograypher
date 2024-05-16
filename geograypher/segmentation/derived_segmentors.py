@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -47,7 +48,7 @@ class LookUpSegmentor(Segmentor):
 class TabularRectangleSegmentor(Segmentor):
     def __init__(
         self,
-        pred_folder,
+        pred_file_or_folder,
         image_folder,
         image_shape=(4008, 6016),
         label_key="label",
@@ -58,7 +59,7 @@ class TabularRectangleSegmentor(Segmentor):
         jmax_key="xmax",
         predfile_extension="csv",
     ):
-        self.pred_folder = pred_folder
+        self.pred_file_or_folder = pred_file_or_folder
         self.image_folder = image_folder
         self.image_shape = image_shape
 
@@ -71,7 +72,11 @@ class TabularRectangleSegmentor(Segmentor):
 
         self.predfile_extension = predfile_extension
 
-        files = sorted(Path(self.pred_folder).glob("*" + self.predfile_extension))
+        if os.path.isfile(pred_file_or_folder):
+            files = [pred_file_or_folder]
+        else:
+            files = sorted(Path(self.pred_folder).glob("*" + self.predfile_extension))
+
         dfs = [pd.read_csv(f) for f in files]
 
         self.labels_df = pd.concat(dfs, ignore_index=True)
