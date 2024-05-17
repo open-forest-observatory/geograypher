@@ -1,3 +1,4 @@
+import typing
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -127,13 +128,33 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
 
 
 class COLMAPCameraSet(PhotogrammetryCameraSet):
+
     def __init__(
         self,
-        cameras_file,
-        images_file,
-        image_folder=None,
+        cameras_file: PATH_TYPE,
+        images_file: PATH_TYPE,
+        image_folder: typing.Union[None, PATH_TYPE] = None,
         validate_images: bool = False,
     ):
+        """
+        Create a camera set from the files exported by the open-source structure-from-motion
+        software COLMAP as defined here: https://colmap.github.io/format.html
+
+        Args:
+            cameras_file (PATH_TYPE):
+                Path to the file containing the camera models definitions
+            images_file (PATH_TYPE):
+                Path to the per-image information, including the pose and which camera model is used
+            image_folder (typing.Union[None, PATH_TYPE], optional):
+                Path to the folder of images used to generate the reconstruction. Defaults to None.
+            validate_images (bool, optional):
+                Ensure that the images described in images_file are present in image_folder.
+                Defaults to False.
+
+        Raises:
+            NotImplementedError: If the camera is not a Simple radial model
+        """
+        # Parse the csv representation of the camera models
         cameras_data = pd.read_csv(
             cameras_file,
             sep=" ",
@@ -150,6 +171,9 @@ class COLMAPCameraSet(PhotogrammetryCameraSet):
                 "PARAMS_RADIAL",
             ),
         )
+        # Parse the csv of the per-image information
+        # Note that every image has first the useful information on one row and then unneeded
+        # keypoint information on the following row. Therefore, the keypoints are discarded.
         images_data = pd.read_csv(
             images_file,
             sep=" ",
@@ -170,14 +194,15 @@ class COLMAPCameraSet(PhotogrammetryCameraSet):
             usecols=list(range(10)),
         )
 
+        # TODO support more camera models
         if np.any(cameras_data["MODEL"] != "SIMPLE_RADIAL"):
-            raise ValueError("Not a supported camera model")
+            raise NotImplementedError("Not a supported camera model")
 
-        # Parse the camera parameters
+        # Parse the camera parameters, creating a dict for each distinct camera model
         sensors_dict = {}
         for _, row in cameras_data.iterrows():
-            # Note that the convention is for cx, cy to be defined from the center
-            # not the corner
+            # Note that the convention in this tool is for cx, cy to be defined from the center
+            # not the corner so it must be shifted
             sensor_dict = {
                 "image_width": row["WIDTH"],
                 "image_height": row["HEIGHT"],
@@ -188,24 +213,35 @@ class COLMAPCameraSet(PhotogrammetryCameraSet):
             }
             sensors_dict[row["CAMERA_ID"]] = sensor_dict
 
+        # Parse the per-image information
         cam_to_world_transforms = []
         sensor_IDs = []
         image_filenames = []
 
         for _, row in images_data.iterrows():
+            # Convert from the quaternion representation to the matrix one. Note that the W element
+            # is the first one in the COLMAP convention but the last one in scipy.
             rot_mat = Rotation.from_quat(
                 (row["QX"], row["QY"], row["QZ"], row["QW"])
             ).as_matrix()
+            # Get the camera translation
             translation_vec = np.array([row["TX"], row["TY"], row["TZ"]])
+
+            # Create a 4x4 homogenous matrix representing the world_to_cam transform
             world_to_cam = np.eye(4)
+            # Populate the sub-elements
             world_to_cam[:3, :3] = rot_mat
             world_to_cam[:3, 3] = translation_vec
+            # We need the cam to world transform. Since we're using a 4x4 representation, we can
+            # just invert the matrix
             cam_to_world = np.linalg.inv(world_to_cam)
             cam_to_world_transforms.append(cam_to_world)
 
+            # Record which camera model is used and the image filename
             sensor_IDs.append(row["CAMERA_ID"])
             image_filenames.append(Path(image_folder, row["NAME"]))
 
+        # Instantiate the camera set
         super().__init__(
             cam_to_world_transforms=cam_to_world_transforms,
             intrinsic_params_per_sensor_type=sensors_dict,
