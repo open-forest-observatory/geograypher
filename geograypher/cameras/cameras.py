@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import os
 import shutil
@@ -10,8 +12,6 @@ import numpy as np
 import numpy.ma as ma
 import pyproj
 import pyvista as pv
-import torch
-from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import Point
@@ -71,6 +71,38 @@ class PhotogrammetryCamera:
         self.cache_image = (
             False  # Only set to true if you can hold all images in memory
         )
+
+    def get_camera_hash(self, include_image_hash: bool = False):
+        """Generates a hash value for the camera's geometry and optionally includes the image
+
+        Args:
+            include_image_hash (bool, optional): Whether to include the image filename in the hash computation. Defaults to false.
+
+        Returns:
+            int: A hash value representing the current state of the camera
+        """
+        # Geometric information of hash
+        transform_hash = self.cam_to_world_transform.tolist()
+        camera_settings = {
+            "transform": transform_hash,
+            "f": self.f,
+            "cx": self.cx,
+            "cy": self.cy,
+            "image_width": self.image_width,
+            "image_height": self.image_height,
+            "distortion_params": self.distortion_params,
+            "lon_lat": self.lon_lat,
+        }
+
+        # Include the image associated with the hash if specified
+        if include_image_hash:
+            camera_settings["image_filename"] = str(self.image_filename)
+
+        camera_settings_data = json.dumps(camera_settings, sort_keys=True)
+        hasher = hashlib.sha256()
+        hasher.update(camera_settings_data.encode("utf-8"))
+
+        return hasher.hexdigest()
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -620,7 +652,7 @@ class PhotogrammetryCameraSet:
 
     def get_subset_cameras(self, inds: List[int]):
         subset_camera_set = deepcopy(self)
-        subset_camera_set.cameras = [self.cameras[i] for i in inds]
+        subset_camera_set.cameras = [subset_camera_set.cameras[i] for i in inds]
         return subset_camera_set
 
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:

@@ -132,19 +132,13 @@ def aggregate_images(
     # this is the slow step
     if n_aggregation_clusters is None:
         # Aggregate full mesh at once
-        aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d(
+        aggregated_face_labels, _ = mesh.aggregate_projected_images(
             segmentor_camera_set,
             image_scale=aggregate_image_scale,
         )
     else:
-        # TODO consider whether buffer distance should be tunable. This is fairly conservative
-        # but won't neccisarily capture everything
-        aggregated_face_labels, _, _ = mesh.aggregate_viewpoints_pytorch3d_by_cluster(
-            segmentor_camera_set,
-            image_scale=aggregate_image_scale,
-            buffer_dist_meters=100,
-            n_clusters=n_aggregation_clusters,
-            vis_clusters=False,
+        raise NotImplementedError(
+            "TODO implement clustered aggregation with pyvista rendering"
         )
     # If requested, save this data
     if aggregated_face_values_savefile is not None:

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 from imageio import imread, imwrite
+from tqdm import tqdm
 
 from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from geograypher.utils.files import ensure_folder
@@ -136,9 +137,15 @@ def create_composite(
         RGB_image = RGB_image / 255
 
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
+        # If it's a one channel image make it not have a channel dim
+        label_image = np.squeeze(label_image)
+
         vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
         cmap = plt.get_cmap(vis_options["cmap"])
-        null_mask = label_image == NULL_TEXTURE_INT_VALUE
+        null_mask = np.logical_or(
+            label_image == NULL_TEXTURE_INT_VALUE,
+            np.logical_not(np.isfinite(label_image)),
+        )
         if not vis_options["discrete"]:
             # Shift
             label_image = label_image - np.nanmin(label_image)
@@ -149,6 +156,9 @@ def create_composite(
                 max_value = np.max(valid_pixels)
                 # Scale
                 label_image = label_image / max_value
+        else:
+            # Convert it to an int so it's used to directly index the colormap
+            label_image = label_image.astype(np.uint8)
 
         # Perform the colormapping
         label_image = cmap(label_image)[..., :3]
@@ -207,7 +217,9 @@ def show_segmentation_labels(
             IDs_to_labels = json.load(infile)
             IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
 
-    for i, rendered_file in enumerate(rendered_files[:num_show]):
+    for i, rendered_file in tqdm(
+        enumerate(rendered_files[:num_show]), desc="Showing segmentation labels"
+    ):
         image_file = Path(
             image_folder, rendered_file.relative_to(label_folder)
         ).with_suffix(image_suffix)
