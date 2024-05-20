@@ -16,6 +16,7 @@ from geograypher.utils.geospatial import ensure_geometric_CRS
 
 class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
     """Extends the TexturedPhotogrammtery mesh by allowing chunked operations for large meshes"""
+
     def get_mesh_chunks_for_cameras(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
@@ -50,7 +51,9 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             camera_points = [Point(*cameras.get_lon_lat())]
         else:
             # Get the lat lon for each camera point and turn into a shapely Point
-            camera_points = [Point(*cp) for cp in cameras.get_lon_lat_coords()]
+            camera_points = [
+                Point(*lon_lat) for lon_lat in cameras.get_lon_lat_coords()
+            ]
 
         # Create a geodataframe from the points
         camera_points = gpd.GeoDataFrame(
@@ -86,6 +89,8 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         for cluster_ID in tqdm(range(n_clusters), desc="Chunks in mesh"):
             # Get indices of cameras for that cluster
             matching_camera_inds = np.where(cluster_ID == camera_cluster_IDs)[0]
+            # Get the segmentor camera set for the subset of the camera inds
+            sub_camera_set = cameras.get_subset_cameras(matching_camera_inds)
             # Extract the rows in the dataframe for those IDs
             subset_camera_points = camera_points.iloc[matching_camera_inds]
 
@@ -103,17 +108,18 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             )
             # Extract the corresponding texture elements for this sub mesh if needed
             # If include_texture=False, the full_mesh_texture will not be set
+            # If there is no mesh, the texture should also be set to None, otherwise it will be
+            # ambigious whether it's a face or vertex texture
             sub_mesh_texture = (
-                full_mesh_texture[face_IDs] if full_mesh_texture is not None else None
+                full_mesh_texture[face_IDs]
+                if full_mesh_texture is not None and len(face_IDs) > 0
+                else None
             )
 
             # Wrap this pyvista mesh in a photogrammetry mesh
             sub_mesh_TPM = TexturedPhotogrammetryMesh(
                 sub_mesh_pv, texture=sub_mesh_texture
             )
-
-            # Get the segmentor camera set for the subset of the camera inds
-            sub_camera_set = cameras.get_subset_cameras(matching_camera_inds)
 
             # Return the submesh as a Textured Photogrammetry Mesh, the subset of cameras, and the
             # face IDs mapping the faces in the sub mesh back to the full one
@@ -159,7 +165,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                The pix2face array for the next camera. The shape is
                (int(img_h*render_img_scale), int(img_w*render_img_scale)).
         """
-        # Create a generator to generate chunked meshes
+        # Create a generator to chunked meshes based on clusters of cameras
         chunk_gen = self.get_mesh_chunks_for_cameras(
             cameras,
             n_clusters=n_clusters,
@@ -167,7 +173,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             vis_clusters=vis_clusters,
             include_texture=True,
         )
-        # Loop over the sub meshes and sub camera set
+
         for sub_mesh_TPM, sub_camera_set, _ in tqdm(
             chunk_gen, total=n_clusters, desc="Rendering by chunks"
         ):
@@ -185,13 +191,42 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
     def aggregate_projected_images(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
         n_clusters: int = 8,
         buffer_dist_meters: float = 50,
         vis_clusters: bool = False,
-        batch_size: int = 1,
-        aggregate_img_scale: float = 1,
         **kwargs
     ):
+        """
+        Aggregate the imagery from multiple cameras into per-face averges. This version chunks the
+        mesh up and performs aggregation on sub-regions to decrease the runtime.
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to aggregate the images from. cam.get_image() will be called on each
+                element.
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+            n_clusters (int, optional):
+                The mesh is broken up into this many clusters. Defaults to 8.
+            buffer_dist_meters (int, optional):
+                Each cluster contains the mesh that is within this distance in meters of the camera
+                locations. Defaults to 50.
+            vis_clusters (bool, optional):
+                Should the location of the cameras and resultant clusters be shown. Defaults to False.
+
+        Returns:
+            np.ndarray: (n_faces, n_image_channels) The average projected image per face
+            dict: Additional information, including the summed projections, observations per face,
+                  and potentially each individual projection
+        """
+
+        # Initialize the values that will be incremented per cluster
         summed_projections = np.zeros(
             (self.pyvista_mesh.n_faces, cameras.n_image_channels()), dtype=float
         )
