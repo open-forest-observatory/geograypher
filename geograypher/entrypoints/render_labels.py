@@ -16,6 +16,7 @@ from geograypher.constants import (
     PATH_TYPE,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.utils.visualization import show_segmentation_labels
 
 
@@ -37,6 +38,7 @@ def render_labels(
     ROI_buffer_radius_meters: float = 50,
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
+    n_render_clusters: typing.Union[int, None] = None,
     vis: bool = False,
     mesh_vis_file: typing.Union[PATH_TYPE, None] = None,
     labels_vis_folder: typing.Union[PATH_TYPE, None] = None,
@@ -76,6 +78,9 @@ def render_labels(
             Downsample the images to this fraction of the size for increased performance but lower quality. Defaults to 1.
         mesh_downsample (float, optional):
             Downsample the mesh to this fraction of vertices for increased performance but lower quality. Defaults to 1.
+        n_render_clusters (typing.Union[int, None]):
+            If set, break the camera set and mesh into this many clusters before rendering. This is
+            useful for large meshes that are otherwise very slow. Defaults to None.
         mesh_vis (typing.Union[PATH_TYPE, None])
             Path to save the visualized mesh instead of showing it interactively. Only applicable if vis=True. Defaults to None.
         labels_vis (typing.Union[PATH_TYPE, None])
@@ -104,8 +109,15 @@ def render_labels(
     if subset_images_savefolder is not None:
         training_camera_set.save_images(subset_images_savefolder)
 
+    # Select whether to use a class that renders by chunks or not
+    MeshClass = (
+        TexturedPhotogrammetryMesh
+        if n_render_clusters is None
+        else TexturedPhotogrammetryMeshChunked
+    )
+
     ## Create the textured mesh
-    mesh = TexturedPhotogrammetryMesh(
+    mesh = MeshClass(
         mesh_file,
         downsample_target=mesh_downsample,
         texture=texture,
@@ -136,6 +148,11 @@ def render_labels(
     if vis or mesh_vis_file is not None:
         mesh.vis(camera_set=training_camera_set, screenshot_filename=mesh_vis_file)
 
+    # Include n_render_clusters as an optional keyword argument, if provided. This is only applicable
+    # if this mesh is a TexturedPhotogrammetryMeshChunked object
+    render_kwargs = (
+        {} if n_render_clusters is None else {"n_clusters": n_render_clusters}
+    )
     # Render the labels and save them. This is the slow step.
     mesh.save_renders(
         camera_set=training_camera_set,
@@ -143,6 +160,7 @@ def render_labels(
         save_native_resolution=True,
         output_folder=render_savefolder,
         make_composites=False,
+        **render_kwargs,
     )
 
     if vis or labels_vis_folder is not None:
