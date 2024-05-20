@@ -56,6 +56,10 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             )
             plt.show()
 
+
+        # Get the texture from the full mesh
+        full_mesh_texture = self.get_texture(request_face_texture=True)
+
         # Do pix2face by cluster
         for cluster_ID in tqdm(range(n_clusters), desc="Chunks in mesh"):
             # Get indices of cameras for that cluster
@@ -75,8 +79,11 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 buffer_meters=buffer_dist_meters,
                 return_original_IDs=True,
             )
+            # Extract the corresponding texture elements for this sub mesh
+            sub_mesh_texture = full_mesh_texture[face_IDs] if full_mesh_texture is not None else None
+
             # Wrap this pyvista mesh in a photogrammetry mesh
-            sub_mesh_TPM = TexturedPhotogrammetryMesh(sub_mesh_pv)
+            sub_mesh_TPM = TexturedPhotogrammetryMesh(sub_mesh_pv, texture=sub_mesh_texture)
 
             # Get the segmentor camera set for the subset of the camera inds
             sub_camera_set = cameras.get_subset_cameras(matching_camera_inds)
@@ -84,6 +91,48 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             # Return the submesh as a Textured Photogrammetry Mesh, the subset of cameras, and the
             # face IDs mapping the faces in the sub mesh back to the full one
             yield sub_mesh_TPM, sub_camera_set, face_IDs
+
+    def render_flat(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        render_img_scale: float = 1,
+        n_clusters: int = 8,
+        buffer_dist_meters: float = 50,
+        vis_clusters: bool = False,
+        **pix2face_kwargs
+    ):
+        """TODO
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]): _description_
+            batch_size (int, optional): _description_. Defaults to 1.
+            render_img_scale (float, optional): _description_. Defaults to 1.
+            n_clusters (int, optional): _description_. Defaults to 8.
+            buffer_dist_meters (float, optional): _description_. Defaults to 50.
+            vis_clusters (bool, optional): _description_. Defaults to False.
+
+        Yields:
+            _type_: _description_
+        """
+        # Create a generator to generate chunked meshes
+        chunk_gen = self.get_mesh_chunks_for_cameras(
+            cameras,
+            n_clusters=n_clusters,
+            buffer_dist_meters=buffer_dist_meters,
+            vis_clusters=vis_clusters,
+        )
+        for sub_mesh_TPM, sub_camera_set, _ in chunk_gen:
+            # Create the render generator
+            render_gen = sub_mesh_TPM.render_flat(
+                sub_camera_set,
+                batch_size=batch_size,
+                render_img_scale=render_img_scale,
+                **pix2face_kwargs
+            )
+            # Yield items from the returned generator
+            for render_item in render_gen:
+                yield render_item
 
     def aggregate_projected_images(
         self,
@@ -118,8 +167,13 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             buffer_dist_meters=buffer_dist_meters,
             vis_clusters=vis_clusters,
         )
+
         # Iterate over chunks in the mesh
         for sub_mesh_TPM, sub_camera_set, face_IDs in chunk_gen:
+            # This means there was no mesh for these cameras
+            if len(face_IDs) == 0:
+                continue
+
             # Aggregate the projections from a set of cameras corresponding to
             _, additional_information_submesh = sub_mesh_TPM.aggregate_projected_images(
                 sub_camera_set,
