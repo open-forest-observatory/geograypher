@@ -134,7 +134,7 @@ def aggregate_images(
         # Aggregate full mesh at once
         aggregated_face_labels, _ = mesh.aggregate_projected_images(
             segmentor_camera_set,
-            image_scale=aggregate_image_scale,
+            aggregate_img_scale=aggregate_image_scale,
         )
     else:
         raise NotImplementedError(
