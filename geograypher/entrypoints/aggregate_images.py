@@ -14,6 +14,7 @@ from geograypher.constants import (
     PATH_TYPE,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.segmentation.derived_segmentors import LookUpSegmentor
 from geograypher.utils.files import ensure_containing_folder
 
@@ -104,14 +105,24 @@ def aggregate_images(
         mesh_transform_file = cameras_file
 
     ## Create the mesh
-    mesh = TexturedPhotogrammetryMesh(
-        mesh_file,
-        transform_filename=mesh_transform_file,
-        ROI=ROI,
-        ROI_buffer_meters=ROI_buffer_radius_meters,
-        IDs_to_labels=IDs_to_labels,
-        downsample_target=mesh_downsample,
-    )
+    if n_aggregation_clusters is None:
+        mesh = TexturedPhotogrammetryMesh(
+            mesh_file,
+            transform_filename=mesh_transform_file,
+            ROI=ROI,
+            ROI_buffer_meters=ROI_buffer_radius_meters,
+            IDs_to_labels=IDs_to_labels,
+            downsample_target=mesh_downsample,
+        )
+    else:
+        mesh = TexturedPhotogrammetryMeshChunked(
+            mesh_file,
+            transform_filename=mesh_transform_file,
+            ROI=ROI,
+            ROI_buffer_meters=ROI_buffer_radius_meters,
+            IDs_to_labels=IDs_to_labels,
+            downsample_target=mesh_downsample,
+        )
 
     # Show the mesh if requested
     if vis:
@@ -128,18 +139,20 @@ def aggregate_images(
         camera_set, segmentor=segmentor
     )
 
-    ## Perform aggregation
-    # this is the slow step
     if n_aggregation_clusters is None:
-        # Aggregate full mesh at once
+        ## Perform aggregation, this is the slow step
         aggregated_face_labels, _ = mesh.aggregate_projected_images(
             segmentor_camera_set,
             aggregate_img_scale=aggregate_image_scale,
         )
     else:
-        raise NotImplementedError(
-            "TODO implement clustered aggregation with pyvista rendering"
+        ## Perform aggregation, this is the slow step
+        aggregated_face_labels, _ = mesh.aggregate_projected_images(
+            segmentor_camera_set,
+            aggregate_img_scale=aggregate_image_scale,
+            n_clusters=n_aggregation_clusters,  # TODO fix this hack
         )
+
     # If requested, save this data
     if aggregated_face_values_savefile is not None:
         ensure_containing_folder(aggregated_face_values_savefile)
