@@ -1873,6 +1873,7 @@ class TexturedPhotogrammetryMesh:
         save_native_resolution: bool = False,
         cast_to_uint8: bool = True,
         uint8_value_for_null_texture: np.uint8 = NULL_TEXTURE_INT_VALUE,
+        **render_kwargs,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
@@ -1893,6 +1894,8 @@ class TexturedPhotogrammetryMesh:
             uint8_value_for_null_texture (np.uint8, optional):
                 What value to assign for values that can't be represented as unsigned 8-bit data.
                 Defaults to NULL_TEXTURE_INT_VALUE
+            render_kwargs:
+                keyword arguments passed to the render.
         """
 
         ensure_folder(output_folder)
@@ -1903,7 +1906,7 @@ class TexturedPhotogrammetryMesh:
 
         # Create the generator object to render the images
         # Since this is a generator, this will be fast
-        render_gen = self.render_flat(camera_set, render_img_scale=render_image_scale)
+        render_gen = self.render_flat(camera_set, render_img_scale=render_image_scale, **render_kwargs)
 
         # The computation only happens when items are requested from the generator
         for i, rendered in enumerate(
