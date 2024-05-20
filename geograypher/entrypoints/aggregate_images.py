@@ -104,25 +104,21 @@ def aggregate_images(
     if mesh_transform_file is None:
         mesh_transform_file = cameras_file
 
+    # Choose whether to use a mesh class that aggregates by clusters of cameras and chunks of the mesh
+    MeshClass = (
+        TexturedPhotogrammetryMesh
+        if n_aggregation_clusters is None
+        else TexturedPhotogrammetryMeshChunked
+    )
     ## Create the mesh
-    if n_aggregation_clusters is None:
-        mesh = TexturedPhotogrammetryMesh(
-            mesh_file,
-            transform_filename=mesh_transform_file,
-            ROI=ROI,
-            ROI_buffer_meters=ROI_buffer_radius_meters,
-            IDs_to_labels=IDs_to_labels,
-            downsample_target=mesh_downsample,
-        )
-    else:
-        mesh = TexturedPhotogrammetryMeshChunked(
-            mesh_file,
-            transform_filename=mesh_transform_file,
-            ROI=ROI,
-            ROI_buffer_meters=ROI_buffer_radius_meters,
-            IDs_to_labels=IDs_to_labels,
-            downsample_target=mesh_downsample,
-        )
+    mesh = MeshClass(
+        mesh_file,
+        transform_filename=mesh_transform_file,
+        ROI=ROI,
+        ROI_buffer_meters=ROI_buffer_radius_meters,
+        IDs_to_labels=IDs_to_labels,
+        downsample_target=mesh_downsample,
+    )
 
     # Show the mesh if requested
     if vis:
@@ -139,19 +135,17 @@ def aggregate_images(
         camera_set, segmentor=segmentor
     )
 
-    if n_aggregation_clusters is None:
-        ## Perform aggregation, this is the slow step
-        aggregated_face_labels, _ = mesh.aggregate_projected_images(
-            segmentor_camera_set,
-            aggregate_img_scale=aggregate_image_scale,
-        )
-    else:
-        ## Perform aggregation, this is the slow step
-        aggregated_face_labels, _ = mesh.aggregate_projected_images(
-            segmentor_camera_set,
-            aggregate_img_scale=aggregate_image_scale,
-            n_clusters=n_aggregation_clusters,  # TODO fix this hack
-        )
+    # Create the potentially-empty dict of kwargs to match what this class expects
+    n_clusters_kwargs = (
+        {} if n_aggregation_clusters is None else {"n_clusters": n_aggregation_clusters}
+    )
+
+    ## Perform aggregation, this is the slow step
+    aggregated_face_labels, _ = mesh.aggregate_projected_images(
+        segmentor_camera_set,
+        aggregate_img_scale=aggregate_image_scale,
+        **n_clusters_kwargs
+    )
 
     # If requested, save this data
     if aggregated_face_values_savefile is not None:

@@ -150,7 +150,9 @@ def render_labels(
 
     # Include n_render_clusters as an optional keyword argument, if provided. This is only applicable
     # if this mesh is a TexturedPhotogrammetryMeshChunked object
-    render_kwargs = {} if n_render_clusters is None else {"n_clusters": n_render_clusters}
+    render_kwargs = (
+        {} if n_render_clusters is None else {"n_clusters": n_render_clusters}
+    )
     # Render the labels and save them. This is the slow step.
     mesh.save_renders(
         camera_set=training_camera_set,
