@@ -87,7 +87,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
 
     def aggregate_projected_images(
         self,
-        cameras: PhotogrammetryCamera | PhotogrammetryCameraSet,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         n_clusters: int = 8,
         buffer_dist_meters: float = 50,
         vis_clusters: bool = False,
