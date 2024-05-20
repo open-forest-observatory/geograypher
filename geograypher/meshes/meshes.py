@@ -1484,7 +1484,9 @@ class TexturedPhotogrammetryMesh:
                 window_size=(image_size[1], image_size[0]),
             )
             # Take the rendered values and interpret them as the encoded value
-            for i in range(3):
+            # Make sure to not try to interpret channels that are not used in the encoding
+            channels_to_decode = min(3, len(channel_multipliers) - 3 * chunk_ind)
+            for i in range(channels_to_decode):
                 channel_multiplier = channel_multipliers[chunk_ind * 3 + i]
                 channel_value = (rendered_img[..., i] * channel_multiplier).astype(int)
                 pix2face += channel_value
