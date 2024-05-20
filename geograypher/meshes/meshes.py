@@ -1906,7 +1906,9 @@ class TexturedPhotogrammetryMesh:
 
         # Create the generator object to render the images
         # Since this is a generator, this will be fast
-        render_gen = self.render_flat(camera_set, render_img_scale=render_image_scale, **render_kwargs)
+        render_gen = self.render_flat(
+            camera_set, render_img_scale=render_image_scale, **render_kwargs
+        )
 
         # The computation only happens when items are requested from the generator
         for i, rendered in enumerate(
