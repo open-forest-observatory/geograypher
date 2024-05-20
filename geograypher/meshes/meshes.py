@@ -1596,6 +1596,21 @@ class TexturedPhotogrammetryMesh:
         aggregate_img_scale: float = 1,
         **pix2face_kwargs,
     ):
+        """Find the per-face projection for each of a set of images and associated camera
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to project images from. cam.get_image() will be called on each one
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+
+        Yields:
+            np.ndarray: The per-face projection of an image in the camera set
+        """
         n_faces = self.faces.shape[0]
 
         # Iterate over batch of the cameras
@@ -1629,6 +1644,27 @@ class TexturedPhotogrammetryMesh:
         return_all: bool = False,
         **kwargs,
     ):
+        """Aggregate the imagery from multiple cameras into per-face averges
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to aggregate the images from. cam.get_image() will be called on each
+                element.
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+            return_all (bool, optional):
+                Return the projection of each individual image, rather than just the aggregates.
+                Defaults to False.
+
+        Returns:
+            np.ndarray: (n_faces, n_image_channels) The average projected image per face
+            dict: Additional information, including the summed projections, observations per face,
+                  and potentially each individual projection
+        """
         project_images_generator = self.project_images(
             cameras=cameras,
             batch_size=batch_size,
