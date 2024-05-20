@@ -525,8 +525,8 @@ class TexturedPhotogrammetryMesh:
         # If we need the indices into the original mesh, return those
         if return_original_IDs:
             try:
-                point_IDs = subset_unstructured_grid["vtkOriginalPointIds"],
-                face_IDs=    subset_unstructured_grid["vtkOriginalCellIds"],
+                point_IDs = (subset_unstructured_grid["vtkOriginalPointIds"],)
+                face_IDs = (subset_unstructured_grid["vtkOriginalCellIds"],)
             except KeyError:
                 point_IDs = np.array([])
                 face_IDs = np.array([])
