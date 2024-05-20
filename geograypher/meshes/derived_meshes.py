@@ -21,6 +21,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         n_clusters: int = 8,
         buffer_dist_meters=50,
         vis_clusters: bool = False,
+        include_texture: bool = False,
     ):
         """
         Return the chunked meshes as generator
@@ -56,9 +57,10 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             )
             plt.show()
 
-
         # Get the texture from the full mesh
-        full_mesh_texture = self.get_texture(request_face_texture=True)
+        full_mesh_texture = (
+            self.get_texture(request_vertex_texture=False) if include_texture else None
+        )
 
         # Do pix2face by cluster
         for cluster_ID in tqdm(range(n_clusters), desc="Chunks in mesh"):
@@ -79,11 +81,16 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 buffer_meters=buffer_dist_meters,
                 return_original_IDs=True,
             )
-            # Extract the corresponding texture elements for this sub mesh
-            sub_mesh_texture = full_mesh_texture[face_IDs] if full_mesh_texture is not None else None
+            # Extract the corresponding texture elements for this sub mesh if needed
+            # If include_texture=False, the full_mesh_texture will not be set
+            sub_mesh_texture = (
+                full_mesh_texture[face_IDs] if full_mesh_texture is not None else None
+            )
 
             # Wrap this pyvista mesh in a photogrammetry mesh
-            sub_mesh_TPM = TexturedPhotogrammetryMesh(sub_mesh_pv, texture=sub_mesh_texture)
+            sub_mesh_TPM = TexturedPhotogrammetryMesh(
+                sub_mesh_pv, texture=sub_mesh_texture
+            )
 
             # Get the segmentor camera set for the subset of the camera inds
             sub_camera_set = cameras.get_subset_cameras(matching_camera_inds)
@@ -102,18 +109,35 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         vis_clusters: bool = False,
         **pix2face_kwargs
     ):
-        """TODO
+        """
+        Render the texture from the viewpoint of each camera in cameras. Note that this is a
+        generator so if you want to actually execute the computation, call list(*) on the output.
+        This version first clusters the cameras, extracts a region of the mesh surrounding each
+        cluster of cameras, and then performs rendering on each sub-region.
 
         Args:
-            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]): _description_
-            batch_size (int, optional): _description_. Defaults to 1.
-            render_img_scale (float, optional): _description_. Defaults to 1.
-            n_clusters (int, optional): _description_. Defaults to 8.
-            buffer_dist_meters (float, optional): _description_. Defaults to 50.
-            vis_clusters (bool, optional): _description_. Defaults to False.
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                Either a single camera or a camera set. The texture will be rendered from the
+                perspective of each one
+            batch_size (int, optional):
+                The batch size for pix2face. Defaults to 1.
+            render_img_scale (float, optional):
+                The rendered image will be this fraction of the original image corresponding to the
+                virtual camera. Defaults to 1.
+            n_clusters (int, optional):
+                Number of clusters to break the cameras into. Defaults to 8.
+            buffer_dist_meters (float, optional):
+                How far around the cameras to include the mesh. Defaults to 50.
+            vis_clusters (bool, optional):
+                Should the clusters of camera locations be shown. Defaults to False.
+
+        Raises:
+            TypeError: If cameras is not the correct type
 
         Yields:
-            _type_: _description_
+            np.ndarray:
+               The pix2face array for the next camera. The shape is
+               (int(img_h*render_img_scale), int(img_w*render_img_scale)).
         """
         # Create a generator to generate chunked meshes
         chunk_gen = self.get_mesh_chunks_for_cameras(
@@ -121,8 +145,12 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             n_clusters=n_clusters,
             buffer_dist_meters=buffer_dist_meters,
             vis_clusters=vis_clusters,
+            include_texture=True,
         )
-        for sub_mesh_TPM, sub_camera_set, _ in chunk_gen:
+        # Loop over the sub meshes and sub camera set
+        for sub_mesh_TPM, sub_camera_set, _ in tqdm(
+            chunk_gen, total=n_clusters, desc="Rendering by chunks"
+        ):
             # Create the render generator
             render_gen = sub_mesh_TPM.render_flat(
                 sub_camera_set,
