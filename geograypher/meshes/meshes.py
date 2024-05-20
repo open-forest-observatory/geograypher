@@ -88,7 +88,10 @@ class TexturedPhotogrammetryMesh:
         self.logger.setLevel(log_level)
         # Potentially necessary for Jupyter
         # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
-        self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
+        # If you don't check that there's already a handler, you can have situations with duplicated
+        # print outs if you have multiple mesh objects
+        if self.logger.hasHandlers():
+            self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
         # Load the transform
         self.logger.info("Loading transform to EPSG:4326")
@@ -521,10 +524,17 @@ class TexturedPhotogrammetryMesh:
 
         # If we need the indices into the original mesh, return those
         if return_original_IDs:
+            try:
+                point_IDs = subset_unstructured_grid["vtkOriginalPointIds"],
+                face_IDs=    subset_unstructured_grid["vtkOriginalCellIds"],
+            except KeyError:
+                point_IDs = np.array([])
+                face_IDs = np.array([])
+
             return (
                 subset_mesh,
-                subset_unstructured_grid["vtkOriginalPointIds"],
-                subset_unstructured_grid["vtkOriginalCellIds"],
+                point_IDs,
+                face_IDs,
             )
         # Else return just the mesh
         return subset_mesh
@@ -1425,7 +1435,7 @@ class TexturedPhotogrammetryMesh:
             "pix2face",
             depends=[mesh_hash, camera_hash, render_img_scale],
             dpath=cache_folder,
-            verbose=1,
+            verbose=0,
         )
         pix2face = cacher.tryload(on_error="clear")
         ## Cache is valid
@@ -1447,7 +1457,7 @@ class TexturedPhotogrammetryMesh:
         ID_values = np.arange(n_faces)
 
         # determine how many channels will be required to represent the number of faces
-        n_channels = int(np.ceil(np.emath.logn(256, n_faces)))
+        n_channels = int(np.ceil(np.emath.logn(256, n_faces))) if n_faces != 0 else 0
         channel_multipliers = [256**i for i in range(n_channels)]
 
         # Compute the encoding of each value, least significant value first
