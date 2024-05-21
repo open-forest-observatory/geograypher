@@ -998,32 +998,32 @@ class TexturedPhotogrammetryMesh:
 
         # Perform the overlay between faces and polygons.
         # This is usually the most expensive opereration.
+
+        # Since overlay is expensive, we first discard faces that are not near the polygons
+
+        # Discard any faces which do not intersect the polygons
+        # Dissolve the polygons to form one ROI
+        merged_polygons = polygons_gdf.dissolve()
+        merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
+        # Determine which face IDs intersect the ROI. This is slow
+        self.logger.info("Starting `within`")
+
+        # Check which faces are fully within the buffered regions around the query polygons
+        # Note that using sjoin has been faster than any other approach I've tried, despite seeming
+        # to compute more information than something like gpd.within
+        contained_faces = gpd.sjoin(
+            faces_2d_gdf, merged_polygons, how="left", predicate="within"
+        )["index_right"].notna()
+        faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
+
+        start = time()
+        self.logger.info("Starting `overlay`")
         if sjoin_overlay:
-            self.logger.info("Starting `overlay`")
-            start = time()
             overlay = gpd.sjoin(
                 faces_2d_gdf, polygons_gdf, how="left", predicate="within"
             )
             self.logger.info(f"Overlay time with gpd.sjoin: {time() - start}")
         else:
-            # Since overlay is expensive, we first discard faces that are not near the polygons
-
-            # Discard any faces which do not intersect the polygons
-            # Dissolve the polygons to form one ROI
-            merged_polygons = polygons_gdf.dissolve()
-            merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
-            # Determine which face IDs intersect the ROI. This is slow
-            self.logger.info("Starting `within`")
-
-            # Check which faces are fully within the buffered regions around the query polygons
-            # Note that using sjoin has been faster than any other approach I've tried, despite seeming
-            # to compute more information than something like gpd.within
-            contained_faces = gpd.sjoin(
-                faces_2d_gdf, merged_polygons, how="left", predicate="within"
-            )["index_right"].notna()
-            faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
-
-            start = time()
             # Drop faces not included
             overlay = polygons_gdf.overlay(
                 faces_2d_gdf, how="identity", keep_geom_type=False
