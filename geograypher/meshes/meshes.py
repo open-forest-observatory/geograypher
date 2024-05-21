@@ -90,7 +90,7 @@ class TexturedPhotogrammetryMesh:
         # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
         # If you don't check that there's already a handler, you can have situations with duplicated
         # print outs if you have multiple mesh objects
-        if self.logger.hasHandlers():
+        if not self.logger.hasHandlers():
             self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
         # Load the transform
