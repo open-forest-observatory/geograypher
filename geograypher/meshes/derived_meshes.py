@@ -296,7 +296,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         return_class_labels: bool = True,
         unknown_class_label: str = "unknown",
         buffer_dist_meters: float = 2,
-        n_clusters: int = 8,
+        n_polygons_per_cluster: int = 1000,
     ):
         """
         Assign a class label to polygons using labels per face. This implementation is useful for
@@ -324,8 +324,9 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             buffer_dist_meters: (Union[float, None], optional)
                 Only applicable if sjoin_overlay=False. In that case, include faces entirely within
                 the region that is this distance in meters from the polygons. Defaults to 2.0.
-            n_clusters: (int):
-                The number of clusters to cluster the polygons into for independent computation
+            n_polygons_per_cluster: (int):
+                Set the number of clusters so there are approximately this number polygons per
+                cluster on average. Defaults to 1000
 
         Raises:
             ValueError: if faces_labels or face_weighting is not 1D
@@ -341,6 +342,8 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         centroids_xy = np.stack(
             polygons_gdf.centroid.apply(lambda point: (point.x, point.y))
         )
+        # Determine how many clusters there should be
+        n_clusters = int(np.ceil(len(polygons_gdf) / n_polygons_per_cluster))
         # Assign each polygon to a cluster
         polygon_cluster_IDs = KMeans(n_clusters=n_clusters).fit_predict(centroids_xy)
 
