@@ -14,7 +14,7 @@ import torch
 from pytorch3d.renderer import PerspectiveCameras
 from pyvista import demos
 from scipy.spatial.distance import pdist
-from shapely import Multipolygon, Point, Polygon
+from shapely import MultiPolygon, Point, Polygon
 from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
@@ -712,26 +712,28 @@ class PhotogrammetryCameraSet:
 
     def get_subset_ROI(
         self,
-        ROI: Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, Multipolygon],
+        ROI: Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, MultiPolygon],
         buffer_radius: float = 0,
         is_geospatial: bool = None
     ):  
         """Return cameras that are within a radius of the provided geometry
 
         Args:
-            geodata (Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, Multipolygon]): 
+            geodata (Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, MultiPolygon]): 
                 This can be a Geopandas dataframe, path to a geofile readable by geopandas, or 
-                Shapely Polygon/Multipolygon information that can be loaded into a geodataframe
+                Shapely Polygon/MultiPolygon information that can be loaded into a geodataframe
             buffer_radius (float, optional): 
                 Return points within this buffer of the geometry. Defaults to 0. Represents 
                 meters if ROI is geospatial.
             is_geospatial (bool, optional): 
                 A flag for user to indicate if ROI is geospatial or not; if no flag is provided, 
                 the flag is set if the provided geodata has a CRS.
-
+        Returns:
+            subset_camera_set (List[PhotogrammetryCamera]): 
+                List of cameras that fall within the provided ROI
         """
         # construct GeoDataFrame if not provided
-        if isinstance(ROI, (Polygon,Multipolygon)):
+        if isinstance(ROI, (Polygon,MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
                 ROI = gpd.GeoDataFrame(crs='epsg:4326', geometry=[ROI])
