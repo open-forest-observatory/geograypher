@@ -130,6 +130,7 @@ class TexturedPhotogrammetryMesh:
         downsample_target: float = 1.0,
         ROI=None,
         ROI_buffer_meters=0,
+        ROI_simplify_tol_meters=2,
     ):
         """Load the pyvista mesh and create the texture
 
@@ -138,6 +139,12 @@ class TexturedPhotogrammetryMesh:
                 Path to the mesh or actual mesh
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
+            ROI:
+                See select_mesh_ROI. Defaults to None
+            ROI_buffer_meters:
+                See select_mesh_ROI. Defaults to 0.
+            ROI_simplify_tol_meters:
+                See select_mesh_ROI. Defaults to 2.
         """
         if isinstance(mesh, pv.PolyData):
             self.pyvista_mesh = mesh
@@ -150,7 +157,9 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
-            region_of_interest=ROI, buffer_meters=ROI_buffer_meters
+            region_of_interest=ROI,
+            buffer_meters=ROI_buffer_meters,
+            simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
         # Downsample mesh if needed
@@ -464,6 +473,7 @@ class TexturedPhotogrammetryMesh:
             gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
         ],
         buffer_meters: float = 0,
+        simplify_tol_meters: int = 0,
         default_CRS: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         return_original_IDs: bool = False,
     ):
@@ -476,6 +486,7 @@ class TexturedPhotogrammetryMesh:
                 * A shapely polygon/multipolygon
                 * A file that can be loaded by geopandas
             buffer_meters (float, optional): Expand the geometry by this amount of meters. Defaults to 0.
+            simplify_tol_meters (float, optional): Simplify the geometry using this as the tolerance. Defaults to 0.
             default_CRS (pyproj.CRS, optional): The CRS to use if one isn't provided. Defaults to pyproj.CRS.from_epsg(4326).
             return_original_IDs (bool, optional): Return the indices into the original mesh. Defaults to False.
 
@@ -502,8 +513,10 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Setting CRS and buffering ROI")
         # Make sure we're using a geometric CRS so a buffer can be applied
         ROI_gpd = ensure_geometric_CRS(ROI_gpd)
-        # Apply the buffer
-        ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters)
+        # Apply the buffer, plus the tolerance, to ensure we keep at least the requested region
+        ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters + simplify_tol_meters)
+        # Simplify the geometry to reduce the computational load
+        ROI_gpd.geometry = ROI_gpd.geometry.simplify(simplify_tol_meters)
         self.logger.info("Dissolving buffered ROI")
         # Disolve again in case
         ROI_gpd = ROI_gpd.dissolve()
