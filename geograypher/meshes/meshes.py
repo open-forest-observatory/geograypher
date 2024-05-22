@@ -165,8 +165,8 @@ class TexturedPhotogrammetryMesh:
             self.pyvista_mesh = pv.read(mesh)
 
         # make sure KD tree has vertices of source (original, undownsampled mesh)
-        if self.kdtree is None:
-            self.kdtree = KDTree(self.pyvista_mesh.points)
+        # if self.kdtree is None:
+        #     self.kdtree = KDTree(self.pyvista_mesh.points)
 
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
@@ -179,29 +179,54 @@ class TexturedPhotogrammetryMesh:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
+            breakpoint()
             self.logger.info("Downsampling the mesh")
+            # intermediate_mesh = self.pyvista_mesh.decimate(
+            #     target_reduction=(1 - downsample_target)
+            # )
+            # breakpoint()
+            # self.transfer_texture(intermediate_mesh)  # assign labels
+            # self.pyvista_mesh = intermediate_mesh
             self.pyvista_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-            self.transfer_texture()  # assign labels
+            breakpoint()
+            self.logger.info("got here")
+            self.transfer_texture(self.pyvista_mesh)  # assign labels
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
-    def transfer_texture(self):
-        if self.vertex_texture is not None and self.kdtree is not None:
-            # pull attirbutes from pyvista mesh and set them to the target mesh
-            target_mesh = self.pyvista_mesh.points  # mesh has already been downsampled
+    def transfer_texture(self, downsampled_mesh):
+        breakpoint()
+        if self.kdtree is None:
+            self.kdtree = KDTree(self.pyvista_mesh.points)
+        
+        # pull attirbutes from pyvista mesh and set them to the target mesh
+        target_mesh = downsampled_mesh.points  # mesh has already been downsampled
 
-            # query in source mesh
-            # find closest source mesh vertex neighbor for target mesh vertex, store index of each
-            _, indices = self.kdtree.query(target_mesh)  
+        # query in source mesh
+        # find closest source mesh vertex neighbor for target mesh vertex, store index of each
+        _, indices = self.kdtree.query(target_mesh)  
 
-            # create the new texture using the right indices from the original texture
-            downsampled_texture = self.vertex_texture[indices]
+        # create the new texture using the right indices from the original texture
+        downsampled_texture = self.vertex_texture[indices]
 
-            # apply new texture
-            self.vertex_texture = downsampled_texture
+        # set active scalars of downsampled mesh to active scalars of original mesh, insetad of vertex_texture
+        active_scalars_name = self.pyvista_mesh.active_scalars_name
+        active_scalars = self.pyvista_mesh.active_scalars
+
+        if self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.POINT:
+            target_mesh.point_arrays[active_scalars_name] = active_scalars
+        elif self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.CELL:
+            target_mesh.cell_arrays[active_scalars_name] = active_scalars
+
+        # Set the active scalars on the target mesh
+        target_mesh.set_active_scalars(active_scalars_name)
+
+        # apply new texture
+        self.vertex_texture = downsampled_texture
+
 
     def load_transform_to_epsg_4326(
         self, transform_filename: PATH_TYPE, require_transform: bool = False
