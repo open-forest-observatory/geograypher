@@ -24,9 +24,20 @@ from tqdm import tqdm
 from geograypher.constants import PATH_TYPE
 
 
-def ensure_projected_CRS(geodata):
+def ensure_projected_CRS(geodata: gpd.GeoDataFrame):
+    """Returns a projected geodataframe from the provided geodataframe by converting it to 
+        ESPG:4326 (if not already) and determining the projected CRS from the point
+        coordinates.
+
+        Args:
+            geodata (gpd.GeoDataGrame): Original geodataframe that is potentially unprojected
+        Returns:
+            gpd.GeoDataGrame: projected geodataframe
+    """
+    # check if CRS is not projected and convert to lon-lat if not
     if not geodata.crs.is_projected:
         geodata = geodata.to_crs(4326)
+    # convert to projected CRS if ESPG:4236
     if geodata.crs == pyproj.CRS.from_epsg(4326):
         point = geodata["geometry"][0].centroid
         geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
