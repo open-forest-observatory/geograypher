@@ -696,7 +696,9 @@ class TexturedPhotogrammetryMesh:
         if cache_data:
             mesh_hash = self.get_mesh_hash()
             transform_hash = self.get_transform_hash()
-            cache_key = (mesh_hash, transform_hash, crs)
+            faces_mask_hash = hash(faces_mask.tobytes())
+            # Create a key that uniquely identifies the relavant inputs
+            cache_key = (mesh_hash, transform_hash, faces_mask_hash, crs)
 
             # See if the face polygons were in the cache. If not, None will be returned
             cached_values = self.face_polygons_cache.get(cache_key)
@@ -747,7 +749,9 @@ class TexturedPhotogrammetryMesh:
                 for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
                     area, area_2d = compute_3D_triangle_area(face)
                     ratios.append(area / area_2d)
-                self.face_2d_3d_ratios_cache[cache_key] = ratios
+
+                if cache_data:
+                    self.face_2d_3d_ratios_cache[cache_key] = ratios
 
             if cache_data:
                 # Save to cache
