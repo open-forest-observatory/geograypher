@@ -1,8 +1,10 @@
 import typing
+from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pyproj
 from shapely import Point
 from sklearn.cluster import KMeans
@@ -11,7 +13,7 @@ from tqdm import tqdm
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import CACHE_FOLDER, PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.utils.geospatial import ensure_geometric_CRS
+from geograypher.utils.geospatial import coerce_to_geoframe, ensure_geometric_CRS
 
 
 class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
@@ -284,3 +286,94 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         )
 
         return average_projections, additional_information
+
+    def label_polygons(
+        self,
+        face_labels: np.ndarray,
+        polygons: typing.Union[PATH_TYPE, gpd.GeoDataFrame],
+        face_weighting: typing.Union[None, np.ndarray] = None,
+        sjoin_overlay: bool = True,
+        return_class_labels: bool = True,
+        unknown_class_label: str = "unknown",
+        buffer_dist_meters: float = 2,
+        n_clusters: int = 8,
+    ):
+        """
+        Assign a class label to polygons using labels per face. This implementation is useful for
+        large numbers of polygons. To make the expensive sjoin/overlay more efficient, this
+        implementation first clusters the polygons and labels each cluster indepenently. This makes
+        use of the fact that the mesh faces around this cluster can be extracted relatively quickly.
+        Then the sjoin/overlay is computed with substaintially-fewer polygons and faces, leading to
+        better performance.
+
+        Args:
+            face_labels (np.ndarray): (n_faces,) array of integer labels
+            polygons (typing.Union[PATH_TYPE, gpd.GeoDataFrame]): Geospatial polygons to be labeled
+            face_weighting (typing.Union[None, np.ndarray], optional):
+                (n_faces,) array of scalar weights for each face, to be multiplied with the
+                contribution of this face. Defaults to None.
+            sjoin_overlay (bool, optional):
+                Whether to use `gpd.sjoin` or `gpd.overlay` to compute the overlay. Sjoin is
+                substaintially faster, but only uses mesh faces that are entirely within the bounds
+                of the polygon, rather than computing the intersecting region for
+                partially-overlapping faces. Defaults to True.
+            return_class_labels: (bool, optional):
+                Return string representation of class labels rather than float. Defaults to True.
+            unknown_class_label (str, optional):
+                Label for predicted class for polygons with no overlapping faces. Defaults to "unknown".
+            buffer_dist_meters: (Union[float, None], optional)
+                Only applicable if sjoin_overlay=False. In that case, include faces entirely within
+                the region that is this distance in meters from the polygons. Defaults to 2.0.
+            n_clusters: (int):
+                The number of clusters to cluster the polygons into for independent computation
+
+        Raises:
+            ValueError: if faces_labels or face_weighting is not 1D
+
+        Returns:
+            list(typing.Union[str, int]):
+                (n_polygons,) list of labels. Either float values, represnting integer IDs or nan,
+                or string values representing the class label
+        """
+        # Load in the polygons
+        polygons_gdf = ensure_geometric_CRS(coerce_to_geoframe(polygons))
+        # Extract the centroid of each one and convert to a numpy array
+        centroids_xy = np.stack(
+            polygons_gdf.centroid.apply(lambda point: (point.x, point.y))
+        )
+        # Assign each polygon to a cluster
+        polygon_cluster_IDs = KMeans(n_clusters=n_clusters).fit_predict(centroids_xy)
+
+        # This will be set later once we figure out the datatype of the per-cluster labels
+        all_labels = None
+
+        # Loop over the individual clusters
+        for cluster_ID in tqdm(range(n_clusters), desc="Clusters of polygons"):
+            # Determine which polygons are part of that cluster
+            cluster_mask = polygon_cluster_IDs == cluster_ID
+            # Extract the polygons from one cluster
+            cluster_polygons = polygons_gdf.iloc[cluster_mask]
+            # Compute the labeling per polygon
+            cluster_labels = super().label_polygons(
+                face_labels,
+                cluster_polygons,
+                face_weighting,
+                sjoin_overlay,
+                return_class_labels,
+                unknown_class_label,
+                buffer_dist_meters,
+            )
+            # Convert to numpy array
+            cluster_labels = np.array(cluster_labels)
+            # Create the aggregation array with the appropriate datatype
+            if all_labels is None:
+                # We assume that this list will be at least one element since each cluster
+                # should be non-empty. All values should be overwritten so the default value doesn't matter
+                all_labels = np.zeros(len(polygons_gdf), dtype=cluster_labels.dtype)
+
+            # Set the appropriate elements of the full array with the newly-computed cluster labels
+            all_labels[cluster_mask] = cluster_labels
+
+        # The output is expected to be a list
+        all_labels = all_labels.tolist()
+        return all_labels
