@@ -83,6 +83,8 @@ class TexturedPhotogrammetryMesh:
         # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
         # plotters. See https://github.com/pyvista/pyvista/issues/2252
         self.pix2face_plotter = create_pv_plotter(off_screen=True)
+        self.face_polygons_cache = {}
+        self.face_2d_3d_ratios_cache = {}
 
         self.logger = logging.getLogger(f"mesh_{id(self)}")
         self.logger.setLevel(log_level)
@@ -652,6 +654,7 @@ class TexturedPhotogrammetryMesh:
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
         faces_mask: typing.Union[np.ndarray, None] = None,
+        cache_data: bool = True,
     ) -> gpd.GeoDataFrame:
         """Get a geodataframe of triangles for the 2D projection of each face of the mesh
 
@@ -669,39 +672,72 @@ class TexturedPhotogrammetryMesh:
             faces_mask (typing.Union[np.ndarray, None], optional):
                 A binary mask corresponding to which faces to return. Used to improve runtime of
                 creating the dataframe or downstream steps. Defaults to None.
+            cache_data (bool):
+                Whether to cache expensive results in memory as object attributes
 
         Returns:
             geopandas.GeoDataFrame: A dataframe for each triangular face
         """
-        self.logger.info("Computing faces in working CRS")
-        # Get the mesh vertices in the desired export CRS
-        verts_in_crs = self.get_vertices_in_CRS(crs)
-        # Get a triangle in geospatial coords for each face
-        # (n_faces, 3 points, xyz)
-        faces = verts_in_crs[self.faces]
+        # Computing this data can be slow, and we might call it multiple times. This is especially
+        # true for doing clustered polygon labeling
+        if cache_data:
+            mesh_hash = self.get_mesh_hash()
+            transform_hash = self.get_transform_hash()
+            cache_key = (mesh_hash, transform_hash, crs)
 
-        # Select only the requested faces
-        if faces_mask is not None:
-            faces = faces[faces_mask]
-            data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
+            # See if the face polygons were in the cache. If not, None will be returned
+            face_polygons = self.face_polygons_cache.get(cache_key)
+        else:
+            face_polygons = None
+
+        if face_polygons is not None:
+            logging.info("Using cached face polygons")
+        else:
+            self.logger.info("Computing faces in working CRS")
+            # Get the mesh vertices in the desired export CRS
+            verts_in_crs = self.get_vertices_in_CRS(crs)
+            # Get a triangle in geospatial coords for each face
+            # (n_faces, 3 points, xyz)
+            faces = verts_in_crs[self.faces]
+
+            # Select only the requested faces
+            if faces_mask is not None:
+                faces = faces[faces_mask]
+                data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
+
+            # Extract the first two columns and convert them to a list of tuples of tuples
+            faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
+            face_polygons = [
+                Polygon(face_tuple)
+                for face_tuple in tqdm(
+                    faces_2d_tuples, desc=f"Converting faces to polygons"
+                )
+            ]
+            self.logger.info("Creating dataframe of faces")
+
+            if cache_data:
+                # Save computed data to the cache for the future
+                self.face_polygons_cache[cache_key] = face_polygons
 
         # Compute the ratio between the 3D area and the projected top-down 2D area
         if include_3d_2d_ratio:
-            ratios = []
-            for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
-                area, area_2d = compute_3D_triangle_area(face)
-                ratios.append(area / area_2d)
-            data_dict[RATIO_3D_2D_KEY] = ratios
+            if cache_data:
+                # Check if ratios are cached
+                ratios = self.face_2d_3d_ratios_cache.get(cache_key)
+            else:
+                ratios = None
 
-        # Extract the first two columns and convert them to a list of tuples of tuples
-        faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
-        face_polygons = [
-            Polygon(face_tuple)
-            for face_tuple in tqdm(
-                faces_2d_tuples, desc=f"Converting faces to polygons"
-            )
-        ]
-        self.logger.info("Creating dataframe of faces")
+            # Ratios need to be computed
+            if ratios is None:
+                ratios = []
+                for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
+                    area, area_2d = compute_3D_triangle_area(face)
+                    ratios.append(area / area_2d)
+                self.face_2d_3d_ratios_cache[cache_key] = ratios
+
+            if cache_data:
+                # Save to cache
+                data_dict[RATIO_3D_2D_KEY] = ratios
 
         # Create the dataframe
         faces_gdf = gpd.GeoDataFrame(
@@ -996,17 +1032,18 @@ class TexturedPhotogrammetryMesh:
         # one and the index would not start from 0
         polygons_gdf["polygon_ID"] = np.arange(len(polygons_gdf))
 
-        # Perform the overlay between faces and polygons.
-        # This is usually the most expensive opereration.
-
         # Since overlay is expensive, we first discard faces that are not near the polygons
 
-        # Discard any faces which do not intersect the polygons
         # Dissolve the polygons to form one ROI
         merged_polygons = polygons_gdf.dissolve()
+        # Try to decrease the number of elements in the polygon by expanding
+        # and then simplifying the number of elements in the polygon
         merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
+        merged_polygons.geometry = merged_polygons.simplify(buffer_dist_meters)
+
         # Determine which face IDs intersect the ROI. This is slow
-        self.logger.info("Starting `within`")
+        start = time()
+        self.logger.info("Starting to subset to ROI")
 
         # Check which faces are fully within the buffered regions around the query polygons
         # Note that using sjoin has been faster than any other approach I've tried, despite seeming
@@ -1015,6 +1052,7 @@ class TexturedPhotogrammetryMesh:
             faces_2d_gdf, merged_polygons, how="left", predicate="within"
         )["index_right"].notna()
         faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
+        self.logger.info(f"Subset to ROI in {time() - start} seconds")
 
         start = time()
         self.logger.info("Starting `overlay`")
@@ -1359,15 +1397,18 @@ class TexturedPhotogrammetryMesh:
 
         return labels
 
-    def get_mesh_hash(self):
-        """Generates a hash value for the mesh based on its points and faces
-
+    def get_transform_hash(self):
+        """Generates a hash value for the transform to geospatial coordinates
         Returns:
-            int: A hash value representing the current mesh.
+            int: A hash value representing transformation.
         """
-        points = self.pyvista_mesh.points.tobytes()
-        faces = self.pyvista_mesh.faces.tobytes()
-        return hash(points + faces)
+        hasher = hashlib.sha256()
+        hasher.update(
+            self.local_to_epgs_4978_transform.tobytes()
+            if self.local_to_epgs_4978_transform is not None
+            else 0
+        )
+        return hasher.hexdigest()
 
     def get_mesh_hash(self):
         """Generates a hash value for the mesh based on its points and faces
