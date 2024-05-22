@@ -24,8 +24,8 @@ from tqdm import tqdm
 from geograypher.constants import PATH_TYPE
 
 
-def ensure_geometric_CRS(geodata):
-    if not pyproj.is_projected(geodata.crs):
+def ensure_projected_CRS(geodata):
+    if not geodata.crs.is_projected:
         geodata = geodata.to_crs(4326)
     if geodata.crs == pyproj.CRS.from_epsg(4326):
         point = geodata["geometry"][0].centroid
@@ -217,7 +217,7 @@ def get_overlap_vector(
     unlabeled_df = coerce_to_geoframe(unlabeled_df)
     classes_df = coerce_to_geoframe(classes_df)
 
-    unlabeled_df = ensure_geometric_CRS(unlabeled_df)
+    unlabeled_df = ensure_projected_CRS(unlabeled_df)
     if classes_df.crs != unlabeled_df.crs:
         classes_df = classes_df.to_crs(unlabeled_df.crs)
 

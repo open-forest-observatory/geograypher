@@ -38,7 +38,7 @@ from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
-    ensure_geometric_CRS,
+    ensure_projected_CRS,
     ensure_non_overlapping_polygons,
     get_projected_CRS,
 )
@@ -1013,7 +1013,7 @@ class TexturedPhotogrammetryMesh:
                 )
 
         # Ensure that the input is a geopandas dataframe
-        polygons_gdf = ensure_geometric_CRS(coerce_to_geoframe(polygons))
+        polygons_gdf = ensure_projected_CRS(coerce_to_geoframe(polygons))
         # Extract just the geometry
         polygons_gdf = polygons_gdf[["geometry"]]
 

@@ -13,7 +13,7 @@ from tqdm import tqdm
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import CACHE_FOLDER, PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.utils.geospatial import coerce_to_geoframe, ensure_geometric_CRS
+from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
 
 
 class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
@@ -62,7 +62,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             geometry=camera_points, crs=pyproj.CRS.from_epsg("4326")
         )
         # Make sure the gdf has a gemetric CRS so there is no warping of the space
-        camera_points = ensure_geometric_CRS(camera_points)
+        camera_points = ensure_projected_CRS(camera_points)
         # Extract the x, y points now in a geometric CRS
         camera_points_numpy = np.stack(
             camera_points.geometry.apply(lambda point: (point.x, point.y))
@@ -337,7 +337,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 or string values representing the class label
         """
         # Load in the polygons
-        polygons_gdf = ensure_geometric_CRS(coerce_to_geoframe(polygons))
+        polygons_gdf = ensure_projected_CRS(coerce_to_geoframe(polygons))
         # Extract the centroid of each one and convert to a numpy array
         centroids_xy = np.stack(
             polygons_gdf.centroid.apply(lambda point: (point.x, point.y))
