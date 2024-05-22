@@ -753,9 +753,8 @@ class TexturedPhotogrammetryMesh:
                 if cache_data:
                     self.face_2d_3d_ratios_cache[cache_key] = ratios
 
-            if cache_data:
-                # Save to cache
-                data_dict[RATIO_3D_2D_KEY] = ratios
+            # Add the ratios to the data dict
+            data_dict[RATIO_3D_2D_KEY] = ratios
 
         # Create the dataframe
         faces_gdf = gpd.GeoDataFrame(
