@@ -667,7 +667,7 @@ class TexturedPhotogrammetryMesh:
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
         faces_mask: typing.Union[np.ndarray, None] = None,
-        cache_data: bool = True,
+        cache_data: bool = False,
     ) -> gpd.GeoDataFrame:
         """Get a geodataframe of triangles for the 2D projection of each face of the mesh
 
@@ -686,7 +686,7 @@ class TexturedPhotogrammetryMesh:
                 A binary mask corresponding to which faces to return. Used to improve runtime of
                 creating the dataframe or downstream steps. Defaults to None.
             cache_data (bool):
-                Whether to cache expensive results in memory as object attributes
+                Whether to cache expensive results in memory as object attributes. Defaults to False.
 
         Returns:
             geopandas.GeoDataFrame: A dataframe for each triangular face
