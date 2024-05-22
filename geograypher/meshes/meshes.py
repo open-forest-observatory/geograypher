@@ -686,11 +686,12 @@ class TexturedPhotogrammetryMesh:
             cache_key = (mesh_hash, transform_hash, crs)
 
             # See if the face polygons were in the cache. If not, None will be returned
-            face_polygons = self.face_polygons_cache.get(cache_key)
+            cached_values = self.face_polygons_cache.get(cache_key)
         else:
-            face_polygons = None
+            cached_values = None
 
-        if face_polygons is not None:
+        if cached_values is not None:
+            face_polygons, faces = cached_values
             logging.info("Using cached face polygons")
         else:
             self.logger.info("Computing faces in working CRS")
@@ -717,7 +718,7 @@ class TexturedPhotogrammetryMesh:
 
             if cache_data:
                 # Save computed data to the cache for the future
-                self.face_polygons_cache[cache_key] = face_polygons
+                self.face_polygons_cache[cache_key] = (face_polygons, faces)
 
         # Compute the ratio between the 3D area and the projected top-down 2D area
         if include_3d_2d_ratio:
