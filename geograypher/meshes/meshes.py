@@ -667,7 +667,7 @@ class TexturedPhotogrammetryMesh:
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
         faces_mask: typing.Union[np.ndarray, None] = None,
-        cache_data: bool = False,
+        cache_data: bool = True,
     ) -> gpd.GeoDataFrame:
         """Get a geodataframe of triangles for the 2D projection of each face of the mesh
 
@@ -719,7 +719,6 @@ class TexturedPhotogrammetryMesh:
             # Select only the requested faces
             if faces_mask is not None:
                 faces = faces[faces_mask]
-                data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
 
             # Extract the first two columns and convert them to a list of tuples of tuples
             faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
@@ -734,6 +733,10 @@ class TexturedPhotogrammetryMesh:
             if cache_data:
                 # Save computed data to the cache for the future
                 self.face_polygons_cache[cache_key] = (face_polygons, faces)
+
+        # Remove data corresponding to masked faces
+        if faces_mask is not None:
+            data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
 
         # Compute the ratio between the 3D area and the projected top-down 2D area
         if include_3d_2d_ratio:
