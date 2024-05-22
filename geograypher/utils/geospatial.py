@@ -25,12 +25,12 @@ from geograypher.constants import PATH_TYPE
 
 
 def ensure_geometric_CRS(geodata):
+    if not pyproj.is_projected(geodata.crs):
+        geodata = geodata.to_crs(4326)
     if geodata.crs == pyproj.CRS.from_epsg(4326):
         point = geodata["geometry"][0].centroid
         geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
         return geodata.to_crs(geometric_crs)
-    elif not pyproj.is_projected(geodata.crs):
-        print("Not a projected CRS")
     return geodata
 
 
