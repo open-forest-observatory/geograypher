@@ -164,10 +164,6 @@ class TexturedPhotogrammetryMesh:
             self.logger.info("Reading the mesh")
             self.pyvista_mesh = pv.read(mesh)
 
-        # make sure KD tree has vertices of source (original, undownsampled mesh)
-        # if self.kdtree is None:
-        #     self.kdtree = KDTree(self.pyvista_mesh.points)
-
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
@@ -179,54 +175,41 @@ class TexturedPhotogrammetryMesh:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
-            breakpoint()
             self.logger.info("Downsampling the mesh")
-            # intermediate_mesh = self.pyvista_mesh.decimate(
-            #     target_reduction=(1 - downsample_target)
-            # )
-            # breakpoint()
-            # self.transfer_texture(intermediate_mesh)  # assign labels
-            # self.pyvista_mesh = intermediate_mesh
-            self.pyvista_mesh = self.pyvista_mesh.decimate(
+            intermediate_mesh = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-            breakpoint()
-            self.logger.info("got here")
-            self.transfer_texture(self.pyvista_mesh)  # assign labels
+            self.pyvista_mesh = self.transfer_texture(intermediate_mesh)
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
     def transfer_texture(self, downsampled_mesh):
-        breakpoint()
-        if self.kdtree is None:
+        # Only compute KDTree if active scalars are associated with points
+        if (
+            self.kdtree is None
+            and self.pyvista_mesh.active_scalars_info.association
+            == pv.FieldAssociation.POINT
+        ):
+            # Store source mesh points in KDTree for nearest neighbor search
             self.kdtree = KDTree(self.pyvista_mesh.points)
-        
-        # pull attirbutes from pyvista mesh and set them to the target mesh
-        target_mesh = downsampled_mesh.points  # mesh has already been downsampled
 
-        # query in source mesh
-        # find closest source mesh vertex neighbor for target mesh vertex, store index of each
-        _, indices = self.kdtree.query(target_mesh)  
+            # For ecah point in the downsampled mesh find the nearest neighbor point in the source mesh
+            _, indices = self.kdtree.query(downsampled_mesh.points)
 
-        # create the new texture using the right indices from the original texture
-        downsampled_texture = self.vertex_texture[indices]
+            # Get active scalars name and value at the found indices
+            active_scalars_name = self.pyvista_mesh.active_scalars_name
+            active_scalars = self.pyvista_mesh.active_scalars[indices]
 
-        # set active scalars of downsampled mesh to active scalars of original mesh, insetad of vertex_texture
-        active_scalars_name = self.pyvista_mesh.active_scalars_name
-        active_scalars = self.pyvista_mesh.active_scalars
+            # Assign active scalars to the downsampled mesh
+            downsampled_mesh[active_scalars_name] = active_scalars
 
-        if self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.POINT:
-            target_mesh.point_arrays[active_scalars_name] = active_scalars
-        elif self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.CELL:
-            target_mesh.cell_arrays[active_scalars_name] = active_scalars
+            # Set the active scalars on the downsampled mesh to ensure they are being used
+            downsampled_mesh.set_active_scalars(active_scalars_name)
+        else:
+            self.logger.info("Textures not transferred")
 
-        # Set the active scalars on the target mesh
-        target_mesh.set_active_scalars(active_scalars_name)
-
-        # apply new texture
-        self.vertex_texture = downsampled_texture
-
+        return downsampled_mesh
 
     def load_transform_to_epsg_4326(
         self, transform_filename: PATH_TYPE, require_transform: bool = False
