@@ -1,9 +1,11 @@
 import os
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
+from scipy.sparse import csr_array
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
@@ -88,9 +90,8 @@ class TabularRectangleSegmentor(Segmentor):
         self.num_classes = len(self.class_names)
 
     def segment_image(self, image, filename, image_scale, vis=False):
-        label_image = np.zeros(
-            self.image_shape + (len(self.class_names),), dtype=np.uint8
-        )
+        output_shape = self.image_shape
+        label_image = np.full(output_shape, fill_value=np.nan, dtype=float)
 
         name = filename.name
         if name in self.image_names:
@@ -105,14 +106,10 @@ class TabularRectangleSegmentor(Segmentor):
             label_image[
                 int(row[self.imin_key]) : int(row[self.imax_key]),
                 int(row[self.jmin_key]) : int(row[self.jmax_key]),
-                label_ind,
-            ] = 1
+            ] = label_ind
 
         if vis:
-            index_label = np.argmax(label_image, axis=2).astype(float)
-            zeros_mask = np.sum(label_image, axis=2) == 0
-            index_label[zeros_mask] = np.nan
-            plt.imshow(index_label, vmin=0, vmax=10, cmap="tab10")
+            plt.imshow(label_image, vmin=0, vmax=10, cmap="tab10")
             plt.show()
 
         if image_scale != 1.0:
