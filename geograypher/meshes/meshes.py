@@ -170,7 +170,7 @@ class TexturedPhotogrammetryMesh:
             region_of_interest=ROI, buffer_meters=ROI_buffer_meters
         )
 
-        # Downsample mesh if needed
+        # Downsample mesh if needed transfer textures from original mesh to downsampled mesh
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
@@ -185,16 +185,24 @@ class TexturedPhotogrammetryMesh:
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
     def transfer_texture(self, downsampled_mesh):
+        """Transfer texture from original mesh to a downsampled version using KDTree for nearest neighbor point searches
+
+        Args:
+            downsampled_mesh (pv.PolyData): The downsampled version of the original mesh
+
+        Returns:
+            pv.PolyData: The downsampled mesh with the transferred textures
+        """
         # Only compute KDTree if active scalars are associated with points
         if (
             self.kdtree is None
             and self.pyvista_mesh.active_scalars_info.association
             == pv.FieldAssociation.POINT
         ):
-            # Store source mesh points in KDTree for nearest neighbor search
+            # Store original mesh points in KDTree for nearest neighbor search
             self.kdtree = KDTree(self.pyvista_mesh.points)
 
-            # For ecah point in the downsampled mesh find the nearest neighbor point in the source mesh
+            # For ecah point in the downsampled mesh find the nearest neighbor point in the original mesh
             _, indices = self.kdtree.query(downsampled_mesh.points)
 
             # Get active scalars name and value at the found indices
@@ -207,7 +215,9 @@ class TexturedPhotogrammetryMesh:
             # Set the active scalars on the downsampled mesh to ensure they are being used
             downsampled_mesh.set_active_scalars(active_scalars_name)
         else:
-            self.logger.info("Textures not transferred")
+            raise UserWarning(
+                f"Textures not transferred, active scalars data is assoicated with cell data not point data"
+            )
 
         return downsampled_mesh
 
