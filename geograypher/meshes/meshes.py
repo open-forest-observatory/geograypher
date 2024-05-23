@@ -6,7 +6,6 @@ import typing
 from pathlib import Path
 from time import time
 
-from scipy.sparse import csr_array
 import geopandas as gpd
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -30,6 +29,7 @@ from geograypher.constants import (
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
+    LONG_PAUSE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
@@ -708,7 +708,7 @@ class TexturedPhotogrammetryMesh:
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
         faces_mask: typing.Union[np.ndarray, None] = None,
-        cache_data: bool = True,
+        cache_data: bool = False,
     ) -> gpd.GeoDataFrame:
         """Get a geodataframe of triangles for the 2D projection of each face of the mesh
 
@@ -737,7 +737,9 @@ class TexturedPhotogrammetryMesh:
         if cache_data:
             mesh_hash = self.get_mesh_hash()
             transform_hash = self.get_transform_hash()
-            faces_mask_hash = hash(faces_mask.tobytes())
+            faces_mask_hash = hash(
+                faces_mask.tobytes() if faces_mask is not None else 0
+            )
             # Create a key that uniquely identifies the relavant inputs
             cache_key = (mesh_hash, transform_hash, faces_mask_hash, crs)
 
@@ -1068,6 +1070,7 @@ class TexturedPhotogrammetryMesh:
             include_3d_2d_ratio=True,
             data_dict={CLASS_ID_KEY: face_labels},
             faces_mask=faces_mask,
+            cache_data=True,
         )
 
         # If a per-face weighting is provided, multiply that with the 3d to 2d ratio
@@ -1188,7 +1191,11 @@ class TexturedPhotogrammetryMesh:
         """Export the labels for each face as a on-per-class multipolygon
 
         Args:
-            face_labels (np.ndarray): Array of integer labels and potentially nan
+            face_labels (np.ndarray):
+                This can either be a 1- or 2-D array. If 1-D, it is (n_faces,) where each element
+                is an integer class label for that face. If 2-D, it's (n_faces, n_classes) and a
+                nonzero element at (i, j) represents a class prediction for the ith faces and jth
+                class
             export_file (PATH_TYPE, optional):
                 Where to export. The extension must be a filetype that geopandas can write.
                 Defaults to None, if unset, nothing will be written.
@@ -1213,20 +1220,28 @@ class TexturedPhotogrammetryMesh:
         lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
         working_CRS = get_projected_CRS(lon=lon, lat=lat)
 
+        # Try to extract face labels if not set
         if face_labels is None:
             face_labels = self.get_texture(request_vertex_texture=False)
 
         # Check that the correct number of labels are provided
-        if len(face_labels) != self.faces.shape[0]:
+        if face_labels.shape[0] != self.faces.shape[0]:
             raise ValueError()
 
-        face_labels = np.squeeze(face_labels)
-
-        data_dict = {CLASS_ID_KEY: face_labels.tolist()}
-        faces_gdf = self.get_faces_2d_gdf(crs=working_CRS, data_dict=data_dict)
+        # Get the geospatial faces dataframe
+        faces_gdf = self.get_faces_2d_gdf(crs=working_CRS)
 
         self.logger.info("Creating dataframe of multipolygons")
-        unique_IDs = np.unique(face_labels)
+
+        # Check how the data is represented, as a 1-D list of integers or one/many-hot encoding
+        face_labels_is_2d = face_labels.ndim == 2 and face_labels.shape[1] != 1
+        if face_labels_is_2d:
+            # Non-null columns
+            unique_IDs = np.nonzero(np.sum(face_labels, axis=0))[1]
+        else:
+            face_labels = np.squeeze(face_labels)
+            unique_IDs = np.unique(face_labels)
+
         if drop_nan:
             # Drop nan from the list of IDs
             unique_IDs = unique_IDs[np.isfinite(unique_IDs)]
@@ -1236,7 +1251,14 @@ class TexturedPhotogrammetryMesh:
         # due to the large number of polygons
         # Instead, we replace the default shapely.unary_union with our batched implementation
         for unique_ID in unique_IDs:
-            matching_face_polygons = faces_gdf.iloc[face_labels == unique_ID]
+            if face_labels_is_2d:
+                # Nonzero elements of the column
+                matching_face_mask = face_labels[:, unique_ID] > 0
+            else:
+                # Elements that match the ID in question
+                matching_face_mask = face_labels == unique_ID
+            matching_face_inds = np.nonzero(matching_face_mask)[0]
+            matching_face_polygons = faces_gdf.iloc[matching_face_inds]
             list_of_polygons = matching_face_polygons.geometry.values
             multipolygon = batched_unary_union(
                 list_of_polygons, **batched_unary_union_kwargs
@@ -1269,6 +1291,11 @@ class TexturedPhotogrammetryMesh:
         # Transform from the working crs to export crs
         export_gdf = working_gdf.to_crs(export_crs)
 
+        # Export if a file is provided
+        if export_file is not None:
+            ensure_containing_folder(export_file)
+            export_gdf.to_file(export_file)
+
         # Vis if requested
         if vis:
             self.logger.info("Plotting")
@@ -1278,11 +1305,7 @@ class TexturedPhotogrammetryMesh:
                 legend=True,
                 **vis_kwargs,
             )
-            plt.show()
-
-        # Export if a file is provided
-        if export_file is not None:
-            export_gdf.to_file(export_file)
+            plt.pause(LONG_PAUSE)
 
         return export_gdf
 
