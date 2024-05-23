@@ -1,17 +1,16 @@
 import typing
-from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import pyproj
+from scipy.sparse import csr_array
 from shapely import Point
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
-from geograypher.constants import CACHE_FOLDER, PATH_TYPE
+from geograypher.constants import PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
 
@@ -184,7 +183,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 sub_camera_set,
                 batch_size=batch_size,
                 render_img_scale=render_img_scale,
-                **pix2face_kwargs
+                **pix2face_kwargs,
             )
             # Yield items from the returned generator
             for render_item in render_gen:
@@ -254,7 +253,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 batch_size=batch_size,
                 aggregate_img_scale=aggregate_img_scale,
                 return_all=False,
-                **kwargs
+                **kwargs,
             )
 
             # Increment the summed predictions and counts
@@ -380,3 +379,118 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         # The output is expected to be a list
         all_labels = all_labels.tolist()
         return all_labels
+
+
+class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
+    def aggregate_projected_images(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        n_classes: int,
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
+        return_all: bool = False,
+        **kwargs
+    ):
+        """
+        Aggregate the imagery from multiple cameras into per-face averges. This implementation uses
+        sparse arrays to process data where there are large numbers of discrete classes and an
+        explicit one-hot encoding would take up too much space
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to aggregate the images from. cam.get_image() will be called on each
+                element.
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+            return_all (bool, optional):
+                Return the projection of each individual image, rather than just the aggregates.
+                Defaults to False.
+
+        Returns:
+            np.ndarray: (n_faces, n_image_channels) The average projected image per face
+            dict: Additional information, including the summed projections, observations per face,
+                  and potentially each individual projection
+        """
+        # Create a generator for all the projections
+        project_images_generator = self.project_images(
+            cameras=cameras,
+            batch_size=batch_size,
+            aggregate_img_scale=aggregate_img_scale,
+            **kwargs,
+        )
+
+        # TODO this should be a convenience method
+        n_faces = self.faces.shape[0]
+
+        if return_all:
+            all_projections = []
+
+        projection_counts = csr_array((n_faces, 1), dtype=np.uint16)
+        summed_projections = csr_array((n_faces, n_classes), dtype=np.uint16)
+
+        for projection_for_image in tqdm(
+            project_images_generator,
+            total=len(cameras),
+            desc="Aggregating projected viewpoints",
+        ):
+            if return_all:
+                all_projections.append(projection_for_image)
+
+            projected_face_inds = np.nonzero(
+                np.isfinite(np.squeeze(projection_for_image))
+            )[0]
+
+            new_projection_counts = csr_array(
+                (
+                    np.ones_like(projected_face_inds, dtype=np.uint16),
+                    (
+                        projected_face_inds,
+                        np.zeros_like(projected_face_inds, dtype=np.uint16),
+                    ),
+                ),
+                shape=(n_faces, 1),
+            )
+            projection_counts = projection_counts + new_projection_counts
+
+            # If there's no projected classes, this is just wasted compute and also can cause errors
+            # because indexing with an empty array returns all values
+            if len(projected_face_inds) == 0:
+                continue
+
+            projected_face_classes = projection_for_image[
+                projected_face_inds, 0
+            ].astype(int)
+
+            old_values = summed_projections[projected_face_inds, projected_face_classes]
+            incremented_old_values = old_values + 1
+
+            summed_projections[projected_face_inds, projected_face_classes] = (
+                incremented_old_values
+            )
+
+        additional_information = {
+            "projection_counts": projection_counts,
+            "summed_projections": summed_projections,
+        }
+        if return_all:
+            additional_information["all_projections"] = all_projections
+
+        # TODO actually perform the normalization by the counts
+        # https://stackoverflow.com/questions/21080430/taking-reciprocal-of-each-elements-in-a-sparse-matrix
+        projection_counts_reciprocal = csr_array(
+            (
+                (
+                    np.reciprocal(projection_counts.data),
+                    projection_counts.indices,
+                    projection_counts.indptr,
+                )
+            ),
+            shape=projection_counts.shape,
+        )
+        average_projections = summed_projections.multiply(projection_counts_reciprocal)
+
+        return average_projections, additional_information
