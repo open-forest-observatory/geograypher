@@ -14,13 +14,14 @@ PATH_TYPE = Union[str, Path]
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 # Where to save vis data
 VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
+# Where to cache results
+CACHE_FOLDER = Path(Path(__file__).parent, "..", "cache").resolve()
 
 VERT_ID = "vert_ID"
 CLASS_ID_KEY = "class_ID"
 PRED_CLASS_ID_KEY = "pred_class_ID"
 CLASS_NAMES_KEY = "class_names"
 RATIO_3D_2D_KEY = "ratio_3d_2d"
-NULL_TEXTURE_FLOAT_VALUE = -1
 NULL_TEXTURE_INT_VALUE = 255
 LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
 EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)

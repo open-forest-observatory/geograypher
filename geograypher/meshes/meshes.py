@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import sys
@@ -8,7 +9,6 @@ from time import time
 import geopandas as gpd
 import matplotlib.colors
 import matplotlib.pyplot as plt
-import networkx
 import numpy as np
 import pandas as pd
 import pyproj
@@ -16,38 +16,25 @@ import pyvista as pv
 import rasterio as rio
 import shapely
 import skimage
-import torch
-from IPython.core.debugger import set_trace
-from pytorch3d.renderer import (
-    AmbientLights,
-    HardGouraudShader,
-    MeshRasterizer,
-    RasterizationSettings,
-    TexturesVertex,
-)
-from pytorch3d.structures import Meshes
+import ubelt as ub
 from scipy.spatial import KDTree
-from shapely import MultiPolygon, Point, Polygon
+from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
-from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
+    CACHE_FOLDER,
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
-    NULL_TEXTURE_FLOAT_VALUE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
-    TEN_CLASS_VIS_KWARGS,
-    TWENTY_CLASS_VIS_KWARGS,
     VERT_ID,
     VIS_FOLDER,
 )
-from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
@@ -57,13 +44,9 @@ from geograypher.utils.geospatial import (
     get_projected_CRS,
 )
 from geograypher.utils.indexing import ensure_float_labels
-from geograypher.utils.numeric import (
-    compute_3D_triangle_area,
-    compute_approximate_ray_intersection,
-    triangulate_rays_lstsq,
-)
+from geograypher.utils.numeric import compute_3D_triangle_area
 from geograypher.utils.parsing import parse_transform_metashape
-from geograypher.utils.visualization import create_composite
+from geograypher.utils.visualization import create_composite, create_pv_plotter
 
 
 class TexturedPhotogrammetryMesh:
@@ -98,18 +81,21 @@ class TexturedPhotogrammetryMesh:
         self.face_texture = None
         self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
+        # Create the plotter that will later be used to compute correspondences between pixels
+        # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
+        # plotters. See https://github.com/pyvista/pyvista/issues/2252
+        self.pix2face_plotter = create_pv_plotter(off_screen=True)
+        self.face_polygons_cache = {}
+        self.face_2d_3d_ratios_cache = {}
 
         self.logger = logging.getLogger(f"mesh_{id(self)}")
         self.logger.setLevel(log_level)
         # Potentially necessary for Jupyter
         # https://stackoverflow.com/questions/35936086/jupyter-notebook-does-not-print-logs-to-the-output-cell
-        self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda:0")
-            torch.cuda.set_device(self.device)
-        else:
-            self.device = torch.device("cpu")
+        # If you don't check that there's already a handler, you can have situations with duplicated
+        # print outs if you have multiple mesh objects
+        if not self.logger.hasHandlers():
+            self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
         # Load the transform
         self.logger.info("Loading transform to EPSG:4326")
@@ -140,21 +126,27 @@ class TexturedPhotogrammetryMesh:
         self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
 
     # Setup methods
-
     def load_mesh(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
         downsample_target: float = 1.0,
         ROI=None,
         ROI_buffer_meters=0,
+        ROI_simplify_tol_meters=2,
     ):
-        """Load the pyvista mesh and create the pytorch3d texture
+        """Load the pyvista mesh and create the texture
 
         Args:
             mesh (typing.Union[PATH_TYPE, pv.PolyData]):
                 Path to the mesh or actual mesh
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
+            ROI:
+                See select_mesh_ROI. Defaults to None
+            ROI_buffer_meters:
+                See select_mesh_ROI. Defaults to 0.
+            ROI_simplify_tol_meters:
+                See select_mesh_ROI. Defaults to 2.
         """
         if isinstance(mesh, pv.PolyData):
             self.pyvista_mesh = mesh
@@ -167,7 +159,9 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(
-            region_of_interest=ROI, buffer_meters=ROI_buffer_meters
+            region_of_interest=ROI,
+            buffer_meters=ROI_buffer_meters,
+            simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
         # Downsample mesh if needed transfer textures from original mesh to downsampled mesh
@@ -519,6 +513,7 @@ class TexturedPhotogrammetryMesh:
             gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
         ],
         buffer_meters: float = 0,
+        simplify_tol_meters: int = 0,
         default_CRS: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         return_original_IDs: bool = False,
     ):
@@ -531,6 +526,7 @@ class TexturedPhotogrammetryMesh:
                 * A shapely polygon/multipolygon
                 * A file that can be loaded by geopandas
             buffer_meters (float, optional): Expand the geometry by this amount of meters. Defaults to 0.
+            simplify_tol_meters (float, optional): Simplify the geometry using this as the tolerance. Defaults to 0.
             default_CRS (pyproj.CRS, optional): The CRS to use if one isn't provided. Defaults to pyproj.CRS.from_epsg(4326).
             return_original_IDs (bool, optional): Return the indices into the original mesh. Defaults to False.
 
@@ -557,8 +553,10 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Setting CRS and buffering ROI")
         # Make sure we're using a geometric CRS so a buffer can be applied
         ROI_gpd = ensure_geometric_CRS(ROI_gpd)
-        # Apply the buffer
-        ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters)
+        # Apply the buffer, plus the tolerance, to ensure we keep at least the requested region
+        ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters + simplify_tol_meters)
+        # Simplify the geometry to reduce the computational load
+        ROI_gpd.geometry = ROI_gpd.geometry.simplify(simplify_tol_meters)
         self.logger.info("Dissolving buffered ROI")
         # Disolve again in case
         ROI_gpd = ROI_gpd.dissolve()
@@ -581,10 +579,17 @@ class TexturedPhotogrammetryMesh:
 
         # If we need the indices into the original mesh, return those
         if return_original_IDs:
+            try:
+                point_IDs = subset_unstructured_grid["vtkOriginalPointIds"]
+                face_IDs = subset_unstructured_grid["vtkOriginalCellIds"]
+            except KeyError:
+                point_IDs = np.array([])
+                face_IDs = np.array([])
+
             return (
                 subset_mesh,
-                subset_unstructured_grid["vtkOriginalPointIds"],
-                subset_unstructured_grid["vtkOriginalCellIds"],
+                point_IDs,
+                face_IDs,
             )
         # Else return just the mesh
         return subset_mesh
@@ -603,43 +608,6 @@ class TexturedPhotogrammetryMesh:
         if self.IDs_to_labels is None:
             return None
         return list(self.IDs_to_labels.values())
-
-    def create_pytorch3d_mesh(
-        self,
-        vert_texture: np.ndarray = None,
-        batch_size: int = 1,
-    ):
-        """Create the pytorch_3d_mesh
-
-        Args:
-            vert_texture (np.ndarray, optional):
-                Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
-            batch_size (int):
-                Number of copies of the mesh to create in a batch. Defaults to 1.
-        """
-
-        # Create the texture object if provided
-        if vert_texture is not None:
-            vert_texture = (
-                torch.Tensor(vert_texture).to(torch.float).to(self.device).unsqueeze(0)
-            )
-            if len(vert_texture.shape) == 2:
-                vert_texture = vert_texture.unsqueeze(-1)
-            texture = TexturesVertex(verts_features=vert_texture).to(self.device)
-        else:
-            texture = None
-
-        # Create the pytorch mesh
-        pytorch3d_mesh = Meshes(
-            verts=[torch.Tensor(self.pyvista_mesh.points).to(self.device)],
-            faces=[torch.Tensor(self.faces).to(self.device)],
-            textures=texture,
-        ).to(self.device)
-
-        if batch_size != len(pytorch3d_mesh):
-            pytorch3d_mesh = pytorch3d_mesh.extend(batch_size)
-
-        return pytorch3d_mesh
 
     # Vertex methods
 
@@ -739,6 +707,7 @@ class TexturedPhotogrammetryMesh:
         include_3d_2d_ratio: bool = False,
         data_dict: dict = {},
         faces_mask: typing.Union[np.ndarray, None] = None,
+        cache_data: bool = True,
     ) -> gpd.GeoDataFrame:
         """Get a geodataframe of triangles for the 2D projection of each face of the mesh
 
@@ -756,39 +725,79 @@ class TexturedPhotogrammetryMesh:
             faces_mask (typing.Union[np.ndarray, None], optional):
                 A binary mask corresponding to which faces to return. Used to improve runtime of
                 creating the dataframe or downstream steps. Defaults to None.
+            cache_data (bool):
+                Whether to cache expensive results in memory as object attributes. Defaults to False.
 
         Returns:
             geopandas.GeoDataFrame: A dataframe for each triangular face
         """
-        self.logger.info("Computing faces in working CRS")
-        # Get the mesh vertices in the desired export CRS
-        verts_in_crs = self.get_vertices_in_CRS(crs)
-        # Get a triangle in geospatial coords for each face
-        # (n_faces, 3 points, xyz)
-        faces = verts_in_crs[self.faces]
+        # Computing this data can be slow, and we might call it multiple times. This is especially
+        # true for doing clustered polygon labeling
+        if cache_data:
+            mesh_hash = self.get_mesh_hash()
+            transform_hash = self.get_transform_hash()
+            faces_mask_hash = hash(faces_mask.tobytes())
+            # Create a key that uniquely identifies the relavant inputs
+            cache_key = (mesh_hash, transform_hash, faces_mask_hash, crs)
 
-        # Select only the requested faces
+            # See if the face polygons were in the cache. If not, None will be returned
+            cached_values = self.face_polygons_cache.get(cache_key)
+        else:
+            cached_values = None
+
+        if cached_values is not None:
+            face_polygons, faces = cached_values
+            logging.info("Using cached face polygons")
+        else:
+            self.logger.info("Computing faces in working CRS")
+            # Get the mesh vertices in the desired export CRS
+            verts_in_crs = self.get_vertices_in_CRS(crs)
+            # Get a triangle in geospatial coords for each face
+            # (n_faces, 3 points, xyz)
+            faces = verts_in_crs[self.faces]
+
+            # Select only the requested faces
+            if faces_mask is not None:
+                faces = faces[faces_mask]
+
+            # Extract the first two columns and convert them to a list of tuples of tuples
+            faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
+            face_polygons = [
+                Polygon(face_tuple)
+                for face_tuple in tqdm(
+                    faces_2d_tuples, desc=f"Converting faces to polygons"
+                )
+            ]
+            self.logger.info("Creating dataframe of faces")
+
+            if cache_data:
+                # Save computed data to the cache for the future
+                self.face_polygons_cache[cache_key] = (face_polygons, faces)
+
+        # Remove data corresponding to masked faces
         if faces_mask is not None:
-            faces = faces[faces_mask]
             data_dict = {k: v[faces_mask] for k, v in data_dict.items()}
 
         # Compute the ratio between the 3D area and the projected top-down 2D area
         if include_3d_2d_ratio:
-            ratios = []
-            for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
-                area, area_2d = compute_3D_triangle_area(face)
-                ratios.append(area / area_2d)
-            data_dict[RATIO_3D_2D_KEY] = ratios
+            if cache_data:
+                # Check if ratios are cached
+                ratios = self.face_2d_3d_ratios_cache.get(cache_key)
+            else:
+                ratios = None
 
-        # Extract the first two columns and convert them to a list of tuples of tuples
-        faces_2d_tuples = [tuple(map(tuple, a)) for a in faces[..., :2]]
-        face_polygons = [
-            Polygon(face_tuple)
-            for face_tuple in tqdm(
-                faces_2d_tuples, desc=f"Converting faces to polygons"
-            )
-        ]
-        self.logger.info("Creating dataframe of faces")
+            # Ratios need to be computed
+            if ratios is None:
+                ratios = []
+                for face in tqdm(faces, desc="Computing ratio of 3d to 2d area"):
+                    area, area_2d = compute_3D_triangle_area(face)
+                    ratios.append(area / area_2d)
+
+                if cache_data:
+                    self.face_2d_3d_ratios_cache[cache_key] = ratios
+
+            # Add the ratios to the data dict
+            data_dict[RATIO_3D_2D_KEY] = ratios
 
         # Create the dataframe
         faces_gdf = gpd.GeoDataFrame(
@@ -821,9 +830,9 @@ class TexturedPhotogrammetryMesh:
             raise ValueError("None")
 
         vert_IDs = np.squeeze(vert_IDs)
-        if vert_IDs.ndim != 1:
+        if vert_IDs.ndim != 1 and discrete:
             raise ValueError(
-                f"Can only perform conversion with one dimensional array but instead had {vert_IDs.ndim}"
+                f"Can only perform discrete conversion with one dimensional array but instead had {vert_IDs.ndim}"
             )
 
         # Each row contains the IDs of each vertex
@@ -845,9 +854,11 @@ class TexturedPhotogrammetryMesh:
                 counts_per_class_per_face
                 + np.random.random(counts_per_class_per_face.shape) * 0.5
             )
-            most_common_class_per_face = np.argmax(counts_per_class_per_face, axis=1)
-            # Set any faces with zero counts to the null value
-            most_common_class_per_face[zeros_mask] = NULL_TEXTURE_FLOAT_VALUE
+            most_common_class_per_face = np.argmax(
+                counts_per_class_per_face, axis=1
+            ).astype(float)
+            # Set any faces with zero counts to nan
+            most_common_class_per_face[zeros_mask] = np.nan
 
             return most_common_class_per_face
         else:
@@ -1081,34 +1092,36 @@ class TexturedPhotogrammetryMesh:
         # one and the index would not start from 0
         polygons_gdf["polygon_ID"] = np.arange(len(polygons_gdf))
 
-        # Perform the overlay between faces and polygons.
-        # This is usually the most expensive opereration.
+        # Since overlay is expensive, we first discard faces that are not near the polygons
+
+        # Dissolve the polygons to form one ROI
+        merged_polygons = polygons_gdf.dissolve()
+        # Try to decrease the number of elements in the polygon by expanding
+        # and then simplifying the number of elements in the polygon
+        merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
+        merged_polygons.geometry = merged_polygons.simplify(buffer_dist_meters)
+
+        # Determine which face IDs intersect the ROI. This is slow
+        start = time()
+        self.logger.info("Starting to subset to ROI")
+
+        # Check which faces are fully within the buffered regions around the query polygons
+        # Note that using sjoin has been faster than any other approach I've tried, despite seeming
+        # to compute more information than something like gpd.within
+        contained_faces = gpd.sjoin(
+            faces_2d_gdf, merged_polygons, how="left", predicate="within"
+        )["index_right"].notna()
+        faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
+        self.logger.info(f"Subset to ROI in {time() - start} seconds")
+
+        start = time()
+        self.logger.info("Starting `overlay`")
         if sjoin_overlay:
-            self.logger.info("Starting `overlay`")
-            start = time()
             overlay = gpd.sjoin(
                 faces_2d_gdf, polygons_gdf, how="left", predicate="within"
             )
             self.logger.info(f"Overlay time with gpd.sjoin: {time() - start}")
         else:
-            # Since overlay is expensive, we first discard faces that are not near the polygons
-
-            # Discard any faces which do not intersect the polygons
-            # Dissolve the polygons to form one ROI
-            merged_polygons = polygons_gdf.dissolve()
-            merged_polygons.geometry = merged_polygons.buffer(buffer_dist_meters)
-            # Determine which face IDs intersect the ROI. This is slow
-            self.logger.info("Starting `within`")
-
-            # Check which faces are fully within the buffered regions around the query polygons
-            # Note that using sjoin has been faster than any other approach I've tried, despite seeming
-            # to compute more information than something like gpd.within
-            contained_faces = gpd.sjoin(
-                faces_2d_gdf, merged_polygons, how="left", predicate="within"
-            )["index_right"].notna()
-            faces_2d_gdf = faces_2d_gdf.loc[contained_faces]
-
-            start = time()
             # Drop faces not included
             overlay = polygons_gdf.overlay(
                 faces_2d_gdf, how="identity", keep_geom_type=False
@@ -1444,447 +1457,367 @@ class TexturedPhotogrammetryMesh:
 
         return labels
 
-    # Expensive pixel-to-vertex operations
+    def get_transform_hash(self):
+        """Generates a hash value for the transform to geospatial coordinates
+        Returns:
+            int: A hash value representing transformation.
+        """
+        hasher = hashlib.sha256()
+        hasher.update(
+            self.local_to_epgs_4978_transform.tobytes()
+            if self.local_to_epgs_4978_transform is not None
+            else 0
+        )
+        return hasher.hexdigest()
 
-    def get_rasterization_results_pytorch3d(
+    def get_mesh_hash(self):
+        """Generates a hash value for the mesh based on its points and faces
+        Returns:
+            int: A hash value representing the current mesh.
+        """
+        hasher = hashlib.sha256()
+        hasher.update(self.pyvista_mesh.points.tobytes())
+        hasher.update(self.pyvista_mesh.faces.tobytes())
+        return hasher.hexdigest()
+
+    def pix2face(
         self,
-        cameras: typing.Union[PhotogrammetryCameraSet, PhotogrammetryCamera],
-        image_scale: float = 1.0,
-        cull_to_frustum: bool = False,
-    ):
-        """Use pytorch3d to get correspondences between pixels and vertices
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        render_img_scale: float = 1,
+        save_to_cache: bool = False,
+        cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+    ) -> np.ndarray:
+        """Compute the face that a ray from each pixel would intersect for each camera
 
         Args:
-            camera (PhotogrammetryCamera): Camera to get raster for
-            img_scale (float): How much to resize the image by
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                A single camera or set of cameras. For each camera, the correspondences between
+                pixels and the face IDs of the mesh will be computed. The images of all cameras
+                are assumed to be the same size.
+            render_img_scale (float, optional):
+                Create a pix2face map that is this fraction of the original image scale. Defaults
+                to 1.
+            save_to_cache (bool, optional):
+                Should newly-computed values be saved to the cache. This may speed up future operations
+                but can take up 100s of GBs of space. Defaults to False.
+            cache_folder ((PATH_TYPE, None), optional):
+                Where to check for and save to cached data. Only applicable if use_cache=True.
+                Defaults to CACHE_FOLDER
 
         Returns:
-            pytorch3d.PerspectiveCamera: The camera corresponding to the index
-            pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+            np.ndarray: For each camera, there is an array that is the shape of an image and
+            contains the integer face index for the ray originating at that pixel. Any pixel for
+            which the given ray does not intersect a face is given a value of -1. If the input is
+            a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
+            (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
-        # Promote to one-length list if only one camera is passed
+        # If a set of cameras is passed in, call this method on each camera and concatenate
+        # Other derived methods might be able to compute a batch of renders and once, but pyvista
+        # cannot as far as I can tell
+        if isinstance(cameras, PhotogrammetryCameraSet):
+            pix2face_list = [
+                self.pix2face(camera, render_img_scale=render_img_scale)
+                for camera in cameras
+            ]
+            pix2face = np.stack(pix2face_list, axis=0)
+            return pix2face
 
-        # Create a camera from the metashape parameters
-        p3d_cameras = cameras.get_pytorch3d_camera(device=self.device)
-        if isinstance(cameras, PhotogrammetryCamera):
-            image_size = cameras.get_image_size(image_scale=image_scale)
-        else:
-            image_size = cameras[0].get_image_size(image_scale=image_scale)
+        ## Single camera case
 
-        raster_settings = RasterizationSettings(
-            image_size=image_size,
-            blur_radius=0.0,
-            faces_per_pixel=1,
-            cull_to_frustum=cull_to_frustum,
+        # Check if the cache contains a valid pix2face for the camera based on the dependencies
+        # Compute hashes for the mesh and camera to unique identify mesh+camera pair
+        # The cache will generate a unique key for each combination of the dependencies
+        # If the cache generated key matches a cache file on disk, pix2face will be filled with the correct correspondance
+        # If no match is found, recompute pix2face
+        # If there’s an error loading the cached data, then clear the cache's contents, signified by on_error='clear'
+        mesh_hash = self.get_mesh_hash()
+        camera_hash = cameras.get_camera_hash()
+        cacher = ub.Cacher(
+            "pix2face",
+            depends=[mesh_hash, camera_hash, render_img_scale],
+            dpath=cache_folder,
+            verbose=0,
         )
+        pix2face = cacher.tryload(on_error="clear")
+        ## Cache is valid
+        if pix2face is not None:
+            return pix2face
 
-        # Don't wrap this in a MeshRenderer like normal because we need intermediate results
-        rasterizer = MeshRasterizer(
-            cameras=p3d_cameras, raster_settings=raster_settings
-        ).to(self.device)
+        # This needs to be an attribute of the class because creating a large number of plotters
+        # results in an un-fixable memory leak.
+        # See https://github.com/pyvista/pyvista/issues/2252
+        # The first step is to clear it
+        self.pix2face_plotter.clear()
+        # This is important so there aren't intermediate values
+        self.pix2face_plotter.disable_anti_aliasing()
+        # Set the camera to the corresponding viewpoint
+        self.pix2face_plotter.camera = cameras.get_pyvista_camera()
 
-        # Create a pytorch3d mesh
-        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+        ## Compute the base 256 encoding of the face ID
+        n_faces = self.faces.shape[0]
+        ID_values = np.arange(n_faces)
 
-        # Perform the expensive pytorch3d operation
-        fragments = rasterizer(pytorch3d_mesh)
-        return p3d_cameras, fragments
+        # determine how many channels will be required to represent the number of faces
+        n_channels = int(np.ceil(np.emath.logn(256, n_faces))) if n_faces != 0 else 0
+        channel_multipliers = [256**i for i in range(n_channels)]
 
-    def aggregate_viewpoints_pytorch3d(
-        self,
-        camera_set: PhotogrammetryCameraSet,
-        image_scale: float = 1.0,
-        batch_size: int = 1,
-    ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Aggregate information from different viepoints onto the mesh faces using pytorch3d.
-        This considers occlusions but is fairly slow
-
-        Args:
-            camera_set (PhotogrammetryCamera): Set of cameras to aggregate
-            image_scale (float): Scale images
-        """
-        # This is where the colors will be aggregated
-        # This should be big enough to not overflow
-        n_channels = camera_set.n_image_channels()
-        face_texture = np.zeros(
-            (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
-        )
-        counts = np.zeros(self.pyvista_mesh.n_faces, dtype=np.uint16)
-
-        # Go through all cameras in a random order
-        camera_inds = np.arange(len(camera_set.cameras))
-        np.random.shuffle(camera_inds)
-
-        for batch_start in tqdm(
-            range(0, len(camera_inds), batch_size),
-            desc="Aggregating information from different viewpoints",
-        ):
-            # Get the photogrammetry cameras for the batch
-            batch_cameras = camera_set.get_subset_cameras(
-                camera_inds[batch_start : batch_start + batch_size]
-            )
-            # Do the expensive step to get pixel-to-vertex correspondences
-            _, fragments = self.get_rasterization_results_pytorch3d(
-                cameras=batch_cameras, image_scale=image_scale
-            )
-            # Do the update step independently for each of the images
-            # Iterate over number of cameras in each batch
-            for i in range(batch_cameras.n_cameras()):
-                # Load the image
-                img = batch_cameras.get_image_by_index(i, image_scale=image_scale)
-                img_shape = img.shape
-
-                # Set up indices for indexing into the image
-                inds = np.meshgrid(
-                    np.arange(img_shape[0]), np.arange(img_shape[1]), indexing="ij"
-                )
-                flat_i_inds = inds[0].flatten()
-                flat_j_inds = inds[1].flatten()
-
-                ## Aggregate image information using the correspondences
-                # Extract the correspondences as a flat array
-                pix_to_face = fragments.pix_to_face[i, :, :, 0].cpu().numpy().flatten()
-                # Build an array to store the new colors
-                new_texture = np.zeros(
-                    (self.pyvista_mesh.n_faces, n_channels), dtype=np.uint32
-                )
-                # Index the image to fill this array
-                # TODO find a way to do this better if there are multiple pixels per face
-                # now that behaviour is undefined, I assume the last on indexed just overrides the previous ones
-                # Adjust face indices for batch offset in extended meshes, excluding invalid face indices
-                pix_to_face[pix_to_face != -1] -= self.pyvista_mesh.n_faces * i
-                new_texture[pix_to_face] = img[flat_i_inds, flat_j_inds]
-                # Update the face colors
-                face_texture = face_texture + new_texture
-                # Find unique face indices because we can't increment multiple times like ths
-                unique_faces = np.unique(pix_to_face)
-                # TODO Consider ditching counts array since we can sum over all values in the face texture
-                counts[unique_faces] = counts[unique_faces] + 1
-
-        normalized_face_texture = face_texture / np.expand_dims(counts, 1)
-        return normalized_face_texture, face_texture, counts
-
-    def aggregate_viewpoints_pytorch3d_by_cluster(
-        self,
-        camera_set: PhotogrammetryCameraSet,
-        image_scale: float = 1.0,
-        batch_size: int = 1,
-        n_clusters: int = 8,
-        buffer_dist_meters=50,
-        vis_clusters: bool = False,
-    ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Aggregate viewpoints efficiently by chunking the mesh into clusters
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Same as aggregate_viewpoints_pytorch3d
-            image_scale (float, optional): Same as aggregate_viewpoints_pytorch3d. Defaults to 1.0.
-            batch_size (int, optional): Same as aggregate_viewpoints_pytorch3d. Defaults to 1.
-            n_clusters (int, optional): Number of clusters to partition the cameras into. Defaults to 8.
-            buffer_dist_meters (int, optional): Distance from cameras to include in mesh subset. Defaults to 50.
-            vis_clusters (bool, optional): Show the camera clusters. Defaults to False.
-
-        Returns:
-            Same as aggregate_viewpoints_pytorch3d
-        """
-        # Get the lat lon for each camera point and turn into a shapely Point
-        camera_points = [Point(*cp) for cp in camera_set.get_lon_lat_coords()]
-        # Create a geodataframe from the points
-        camera_points = gpd.GeoDataFrame(
-            geometry=camera_points, crs=pyproj.CRS.from_epsg("4326")
-        )
-        # Make sure the gdf has a gemetric CRS so there is no warping of the space
-        camera_points = ensure_geometric_CRS(camera_points)
-        # Extract the x, y points now in a geometric CRS
-        camera_points_numpy = np.stack(
-            camera_points.geometry.apply(lambda point: (point.x, point.y))
-        )
-
-        # Assign each camera to a cluster
-        camera_cluster_IDs = KMeans(n_clusters=n_clusters).fit_predict(
-            camera_points_numpy
-        )
-        if vis_clusters:
-            plt.scatter(
-                camera_points_numpy[:, 0],
-                camera_points_numpy[:, 1],
-                c=camera_cluster_IDs,
-                cmap="tab20",
-            )
-            plt.show()
-
-        # Build the bookkeeping objects
-        n_points = self.faces.shape[0]
-        all_textures = np.zeros(
-            (n_points, camera_set.n_image_channels()), dtype=np.uint16
-        )
-        all_counts = np.zeros(n_points, dtype=np.uint16)
-
-        for cluster_ID in tqdm(range(n_clusters), desc="Chunks in mesh"):
-            # Get indices of cameras for that cluster
-            matching_camera_inds = np.where(cluster_ID == camera_cluster_IDs)[0]
-            # Extract the rows in the dataframe for those IDs
-            subset_camera_points = camera_points.iloc[matching_camera_inds]
-
-            # TODO this could be accellerated by computing the membership for all points at the begining.
-            # This would require computing all the ROIs (potentially-overlapping) for each region first. Then, finding all the non-overlapping
-            # partition where each polygon corresponds to a set of ROIs. Then the membership for each vertex could be found for each polygon
-            # and the membership in each ROI could be computed. This should be benchmarked though, because having more polygons than original
-            # ROIs may actually lead to slower computations than doing it sequentially
-
-            # Extract a sub mesh for a region around the camera points and also retain the indices into the original mesh
-            sub_mesh_pv, _, face_IDs = self.select_mesh_ROI(
-                region_of_interest=subset_camera_points,
-                buffer_meters=buffer_dist_meters,
-                return_original_IDs=True,
-            )
-            # Wrap this pyvista mesh in a photogrammetry mesh
-            sub_mesh_TPM = TexturedPhotogrammetryMesh(sub_mesh_pv)
-
-            # Get the segmentor camera set for the subset of the camera inds
-            sub_camera_set = camera_set.get_subset_cameras(matching_camera_inds)
-            # Perform aggregation with the subset of camera and the subset of the mesh
-            _, face_texture, counts = sub_mesh_TPM.aggregate_viewpoints_pytorch3d(
-                sub_camera_set, image_scale=image_scale, batch_size=batch_size
-            )
-            # Index back into the full array for bookkeeping
-            all_textures[face_IDs] = all_textures[face_IDs] + face_texture
-            all_counts[face_IDs] = all_counts[face_IDs] + counts
-
-        normalized_face_texture = all_textures / np.expand_dims(all_counts, 1)
-        return normalized_face_texture, all_textures, all_counts
-
-    def aggregate_viewpoints_naive(self, camera_set: PhotogrammetryCameraSet):
-        """
-        Aggregate the information from all images onto the mesh without considering occlusion
-        or distortion parameters
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for aggregation
-        """
-        # Initialize a masked array to record values
-        summed_values = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-
-        counts = np.zeros((self.pyvista_mesh.points.shape[0], 3))
-        for i in tqdm(range(len(camera_set.cameras))):
-            # This is actually the bottleneck in the whole process
-            img = camera_set[i].load_image()
-            colors_per_vertex = camera_set.cameras[i].project_mesh_verts(
-                self.pyvista_mesh.points, img, device=self.device
-            )
-            summed_values = summed_values + colors_per_vertex.data
-            counts[np.logical_not(colors_per_vertex.mask)] = (
-                counts[np.logical_not(colors_per_vertex.mask)] + 1
-            )
-        mean_colors = (summed_values / counts).astype(np.uint8)
-        plotter = pv.Plotter()
-        plotter.add_mesh(self.pyvista_mesh, scalars=mean_colors, rgb=True)
-        plotter.show()
-
-    def render_pyvista(
-        self,
-        camera_set,
-        camera_index: int,
-        image_scale: float = 1.0,
-        enable_ssao: bool = False,
-    ):
-        """Render an image from the viewpoint of a single camera. Note that the principle point is ignored.
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
-            camera_index (int): which camera to render
-            image_scale (float, optional):
-                Multiplier on the real image scale to obtain size for rendering. Lower values
-                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-        """
-        # Get the pyvista camera and image size
-        pv_camera = camera_set[camera_index].get_pyvista_camera()
-        image_size = camera_set[camera_index].get_image_size()
-
-        # Transform image size appropriately
-        scaled_image_size_xy = (
-            int(round(image_size[1] * image_scale)),
-            int(round(image_size[0] * image_scale)),
-        )
-
-        # Get the texture from the mesh
-        texture = self.get_texture(request_vertex_texture=False)
-        is_RGB = texture.shape[1] == 3
-
-        # Set up the pyvista plotter
-        plotter = pv.Plotter(off_screen=True)
-        # Add the mesh
-        plotter.add_mesh(
-            self.pyvista_mesh,
-            scalars=texture,
-            rgb=is_RGB,
-        )
-        # Set the camera to the requested viewpoint
-        plotter.camera = pv_camera
-
-        if enable_ssao:
-            plotter.enable_ssao()
-            # plotter.renderer.enable_ssao(radius=3)
-        # Perform the rendering operation
-        rendered_img = plotter.screenshot(
-            window_size=scaled_image_size_xy,
-        )
-        return rendered_img
-
-    def render_pytorch3d(
-        self,
-        camera_set: PhotogrammetryCameraSet,
-        camera_index: int,
-        image_scale: float = 1.0,
-        shade_by_indexing: bool = True,
-        set_null_texture_to_value: float = None,
-    ):
-        """Render an image from the viewpoint of a single camera
-
-        Args:
-            camera_set (PhotogrammetryCameraSet): Camera set to use for rendering
-            camera_index (int): which camera to render
-            image_scale (float, optional):
-                Multiplier on the real image scale to obtain size for rendering. Lower values
-                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.
-            shade_by_indexing (bool, optional): Use indexing rather than a pytorch3d shader. Useful for integer labels
-        """
-        # TODO clean up
-        texture = self.get_texture(request_vertex_texture=(not shade_by_indexing))
-        # Get the texture and set it
-        pytorch3d_mesh = self.create_pytorch3d_mesh(
-            vert_texture=None if shade_by_indexing else texture
-        )
-
-        # Get the photogrametery camera
-        pg_camera = camera_set[camera_index]
-
-        # Compute the pixel-to-vertex correspondences, this is expensive
-        p3d_camera, fragments = self.get_rasterization_results_pytorch3d(
-            pg_camera, image_scale=image_scale
-        )
-
-        # Use the indexing method
-        if shade_by_indexing:
-            # Extract the pixel to face correspondences
-            # Note that if you profile this code, it may look like this line takes a long time.
-            # In reality, the GPU code is executing asynchronously from the cpu so it waits here to
-            # catch up. If you want accurate timing, but potentially slower execution, use
-            # torch.cuda.synchronize() as described here:
-            # https://discuss.pytorch.org/t/copy-tensor-from-cuda-to-cpu-is-too-slow/13056/6
-            pix_to_face = fragments.pix_to_face[0, :, :, 0].cpu().numpy().flatten()
-            # Index into the texture image
-            flat_labels = texture[pix_to_face]
-            if set_null_texture_to_value is not None:
-                # Remap the value pixels that don't correspond to a face, which are labeled -1
-                flat_labels[pix_to_face == -1] = set_null_texture_to_value
-
-            # Reshape from flat to an array
-            img_size = pg_camera.get_image_size(image_scale=image_scale)
-            texture_channels = () if texture.shape[1] == 1 else (texture.shape[1],)
-            label_img = np.reshape(flat_labels, img_size + texture_channels)
-        else:
-            # Create ambient light so it doesn't effect the color
-            lights = AmbientLights(device=self.device)
-            # Create a shader
-            shader = HardGouraudShader(
-                device=self.device, cameras=p3d_camera, lights=lights
-            )
-
-            # Render the images using the shader
-            label_img = shader(fragments, pytorch3d_mesh)[0].cpu().numpy()
-
-        return label_img
-
-    def aggreate_detections(
-        self,
-        camera_set: PhotogrammetryCameraSet,
-        segmentor: TabularRectangleSegmentor,
-        similarity_threshold=0.0002,
-        use_negative_edges=False,
-    ):
-        # Extract the rays from each of the cameras
-        # Note that these are all still in the local coordinate frame of the mesh
-        all_starts = []
-        all_directions = []
-        all_image_IDs = []
-
-        plotter = pv.Plotter()
-        for i in range(len(camera_set)):
-            filename = str(camera_set.get_image_filename(i))
-            centers = segmentor.get_detection_centers(filename)
-            camera = camera_set[i]
-            # TODO make a "cast_rays" or similar function
-            line_segments = camera.vis_rays(pixel_coords_ij=centers, plotter=plotter)
-            if line_segments is not None:
-                starts = line_segments[0::2]
-                ends = line_segments[1::2]
-                directions = ends - starts
-                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
-                directions = directions / lengths
-                all_starts.append(starts)
-                all_directions.append(directions)
-                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
-        all_starts = np.concatenate(all_starts, axis=0)
-        all_directions = np.concatenate(all_directions, axis=0)
-        all_image_IDs = np.concatenate(all_image_IDs, axis=0)
-
-        # Compute the distance matrix
-        num_dets = all_starts.shape[0]
-        dists = np.full((num_dets, num_dets), fill_value=np.nan)
-
-        for i in tqdm(range(num_dets)):
-            for j in range(i, num_dets):
-                A = all_starts[i]
-                B = all_starts[j]
-                a = all_directions[i]
-                b = all_directions[j]
-                dist, valid = compute_approximate_ray_intersection(A, a, B, b)
-
-                dists[i, j] = dist if valid else np.nan
-
-        # Build a graph from the dists
-        dists[dists > similarity_threshold] = np.nan
-
-        finite = np.isfinite(dists)
-        i_inds, j_inds = np.where(finite)
-
-        positive_edges = [
-            (i, j, {"weight": 1 / dists[i, j]}) for i, j in zip(i_inds, j_inds)
+        # Compute the encoding of each value, least significant value first
+        base_256_encoding = [
+            np.mod(np.floor(ID_values / m).astype(int), 256)
+            for m in channel_multipliers
         ]
 
-        negative_edges = []
-        if use_negative_edges:
-            for image_ID in range(max(all_image_IDs)):
-                inds = np.where(all_image_IDs == image_ID)[0]
-                for i, node_i_ind in enumerate(inds):
-                    for node_j_ind in inds[i + 1 :]:
-                        negative_edges.append(
-                            (
-                                node_i_ind,
-                                node_j_ind,
-                                {"weight": -0.0001 / similarity_threshold},
-                            )
-                        )
+        # ensure that there's a multiple of three channels
+        n_padding = n_channels % 3
+        base_256_encoding.extend([np.zeros(n_faces)] * n_padding)
 
-        G = networkx.Graph(positive_edges)
-        communities = networkx.community.louvain_communities(
-            G, weight="weight", resolution=2
-        )
-        communities = sorted(communities, key=len, reverse=True)
+        # Assume that all images are the same size
+        image_size = cameras.get_image_size(image_scale=render_img_scale)
 
-        community_points = []
-        for community in communities:
-            community = np.array(list(community))
-            community_starts = all_starts[community]
-            community_directions = all_directions[community]
-            community_points.append(
-                triangulate_rays_lstsq(community_starts, community_directions)
+        # Initialize pix2face
+        pix2face = np.zeros(image_size, dtype=int)
+        # Iterate over three-channel chunks. Each will be encoded as RGB and rendered
+        for chunk_ind in range(int(len(base_256_encoding) / 3)):
+            chunk_scalars = np.stack(
+                base_256_encoding[3 * chunk_ind : 3 * (chunk_ind + 1)], axis=1
+            ).astype(np.uint8)
+            # Add the mesh with the associated scalars
+            self.pix2face_plotter.add_mesh(
+                self.pyvista_mesh,
+                scalars=chunk_scalars.copy(),
+                rgb=True,
+                diffuse=0.0,
+                ambient=1.0,
             )
-        community_points = np.vstack(community_points)
-        print(community_points)
 
-        breakpoint()
+            # Perform rendering, this is the slow step
+            rendered_img = self.pix2face_plotter.screenshot(
+                window_size=(image_size[1], image_size[0]),
+            )
+            # Take the rendered values and interpret them as the encoded value
+            # Make sure to not try to interpret channels that are not used in the encoding
+            channels_to_decode = min(3, len(channel_multipliers) - 3 * chunk_ind)
+            for i in range(channels_to_decode):
+                channel_multiplier = channel_multipliers[chunk_ind * 3 + i]
+                channel_value = (rendered_img[..., i] * channel_multiplier).astype(int)
+                pix2face += channel_value
+
+        # Mask out pixels for which the mesh was not visible
+        # This is because the background will render as white
+        # If there happen to be an exact power of (256^3) number of faces, the last one may get
+        # erronously masked. This seems like a minimal concern but it could be addressed by adding
+        # another channel or something like that
+        pix2face[pix2face > n_faces] = -1
+
+        if save_to_cache:
+            # Save the most recently computed pix2face correspondance in the cache
+            cacher.save(pix2face)
+
+        return pix2face
+
+    def render_flat(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        render_img_scale: float = 1,
+        **pix2face_kwargs,
+    ):
+        """
+        Render the texture from the viewpoint of each camera in cameras. Note that this is a
+        generator so if you want to actually execute the computation, call list(*) on the output
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                Either a single camera or a camera set. The texture will be rendered from the
+                perspective of each one
+            batch_size (int, optional):
+                The batch size for pix2face. Defaults to 1.
+            render_img_scale (float, optional):
+                The rendered image will be this fraction of the original image corresponding to the
+                virtual camera. Defaults to 1.
+
+        Raises:
+            TypeError: If cameras is not the correct type
+
+        Yields:
+            np.ndarray:
+               The pix2face array for the next camera. The shape is
+               (int(img_h*render_img_scale), int(img_w*render_img_scale)).
+        """
+        if isinstance(cameras, PhotogrammetryCamera):
+            # Construct a camera set of length one
+            cameras = PhotogrammetryCameraSet([cameras])
+        elif not isinstance(cameras, PhotogrammetryCameraSet):
+            raise TypeError()
+
+        # Get the face texture from the mesh
+        # TODO consider whether the user should be able to pass a texture to this method. It could
+        # make the user's life easier but makes this method more complex
+        face_texture = self.get_texture(
+            request_vertex_texture=False, try_verts_faces_conversion=True
+        )
+        texture_dim = face_texture.shape[1]
+
+        # Iterate over batch of the cameras
+        batch_stop = max(len(cameras) - batch_size + 1, 1)
+        for batch_start in range(0, batch_stop, batch_size):
+            batch_end = batch_start + batch_size
+            batch_cameras = cameras[batch_start:batch_end]
+            # Compute a batch of pix2face correspondences. This is likely the slowest step
+            batch_pix2face = self.pix2face(
+                cameras=batch_cameras,
+                render_img_scale=render_img_scale,
+                **pix2face_kwargs,
+            )
+
+            # Iterate over the batch dimension
+            for pix2face in batch_pix2face:
+                # Record the original shape of the image
+                img_shape = pix2face.shape[:2]
+                # Flatten for indexing
+                pix2face = pix2face.flatten()
+                # Compute which pixels intersected the mesh
+                mesh_pixel_inds = np.where(pix2face != -1)[0]
+                # Initialize and all-nan array
+                rendered_flattened = np.full(
+                    (pix2face.shape[0], texture_dim), fill_value=np.nan
+                )
+                # Fill the values for which correspondences exist
+                rendered_flattened[mesh_pixel_inds] = face_texture[
+                    pix2face[mesh_pixel_inds]
+                ]
+                # reshape to an image, where the last dimension is the texture dimension
+                rendered_img = rendered_flattened.reshape(img_shape + (texture_dim,))
+                yield rendered_img
+
+    def project_images(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
+        **pix2face_kwargs,
+    ):
+        """Find the per-face projection for each of a set of images and associated camera
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to project images from. cam.get_image() will be called on each one
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+
+        Yields:
+            np.ndarray: The per-face projection of an image in the camera set
+        """
+        n_faces = self.faces.shape[0]
+
+        # Iterate over batch of the cameras
+        batch_stop = max(len(cameras) - batch_size + 1, 1)
+        for batch_start in range(0, batch_stop, batch_size):
+            batch_inds = list(range(batch_start, batch_start + batch_size))
+            batch_cameras = cameras.get_subset_cameras(batch_inds)
+            # Compute a batch of pix2face correspondences. This is likely the slowest step
+            batch_pix2face = self.pix2face(
+                cameras=batch_cameras,
+                render_img_scale=aggregate_img_scale,
+                **pix2face_kwargs,
+            )
+            for i, pix2face in enumerate(batch_pix2face):
+                img = cameras.get_image_by_index(batch_start + i, aggregate_img_scale)
+                flat_img = np.reshape(img, (img.shape[0] * img.shape[1], -1))
+                textured_faces = np.full(
+                    (n_faces, flat_img.shape[1]), fill_value=np.nan
+                )
+                flat_pix2face = pix2face.flatten()
+                # TODO this creates ill-defined behavior if multiple pixels map to the same face
+                # my guess is the later pixel in the flattened array will override the former
+                textured_faces[flat_pix2face] = flat_img
+                yield textured_faces
+
+    def aggregate_projected_images(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        batch_size: int = 1,
+        aggregate_img_scale: float = 1,
+        return_all: bool = False,
+        **kwargs,
+    ):
+        """Aggregate the imagery from multiple cameras into per-face averges
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                The cameras to aggregate the images from. cam.get_image() will be called on each
+                element.
+            batch_size (int, optional):
+                The number of cameras to compute correspondences for at once. Defaults to 1.
+            aggregate_img_scale (float, optional):
+                The scale of pixel-to-face correspondences image, as a fraction of the original
+                image. Lower values lead to better runtimes but decreased precision at content
+                boundaries in the images. Defaults to 1.
+            return_all (bool, optional):
+                Return the projection of each individual image, rather than just the aggregates.
+                Defaults to False.
+
+        Returns:
+            np.ndarray: (n_faces, n_image_channels) The average projected image per face
+            dict: Additional information, including the summed projections, observations per face,
+                  and potentially each individual projection
+        """
+        project_images_generator = self.project_images(
+            cameras=cameras,
+            batch_size=batch_size,
+            aggregate_img_scale=aggregate_img_scale,
+            **kwargs,
+        )
+
+        if return_all:
+            all_projections = []
+
+        # TODO this should be a convenience method
+        n_faces = self.faces.shape[0]
+
+        projection_counts = np.zeros(n_faces)
+        summed_projection = None
+
+        for projection_for_image in tqdm(
+            project_images_generator,
+            total=len(cameras),
+            desc="Aggregating projected viewpoints",
+        ):
+            if return_all:
+                all_projections.append(projection_for_image)
+
+            if summed_projection is None:
+                summed_projection = projection_for_image.astype(float)
+            else:
+                summed_projection = np.nansum(
+                    [summed_projection, projection_for_image], axis=0
+                )
+
+            projected_faces = np.any(np.isfinite(projection_for_image), axis=1).astype(
+                int
+            )
+            projection_counts += projected_faces
+
+        no_projections = projection_counts == 0
+        summed_projection[no_projections] = np.nan
+
+        additional_information = {
+            "projection_counts": projection_counts,
+            "summed_projections": summed_projection,
+        }
+
+        if return_all:
+            additional_information["all_projections"] = all_projections
+
+        average_projections = np.divide(
+            summed_projection, np.expand_dims(projection_counts, 1)
+        )
+
+        return average_projections, additional_information
 
     # Visualization and saving methods
     def vis(
@@ -1893,34 +1826,41 @@ class TexturedPhotogrammetryMesh:
         interactive: bool = True,
         camera_set: PhotogrammetryCameraSet = None,
         screenshot_filename: PATH_TYPE = None,
-        vis_scalars=None,
+        vis_scalars: typing.Union[None, np.ndarray] = None,
         mesh_kwargs: typing.Dict = None,
         interactive_jupyter: bool = False,
         plotter_kwargs: typing.Dict = {},
         enable_ssao: bool = True,
         force_xvfb: bool = False,
-        frustum_scale: float = None,
+        frustum_scale: float = 2,
         IDs_to_labels: typing.Union[None, dict] = None,
     ):
         """Show the mesh and cameras
 
         Args:
-            plotter (pyvista.Plotter, optional): Plotter to use, else one will be created
-            off_screen (bool, optional): Show offscreen
-            camera_set (PhotogrammetryCameraSet, optional): Cameras to visualize. Defaults to None.
-            screenshot_filename (PATH_TYPE, optional): Filepath to save to, will show interactively if None. Defaults to None.
-            vis_scalars: Scalars to show
-            mesh_kwargs: dict of keyword arguments for the mesh
-            interactive_jupyter (bool): should jupyter windows be interactive. This doesn't always work, especially on VSCode.
-            plotter_kwargs: dict of keyword arguments for the plotter
-            frustum_scale (float, optional): Size of cameras in world units
+            plotter (pyvista.Plotter, optional):
+                Plotter to use, else one will be created
+            off_screen (bool, optional):
+                Show offscreen
+            camera_set (PhotogrammetryCameraSet, optional):
+                Cameras to visualize. Defaults to None.
+            screenshot_filename (PATH_TYPE, optional):
+                Filepath to save to, will show interactively if None. Defaults to None.
+            vis_scalars (None, np.ndarray):
+                Scalars to show
+            mesh_kwargs:
+                dict of keyword arguments for the mesh
+            interactive_jupyter (bool):
+                Should jupyter windows be interactive. This doesn't always work, especially on VSCode.
+            plotter_kwargs:
+                dict of keyword arguments for the plotter
+            frustum_scale (float, optional):
+                Size of cameras in world units. Defaults to None.
             IDs_to_labels ([None, dict], optional):
-                Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh IDs_to_labels if unset.
+                Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh
+                IDs_to_labels if unset.
         """
         off_screen = (not interactive) or (screenshot_filename is not None)
-        # Start offscreen rendering if needed
-        if force_xvfb:
-            pv.start_xvfb()
 
         # If the IDs to labels is not set, use the default ones for this mesh
         if IDs_to_labels is None:
@@ -1945,9 +1885,10 @@ class TexturedPhotogrammetryMesh:
                     mesh_kwargs["cmap"] = colors[0 : max_ID + 1]
                     mesh_kwargs["clim"] = (-0.5, max_ID + 0.5)
 
-        if plotter is None:
-            # Create the plotter which may be onscreen or off
-            plotter = pv.Plotter(off_screen=off_screen)
+        # Create the plotter if it's None
+        plotter = create_pv_plotter(
+            off_screen=off_screen, force_xvfb=force_xvfb, plotter=plotter
+        )
 
         # If the vis scalars are None, use the saved texture
         if vis_scalars is None:
@@ -2024,14 +1965,16 @@ class TexturedPhotogrammetryMesh:
             **plotter_kwargs,
         )
 
-    def save_renders_pytorch3d(
+    def save_renders(
         self,
         camera_set: PhotogrammetryCameraSet,
         render_image_scale=1.0,
         output_folder: PATH_TYPE = Path(VIS_FOLDER, "renders"),
         make_composites: bool = False,
         save_native_resolution: bool = False,
-        set_null_texture_to_value: float = NULL_TEXTURE_INT_VALUE,
+        cast_to_uint8: bool = True,
+        uint8_value_for_null_texture: np.uint8 = NULL_TEXTURE_INT_VALUE,
+        **render_kwargs,
     ):
         """Render an image from the viewpoint of each specified camera and save a composite
 
@@ -2046,8 +1989,14 @@ class TexturedPhotogrammetryMesh:
             make_composites (bool, optional):
                 Should a triple pane composite with the original image be saved rather than the
                 raw label
-            set_null_texture_to_value (float, optional):
-                What value to assign un-labeled regions. Defaults to NULL_TEXTURE_INT_VALUE
+            cast_to_uint8: (bool, optional):
+                cast the float valued data to unit8 for saving efficiency. May dramatically increase
+                efficiency due to png compression
+            uint8_value_for_null_texture (np.uint8, optional):
+                What value to assign for values that can't be represented as unsigned 8-bit data.
+                Defaults to NULL_TEXTURE_INT_VALUE
+            render_kwargs:
+                keyword arguments passed to the render.
         """
 
         ensure_folder(output_folder)
@@ -2056,15 +2005,20 @@ class TexturedPhotogrammetryMesh:
         # Save the classes filename
         self.save_IDs_to_labels(Path(output_folder, "IDs_to_labels.json"))
 
-        for i in tqdm(range(len(camera_set)), desc="Saving renders"):
-            # Render the labels
-            rendered = self.render_pytorch3d(
-                camera_set=camera_set,
-                camera_index=i,
-                image_scale=render_image_scale,
-                set_null_texture_to_value=set_null_texture_to_value,
-            )
+        # Create the generator object to render the images
+        # Since this is a generator, this will be fast
+        render_gen = self.render_flat(
+            camera_set, render_img_scale=render_image_scale, **render_kwargs
+        )
 
+        # The computation only happens when items are requested from the generator
+        for i, rendered in enumerate(
+            tqdm(
+                render_gen,
+                total=len(camera_set),
+                desc="Computing and saving renders",
+            )
+        ):
             ## All this is post-processing to visualize the rendered label.
             # rendered could either be a one channel image of integer IDs,
             # a one-channel image of scalars, or a three-channel image of
@@ -2096,6 +2050,19 @@ class TexturedPhotogrammetryMesh:
                 if rendered.ndim == 3:
                     rendered = rendered[..., :3]
 
+            if cast_to_uint8:
+                # Deterimine values that cannot be represented as uint8
+                mask = np.logical_or.reduce(
+                    [
+                        rendered < 0,
+                        rendered > 255,
+                        np.logical_not(np.isfinite(rendered)),
+                    ]
+                )
+                rendered[mask] = uint8_value_for_null_texture
+                # Cast and squeeze since you can't save a one-channel image
+                rendered = np.squeeze(rendered.astype(np.uint8))
+
             # Saving
             output_filename = Path(
                 output_folder, camera_set.get_image_filename(i, absolute=False)
@@ -2104,6 +2071,7 @@ class TexturedPhotogrammetryMesh:
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
                 output_filename = str(output_filename.with_suffix(".png"))
+
                 # Save the image
                 skimage.io.imsave(output_filename, rendered, check_contrast=False)
             else:
