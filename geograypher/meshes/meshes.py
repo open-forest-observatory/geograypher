@@ -4,7 +4,6 @@ import sys
 import typing
 from pathlib import Path
 from time import time
-from scipy.spatial import KDTree
 
 import geopandas as gpd
 import matplotlib.colors
@@ -27,6 +26,7 @@ from pytorch3d.renderer import (
     TexturesVertex,
 )
 from pytorch3d.structures import Meshes
+from scipy.spatial import KDTree
 from shapely import MultiPolygon, Point, Polygon
 from skimage.transform import resize
 from sklearn.cluster import KMeans
