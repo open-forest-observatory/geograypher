@@ -75,7 +75,6 @@ class TexturedPhotogrammetryMesh:
         self.downsample_target = downsample_target
 
         self.pyvista_mesh = None
-        self.kdtree = None
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
@@ -164,16 +163,17 @@ class TexturedPhotogrammetryMesh:
             simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
-        # Downsample mesh if needed transfer textures from original mesh to downsampled mesh
+        # Downsample mesh and transfer active scalars from original mesh to downsampled mesh
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
             self.logger.info("Downsampling the mesh")
-            intermediate_mesh = self.pyvista_mesh.decimate(
+            # Have a temporary mesh so we can use the original mesh to transfer the active scalars to the downsampled one
+            downsampled_mesh_without_textures = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
-            self.pyvista_mesh = self.transfer_texture(intermediate_mesh)
+            self.pyvista_mesh = self.transfer_texture(downsampled_mesh_without_textures)
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
@@ -188,31 +188,22 @@ class TexturedPhotogrammetryMesh:
             pv.PolyData: The downsampled mesh with the transferred textures
         """
         # Only compute KDTree if active scalars are associated with points
-        if (
-            self.kdtree is None
-            and self.pyvista_mesh.active_scalars_info.association
-            == pv.FieldAssociation.POINT
-        ):
+        if (self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.POINT):
             # Store original mesh points in KDTree for nearest neighbor search
-            self.kdtree = KDTree(self.pyvista_mesh.points)
+            kdtree = KDTree(self.pyvista_mesh.points)
 
             # For ecah point in the downsampled mesh find the nearest neighbor point in the original mesh
-            _, indices = self.kdtree.query(downsampled_mesh.points)
+            _, nearest_neighbor_indices = kdtree.query(downsampled_mesh.points)
 
+            # TODO Transfer all the point based scalars not just the active scalars
             # Get active scalars name and value at the found indices
-            active_scalars_name = self.pyvista_mesh.active_scalars_name
-            active_scalars = self.pyvista_mesh.active_scalars[indices]
+            original_mesh_active_scalars_name = self.pyvista_mesh.active_scalars_name
+            transferred_active_scalars = self.pyvista_mesh.active_scalars[nearest_neighbor_indices]
 
-            # Assign active scalars to the downsampled mesh
-            downsampled_mesh[active_scalars_name] = active_scalars
-
-            # Set the active scalars on the downsampled mesh to ensure they are being used
-            downsampled_mesh.set_active_scalars(active_scalars_name)
+            # Assign active scalars to the downsampled mesh and ensure they are the current ones being used
+            downsampled_mesh[original_mesh_active_scalars_name] = transferred_active_scalars
         else:
-            raise UserWarning(
-                f"Textures not transferred, active scalars data is assoicated with cell data not point data"
-            )
-
+            self.logger.warning("Textures not transferred, active scalars data is assoicated with cell data not point data")
         return downsampled_mesh
 
     def load_transform_to_epsg_4326(
