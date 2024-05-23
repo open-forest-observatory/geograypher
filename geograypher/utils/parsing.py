@@ -49,7 +49,7 @@ def parse_transform_metashape(camera_file):
     return local_to_epgs_4978_transform
 
 
-def parse_sensors(sensors,default_sensor_dict=None):
+def parse_sensors(sensors, default_sensor_dict=None):
     sensors_dict = {}
 
     for sensor in sensors:

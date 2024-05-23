@@ -44,6 +44,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         camera_file: PATH_TYPE,
         image_folder: PATH_TYPE,
         validate_images: bool = False,
+        default_sensor_params: dict = {},
     ):
         """Parse the information about the camera intrinsics and extrinsics
 
@@ -63,7 +64,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         # second level
         sensors = chunk.find("sensors")
         # Parse the sensors representation
-        sensors_dict = parse_sensors(sensors)
+        sensors_dict = parse_sensors(sensors, default_sensor_dict=default_sensor_params)
 
         # Set up the lists to populate
         image_filenames = []
