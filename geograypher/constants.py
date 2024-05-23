@@ -26,6 +26,8 @@ NULL_TEXTURE_INT_VALUE = 255
 LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
 EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)
 
+LONG_PAUSE = 120
+
 ### Example data variables
 ## Raw input data
 # The input labels
