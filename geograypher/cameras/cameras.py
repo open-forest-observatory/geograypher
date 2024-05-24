@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 import geopandas as gpd
+import networkx
 import numpy as np
 import numpy.ma as ma
 import pyproj
@@ -20,9 +21,14 @@ from skimage.transform import resize
 from tqdm import tqdm
 
 from geograypher.constants import DEFAULT_FRUSTUM_SCALE, EXAMPLE_INTRINSICS, PATH_TYPE
+from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import ensure_geometric_CRS
 from geograypher.utils.image import get_GPS_exif
+from geograypher.utils.numeric import (
+    compute_approximate_ray_intersection,
+    triangulate_rays_lstsq,
+)
 
 
 class PhotogrammetryCamera:
@@ -438,15 +444,15 @@ class PhotogrammetryCamera:
         # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
         plotter.add_mesh(frustum, scalars=face_colors, rgb=True)
 
-    def vis_rays(
-        self, pixel_coords_ij: np.ndarray, plotter: pv.Plotter, line_length: float = 10
-    ):
-        """Show rays eminating from the camera
+    def cast_rays(self, pixel_coords_ij: np.ndarray, line_length: float = 10):
+        """Compute rays eminating from the camera
 
         Args:
             image_coords (np.ndarray): (n,2) array of (i,j) pixel coordinates in the image
-            plotter (pv.Plotter): Plotter to use.
             line_length (float, optional): How long the lines are. Defaults to 10. #TODO allow an array of different values
+
+        Returns:
+            np.array: The projected vertices, TODO
         """
         # Transform from i, j to x, y
         pixel_coords_xy = np.flip(pixel_coords_ij, axis=1)
@@ -486,6 +492,24 @@ class PhotogrammetryCamera:
             projected_vertices /= self.cam_to_world_transform[3, 3]
 
         projected_vertices = projected_vertices[:3, :].T
+
+        return projected_vertices
+
+    def vis_rays(
+        self, pixel_coords_ij: np.ndarray, plotter: pv.Plotter, line_length: float = 10
+    ):
+        """Show rays eminating from the camera
+
+        Args:
+            image_coords (np.ndarray): (n,2) array of (i,j) pixel coordinates in the image
+            plotter (pv.Plotter): Plotter to use.
+            line_length (float, optional): How long the lines are. Defaults to 10. #TODO allow an array of different values
+        """
+        projected_vertices = self.cast_rays(
+            pixel_coords_ij=pixel_coords_ij, line_length=line_length
+        )
+
+        n_points = projected_vertices.shape[0]
 
         lines = np.vstack(
             (
@@ -768,6 +792,110 @@ class PhotogrammetryCameraSet:
         # Is there a better way? Are there side effects I'm not thinking of?
         subset_camera_set = self.get_subset_cameras(valid_camera_inds)
         return subset_camera_set
+
+    def aggreate_detections(
+        self,
+        segmentor: TabularRectangleSegmentor,
+        similarity_threshold=0.0002,
+        use_negative_edges=False,
+        plotter=pv.Plotter(),
+        vis=True,
+        vis_line_length=100,
+    ):
+        # Extract the rays from each of the cameras
+        # Note that these are all still in the local coordinate frame of the mesh
+        all_starts = []
+        all_directions = []
+        all_image_IDs = []
+
+        for i in range(len(self)):
+            filename = str(self.get_image_filename(i, absolute=False))
+            centers = segmentor.get_detection_centers(filename)
+            camera = self[i]
+            # TODO make a "cast_rays" or similar function
+            line_segments = camera.cast_rays(pixel_coords_ij=centers)
+            if vis:
+                camera.vis_rays(
+                    pixel_coords_ij=centers,
+                    plotter=plotter,
+                    line_length=vis_line_length,
+                )
+            if line_segments is not None:
+                starts = line_segments[0::2]
+                ends = line_segments[1::2]
+                directions = ends - starts
+                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
+                directions = directions / lengths
+                all_starts.append(starts)
+                all_directions.append(directions)
+                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
+        all_starts = np.concatenate(all_starts, axis=0)
+        all_directions = np.concatenate(all_directions, axis=0)
+        all_image_IDs = np.concatenate(all_image_IDs, axis=0)
+
+        # Compute the distance matrix
+        num_dets = all_starts.shape[0]
+        dists = np.full((num_dets, num_dets), fill_value=np.nan)
+
+        for i in tqdm(range(num_dets)):
+            for j in range(i, num_dets):
+                A = all_starts[i]
+                B = all_starts[j]
+                a = all_directions[i]
+                b = all_directions[j]
+                dist, valid = compute_approximate_ray_intersection(A, a, B, b)
+
+                dists[i, j] = dist if valid else np.nan
+
+        # Build a graph from the dists
+        dists[dists > similarity_threshold] = np.nan
+
+        finite = np.isfinite(dists)
+        i_inds, j_inds = np.where(finite)
+
+        positive_edges = [
+            (i, j, {"weight": 1 / dists[i, j]}) for i, j in zip(i_inds, j_inds)
+        ]
+
+        negative_edges = []
+        if use_negative_edges:
+            for image_ID in range(max(all_image_IDs)):
+                inds = np.where(all_image_IDs == image_ID)[0]
+                for i, node_i_ind in enumerate(inds):
+                    for node_j_ind in inds[i + 1 :]:
+                        negative_edges.append(
+                            (
+                                node_i_ind,
+                                node_j_ind,
+                                {"weight": -0.0001 / similarity_threshold},
+                            )
+                        )
+
+        G = networkx.Graph(positive_edges)
+        communities = networkx.community.louvain_communities(
+            G, weight="weight", resolution=2
+        )
+        communities = sorted(communities, key=len, reverse=True)
+
+        community_points = []
+        for community in communities:
+            community = np.array(list(community))
+            community_starts = all_starts[community]
+            community_directions = all_directions[community]
+            community_points.append(
+                triangulate_rays_lstsq(community_starts, community_directions)
+            )
+        community_points = np.vstack(community_points)
+
+        if vis:
+            print(len(community_points))
+            detected_points = pv.PolyData(community_points)
+            plotter.add_points(
+                detected_points,
+                color="r",
+                render_points_as_spheres=True,
+                point_size=10,
+            )
 
     def vis(
         self,
