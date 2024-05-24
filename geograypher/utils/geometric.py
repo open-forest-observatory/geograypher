@@ -15,6 +15,7 @@ def batched_unary_union(
     subsequent_batch_size: int = 4,
     sort_by_loc: bool = False,
     simplify_tol=0,
+    verbose: bool = False,
 ) -> shapely.MultiPolygon:
     """Roughly replicate the functionality of shapely.unary_union using a batched implementation
 
@@ -24,6 +25,7 @@ def batched_unary_union(
         grid_size (typing.Union[None, float]): grid size passed to unary_union
         subsequent_batch_size (int, optional): The batch size for subsequent (recursive) batches. Defaults to 4.
         sort_by_loc (bool, optional): Should the polygons be sorted by location to have a higher likelihood of merging. Defaults to False.
+        verbose (bool, optional): Should additional print outs be provided
 
     Returns:
         shapely.MultiPolygon: The merged multipolygon
@@ -45,11 +47,17 @@ def batched_unary_union(
     # rather than number of objects.
     # TODO you could consider multiprocessing this since it's embarassingly parallel
 
+    # Wrap the iteration in tqdm if requested, else just return it
+    iteration_decorator = lambda x: (
+        tqdm(x, desc=f"Computing batched unary union with batch size {batch_size}")
+        if verbose
+        else x
+    )
+
     # Compute batched version
     batched_unions = []
-    for i in tqdm(
+    for i in iteration_decorator(
         range(0, len(geometries), batch_size),
-        desc=f"Computing batched unary union with batch size {batch_size}",
     ):
         batch = geometries[i : i + batch_size]
         batched_unions.append(unary_union(batch, grid_size=grid_size))
