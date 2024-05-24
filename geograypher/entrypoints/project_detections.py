@@ -75,7 +75,7 @@ def project_detections(
         # Create an object that looks up the detections from a folder of CSVs. Using this, it can
         # generate "predictions" for a given image.
         detections_predictor = TabularRectangleSegmentor(
-            pred_folder=detections_folder,
+            pred_file_or_folder=detections_folder,
             image_folder=image_folder,
             label_key="instance_ID",
         )

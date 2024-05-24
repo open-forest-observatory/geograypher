@@ -77,7 +77,9 @@ class TabularRectangleSegmentor(Segmentor):
         if os.path.isfile(pred_file_or_folder):
             files = [pred_file_or_folder]
         else:
-            files = sorted(Path(self.pred_folder).glob("*" + self.predfile_extension))
+            files = sorted(
+                Path(self.pred_file_or_folder).glob("*" + self.predfile_extension)
+            )
 
         dfs = [pd.read_csv(f) for f in files]
 
