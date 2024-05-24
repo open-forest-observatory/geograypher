@@ -29,7 +29,6 @@ from geograypher.constants import (
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     LAT_LON_EPSG_CODE,
-    LONG_PAUSE,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
@@ -1305,7 +1304,7 @@ class TexturedPhotogrammetryMesh:
                 legend=True,
                 **vis_kwargs,
             )
-            plt.pause(LONG_PAUSE)
+            plt.show()
 
         return export_gdf
 
