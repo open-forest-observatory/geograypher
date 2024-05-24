@@ -14,16 +14,51 @@ from geograypher.utils.files import ensure_containing_folder
 def project_detections(
     mesh_filename: PATH_TYPE,
     cameras_filename: PATH_TYPE,
+    project_to_mesh: bool = False,
+    convert_to_geospatial: bool = False,
     image_folder: PATH_TYPE = None,
     detections_folder: PATH_TYPE = None,
     projections_to_mesh_filename: PATH_TYPE = None,
     projections_to_geospatial_savefilename: PATH_TYPE = None,
     default_focal_length: float = None,
-    project_to_mesh: bool = False,
-    convert_to_geospatial: bool = False,
     vis_mesh: bool = False,
     vis_geodata: bool = False,
 ):
+    """Project per-image detections to geospatial coordinates
+
+    Args:
+        mesh_filename (PATH_TYPE):
+            Path to mesh file, in local coordinates from Metashape
+        cameras_filename (PATH_TYPE):
+            Path to cameras file. This also contains local-to-global coordinate transform to convert
+            the mesh to geospatial units.
+        project_to_mesh (bool, optional):
+            Execute the projection to mesh step. Defaults to False.
+        convert_to_geospatial (bool, optional):
+            Execute the conversion to geospatial step. Defaults to False.
+        image_folder (PATH_TYPE, optional):
+            Path to the folder of images used to generate the detections. TODO, see if this can be
+            removed since none of this information is actually used. Defaults to None.
+        detections_folder (PATH_TYPE, optional):
+            Folder of detections in the DeepForest format, one per image. Defaults to None.
+        projections_to_mesh_filename (PATH_TYPE, optional):
+            Where to save and/or load from the data for the detections projected to the mesh faces.
+            Defaults to None.
+        projections_to_geospatial_savefilename (PATH_TYPE, optional):
+            Where to export the geospatial detections. Defaults to None.
+        default_focal_length (float, optional):
+            Since the focal length is not provided in many cameras files, it can be specified.
+            The units are in pixels. TODO, figure out where this information can be reliably obtained
+            from. Defaults to None.
+        vis_mesh (bool, optional):
+            Show the mesh with detections projected onto it. Defaults to False.
+        vis_geodata (bool, optional):
+            Show the geospatial projection. Defaults to False.
+
+    Raises:
+        ValueError: If convert_to_geospatial but no projections to mesh are available
+        FileNotFoundError: If the projections_to_mesh_filename is set and needed but not present
+    """
     # Create the mesh object, which will be used for either workflow
     mesh = TexturedPhotogrammetryMeshIndexPredictions(
         mesh_filename, transform_filename=cameras_filename
@@ -36,7 +71,7 @@ def project_detections(
             cameras_filename,
             image_folder,
             default_sensor_params={"f": default_focal_length, "cx": 0, "cy": 0},
-        )[:5]
+        )
         # Create an object that looks up the detections from a folder of CSVs. Using this, it can
         # generate "predictions" for a given image.
         detections_predictor = TabularRectangleSegmentor(
