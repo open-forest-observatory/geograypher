@@ -524,11 +524,14 @@ class PhotogrammetryCamera:
             plotter (pv.Plotter): Plotter to use.
             line_length (float, optional): How long the lines are. Defaults to 10. #TODO allow an array of different values
         """
+        # If there are no detections, just skip it
+        if len(pixel_coords_ij) == 0:
+            return
+
         projected_vertices = self.cast_rays(
             pixel_coords_ij=pixel_coords_ij, line_length=line_length
         )
-
-        n_points = projected_vertices.shape[0]
+        n_points = int(projected_vertices.shape[0] / 2)
 
         lines = np.vstack(
             (
@@ -538,7 +541,7 @@ class PhotogrammetryCamera:
             )
         ).T
 
-        mesh = pv.PolyData(projected_vertices, lines=lines)
+        mesh = pv.PolyData(projected_vertices.copy(), lines=lines.copy())
         plotter.add_mesh(mesh)
 
 
@@ -856,7 +859,7 @@ class PhotogrammetryCameraSet:
         use_negative_edges=False,
         plotter=pv.Plotter(),
         vis=True,
-        vis_line_length=100,
+        vis_line_length=10,
     ):
         # Extract the rays from each of the cameras
         # Note that these are all still in the local coordinate frame of the mesh
@@ -864,18 +867,16 @@ class PhotogrammetryCameraSet:
         all_directions = []
         all_image_IDs = []
 
+        all_line_segments = []
+
         for i in range(len(self)):
             filename = str(self.get_image_filename(i, absolute=False))
             centers = segmentor.get_detection_centers(filename)
             camera = self[i]
             # TODO make a "cast_rays" or similar function
-            line_segments = camera.cast_rays(pixel_coords_ij=centers)
-            if vis:
-                camera.vis_rays(
-                    pixel_coords_ij=centers,
-                    plotter=plotter,
-                    line_length=vis_line_length,
-                )
+            line_segments = camera.cast_rays(
+                pixel_coords_ij=centers, line_length=vis_line_length
+            )
             if line_segments is not None:
                 starts = line_segments[0::2]
                 ends = line_segments[1::2]
@@ -884,9 +885,13 @@ class PhotogrammetryCameraSet:
                 directions = directions / lengths
                 all_starts.append(starts)
                 all_directions.append(directions)
+                all_line_segments.append(line_segments)
                 all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
+
         all_starts = np.concatenate(all_starts, axis=0)
         all_directions = np.concatenate(all_directions, axis=0)
+        all_line_segments = np.concatenate(all_line_segments, axis=0)
+
         all_image_IDs = np.concatenate(all_image_IDs, axis=0)
 
         # Compute the distance matrix
@@ -944,7 +949,6 @@ class PhotogrammetryCameraSet:
         community_points = np.vstack(community_points)
 
         if vis:
-            print(len(community_points))
             detected_points = pv.PolyData(community_points)
             plotter.add_points(
                 detected_points,
@@ -952,6 +956,10 @@ class PhotogrammetryCameraSet:
                 render_points_as_spheres=True,
                 point_size=10,
             )
+            lines_mesh = pv.line_segments_from_points(all_line_segments)
+            plotter.add_mesh(lines_mesh)
+
+        return community_points
 
     def vis(
         self,
