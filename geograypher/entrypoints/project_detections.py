@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from imageio import imread
 
 import numpy as np
 from scipy.sparse import load_npz, save_npz
@@ -72,12 +74,15 @@ def project_detections(
             image_folder,
             default_sensor_params={"f": default_focal_length, "cx": 0, "cy": 0},
         )
+        # Infer the image shape from the first image in the folder
+        image_shape = imread(list(Path(image_folder).glob("*.*"))[0]).shape[:2]
         # Create an object that looks up the detections from a folder of CSVs. Using this, it can
         # generate "predictions" for a given image.
         detections_predictor = TabularRectangleSegmentor(
             pred_file_or_folder=detections_folder,
             image_folder=image_folder,
             label_key="instance_ID",
+            image_shape=image_shape,
         )
 
         # Wrap the camera set so that it returns the detections rather than the original images
