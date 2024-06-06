@@ -38,8 +38,8 @@ from geograypher.utils.files import ensure_containing_folder, ensure_folder
 from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
-    ensure_projected_CRS,
     ensure_non_overlapping_polygons,
+    ensure_projected_CRS,
     get_projected_CRS,
 )
 from geograypher.utils.indexing import ensure_float_labels
