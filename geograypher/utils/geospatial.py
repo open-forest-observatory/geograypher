@@ -59,6 +59,20 @@ def get_projected_CRS(lat, lon, assume_western_hem=True):
     return crs
 
 
+def convert_CRS_3D_points(points, input_CRS, output_CRS):
+    transformer = pyproj.Transformer.from_crs(input_CRS, output_CRS)
+
+    # Transform the coordinates
+    points_in_output_CRS = transformer.transform(
+        xx=points[:, 0],
+        yy=points[:, 1],
+        zz=points[:, 2],
+    )
+    # Stack and transpose
+    points_in_output_CRS = np.vstack(points_in_output_CRS).T
+    return points_in_output_CRS
+
+
 def ensure_non_overlapping_polygons(
     geometries: typing.Union[typing.List[Geometry], gpd.GeoDataFrame],
     inplace: bool = False,

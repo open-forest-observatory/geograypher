@@ -23,12 +23,13 @@ from tqdm import tqdm
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
     EXAMPLE_INTRINSICS,
-    LAT_LON_EPSG_CODE,
     PATH_TYPE,
+    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    LAT_LON_EPSG_CODE,
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
-from geograypher.utils.geospatial import ensure_projected_CRS
+from geograypher.utils.geospatial import ensure_projected_CRS, convert_CRS_3D_points
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
@@ -860,6 +861,7 @@ class PhotogrammetryCameraSet:
         plotter=pv.Plotter(),
         vis=True,
         vis_line_length=10,
+        transform_to_epsg_4978=None,
     ):
         # Extract the rays from each of the cameras
         # Note that these are all still in the local coordinate frame of the mesh
@@ -898,7 +900,7 @@ class PhotogrammetryCameraSet:
         num_dets = all_starts.shape[0]
         dists = np.full((num_dets, num_dets), fill_value=np.nan)
 
-        for i in tqdm(range(num_dets)):
+        for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
             for j in range(i, num_dets):
                 A = all_starts[i]
                 B = all_starts[j]
@@ -958,6 +960,26 @@ class PhotogrammetryCameraSet:
             )
             lines_mesh = pv.line_segments_from_points(all_line_segments)
             plotter.add_mesh(lines_mesh)
+
+        # Convert the intersection points from the local mesh coordinate system to lat lon
+        if transform_to_epsg_4978 is not None:
+            # Append a column of all ones to make the homogenous coordinates
+            community_points_homogenous = np.concatenate(
+                [community_points, np.ones_like(community_points[:, 0:1])], axis=1
+            )
+            # Use the transform matrix to transform the points into the earth centered, earth fixed
+            # frame, EPSG:4978
+            community_points_epsg_4978 = (
+                transform_to_epsg_4978 @ community_points_homogenous.T
+            ).T
+            # Convert the points from earth centered, earth fixed frame to lat lon
+            community_points_lat_lon = convert_CRS_3D_points(
+                community_points_epsg_4978,
+                input_CRS=EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+                output_CRS=LAT_LON_EPSG_CODE,
+            )
+            # Set the community points to lat lon
+            community_points = community_points_lat_lon
 
         return community_points
 
