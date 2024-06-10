@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from imageio import imread
 
 import numpy as np
+from imageio import imread
 from scipy.sparse import load_npz, save_npz
 
 from geograypher.cameras import MetashapeCameraSet
