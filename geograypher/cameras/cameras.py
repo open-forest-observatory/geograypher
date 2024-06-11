@@ -22,10 +22,10 @@ from tqdm import tqdm
 
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
-    EXAMPLE_INTRINSICS,
-    PATH_TYPE,
     EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    EXAMPLE_INTRINSICS,
     LAT_LON_EPSG_CODE,
+    PATH_TYPE,
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
