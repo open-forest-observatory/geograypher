@@ -99,22 +99,26 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         # Get the transform from the chunk to the earth-centered, earth-fixed (ECEF) frame
         chunk_to_epsg4327 = parse_transform_metashape(camera_file=camera_file)
 
-        # Compute the location of each camera in ECEF
-        cam_locs_in_epsg4327 = []
-        for cam_to_world_transform in cam_to_world_transforms:
-            cam_loc_in_chunk = cam_to_world_transform[:, 3:]
-            cam_locs_in_epsg4327.append(chunk_to_epsg4327 @ cam_loc_in_chunk)
-        cam_locs_in_epsg4327 = np.concatenate(cam_locs_in_epsg4327, axis=1)[:3].T
-        # Transform these points into lat-lon-alt
-        transformer = pyproj.Transformer.from_crs(
-            EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, LAT_LON_EPSG_CODE
-        )
-        lat, lon, _ = transformer.transform(
-            xx=cam_locs_in_epsg4327[:, 0],
-            yy=cam_locs_in_epsg4327[:, 1],
-            zz=cam_locs_in_epsg4327[:, 2],
-        )
-        lon_lats = list(zip(lon, lat))
+        if chunk_to_epsg4327 is not None:
+            # Compute the location of each camera in ECEF
+            cam_locs_in_epsg4327 = []
+            for cam_to_world_transform in cam_to_world_transforms:
+                cam_loc_in_chunk = cam_to_world_transform[:, 3:]
+                cam_locs_in_epsg4327.append(chunk_to_epsg4327 @ cam_loc_in_chunk)
+            cam_locs_in_epsg4327 = np.concatenate(cam_locs_in_epsg4327, axis=1)[:3].T
+            # Transform these points into lat-lon-alt
+            transformer = pyproj.Transformer.from_crs(
+                EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, LAT_LON_EPSG_CODE
+            )
+            lat, lon, _ = transformer.transform(
+                xx=cam_locs_in_epsg4327[:, 0],
+                yy=cam_locs_in_epsg4327[:, 1],
+                zz=cam_locs_in_epsg4327[:, 2],
+            )
+            lon_lats = list(zip(lon, lat))
+        else:
+            # TODO consider trying to parse from the xml
+            lon_lats = None
 
         # Actually construct the camera objects using the base class
         super().__init__(
