@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
+from IPython.core.debugger import set_trace
 from scipy.sparse import csr_array
 from skimage.transform import resize
 
@@ -51,7 +52,6 @@ class TabularRectangleSegmentor(Segmentor):
     def __init__(
         self,
         pred_file_or_folder,
-        image_folder,
         image_shape=(4008, 6016),
         label_key="label",
         image_path_key="image_path",
@@ -60,9 +60,12 @@ class TabularRectangleSegmentor(Segmentor):
         jmin_key="xmin",
         jmax_key="xmax",
         predfile_extension="csv",
+        strip_image_extension: bool = True,
+        use_absolute_filepaths: bool = False,
+        split_bbox: bool = True,
+        image_folder=None,
     ):
         self.pred_file_or_folder = pred_file_or_folder
-        self.image_folder = image_folder
         self.image_shape = image_shape
 
         self.label_key = label_key
@@ -71,6 +74,7 @@ class TabularRectangleSegmentor(Segmentor):
         self.imax_key = imax_key
         self.jmin_key = jmin_key
         self.jmax_key = jmax_key
+        self.split_bbox = split_bbox
 
         self.predfile_extension = predfile_extension
 
@@ -86,16 +90,34 @@ class TabularRectangleSegmentor(Segmentor):
         self.labels_df = pd.concat(dfs, ignore_index=True)
         if "instance_ID" not in self.labels_df.columns:
             self.labels_df["instance_ID"] = self.labels_df.index
+
+        if image_folder is not None and use_absolute_filepaths:
+            absolute_filepaths = [
+                str(Path(image_folder, img_path))
+                for img_path in self.labels_df[self.image_path_key].tolist()
+            ]
+            self.labels_df[self.image_path_key] = absolute_filepaths
+
+        if strip_image_extension:
+            image_path_with_ext = [
+                str(Path(img_path).with_suffix(""))
+                for img_path in self.labels_df[self.image_path_key].tolist()
+            ]
+            self.labels_df[self.image_path_key] = image_path_with_ext
+
         self.grouped_labels_df = self.labels_df.groupby(by=self.image_path_key)
         self.image_names = list(self.grouped_labels_df.groups.keys())
         self.class_names = np.unique(self.labels_df[self.label_key]).tolist()
         self.num_classes = len(self.class_names)
+
+        print(f"number of labeled images {len(self.image_names)}")
 
     def segment_image(self, image, filename, image_scale, vis=False):
         output_shape = self.image_shape
         label_image = np.full(output_shape, fill_value=np.nan, dtype=float)
 
         name = filename.name
+
         if name in self.image_names:
             df = self.grouped_labels_df.get_group(name)
         # Return an all-zero segmentation image
@@ -105,10 +127,25 @@ class TabularRectangleSegmentor(Segmentor):
         for _, row in df.iterrows():
             label = row[self.label_key]
             label_ind = self.class_names.index(label)
-            label_image[
-                int(row[self.imin_key]) : int(row[self.imax_key]),
-                int(row[self.jmin_key]) : int(row[self.jmax_key]),
-            ] = label_ind
+            if self.split_bbox:
+                # TODO split row
+                bbox = row["bbox"]
+                bbox = bbox[1:-1]
+                splits = bbox.split(", ")
+                jmin, imin, width, height = [float(s) for s in splits]
+
+                imax = int(imin + height)
+                jmax = int(jmin + width)
+
+                imin = int(imin)
+                jmin = int(jmin)
+            else:
+                imin = int(row[self.imin_key])
+                imax = int(row[self.imax_key])
+                jmin = int(row[self.jmin_key])
+                jmax = int(row[self.jmax_key])
+
+            label_image[imin:imax, jmin:jmax] = label_ind
 
         if vis:
             plt.imshow(label_image, vmin=0, vmax=10, cmap="tab10")

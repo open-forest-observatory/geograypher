@@ -23,6 +23,8 @@ def project_detections(
     projections_to_mesh_filename: PATH_TYPE = None,
     projections_to_geospatial_savefilename: PATH_TYPE = None,
     default_focal_length: float = None,
+    image_shape: tuple = None,
+    segmentor_kwargs: dict = {},
     vis_mesh: bool = False,
     vis_geodata: bool = False,
 ):
@@ -52,6 +54,8 @@ def project_detections(
             Since the focal length is not provided in many cameras files, it can be specified.
             The units are in pixels. TODO, figure out where this information can be reliably obtained
             from. Defaults to None.
+        segmentor_kwargs (dict, optional):
+            Dict of keyword arguments to pass to the segmentor. Defaults to {}.
         vis_mesh (bool, optional):
             Show the mesh with detections projected onto it. Defaults to False.
         vis_geodata (bool, optional):
@@ -75,14 +79,22 @@ def project_detections(
             default_sensor_params={"f": default_focal_length, "cx": 0, "cy": 0},
         )
         # Infer the image shape from the first image in the folder
-        image_shape = imread(list(Path(image_folder).glob("*.*"))[0]).shape[:2]
-        # Create an object that looks up the detections from a folder of CSVs. Using this, it can
-        # generate "predictions" for a given image.
+        if image_shape is None:
+            image_filename_list = list(Path(image_folder).glob("*.*"))
+            if len(image_filename_list) > 0:
+                image_shape = imread(image_filename_list[0]).shape[:2]
+            else:
+                raise ValueError(
+                    f"No image_shape provided and folder of images {image_folder} was empty"
+                )
+        # Create an object that looks up the detections from a folder of CSVs or one individual one.
+        # Using this, it can generate "predictions" for a given image.
         detections_predictor = TabularRectangleSegmentor(
             pred_file_or_folder=detections_folder,
             image_folder=image_folder,
             label_key="instance_ID",
             image_shape=image_shape,
+            **segmentor_kwargs,
         )
 
         # Wrap the camera set so that it returns the detections rather than the original images
