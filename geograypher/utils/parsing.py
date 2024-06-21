@@ -39,6 +39,8 @@ def parse_transform_metashape(camera_file):
 
     assert len(components) == 1
     transform = components.find("component").find("transform")
+    if transform is None:
+        return None
 
     rotation = transform.find("rotation").text
     translation = transform.find("translation").text
