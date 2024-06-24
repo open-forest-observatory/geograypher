@@ -187,8 +187,8 @@ class TexturedPhotogrammetryMesh:
         Returns:
             pv.PolyData: The downsampled mesh with the transferred textures
         """
-        # Only compute KDTree if active scalars are associated with points
-        if (self.pyvista_mesh.active_scalars_info.association == pv.FieldAssociation.POINT):
+        # Only compute KDTree if there are point based scalars in the original mesh
+        if self.pyvista_mesh.point_data:
             # Store original mesh points in KDTree for nearest neighbor search
             kdtree = KDTree(self.pyvista_mesh.points)
 
