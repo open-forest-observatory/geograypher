@@ -21,7 +21,7 @@ from shapely import (
 from shapely.geometry import box
 from tqdm import tqdm
 
-from geograypher.constants import EPSG_GEOGRAPHIC_LONG_LAT, PATH_TYPE
+from geograypher.constants import LAT_LON_EPSG_CODE, PATH_TYPE
 
 
 def ensure_projected_CRS(geodata: gpd.GeoDataFrame):
@@ -39,8 +39,8 @@ def ensure_projected_CRS(geodata: gpd.GeoDataFrame):
         return geodata
 
     # If CRS is geographic and not long-lat, convert it to long-lat 
-    if geodata.crs.is_geographic and geodata.crs != pyproj.CRS.from_epsg(EPSG_GEOGRAPHIC_LONG_LAT):
-        geodata = geodata.to_crs(EPSG_GEOGRAPHIC_LONG_LAT)
+    if geodata.crs.is_geographic and geodata.crs != pyproj.CRS.from_epsg(LAT_LON_EPSG_CODE):
+        geodata = geodata.to_crs(LAT_LON_EPSG_CODE)
 
     # Convert geographic long-lat CRS to projected CRS
     point = geodata["geometry"][0].centroid
