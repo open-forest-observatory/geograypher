@@ -17,6 +17,7 @@ import rasterio as rio
 import shapely
 import skimage
 import ubelt as ub
+from scipy.spatial import KDTree
 from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
@@ -162,18 +163,51 @@ class TexturedPhotogrammetryMesh:
             simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
-        # Downsample mesh if needed
+        # Downsample mesh and transfer active scalars from original mesh to downsampled mesh
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
             # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
             self.logger.info("Downsampling the mesh")
-            self.pyvista_mesh = self.pyvista_mesh.decimate(
+            # Have a temporary mesh so we can use the original mesh to transfer the active scalars to the downsampled one
+            downsampled_mesh_without_textures = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
+            self.pyvista_mesh = self.transfer_texture(downsampled_mesh_without_textures)
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
+
+    def transfer_texture(self, downsampled_mesh):
+        """Transfer texture from original mesh to a downsampled version using KDTree for nearest neighbor point searches
+
+        Args:
+            downsampled_mesh (pv.PolyData): The downsampled version of the original mesh
+
+        Returns:
+            pv.PolyData: The downsampled mesh with the transferred textures
+        """
+        # Only transfer textures if there are point based scalars in the original mesh
+        if self.pyvista_mesh.point_data:
+            # Store original mesh points in KDTree for nearest neighbor search
+            kdtree = KDTree(self.pyvista_mesh.points)
+
+            # For ecah point in the downsampled mesh find the nearest neighbor point in the original mesh
+            _, nearest_neighbor_indices = kdtree.query(downsampled_mesh.points)
+
+            # Iterate over all the point based scalars 
+            for scalar_name in self.pyvista_mesh.point_data.keys():
+                # Retrieve scalar data of appropriate index using the nearest neighbor indices
+                transferred_scalars = self.pyvista_mesh.point_data[scalar_name][nearest_neighbor_indices]
+                # Set the corresponding scalar data in the downsampled mesh
+                downsampled_mesh.point_data[scalar_name] = transferred_scalars
+
+            # Set active mesh of downsampled mesh
+            if self.pyvista_mesh.active_scalars_name:
+                downsampled_mesh.active_scalars_name = self.pyvista_mesh.active_scalars_name
+        else:
+            self.logger.warning("Textures not transferred, active scalars data is assoicated with cell data not point data")
+        return downsampled_mesh
 
     def load_transform_to_epsg_4326(
         self, transform_filename: PATH_TYPE, require_transform: bool = False
