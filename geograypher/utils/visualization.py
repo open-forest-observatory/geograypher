@@ -1,17 +1,45 @@
 import json
 import typing
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pyvista as pv
 from imageio import imread, imwrite
+from tqdm import tqdm
 
-from geograypher.constants import (
-    NULL_TEXTURE_INT_VALUE,
-    PATH_TYPE,
-    TEN_CLASS_VIS_KWARGS,
-)
+from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from geograypher.utils.files import ensure_folder
+
+
+def create_pv_plotter(
+    off_screen: bool,
+    force_xvfb: bool = False,
+    plotter: typing.Union[None, pv.Plotter] = None,
+):
+    """Create a pyvista plotter while handling offscreen rendering
+
+    Args:
+        off_screen (bool):
+            Whether the plotter should be offscreen
+        force_xvfb (bool, optional):
+            Should XVFB be used for rendering by default. Defaults to False.
+        plotter ((None, pv.Plotter), optional):
+            Existing plotter to use, will just return it if not None. Defaults to None
+    """
+    # If a valid plotter has not been passed in create one
+    if not isinstance(plotter, pv.Plotter):
+        # Catch the warning that there is not xserver running
+        with warnings.catch_warnings(record=True) as w:
+            # Create the plotter which may be onscreen or off
+            plotter = pv.Plotter(off_screen=off_screen)
+
+        # Start xvfb if requested or the system is not running an xserver
+        if force_xvfb or (len(w) > 0 and "pyvista.start_xvfb()" in str(w[0].message)):
+            # Start a headless renderer
+            pv.start_xvfb()
+    return plotter
 
 
 def get_vis_options_from_IDs_to_labels(
@@ -109,9 +137,15 @@ def create_composite(
         RGB_image = RGB_image / 255
 
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
+        # If it's a one channel image make it not have a channel dim
+        label_image = np.squeeze(label_image)
+
         vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
         cmap = plt.get_cmap(vis_options["cmap"])
-        null_mask = label_image == NULL_TEXTURE_INT_VALUE
+        null_mask = np.logical_or(
+            label_image == NULL_TEXTURE_INT_VALUE,
+            np.logical_not(np.isfinite(label_image)),
+        )
         if not vis_options["discrete"]:
             # Shift
             label_image = label_image - np.nanmin(label_image)
@@ -122,6 +156,9 @@ def create_composite(
                 max_value = np.max(valid_pixels)
                 # Scale
                 label_image = label_image / max_value
+        else:
+            # Convert it to an int so it's used to directly index the colormap
+            label_image = label_image.astype(np.uint8)
 
         # Perform the colormapping
         label_image = cmap(label_image)[..., :3]
@@ -164,6 +201,7 @@ def show_segmentation_labels(
     num_show=10,
     label_suffix=".png",
     image_suffix=".JPG",
+    IDs_to_labels=None,
 ):
     rendered_files = list(Path(label_folder).rglob("*" + label_suffix))
     np.random.shuffle(rendered_files)
@@ -171,14 +209,17 @@ def show_segmentation_labels(
     if savefolder is not None:
         ensure_folder(savefolder)
 
-    if (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists():
+    if (
+        IDs_to_labels is None
+        and (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists()
+    ):
         with open(IDs_to_labels_file, "r") as infile:
             IDs_to_labels = json.load(infile)
             IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
-    else:
-        IDs_to_labels = None
 
-    for i, rendered_file in enumerate(rendered_files[:num_show]):
+    for i, rendered_file in tqdm(
+        enumerate(rendered_files[:num_show]), desc="Showing segmentation labels"
+    ):
         image_file = Path(
             image_folder, rendered_file.relative_to(label_folder)
         ).with_suffix(image_suffix)

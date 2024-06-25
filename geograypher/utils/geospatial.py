@@ -24,12 +24,30 @@ from tqdm import tqdm
 from geograypher.constants import LAT_LON_EPSG_CODE, PATH_TYPE
 
 
-def ensure_projected_CRS(geodata):
-    if geodata.crs == LAT_LON_EPSG_CODE:
-        point = geodata["geometry"][0].centroid
-        geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
-        return geodata.to_crs(geometric_crs)
-    return geodata
+def ensure_projected_CRS(geodata: gpd.GeoDataFrame):
+    """Returns a projected geodataframe from the provided geodataframe by converting it to
+    ESPG:4326 (if not already) and determining the projected CRS from the point
+    coordinates.
+
+    Args:
+        geodata (gpd.GeoDataGrame): Original geodataframe that is potentially unprojected
+    Returns:
+        gpd.GeoDataGrame: projected geodataframe
+    """
+    # If CRS is projected return immediately
+    if geodata.crs.is_projected:
+        return geodata
+
+    # If CRS is geographic and not long-lat, convert it to long-lat
+    if geodata.crs.is_geographic and geodata.crs != pyproj.CRS.from_epsg(
+        LAT_LON_EPSG_CODE
+    ):
+        geodata = geodata.to_crs(LAT_LON_EPSG_CODE)
+
+    # Convert geographic long-lat CRS to projected CRS
+    point = geodata["geometry"][0].centroid
+    geometric_crs = get_projected_CRS(lon=point.x, lat=point.y)
+    return geodata.to_crs(geometric_crs)
 
 
 def get_projected_CRS(lat, lon, assume_western_hem=True):
@@ -215,7 +233,7 @@ def get_overlap_vector(
     unlabeled_df = coerce_to_geoframe(unlabeled_df)
     classes_df = coerce_to_geoframe(classes_df)
 
-    unlabeled_df = ensure_geometric_CRS(unlabeled_df)
+    unlabeled_df = ensure_projected_CRS(unlabeled_df)
     if classes_df.crs != unlabeled_df.crs:
         classes_df = classes_df.to_crs(unlabeled_df.crs)
 

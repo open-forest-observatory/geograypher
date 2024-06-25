@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from geograypher.segmentation import OrthoSegmentor
+from geograypher.predictors import OrthoSegmentor
 
 
 def parse_args():

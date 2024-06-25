@@ -8,13 +8,11 @@ import numpy as np
 from geograypher.constants import (
     EXAMPLE_CAMERAS_FILENAME,
     EXAMPLE_IDS_TO_LABELS,
-    EXAMPLE_IMAGE_FOLDER,
     EXAMPLE_MESH_FILENAME,
-    EXAMPLE_PREDICTED_LABELS_FOLDER,
     PATH_TYPE,
     PRED_CLASS_ID_KEY,
 )
-from geograypher.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.utils.files import ensure_containing_folder
 
 
@@ -30,6 +28,7 @@ def label_polygons(
     ground_voting_weight: float = 0.01,
     ROI: typing.Union[PATH_TYPE, None] = None,
     ROI_buffer_radius_meters: float = 50,
+    n_polygons_per_cluster: int = 1000,
     IDs_to_labels: typing.Union[dict, None] = None,
     vis_mesh: bool = False,
 ):
@@ -66,6 +65,9 @@ def label_polygons(
         ROI_buffer_radius_meters (float, optional):
             Keep points within this distance of the provided ROI object, if unset, everything will
             be kept. Should match what was used to generate aggregated_face_values_file. Defaults to 50.
+        n_polygons_per_cluster (int, optional):
+            The number of polygons to use in each cluster, when computing labeling by chunks.
+            Defaults to 1000.
         IDs_to_labels (typing.Union[dict, None], optional):
             Mapping from integer IDs to human readable labels. Defaults to None.
     """
@@ -76,7 +78,7 @@ def label_polygons(
     predicted_face_classes[no_preds_mask] = np.nan
 
     ## Create the mesh
-    mesh = TexturedPhotogrammetryMesh(
+    mesh = TexturedPhotogrammetryMeshChunked(
         mesh_file,
         transform_filename=mesh_transform_file,
         ROI=ROI,
@@ -103,9 +105,7 @@ def label_polygons(
     )
     if vis_mesh:
         ground_masked_predicted_face_classes = predicted_face_classes.copy()
-        ground_masked_predicted_face_classes[ground_mask_faces.grounastype(bool)] = (
-            np.nan
-        )
+        ground_masked_predicted_face_classes[ground_mask_faces.astype(bool)] = np.nan
         mesh.vis(vis_scalars=ground_masked_predicted_face_classes)
 
     # Perform per-polygon labeling
@@ -113,6 +113,7 @@ def label_polygons(
         face_labels=predicted_face_classes,
         polygons=geospatial_polygons_to_label,
         face_weighting=ground_weighting,
+        n_polygons_per_cluster=n_polygons_per_cluster,
     )
 
     # Save out the predicted classes into a copy of the original file

@@ -172,6 +172,12 @@ python -c "import torch; print(torch.cuda.is_available())"
 python -c "import pytorch3d; print(pytorch3d.__version__)"
 ```
 
+If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example: 
+```
+sudo apt install xvfb
+```
+If you do not have root access on your machine, it may not be possible to install xvfb. 
+
 You may get the following error when running `pyvista` visualization:
 
 ```
