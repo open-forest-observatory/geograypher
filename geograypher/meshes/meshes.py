@@ -195,18 +195,24 @@ class TexturedPhotogrammetryMesh:
             # For ecah point in the downsampled mesh find the nearest neighbor point in the original mesh
             _, nearest_neighbor_indices = kdtree.query(downsampled_mesh.points)
 
-            # Iterate over all the point based scalars 
+            # Iterate over all the point based scalars
             for scalar_name in self.pyvista_mesh.point_data.keys():
                 # Retrieve scalar data of appropriate index using the nearest neighbor indices
-                transferred_scalars = self.pyvista_mesh.point_data[scalar_name][nearest_neighbor_indices]
+                transferred_scalars = self.pyvista_mesh.point_data[scalar_name][
+                    nearest_neighbor_indices
+                ]
                 # Set the corresponding scalar data in the downsampled mesh
                 downsampled_mesh.point_data[scalar_name] = transferred_scalars
 
             # Set active mesh of downsampled mesh
             if self.pyvista_mesh.active_scalars_name:
-                downsampled_mesh.active_scalars_name = self.pyvista_mesh.active_scalars_name
+                downsampled_mesh.active_scalars_name = (
+                    self.pyvista_mesh.active_scalars_name
+                )
         else:
-            self.logger.warning("Textures not transferred, active scalars data is assoicated with cell data not point data")
+            self.logger.warning(
+                "Textures not transferred, active scalars data is assoicated with cell data not point data"
+            )
         return downsampled_mesh
 
     def load_transform_to_epsg_4326(
