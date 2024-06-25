@@ -29,7 +29,7 @@ from geograypher.constants import (
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
-from geograypher.utils.geospatial import ensure_projected_CRS, convert_CRS_3D_points
+from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
