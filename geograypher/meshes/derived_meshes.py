@@ -420,6 +420,7 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             cameras=cameras,
             batch_size=batch_size,
             aggregate_img_scale=aggregate_img_scale,
+            check_null_image=True,
             **kwargs,
         )
 

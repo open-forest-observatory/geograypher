@@ -59,7 +59,7 @@ class TabularRectangleSegmentor(Segmentor):
         jmin_key: str = "xmin",
         jmax_key: str = "xmax",
         detection_file_extension: str = "csv",
-        strip_image_extension: bool = True,
+        strip_image_extension: bool = False,
         use_absolute_filepaths: bool = False,
         split_bbox: bool = True,
         image_folder: typing.Union[PATH_TYPE, None] = None,
@@ -164,7 +164,7 @@ class TabularRectangleSegmentor(Segmentor):
         if strip_image_extension:
             image_path_without_ext = [
                 str(Path(img_path).with_suffix(""))
-                for img_path in self.labels_df[image_path_key].tolist()
+                for img_path in labels_df[image_path_key].tolist()
             ]
             labels_df[image_path_key] = image_path_without_ext
 
@@ -175,7 +175,6 @@ class TabularRectangleSegmentor(Segmentor):
         label_image = np.full(output_shape, fill_value=np.nan, dtype=float)
 
         name = filename.name
-
         if name in self.image_names:
             df = self.grouped_labels_df.get_group(name)
         # Return an all-zero segmentation image

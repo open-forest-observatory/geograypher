@@ -1718,6 +1718,7 @@ class TexturedPhotogrammetryMesh:
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
         aggregate_img_scale: float = 1,
+        check_null_image: bool = False,
         **pix2face_kwargs,
     ):
         """Find the per-face projection for each of a set of images and associated camera
@@ -1731,6 +1732,9 @@ class TexturedPhotogrammetryMesh:
                 The scale of pixel-to-face correspondences image, as a fraction of the original
                 image. Lower values lead to better runtimes but decreased precision at content
                 boundaries in the images. Defaults to 1.
+            check_null_image (bool, optional):
+                Only do indexing if there are non-null image values. This adds additional overhead,
+                but can save the expensive operation of indexing in cases where it would be a no-op.
 
         Yields:
             np.ndarray: The per-face projection of an image in the camera set
@@ -1750,14 +1754,19 @@ class TexturedPhotogrammetryMesh:
             )
             for i, pix2face in enumerate(batch_pix2face):
                 img = cameras.get_image_by_index(batch_start + i, aggregate_img_scale)
-                flat_img = np.reshape(img, (img.shape[0] * img.shape[1], -1))
-                textured_faces = np.full(
-                    (n_faces, flat_img.shape[1]), fill_value=np.nan
-                )
-                flat_pix2face = pix2face.flatten()
-                # TODO this creates ill-defined behavior if multiple pixels map to the same face
-                # my guess is the later pixel in the flattened array will override the former
-                textured_faces[flat_pix2face] = flat_img
+
+                n_channels = 1 if img.ndim == 2 else img.shape[-1]
+                textured_faces = np.full((n_faces, n_channels), fill_value=np.nan)
+
+                # Only do the expensive indexing step if there are finite values in the image. This is most
+                # significant for sparse detection tasks where some images may have no real data
+                if not check_null_image or np.any(np.isfinite(img)):
+                    flat_img = np.reshape(img, (img.shape[0] * img.shape[1], -1))
+                    flat_pix2face = pix2face.flatten()
+                    # TODO this creates ill-defined behavior if multiple pixels map to the same face
+                    # my guess is the later pixel in the flattened array will override the former
+                    # TODO make sure that null pix2face values are handled properly
+                    textured_faces[flat_pix2face] = flat_img
                 yield textured_faces
 
     def aggregate_projected_images(
