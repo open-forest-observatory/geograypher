@@ -1,19 +1,19 @@
 # %%
 from pathlib import Path
 
-from tqdm import tqdm
-import numpy as np
-import matplotlib
 import geopandas as gpd
+import matplotlib
+import numpy as np
 from scipy.spatial.transform import Rotation
 from shapely import MultiPolygon, Point, Polygon
+from tqdm import tqdm
 
+from geograypher.cameras.cameras import PhotogrammetryCameraSet
 from geograypher.constants import MATPLOTLIB_PALLETE, VIS_FOLDER
 from geograypher.utils.example_data import (
     create_non_overlapping_points,
     create_scene_mesh,
 )
-from geograypher.cameras.cameras import PhotogrammetryCameraSet
 
 # Where to save content
 CONCEPT_FIGURE_ROOT = Path(VIS_FOLDER, "concept_figure_content")
