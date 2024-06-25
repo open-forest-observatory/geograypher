@@ -51,8 +51,8 @@ class TabularRectangleSegmentor(Segmentor):
     def __init__(
         self,
         detection_file_or_folder: PATH_TYPE,
-        image_shape: tuple = (4008, 6016),
-        label_key: str = "label",
+        image_shape: tuple,
+        label_key: str = "instance_ID",
         image_path_key: str = "image_path",
         imin_key: str = "ymin",
         imax_key: str = "ymax",
@@ -69,8 +69,8 @@ class TabularRectangleSegmentor(Segmentor):
         Args:
             detection_file_or_folder (PATH_TYPE):
                 Path to the CSV file with detections or a folder thereof
-            image_shape (tuple, optional):
-                The (height, width) shape of the image in pixels. Defaults to (4008, 6016).
+            image_shape (tuple):
+                The (height, width) shape of the image in pixels.
             label_key (str, optional):
                 The column that corresponds to the class. Defaults to "label".
             image_path_key (str, optional):
@@ -170,6 +170,31 @@ class TabularRectangleSegmentor(Segmentor):
 
         return labels_df
 
+    def get_corners(self, data, as_int=True):
+        if self.split_bbox:
+            # TODO split row
+            bbox = data["bbox"]
+            bbox = bbox[1:-1]
+            splits = bbox.split(", ")
+            jmin, imin, width, height = [float(s) for s in splits]
+
+            imax = imin + height
+            jmax = jmin + width
+
+            imin = imin
+            jmin = jmin
+        else:
+            imin = data[self.imin_key]
+            imax = data[self.imax_key]
+            jmin = data[self.jmin_key]
+            jmax = data[self.jmax_key]
+
+        corners = imin, jmin, imax, jmax
+        if as_int:
+            corners = list(map(int, corners))
+
+        return corners
+
     def segment_image(self, image, filename, image_scale, vis=False):
         output_shape = self.image_shape
         label_image = np.full(output_shape, fill_value=np.nan, dtype=float)
@@ -184,23 +209,10 @@ class TabularRectangleSegmentor(Segmentor):
         for _, row in df.iterrows():
             label = row[self.label_key]
             label_ind = self.class_names.index(label)
-            if self.split_bbox:
-                # TODO split row
-                bbox = row["bbox"]
-                bbox = bbox[1:-1]
-                splits = bbox.split(", ")
-                jmin, imin, width, height = [float(s) for s in splits]
 
-                imax = int(imin + height)
-                jmax = int(jmin + width)
-
-                imin = int(imin)
-                jmin = int(jmin)
-            else:
-                imin = int(row[self.imin_key])
-                imax = int(row[self.imax_key])
-                jmin = int(row[self.jmin_key])
-                jmax = int(row[self.jmax_key])
+            imin, jmin, imax, jmax = self.get_corners(
+                row,
+            )
 
             label_image[imin:imax, jmin:jmax] = label_ind
 
@@ -230,12 +242,15 @@ class TabularRectangleSegmentor(Segmentor):
         # Extract the corresponding dataframe
         df = self.grouped_labels_df.get_group(filename)
 
-        # Extract the columns for the bounding box corners
-        imin = df[self.imin_key].to_numpy()
-        imax = df[self.imax_key].to_numpy()
+        all_corners = []
+        for _, row in df.iterrows():
+            corners = self.get_corners(row, as_int=False)
+            all_corners.append(corners)
 
-        jmin = df[self.jmin_key].to_numpy()
-        jmax = df[self.jmax_key].to_numpy()
+        all_corners = zip(*all_corners)
+        all_corners = [np.array(x) for x in all_corners]
+
+        imin, jmin, imax, jmax = all_corners
 
         # Average the left-right, top-bottom pairs
         centers = np.vstack([(imin + imax) / 2, (jmin + jmax) / 2]).T

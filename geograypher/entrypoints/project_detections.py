@@ -92,7 +92,6 @@ def project_detections(
         detections_predictor = TabularRectangleSegmentor(
             detection_file_or_folder=detections_folder,
             image_folder=image_folder,
-            label_key="instance_ID",
             image_shape=image_shape,
             **segmentor_kwargs,
         )
