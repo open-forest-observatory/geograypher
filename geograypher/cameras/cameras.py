@@ -29,6 +29,7 @@ from geograypher.constants import (
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
+from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
@@ -856,7 +857,7 @@ class PhotogrammetryCameraSet:
     def aggreate_detections(
         self,
         segmentor: TabularRectangleSegmentor,
-        similarity_threshold=0.0002,
+        similarity_threshold_meters=0.1,
         use_negative_edges=False,
         plotter=pv.Plotter(),
         vis=True,
@@ -909,6 +910,11 @@ class PhotogrammetryCameraSet:
                 dist, valid = compute_approximate_ray_intersection(A, a, B, b)
 
                 dists[i, j] = dist if valid else np.nan
+
+        # Compute the similarity threshold in the units of the internal coordinate system
+        similarity_threshold = similarity_threshold_meters / get_scale_from_transform(
+            transform_to_epsg_4978
+        )
 
         # Build a graph from the dists
         dists[dists > similarity_threshold] = np.nan

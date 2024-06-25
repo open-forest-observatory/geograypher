@@ -1,6 +1,7 @@
 import logging
 import typing
 
+import numpy as np
 import shapely
 from shapely import simplify, unary_union
 from tqdm import tqdm
@@ -89,3 +90,15 @@ def batched_unary_union(
         sort_by_loc=False,
         simplify_tol=0.0,
     )
+
+
+def get_scale_from_transform(transform: typing.Union[np.ndarray, None]):
+    if transform is None:
+        return 1
+
+    if transform.shape != (4, 4):
+        raise ValueError(f"Transform shape was {transform.shape}")
+
+    transform_determinant = np.linalg.det(transform[:3, :3])
+    scale_factor = np.cbrt(transform_determinant)
+    return scale_factor
