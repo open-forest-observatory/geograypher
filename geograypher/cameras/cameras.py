@@ -140,9 +140,7 @@ class PhotogrammetryCamera:
         Returns:
             Tuple[float, float (, float)]: tuple containing internal mesh coordinates of the camera
         """
-        if get_z_coordinate:
-            return tuple(self.cam_to_world_transform[0:3, 3])
-        return tuple(self.cam_to_world_transform[0:2, 3])
+        return tuple(self.cam_to_world_transform[0:3, 3]) if get_z_coordinate else tuple(self.cam_to_world_transform[0:2, 3])
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -706,9 +704,19 @@ class PhotogrammetryCameraSet:
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
         return [x.get_lon_lat() for x in self.cameras]
+    
+    def get_camera_locations(self, **kwargs):
+        """
+        Returns a list of camera locations for each camera. 
 
-    def get_camera_locations(self):
-        return [x.get_camera_location() for x in self.cameras]
+        Args:
+            **kwargs: Keyword arguments to be passed to the PhotogrammetryCamera.get_camera_location method.
+
+        Returns:
+            List[Tuple[float, float] or Tuple[float, float, float]]: 
+                List of tuples containing the camera locations.
+        """
+        return [x.get_camera_location(**kwargs) for x in self.cameras]
 
     def get_subset_ROI(
         self,
