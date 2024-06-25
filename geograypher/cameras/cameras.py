@@ -23,7 +23,7 @@ from tqdm import tqdm
 from geograypher.constants import DEFAULT_FRUSTUM_SCALE, EXAMPLE_INTRINSICS, PATH_TYPE
 from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
-from geograypher.utils.geospatial import ensure_geometric_CRS
+from geograypher.utils.geospatial import ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
@@ -765,7 +765,7 @@ class PhotogrammetryCameraSet:
             ROI = gpd.read_file(ROI)
 
         # Make sure it's a geometric (meters-based) CRS
-        ROI = ensure_geometric_CRS(ROI)
+        ROI = ensure_projected_CRS(ROI)
         # Merge all of the elements together into one multipolygon, destroying any attributes that were there
         ROI = ROI.dissolve()
         # Expand the geometry of the shape by the buffer

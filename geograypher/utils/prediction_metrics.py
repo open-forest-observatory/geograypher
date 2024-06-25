@@ -19,7 +19,7 @@ from geograypher.constants import (
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
-    ensure_geometric_CRS,
+    ensure_projected_CRS,
     get_overlap_raster,
 )
 
@@ -110,7 +110,7 @@ def cf_from_vector_vector(
     if column_values is None:
         column_values = grouped_true_df.index.tolist()
 
-    grouped_predicted_df = ensure_geometric_CRS(grouped_predicted_df)
+    grouped_predicted_df = ensure_projected_CRS(grouped_predicted_df)
     grouped_true_df.to_crs(grouped_predicted_df.crs, inplace=True)
 
     confusion_matrix = np.zeros((len(column_values), len(column_values)))
