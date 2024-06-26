@@ -26,7 +26,7 @@ from geograypher.constants import (
     LAT_LON_EPSG_CODE,
     PATH_TYPE,
 )
-from geograypher.segmentation.derived_segmentors import TabularRectangleSegmentor
+from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geospatial import ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
@@ -803,7 +803,7 @@ class PhotogrammetryCameraSet:
         if isinstance(ROI, (Polygon,MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
-                ROI = gpd.GeoDataFrame(crs='epsg:4326', geometry=[ROI])
+                ROI = gpd.GeoDataFrame(crs=LAT_LON_EPSG_CODE, geometry=[ROI])
             else:
                 ROI = gpd.GeoDataFrame(geometry=[ROI])
         elif not isinstance(ROI, gpd.GeoDataFrame):
@@ -821,14 +821,12 @@ class PhotogrammetryCameraSet:
             # Make sure it's a geometric (meters-based) CRS
             ROI = ensure_projected_CRS(ROI)
             # Read the locations of all the points
-            # TODO do these need to be swapped
             image_locations = [Point(*x) for x in self.get_lon_lat_coords()]
             # Create a dataframe, assuming inputs are lat lon
             image_locations_df = gpd.GeoDataFrame(
                 geometry=image_locations, crs=LAT_LON_EPSG_CODE
             )
             image_locations_df.to_crs(ROI.crs, inplace=True)
-            # Add an index row because the normal index will be removed in subsequent operations
         
         # Merge all of the elements together into one multipolygon, destroying any attributes that were there
         ROI = ROI.dissolve()
@@ -842,8 +840,6 @@ class PhotogrammetryCameraSet:
         )
 
         valid_camera_inds = np.where(valid_camera_points)[0]
-        # How to instantiate from a list of cameras
-        # Is there a better way? Are there side effects I'm not thinking of?
         subset_camera_set = self.get_subset_cameras(valid_camera_inds)
         return subset_camera_set
 
