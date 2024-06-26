@@ -1,14 +1,14 @@
 # %%
 from pathlib import Path
-import numpy as np
+
 import geopandas as gpd
 import matplotlib
 import numpy as np
 from scipy.spatial.transform import Rotation
 from shapely import MultiPolygon, Polygon
 
-from geograypher.constants import VIS_FOLDER
 from geograypher.cameras.cameras import PhotogrammetryCameraSet
+from geograypher.constants import VIS_FOLDER
 
 # Camera set params
 CAM_HEIGHT = 10
