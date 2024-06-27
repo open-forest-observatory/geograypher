@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import shutil
-from copy import copy, deepcopy
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -887,9 +887,9 @@ class PhotogrammetryCameraSet:
 
         Returns:
             np.ndarray:
-              (n unique objects, 3), the 3D locations of the identified objects.
-              If transform_to_epsg_4978 is set, then this is in (lat, lon, alt), if not, it's in the
-              local coordinate system of the mesh
+                (n unique objects, 3), the 3D locations of the identified objects.
+                If transform_to_epsg_4978 is set, then this is in (lat, lon, alt), if not, it's in the
+                local coordinate system of the mesh
         """
         # Determine scale factor relating meters to internal coordinates
         meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
@@ -916,12 +916,14 @@ class PhotogrammetryCameraSet:
                 pixel_coords_ij=detection_centers_pixels,
                 line_length=vis_ray_length_local,
             )
-            # Record the line segments, which will be ordered as alternating (start, end) rows
-            all_line_segments.append(line_segments)
-            # Record which image ID generated each line
-            all_image_IDs.append(
-                np.full(int(line_segments.shape[0] / 2), fill_value=camera_ind)
-            )
+            # If there are no detections, this will be None
+            if line_segments is not None:
+                # Record the line segments, which will be ordered as alternating (start, end) rows
+                all_line_segments.append(line_segments)
+                # Record which image ID generated each line
+                all_image_IDs.append(
+                    np.full(int(line_segments.shape[0] / 2), fill_value=camera_ind)
+                )
 
         # Concatenate the lists of arrays into a single array
         all_line_segments = np.concatenate(all_line_segments, axis=0)
@@ -980,10 +982,14 @@ class PhotogrammetryCameraSet:
 
         ## Triangulate the rays for each community to identify the 3D location
         community_points = []
+        # Record the community IDs per detection
+        community_IDs = np.full(num_dets, fill_value=np.nan)
         # Iterate over communities
-        for community in communities:
+        for community_ID, community in enumerate(communities):
             # Get the indices of the detections for that community
             community_detection_inds = np.array(list(community))
+            # Record the community ID for the corresponding detection IDs
+            community_IDs[community_detection_inds] = community_ID
 
             # Get the set of starts and directions for that community
             community_starts = ray_starts[community_detection_inds]
@@ -1003,7 +1009,11 @@ class PhotogrammetryCameraSet:
             # Show the line segements
             # TODO: consider coloring these lines by community
             lines_mesh = pv.line_segments_from_points(all_line_segments)
-            plotter.add_mesh(lines_mesh)
+            plotter.add_mesh(
+                lines_mesh,
+                scalars=community_IDs,
+                label="Rays, colored by community ID",
+            )
             # Show the triangulated communtities as red spheres
             detected_points = pv.PolyData(community_points)
             plotter.add_points(
@@ -1011,7 +1021,9 @@ class PhotogrammetryCameraSet:
                 color="r",
                 render_points_as_spheres=True,
                 point_size=10,
+                label="Triangulated locations",
             )
+            plotter.add_legend()
 
         # Convert the intersection points from the local mesh coordinate system to lat lon
         if transform_to_epsg_4978 is not None:
