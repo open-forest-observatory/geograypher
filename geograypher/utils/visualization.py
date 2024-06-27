@@ -1,4 +1,5 @@
 import json
+import logging
 import typing
 import warnings
 from pathlib import Path
@@ -11,6 +12,13 @@ from tqdm import tqdm
 
 from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
 from geograypher.utils.files import ensure_folder
+
+
+def safe_start_xvfb():
+    try:
+        pv.start_xvfb()
+    except OSError:
+        logging.warning("Could not start xvfb because it's not supported on Windows")
 
 
 def create_pv_plotter(
@@ -38,7 +46,7 @@ def create_pv_plotter(
         # Start xvfb if requested or the system is not running an xserver
         if force_xvfb or (len(w) > 0 and "pyvista.start_xvfb()" in str(w[0].message)):
             # Start a headless renderer
-            pv.start_xvfb()
+            safe_start_xvfb()
     return plotter
 
 

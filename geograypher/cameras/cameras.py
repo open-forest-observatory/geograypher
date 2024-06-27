@@ -36,6 +36,7 @@ from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
     triangulate_rays_lstsq,
 )
+from geograypher.utils.visualization import safe_start_xvfb
 
 
 class PhotogrammetryCamera:
@@ -1113,5 +1114,5 @@ class PhotogrammetryCameraSet:
 
         if show:
             if force_xvfb:
-                pv.start_xvfb()
+                safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
