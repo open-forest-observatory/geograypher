@@ -1,16 +1,13 @@
 name: Black Linter
 
 on:
-  workflow_run:
-    workflows: [Isort Linter]
-    types:
-      - completed
+  workflow_call:
 
 jobs:
   black-linter:
     name: Run Black
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Determine Branch Name
         run: |

@@ -10,15 +10,21 @@ from typing import Dict, List, Tuple, Union
 import geopandas as gpd
 import networkx
 import numpy as np
-import numpy.ma as ma
+
 import pyproj
 import pyvista as pv
+from skimage.transform import resize
+from tqdm import tqdm
+
+
+import numpy.ma as ma
+
+
+
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import MultiPolygon, Point, Polygon
 from skimage.io import imread
-from skimage.transform import resize
-from tqdm import tqdm
 
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
@@ -810,7 +816,7 @@ class PhotogrammetryCameraSet:
                 List of cameras that fall within the provided ROI
         """
         # construct GeoDataFrame if not provided
-        if isinstance(ROI, (Polygon, MultiPolygon)):
+        if isinstance(ROI, (Polygon,MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
                 ROI = gpd.GeoDataFrame(crs=LAT_LON_EPSG_CODE, geometry=[ROI])
@@ -1116,3 +1122,21 @@ class PhotogrammetryCameraSet:
             if force_xvfb:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

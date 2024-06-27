@@ -1,4 +1,4 @@
-name: ISort Linter
+name: Code Formatter
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   isort:
-    name: Run Isort 
+    name: Run Isort
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
-          
+
       - name: Run Isort
         run: pip install isort==5.13.2 && isort .
 
@@ -38,4 +38,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Apply formatting changes
-      
+
+  black:
+    needs: isort
+    uses: ./.github/workflows/black.yml
