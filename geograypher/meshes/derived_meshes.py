@@ -390,7 +390,7 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         aggregate_img_scale: float = 1,
         return_all: bool = False,
         **kwargs
-    ):
+    ) -> typing.Tuple[np.ndarray, dict]:
         """
         Aggregate the imagery from multiple cameras into per-face averges. This implementation uses
         sparse arrays to process data where there are large numbers of discrete classes and an
@@ -415,6 +415,17 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             dict: Additional information, including the summed projections, observations per face,
                   and potentially each individual projection
         """
+        # TODO this should be a convenience method
+        n_faces = self.faces.shape[0]
+
+        # Initialize list for all projections if requested
+        if return_all:
+            all_projections = []
+
+        # Initialize sparse arrays for number of projections per face and the summed projections
+        projection_counts = csr_array((n_faces, 1), dtype=np.uint16)
+        summed_projections = csr_array((n_faces, n_classes), dtype=np.uint16)
+
         # Create a generator for all the projections
         project_images_generator = self.project_images(
             cameras=cameras,
@@ -424,27 +435,27 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             **kwargs,
         )
 
-        # TODO this should be a convenience method
-        n_faces = self.faces.shape[0]
-
-        if return_all:
-            all_projections = []
-
-        projection_counts = csr_array((n_faces, 1), dtype=np.uint16)
-        summed_projections = csr_array((n_faces, n_classes), dtype=np.uint16)
-
+        # Iterate over projections in the generator
         for projection_for_image in tqdm(
             project_images_generator,
             total=len(cameras),
             desc="Aggregating projected viewpoints",
         ):
+            # Append the projection for that image
             if return_all:
                 all_projections.append(projection_for_image)
 
+            # Determine which pixels in the image have non-null projections
             projected_face_inds = np.nonzero(
                 np.isfinite(np.squeeze(projection_for_image))
             )[0]
 
+            # If there's no projected classes, this is just wasted compute and also can cause errors
+            # because indexing with an empty array returns all values
+            if len(projected_face_inds) == 0:
+                continue
+
+            # Create an array for faces which were projected to by this image
             new_projection_counts = csr_array(
                 (
                     np.ones_like(projected_face_inds, dtype=np.uint16),
@@ -455,24 +466,29 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
                 ),
                 shape=(n_faces, 1),
             )
+            # Add this to the running tally variable
             projection_counts = projection_counts + new_projection_counts
 
-            # If there's no projected classes, this is just wasted compute and also can cause errors
-            # because indexing with an empty array returns all values
-            if len(projected_face_inds) == 0:
-                continue
-
+            # Determine the classes for each non-null projection
             projected_face_classes = projection_for_image[
                 projected_face_inds, 0
             ].astype(int)
 
-            old_values = summed_projections[projected_face_inds, projected_face_classes]
-            incremented_old_values = old_values + 1
-
-            summed_projections[projected_face_inds, projected_face_classes] = (
-                incremented_old_values
+            # Find the current value for the summed projection for given face, class pairs
+            old_values_for_projected_elements = summed_projections[
+                projected_face_inds, projected_face_classes
+            ]
+            # Increment the previous value by one
+            incremented_old_values_for_projected_elements = (
+                old_values_for_projected_elements + 1
             )
 
+            # Set the running tally to the updated value
+            summed_projections[projected_face_inds, projected_face_classes] = (
+                incremented_old_values_for_projected_elements
+            )
+
+        # Record the information
         additional_information = {
             "projection_counts": projection_counts,
             "summed_projections": summed_projections,
@@ -480,7 +496,9 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         if return_all:
             additional_information["all_projections"] = all_projections
 
-        # TODO actually perform the normalization by the counts
+        # Perform the normalization by the counts
+        # We can't do per-element division of sparse matrices so instead we just take the reciprocal
+        # of each count and then multiply it these values by the summed projections
         # https://stackoverflow.com/questions/21080430/taking-reciprocal-of-each-elements-in-a-sparse-matrix
         projection_counts_reciprocal = csr_array(
             (
@@ -492,6 +510,7 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             ),
             shape=projection_counts.shape,
         )
+        # Normalize the summed projection by the number of observations for that face
         average_projections = summed_projections.multiply(projection_counts_reciprocal)
 
         return average_projections, additional_information
