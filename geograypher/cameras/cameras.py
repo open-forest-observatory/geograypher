@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import shutil
-from copy import copy, deepcopy
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -22,13 +22,15 @@ from tqdm import tqdm
 
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
+    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
     EXAMPLE_INTRINSICS,
     LAT_LON_EPSG_CODE,
     PATH_TYPE,
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
-from geograypher.utils.geospatial import ensure_projected_CRS
+from geograypher.utils.geometric import get_scale_from_transform
+from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
@@ -524,11 +526,14 @@ class PhotogrammetryCamera:
             plotter (pv.Plotter): Plotter to use.
             line_length (float, optional): How long the lines are. Defaults to 10. #TODO allow an array of different values
         """
+        # If there are no detections, just skip it
+        if len(pixel_coords_ij) == 0:
+            return
+
         projected_vertices = self.cast_rays(
             pixel_coords_ij=pixel_coords_ij, line_length=line_length
         )
-
-        n_points = projected_vertices.shape[0]
+        n_points = int(projected_vertices.shape[0] / 2)
 
         lines = np.vstack(
             (
@@ -538,7 +543,7 @@ class PhotogrammetryCamera:
             )
         ).T
 
-        mesh = pv.PolyData(projected_vertices, lines=lines)
+        mesh = pv.PolyData(projected_vertices.copy(), lines=lines.copy())
         plotter.add_mesh(mesh)
 
 
@@ -849,109 +854,199 @@ class PhotogrammetryCameraSet:
         subset_camera_set = self.get_subset_cameras(valid_camera_inds)
         return subset_camera_set
 
-    def aggreate_detections(
+    def triangulate_detections(
         self,
-        segmentor: TabularRectangleSegmentor,
-        similarity_threshold=0.0002,
-        use_negative_edges=False,
-        plotter=pv.Plotter(),
-        vis=True,
-        vis_line_length=100,
-    ):
-        # Extract the rays from each of the cameras
-        # Note that these are all still in the local coordinate frame of the mesh
-        all_starts = []
-        all_directions = []
+        detector: TabularRectangleSegmentor,
+        transform_to_epsg_4978=None,
+        similarity_threshold_meters: float = 0.1,
+        louvain_resolution: float = 2,
+        vis: bool = True,
+        plotter: pv.Plotter = pv.Plotter(),
+        vis_ray_length_meters: float = 200,
+    ) -> np.ndarray:
+        """Take per-image detections and triangulate them to 3D locations
+
+        Args:
+            detector (TabularRectangleSegmentor):
+                Produces detections per image using the get_detection_centers method
+            transform_to_epsg_4978 (typing.Union[np.ndarray, None], optional):
+                The 4x4 transform to earth centered earth fixed coordinates. Defaults to None.
+            similarity_threshold_meters (float, optional):
+                Consider rays a potential match if the distance between them is less than this
+                value. Defaults to 0.1.
+            louvain_resolution (float, optional):
+                The resolution parameter of the networkx.louvain_communities function. Defaults to
+                2.0.
+            vis (bool, optional):
+                Whether to show the detection projections and intersecting points. Defaults to True.
+            plotter (pv.Plotter, optional):
+                The plotter to add the visualizations to is vis=True. If not set, a new one will be
+                created. Defaults to pv.Plotter().
+            vis_ray_length_meters (float, optional):
+                The length of the visualized rays in meters. Defaults to 200.
+
+        Returns:
+            np.ndarray:
+                (n unique objects, 3), the 3D locations of the identified objects.
+                If transform_to_epsg_4978 is set, then this is in (lat, lon, alt), if not, it's in the
+                local coordinate system of the mesh
+        """
+        # Determine scale factor relating meters to internal coordinates
+        meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
+        similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale
+        vis_ray_length_local = vis_ray_length_meters * meters_to_local_scale
+
+        # Record the lines corresponding to each detection and the associated image ID
+        all_line_segments = []
         all_image_IDs = []
 
-        for i in range(len(self)):
-            filename = str(self.get_image_filename(i, absolute=False))
-            centers = segmentor.get_detection_centers(filename)
-            camera = self[i]
-            # TODO make a "cast_rays" or similar function
-            line_segments = camera.cast_rays(pixel_coords_ij=centers)
-            if vis:
-                camera.vis_rays(
-                    pixel_coords_ij=centers,
-                    plotter=plotter,
-                    line_length=vis_line_length,
-                )
+        # Iterate over the cameras
+        for camera_ind in range(len(self)):
+            # Get the image filename
+            image_filename = str(self.get_image_filename(camera_ind, absolute=False))
+            # Get the centers of associated detection from the detector
+            # TODO, this only works with "detectors" that can look up the detections based on the
+            # filename alone. In the future we might want to support real detectors that actually
+            # use the image.
+            detection_centers_pixels = detector.get_detection_centers(image_filename)
+            # Get the individual camera
+            camera = self[camera_ind]
+            # Project rays given the locations of the detections in pixel coordinates
+            line_segments = camera.cast_rays(
+                pixel_coords_ij=detection_centers_pixels,
+                line_length=vis_ray_length_local,
+            )
+            # If there are no detections, this will be None
             if line_segments is not None:
-                starts = line_segments[0::2]
-                ends = line_segments[1::2]
-                directions = ends - starts
-                lengths = np.linalg.norm(directions, axis=1, keepdims=True)
-                directions = directions / lengths
-                all_starts.append(starts)
-                all_directions.append(directions)
-                all_image_IDs.append(np.full(starts.shape[0], fill_value=i))
-        all_starts = np.concatenate(all_starts, axis=0)
-        all_directions = np.concatenate(all_directions, axis=0)
+                # Record the line segments, which will be ordered as alternating (start, end) rows
+                all_line_segments.append(line_segments)
+                # Record which image ID generated each line
+                all_image_IDs.append(
+                    np.full(int(line_segments.shape[0] / 2), fill_value=camera_ind)
+                )
+
+        # Concatenate the lists of arrays into a single array
+        all_line_segments = np.concatenate(all_line_segments, axis=0)
         all_image_IDs = np.concatenate(all_image_IDs, axis=0)
 
-        # Compute the distance matrix
-        num_dets = all_starts.shape[0]
-        dists = np.full((num_dets, num_dets), fill_value=np.nan)
+        # Get the starts and ends, which are alternating rows
+        ray_starts = all_line_segments[0::2]
+        segment_ends = all_line_segments[1::2]
+        # Determine the direction
+        ray_directions = segment_ends - ray_starts
+        # Make the ray directions unit length
+        ray_directions = ray_directions / np.linalg.norm(
+            ray_directions, axis=1, keepdims=True
+        )
 
-        for i in tqdm(range(num_dets)):
+        # Compute the distance matrix of ray-ray intersections
+        num_dets = ray_starts.shape[0]
+        interesection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
+
+        # Calculate the upper triangular matrix of ray-ray interesections
+        for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
             for j in range(i, num_dets):
-                A = all_starts[i]
-                B = all_starts[j]
-                a = all_directions[i]
-                b = all_directions[j]
+                # Extract starts and directions
+                A = ray_starts[i]
+                B = ray_starts[j]
+                a = ray_directions[i]
+                b = ray_directions[j]
+                # TODO explore whether this could be vectorized
                 dist, valid = compute_approximate_ray_intersection(A, a, B, b)
 
-                dists[i, j] = dist if valid else np.nan
+                interesection_dists[i, j] = dist if valid else np.nan
 
-        # Build a graph from the dists
-        dists[dists > similarity_threshold] = np.nan
+        # Filter out intersections that are above the threshold distance
+        interesection_dists[interesection_dists > similarity_threshold_local] = np.nan
 
-        finite = np.isfinite(dists)
-        i_inds, j_inds = np.where(finite)
+        # Determine which intersections are valid, represented by finite values
+        i_inds, j_inds = np.where(np.isfinite(interesection_dists))
 
+        # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
+        # distance
         positive_edges = [
-            (i, j, {"weight": 1 / dists[i, j]}) for i, j in zip(i_inds, j_inds)
+            (i, j, {"weight": 1 / interesection_dists[i, j]})
+            for i, j in zip(i_inds, j_inds)
         ]
 
-        negative_edges = []
-        if use_negative_edges:
-            for image_ID in range(max(all_image_IDs)):
-                inds = np.where(all_image_IDs == image_ID)[0]
-                for i, node_i_ind in enumerate(inds):
-                    for node_j_ind in inds[i + 1 :]:
-                        negative_edges.append(
-                            (
-                                node_i_ind,
-                                node_j_ind,
-                                {"weight": -0.0001 / similarity_threshold},
-                            )
-                        )
-
-        G = networkx.Graph(positive_edges)
+        # Build a networkx graph. The nodes represent an individual detection while the edges
+        # represent the quality of the matches between detections.
+        graph = networkx.Graph(positive_edges)
+        # Determine Louvain communities which are sets of nodes. Ideally, this represents a set of
+        # detections that all coorespond to one 3D object
         communities = networkx.community.louvain_communities(
-            G, weight="weight", resolution=2
+            graph, weight="weight", resolution=louvain_resolution
         )
+        # Sort the communities by size
         communities = sorted(communities, key=len, reverse=True)
 
+        ## Triangulate the rays for each community to identify the 3D location
         community_points = []
-        for community in communities:
-            community = np.array(list(community))
-            community_starts = all_starts[community]
-            community_directions = all_directions[community]
-            community_points.append(
-                triangulate_rays_lstsq(community_starts, community_directions)
+        # Record the community IDs per detection
+        community_IDs = np.full(num_dets, fill_value=np.nan)
+        # Iterate over communities
+        for community_ID, community in enumerate(communities):
+            # Get the indices of the detections for that community
+            community_detection_inds = np.array(list(community))
+            # Record the community ID for the corresponding detection IDs
+            community_IDs[community_detection_inds] = community_ID
+
+            # Get the set of starts and directions for that community
+            community_starts = ray_starts[community_detection_inds]
+            community_directions = ray_directions[community_detection_inds]
+
+            # Determine the least squares triangulation of the rays
+            community_3D_point = triangulate_rays_lstsq(
+                community_starts, community_directions
             )
+            community_points.append(community_3D_point)
+
+        # Stack all of the points into one vector
         community_points = np.vstack(community_points)
 
+        # Show the rays and detections
         if vis:
-            print(len(community_points))
+            # Show the line segements
+            # TODO: consider coloring these lines by community
+            lines_mesh = pv.line_segments_from_points(all_line_segments)
+            plotter.add_mesh(
+                lines_mesh,
+                scalars=community_IDs,
+                label="Rays, colored by community ID",
+            )
+            # Show the triangulated communtities as red spheres
             detected_points = pv.PolyData(community_points)
             plotter.add_points(
                 detected_points,
                 color="r",
                 render_points_as_spheres=True,
                 point_size=10,
+                label="Triangulated locations",
             )
+            plotter.add_legend()
+
+        # Convert the intersection points from the local mesh coordinate system to lat lon
+        if transform_to_epsg_4978 is not None:
+            # Append a column of all ones to make the homogenous coordinates
+            community_points_homogenous = np.concatenate(
+                [community_points, np.ones_like(community_points[:, 0:1])], axis=1
+            )
+            # Use the transform matrix to transform the points into the earth centered, earth fixed
+            # frame, EPSG:4978
+            community_points_epsg_4978 = (
+                transform_to_epsg_4978 @ community_points_homogenous.T
+            ).T
+            # Convert the points from earth centered, earth fixed frame to lat lon
+            community_points_lat_lon = convert_CRS_3D_points(
+                community_points_epsg_4978,
+                input_CRS=EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+                output_CRS=LAT_LON_EPSG_CODE,
+            )
+            # Set the community points to lat lon
+            community_points = community_points_lat_lon
+
+        # Return the 3D locations of the community points
+        return community_points
 
     def vis(
         self,

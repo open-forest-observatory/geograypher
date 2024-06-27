@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from copy import copy
 
 import numpy as np
 
@@ -38,6 +39,8 @@ def parse_transform_metashape(camera_file):
 
     assert len(components) == 1
     transform = components.find("component").find("transform")
+    if transform is None:
+        return None
 
     rotation = transform.find("rotation").text
     translation = transform.find("translation").text
@@ -48,7 +51,7 @@ def parse_transform_metashape(camera_file):
     return local_to_epgs_4978_transform
 
 
-def parse_sensors(sensors):
+def parse_sensors(sensors, default_sensor_dict=None):
     sensors_dict = {}
 
     for sensor in sensors:
@@ -56,23 +59,38 @@ def parse_sensors(sensors):
 
         sensor_dict["image_width"] = int(sensor[0].get("width"))
         sensor_dict["image_height"] = int(sensor[0].get("height"))
-
         calibration = sensor.find("calibration")
 
         if calibration is None:
-            raise ValueError("No calibration provided")
+            if default_sensor_dict is not None:
+                for k, v in default_sensor_dict.items():
+                    sensor_dict[k] = v
+            else:
+                raise ValueError("No calibration provided")
+        else:
+            sensor_dict["f"] = float(calibration.find("f").text)
 
-        sensor_dict["f"] = float(calibration.find("f").text)
-        sensor_dict["cx"] = float(calibration.find("cx").text)
-        sensor_dict["cy"] = float(calibration.find("cy").text)
+            # Extract the objects for the principal points
+            cx = calibration.find("cx")
+            cy = calibration.find("cx")
+
+            # If they are set, use the value. Otherwise, use the default.
+            # TODO handle the case where no default is provided explicitly
+            sensor_dict["cx"] = (
+                float(cx.text) if cx is not None else default_sensor_dict["cx"]
+            )
+            sensor_dict["cy"] = (
+                float(cy.text) if cy is not None else default_sensor_dict["cy"]
+            )
+            # Get potentially-empty dict of distortion parameters
+            sensor_dict["distortion_params"] = {
+                calibration[i].tag: float(calibration[i].text)
+                for i in range(3, len(calibration))
+            }
+
         if None in (sensor_dict["f"], sensor_dict["cx"], sensor_dict["cy"]):
             ValueError("Incomplete calibration provided")
 
-        # Get potentially-empty dict of distortion parameters
-        sensor_dict["distortion_params"] = {
-            calibration[i].tag: float(calibration[i].text)
-            for i in range(3, len(calibration))
-        }
         sensor_ID = int(sensor.get("id"))
         sensors_dict[sensor_ID] = sensor_dict
     return sensors_dict

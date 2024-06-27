@@ -1,6 +1,8 @@
 import os
+import typing
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
@@ -48,19 +50,50 @@ class LookUpSegmentor(Segmentor):
 class TabularRectangleSegmentor(Segmentor):
     def __init__(
         self,
-        pred_file_or_folder,
-        image_folder,
-        image_shape=(4008, 6016),
-        label_key="label",
-        image_path_key="image_path",
-        imin_key="ymin",
-        imax_key="ymax",
-        jmin_key="xmin",
-        jmax_key="xmax",
-        predfile_extension="csv",
+        detection_file_or_folder: PATH_TYPE,
+        image_shape: tuple,
+        label_key: str = "instance_ID",
+        image_path_key: str = "image_path",
+        imin_key: str = "ymin",
+        imax_key: str = "ymax",
+        jmin_key: str = "xmin",
+        jmax_key: str = "xmax",
+        detection_file_extension: str = "csv",
+        strip_image_extension: bool = False,
+        use_absolute_filepaths: bool = False,
+        split_bbox: bool = True,
+        image_folder: typing.Union[PATH_TYPE, None] = None,
     ):
-        self.pred_file_or_folder = pred_file_or_folder
-        self.image_folder = image_folder
+        """Lookup rectangular bounding boxes corresponding to detections from a CSV or folder of them.
+
+        Args:
+            detection_file_or_folder (PATH_TYPE):
+                Path to the CSV file with detections or a folder thereof
+            image_shape (tuple):
+                The (height, width) shape of the image in pixels.
+            label_key (str, optional):
+                The column that corresponds to the class. Defaults to "label".
+            image_path_key (str, optional):
+                The column that has the image filename. Defaults to "image_path".
+            imin_key (str, optional):
+                Column of the minimum i dimension. Defaults to "ymin".
+            imax_key (str, optional):
+                Column of the max i dimension. Defaults to "ymax".
+            jmin_key (str, optional):
+                Column of the min j dimension. Defaults to "xmin".
+            jmax_key (str, optional):
+                Column of the max j dimension. Defaults to "xmax".
+            detection_file_extension (str, optional):
+                File extension of the detection files. Defaults to "csv".
+            strip_image_extension (bool, optional):
+                Remove the extension from the image filenames. Defaults to True.
+            use_absolute_filepaths (bool, optional):
+                Add the absolute path from the image folder to the filenames. Defaults to False.
+            split_bbox (bool, optional):
+                Split the bounding box from one column rather than having seperate columns for imin,
+                imax, jmin, jmax. Defaults to True.
+            image_folder (PATH_TYPE, optional): Path to the image folder. Defaults to None.
+        """
         self.image_shape = image_shape
 
         self.label_key = label_key
@@ -69,28 +102,102 @@ class TabularRectangleSegmentor(Segmentor):
         self.imax_key = imax_key
         self.jmin_key = jmin_key
         self.jmax_key = jmax_key
+        self.split_bbox = split_bbox
 
-        self.predfile_extension = predfile_extension
+        # Load the detections
+        self.labels_df = self.load_detection_files(
+            detection_file_or_folder=detection_file_or_folder,
+            detection_file_extension=detection_file_extension,
+            image_folder=image_folder,
+            use_absolute_filepaths=use_absolute_filepaths,
+            strip_image_extension=strip_image_extension,
+            image_path_key=image_path_key,
+        )
 
-        if os.path.isfile(pred_file_or_folder):
-            files = [pred_file_or_folder]
-        else:
-            files = sorted(Path(self.pred_folder).glob("*" + self.predfile_extension))
-
-        dfs = [pd.read_csv(f) for f in files]
-
-        self.labels_df = pd.concat(dfs, ignore_index=True)
-        if "instance_ID" not in self.labels_df.columns:
-            self.labels_df["instance_ID"] = self.labels_df.index
+        # Group the predictions
         self.grouped_labels_df = self.labels_df.groupby(by=self.image_path_key)
+
+        # List the images
         self.image_names = list(self.grouped_labels_df.groups.keys())
+        # Record the class names and number of classes
         self.class_names = np.unique(self.labels_df[self.label_key]).tolist()
         self.num_classes = len(self.class_names)
 
+    def load_detection_files(
+        self,
+        detection_file_or_folder: PATH_TYPE,
+        detection_file_extension: str,
+        image_folder: PATH_TYPE,
+        use_absolute_filepaths: bool,
+        strip_image_extension: bool,
+        image_path_key: str,
+    ):
+        # Determine whether the input is a file or folder
+        if Path(detection_file_or_folder).is_file():
+            # If it's a file, make a one-length list
+            files = [detection_file_or_folder]
+        else:
+            # List all the files in the folder with the requested extesion
+            files = sorted(
+                Path(detection_file_or_folder).glob("*" + detection_file_extension)
+            )
+
+        # Read the individual files
+        dfs = [pd.read_csv(f) for f in files]
+
+        # Concatenate the dataframes into one
+        labels_df = pd.concat(dfs, ignore_index=True)
+
+        # Add an sequential instance ID column if not present
+        if "instance_ID" not in labels_df.columns:
+            labels_df["instance_ID"] = labels_df.index
+
+        # Prepend the image folder to the image filenames if requested to make an absolute filepath
+        if image_folder is not None and use_absolute_filepaths:
+            absolute_filepaths = [
+                str(Path(image_folder, img_path))
+                for img_path in labels_df[image_path_key].tolist()
+            ]
+            labels_df[image_path_key] = absolute_filepaths
+
+        # Strip the extension from the image filenames if requested
+        if strip_image_extension:
+            image_path_without_ext = [
+                str(Path(img_path).with_suffix(""))
+                for img_path in labels_df[image_path_key].tolist()
+            ]
+            labels_df[image_path_key] = image_path_without_ext
+
+        return labels_df
+
+    def get_corners(self, data, as_int=True):
+        if self.split_bbox:
+            # TODO split row
+            bbox = data["bbox"]
+            bbox = bbox[1:-1]
+            splits = bbox.split(", ")
+            jmin, imin, width, height = [float(s) for s in splits]
+
+            imax = imin + height
+            jmax = jmin + width
+
+            imin = imin
+            jmin = jmin
+        else:
+            imin = data[self.imin_key]
+            imax = data[self.imax_key]
+            jmin = data[self.jmin_key]
+            jmax = data[self.jmax_key]
+
+        corners = imin, jmin, imax, jmax
+        if as_int:
+            corners = list(map(int, corners))
+
+        return corners
+
     def segment_image(self, image, filename, image_scale, vis=False):
-        label_image = np.zeros(
-            self.image_shape + (len(self.class_names),), dtype=np.uint8
-        )
+        output_shape = self.image_shape
+        label_image = np.full(output_shape, fill_value=np.nan, dtype=float)
 
         name = filename.name
         if name in self.image_names:
@@ -102,17 +209,15 @@ class TabularRectangleSegmentor(Segmentor):
         for _, row in df.iterrows():
             label = row[self.label_key]
             label_ind = self.class_names.index(label)
-            label_image[
-                int(row[self.imin_key]) : int(row[self.imax_key]),
-                int(row[self.jmin_key]) : int(row[self.jmax_key]),
-                label_ind,
-            ] = 1
+
+            imin, jmin, imax, jmax = self.get_corners(
+                row,
+            )
+
+            label_image[imin:imax, jmin:jmax] = label_ind
 
         if vis:
-            index_label = np.argmax(label_image, axis=2).astype(float)
-            zeros_mask = np.sum(label_image, axis=2) == 0
-            index_label[zeros_mask] = np.nan
-            plt.imshow(index_label, vmin=0, vmax=10, cmap="tab10")
+            plt.imshow(label_image, vmin=0, vmax=10, cmap="tab10")
             plt.show()
 
         if image_scale != 1.0:
@@ -137,12 +242,15 @@ class TabularRectangleSegmentor(Segmentor):
         # Extract the corresponding dataframe
         df = self.grouped_labels_df.get_group(filename)
 
-        # Extract the columns for the bounding box corners
-        imin = df[self.imin_key].to_numpy()
-        imax = df[self.imax_key].to_numpy()
+        all_corners = []
+        for _, row in df.iterrows():
+            corners = self.get_corners(row, as_int=False)
+            all_corners.append(corners)
 
-        jmin = df[self.jmin_key].to_numpy()
-        jmax = df[self.jmax_key].to_numpy()
+        all_corners = zip(*all_corners)
+        all_corners = [np.array(x) for x in all_corners]
+
+        imin, jmin, imax, jmax = all_corners
 
         # Average the left-right, top-bottom pairs
         centers = np.vstack([(imin + imax) / 2, (jmin + jmax) / 2]).T
