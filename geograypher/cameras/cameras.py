@@ -172,16 +172,20 @@ class PhotogrammetryCamera:
                 self.lon_lat = (-self.lon_lat[0], self.lon_lat[1])
 
         return self.lon_lat
-    
+
     def get_camera_location(self, get_z_coordinate: bool = False):
         """Returns a tuple of camera coordinates from the camera-to-world transfromation matrix.
         Args:
-            get_z_coordinate (bool): 
+            get_z_coordinate (bool):
                 Flag that user can set if they want z-coordinates. Defaults to False.
         Returns:
             Tuple[float, float (, float)]: tuple containing internal mesh coordinates of the camera
         """
-        return tuple(self.cam_to_world_transform[0:3, 3]) if get_z_coordinate else tuple(self.cam_to_world_transform[0:2, 3])
+        return (
+            tuple(self.cam_to_world_transform[0:3, 3])
+            if get_z_coordinate
+            else tuple(self.cam_to_world_transform[0:2, 3])
+        )
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -763,16 +767,16 @@ class PhotogrammetryCameraSet:
     def get_lon_lat_coords(self):
         """Returns a list of GPS coords for each camera"""
         return [x.get_lon_lat() for x in self.cameras]
-    
+
     def get_camera_locations(self, **kwargs):
         """
-        Returns a list of camera locations for each camera. 
+        Returns a list of camera locations for each camera.
 
         Args:
             **kwargs: Keyword arguments to be passed to the PhotogrammetryCamera.get_camera_location method.
 
         Returns:
-            List[Tuple[float, float] or Tuple[float, float, float]]: 
+            List[Tuple[float, float] or Tuple[float, float, float]]:
                 List of tuples containing the camera locations.
         """
         return [x.get_camera_location(**kwargs) for x in self.cameras]
@@ -781,26 +785,26 @@ class PhotogrammetryCameraSet:
         self,
         ROI: Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, MultiPolygon],
         buffer_radius: float = 0,
-        is_geospatial: bool = None
-    ):  
+        is_geospatial: bool = None,
+    ):
         """Return cameras that are within a radius of the provided geometry
 
         Args:
-            geodata (Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, MultiPolygon]): 
-                This can be a Geopandas dataframe, path to a geofile readable by geopandas, or 
+            geodata (Union[PATH_TYPE, gpd.GeoDataFrame, Polygon, MultiPolygon]):
+                This can be a Geopandas dataframe, path to a geofile readable by geopandas, or
                 Shapely Polygon/MultiPolygon information that can be loaded into a geodataframe
-            buffer_radius (float, optional): 
-                Return points within this buffer of the geometry. Defaults to 0. Represents 
+            buffer_radius (float, optional):
+                Return points within this buffer of the geometry. Defaults to 0. Represents
                 meters if ROI is geospatial.
-            is_geospatial (bool, optional): 
-                A flag for user to indicate if ROI is geospatial or not; if no flag is provided, 
+            is_geospatial (bool, optional):
+                A flag for user to indicate if ROI is geospatial or not; if no flag is provided,
                 the flag is set if the provided geodata has a CRS.
         Returns:
-            subset_camera_set (List[PhotogrammetryCamera]): 
+            subset_camera_set (List[PhotogrammetryCamera]):
                 List of cameras that fall within the provided ROI
         """
         # construct GeoDataFrame if not provided
-        if isinstance(ROI, (Polygon,MultiPolygon)):
+        if isinstance(ROI, (Polygon, MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
                 ROI = gpd.GeoDataFrame(crs=LAT_LON_EPSG_CODE, geometry=[ROI])
@@ -809,7 +813,7 @@ class PhotogrammetryCameraSet:
         elif not isinstance(ROI, gpd.GeoDataFrame):
             # Read in the geofile
             ROI = gpd.read_file(ROI)
-        
+
         if is_geospatial is None:
             is_geospatial = ROI.crs is not None
 
@@ -827,14 +831,16 @@ class PhotogrammetryCameraSet:
                 geometry=image_locations, crs=LAT_LON_EPSG_CODE
             )
             image_locations_df.to_crs(ROI.crs, inplace=True)
-        
+
         # Merge all of the elements together into one multipolygon, destroying any attributes that were there
         ROI = ROI.dissolve()
         # Expand the geometry of the shape by the buffer
         ROI["geometry"] = ROI.buffer(buffer_radius)
         image_locations_df["index"] = image_locations_df.index
 
-        points_in_field_buffer = gpd.sjoin(image_locations_df, ROI, how="left") # TODO: look into using .contains 
+        points_in_field_buffer = gpd.sjoin(
+            image_locations_df, ROI, how="left"
+        )  # TODO: look into using .contains
         valid_camera_points = np.isfinite(
             points_in_field_buffer["index_right"].to_numpy()
         )

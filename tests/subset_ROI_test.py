@@ -49,21 +49,32 @@ camera_set = PhotogrammetryCameraSet(
     intrinsic_params_per_sensor_type=CAM_INTRINSICS,
 )
 
-#create different ROIs to test the camera_set.get_subset_ROI() function
+# create different ROIs to test the camera_set.get_subset_ROI() function
 # TODO: Implement pytest or another testing framework for more comprehensive testing
 polygon1 = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
 polygon2 = Polygon([(1, 1), (2, 1), (2, 2), (1, 2)])
 multi_polygon = MultiPolygon([polygon1, polygon2])
-polygon_gdf1 = gpd.GeoDataFrame(data = {'name': ['Polygon 1'], 'geometry': [polygon1]})
-polygon_gdf2 =  gpd.GeoDataFrame(data = {'name': ['Polygon 1', 'Polygon 2'], 'geometry': [polygon1, polygon2]})
-multi_polygon_gdf = gpd.GeoDataFrame(data = {'name': ['MultiPolygon 1'], 'geometry': [multi_polygon]})
+polygon_gdf1 = gpd.GeoDataFrame(data={"name": ["Polygon 1"], "geometry": [polygon1]})
+polygon_gdf2 = gpd.GeoDataFrame(
+    data={"name": ["Polygon 1", "Polygon 2"], "geometry": [polygon1, polygon2]}
+)
+multi_polygon_gdf = gpd.GeoDataFrame(
+    data={"name": ["MultiPolygon 1"], "geometry": [multi_polygon]}
+)
 # test is_geospatial flag determination
-assert camera_set.get_subset_ROI(ROI=polygon1).get_camera_locations() == camera_set.get_subset_ROI(ROI=polygon1, is_geospatial=False).get_camera_locations(), "geospatial determination is wrong"
+assert (
+    camera_set.get_subset_ROI(ROI=polygon1).get_camera_locations()
+    == camera_set.get_subset_ROI(
+        ROI=polygon1, is_geospatial=False
+    ).get_camera_locations()
+), "geospatial determination is wrong"
 # polygon ROI should produce same result as geodataframe containing the same polygon
-assert camera_set.get_subset_ROI(ROI=polygon1).get_camera_locations() == camera_set.get_subset_ROI(ROI=polygon_gdf1).get_camera_locations(), "polygon ROI should produce same result as geodataframe containing the same polygon"
+assert (
+    camera_set.get_subset_ROI(ROI=polygon1).get_camera_locations()
+    == camera_set.get_subset_ROI(ROI=polygon_gdf1).get_camera_locations()
+), "polygon ROI should produce same result as geodataframe containing the same polygon"
 # multiple polygon rows in a gdf should dissolve and produce same result as a multipolygon gdf
-assert camera_set.get_subset_ROI(ROI=multi_polygon_gdf).get_camera_locations() == camera_set.get_subset_ROI(ROI=polygon_gdf2).get_camera_locations(), "multiple polygon rows in a gdf should dissolve and produce same result as a multipolygon gdf"
-
-
-
-
+assert (
+    camera_set.get_subset_ROI(ROI=multi_polygon_gdf).get_camera_locations()
+    == camera_set.get_subset_ROI(ROI=polygon_gdf2).get_camera_locations()
+), "multiple polygon rows in a gdf should dissolve and produce same result as a multipolygon gdf"
