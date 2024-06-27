@@ -551,8 +551,8 @@ class TexturedPhotogrammetryMesh:
         # Disolve to ensure there is only one row
         ROI_gpd = ROI_gpd.dissolve()
         self.logger.info("Setting CRS and buffering ROI")
-        # Make sure we're using a geometric CRS so a buffer can be applied
-        ROI_gpd = ensure_geometric_CRS(ROI_gpd)
+        # Make sure we're using a projected CRS so a buffer can be applied
+        ROI_gpd = ensure_projected_CRS(ROI_gpd)
         # Apply the buffer, plus the tolerance, to ensure we keep at least the requested region
         ROI_gpd["geometry"] = ROI_gpd.buffer(buffer_meters + simplify_tol_meters)
         # Simplify the geometry to reduce the computational load
