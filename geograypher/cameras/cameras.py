@@ -10,21 +10,15 @@ from typing import Dict, List, Tuple, Union
 import geopandas as gpd
 import networkx
 import numpy as np
-
+import numpy.ma as ma
 import pyproj
 import pyvista as pv
-from skimage.transform import resize
-from tqdm import tqdm
-
-
-import numpy.ma as ma
-
-
-
 from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import MultiPolygon, Point, Polygon
 from skimage.io import imread
+from skimage.transform import resize
+from tqdm import tqdm
 
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
