@@ -810,7 +810,7 @@ class PhotogrammetryCameraSet:
                 List of cameras that fall within the provided ROI
         """
         # construct GeoDataFrame if not provided
-        if isinstance(ROI, (Polygon,MultiPolygon)):
+        if isinstance(ROI, (Polygon, MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
                 ROI = gpd.GeoDataFrame(crs=LAT_LON_EPSG_CODE, geometry=[ROI])
@@ -1116,21 +1116,3 @@ class PhotogrammetryCameraSet:
             if force_xvfb:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
