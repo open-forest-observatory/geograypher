@@ -1,16 +1,14 @@
 name: Black Linter
 
+# This allows Black be called from the isort workflow
 on:
-  workflow_run:
-    workflows: [Isort Linter]
-    types:
-      - completed
+  workflow_call:
 
 jobs:
   black-linter:
     name: Run Black
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Determine Branch Name
         run: |
@@ -39,4 +37,4 @@ jobs:
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: Apply formatting changes
+          commit_message: Apply black formatting changes
