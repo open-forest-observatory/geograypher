@@ -37,8 +37,9 @@ jobs:
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: Apply formatting changes
+          commit_message: Apply isort formatting changes
 
+  # Ensure Black runs after Isort has completed
   black:
     needs: isort
     uses: ./.github/workflows/black.yml
