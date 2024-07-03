@@ -2,101 +2,18 @@
 
 This tool is designed for multiview image datasets where multiple photos are taken of the same scene. The goal is to address two related tasks: generating a prediction about one point in the real world using observations of that point from multiple viewpoints and locating where a point in the real world is observed in each image. The intended application is drone surveys for ecology but the tool is designed to be generalizable.
 
-In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrammetry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrammetry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image. 
+In drone surveys, multiple overlapping images are taken of a region. A common technique to align these images is using photogrammetry software such as the commercially-available Agisoft Metashape or open-source COLMAP. This project only supports Metashape at the moment, but we plan to expand to other software. We use two outputs from photogrammetry, the location and calibration parameters of the cameras and a 3D "mesh" model of the environment. Using techniques from graphics, we can find the correspondences between locations on the mesh and on the image.
 
 One task that this can support is multiview classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transferred to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averaging scheme to come up with a final land cover prediction for that location. The other task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
 
-# Conceptual workflow
-
-Imagine you are trying to map the objects in a hypothetical region. Your world consists of three types of objects: cones, cubes, and cylinders. Cones are different shades of blue, cubes are difference shades of orange, and cylinders are different shades of green. Your landscape consists of a variety of these objects arranged randomly on a flat gray surface. You fly a drone survey and collect images of your scene, some of which are shown below. 
-
-<p align="center">
-  <img alt="Image 1" src="docs/images/texture_render_realistic_000.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/texture_render_realistic_001.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/texture_render_realistic_002.png" width="28%">
-</p>
-
-While you are there, you also do some field work and survey a small subset of your region. Field work is labor-intensive, so you can't survey the entire region your drone flew. You note down the class of the object and their location and shape in geospatial coordinates. This results in the following geospatial map.
-
-<p align="center">
-  <img alt="Field reference data" src="docs/images/2D_map.png" width="50%">
-</p>
-
-You use structure from motion to build a 3D model of your scene and also estimate the locations that each image was taken from. 
-
-<p align="center">
-  <img alt="Photogrammetry result" src="docs/images/textured_scene_render.png" width="50%">
-</p>
-
-Up to this point, you have been following a fairly standard workflow. A common practice at this point would be to generate a top-down, 2D orthomosaic of the scene and do any prediction tasks, such as deep learning model training or inference, using this data. Instead, you decide it's important to maintain the high quality of the raw images and be able to see the sides of your objects when you are generating predictions. This is where geograypher comes in. 
-
-Using your field reference map and the 3D model from photogrammetry, you determine which portions of your 3D scene correspond to each object. This is shown below, with the colors now representing the classification label.
-
-<p align="center">
-  <img alt="Photogrammetry result" src="docs/images/class_scene_render.png" width="50%">
-</p>
-
-Your end goal is to generate predictions on the entire region. For this, you need a machine learning model that can generate automatic predictions on your data. No one else has developed a model for your cone-cube-cylinder classification task, so you need to train your own using labeled example data. Using the mesh that is textured with the classification information from the field survey, and the pose of the camera, you can "render" the labels onto the images. They are shown below, color-coded by class.
-
-<p align="center">
-  <img alt="Image 1" src="docs/images/class_render_flat000.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/class_render_flat001.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/class_render_flat002.png" width="28%">
-</p>
-These labels correspond to the images shown below.
-<p align="center">
-  <img alt="Image 1" src="docs/images/texture_render_realistic_000.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/texture_render_realistic_001.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/texture_render_realistic_002.png" width="28%">
-</p>
-
-Now that you have pairs of real images and rendered labels, you can train a machine learning model to predict the class of the objects from the images. This model can be now used to generate predictions on un-labeled images. An example prediction is shown below.
-<p align="center">
-  <img alt="Image 1" src="docs/images/texture_render_realistic_003.png" width="28%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 1" src="docs/images/right-arrow.svg" width="10%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/class_render_flat003.png" width="28%">
-</p>
-
-To make these predictions useful, you need the information in geospatial coordinates. We again use the mesh model as an intermediate step between the image coordinates and 2D geospatial coordinates. The predictions are projected or "splatted" onto the mesh from each viewpoint.
-
-<p align="center">
-  <img alt="Image 1" src="docs/images/class_render_flat003.png" width="45%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/projected_labels_003.png" width="45%">
-</p>
-<p align="center">
-  <img alt="Image 1" src="docs/images/class_render_flat004.png" width="45%">
-&nbsp; &nbsp; &nbsp; &nbsp; 
-  <img alt="Image 2" src="docs/images/projected_labels_004.png" width="45%">
-</p>
-
-As seen above, each prediction only captures a small region of the mesh, and cannot make any predictions about parts of the object that were occluded in the original viewpoint. Therefore, we need to aggregate the predictions from all viewpoints to have an understanding of the entire scene. This gives us added robustness, because we can tolerate some prediction errors for a single viewpoint, by choosing the most common prediction across all viewpoints of a single location. The aggregated prediction is shown below.
-
-<p align="center">
-  <img alt="Photogrammetry result" src="docs/images/class_scene_render.png" width="50%">
-</p>
-
-Now, the final step is to transform these predictions back into geospatial coordinates. 
-
-<p align="center">
-  <img alt="Photogrammetry result" src="docs/images/2D_map.png" width="50%">
-</p>
 
 ## Installation
 
-There are two ways to use this tool. If you are an internal collaborator working on the `JetStream2` cloud compute environment with access to the `/ofo-share` , you can directly use an existing `conda` environment. Note that this option is only suitable if you want to use the existing functionality and not make changes to the toolkit code or dependencies. If you are an external collaborator/user or want to do development work, please create your own new environment. 
+There are two ways to use this tool. If you are an internal collaborator working on the `JetStream2` cloud compute environment with access to the `/ofo-share` , you can directly use an existing `conda` environment. Note that this option is only suitable if you want to use the existing functionality and not make changes to the toolkit code or dependencies. If you are an external collaborator/user or want to do development work, please create your own new environment.
 
 ### Using existing environment
 
-This is for internal collaborators working on Jetstream2. Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed `conda` on your Jetstream. Note that the following steps assums a conda config file already exists on your VM, and that it points to your local user's home directory for conda envs and pkgs. You can check this with `conda config --show` and look at the values under `pkgs_dirs` and `envs_dirs`. Then you can tell `conda` to look, secondarily, in the following additional places for environments and packages. 
+This is for internal collaborators working on Jetstream2. Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed `conda` on your Jetstream. Note that the following steps assums a conda config file already exists on your VM, and that it points to your local user's home directory for conda envs and pkgs. You can check this with `conda config --show` and look at the values under `pkgs_dirs` and `envs_dirs`. Then you can tell `conda` to look, secondarily, in the following additional places for environments and packages.
 
 ```
 conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
@@ -130,16 +47,16 @@ conda activate geograypher
 ```
 
 > For internal collaborators working on /ofo-share, you could run into permissions issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.
-> 
+>
 > ```
 > python
 > python3.9
 > ```
-> 
-> If you get a permission denied error, get the location of the python executable inside of your conda environment (from the error message). 
-> 
-> Use the output and change the permissions using chmod. What the command should look like: 
-> 
+>
+> If you get a permission denied error, get the location of the python executable inside of your conda environment (from the error message).
+>
+> Use the output and change the permissions using chmod. What the command should look like:
+>
 > ```
 > chmod ugo+x <CONDA ENV LOCATION>/bin/python3.9
 > ```
@@ -172,11 +89,11 @@ python -c "import torch; print(torch.cuda.is_available())"
 python -c "import pytorch3d; print(pytorch3d.__version__)"
 ```
 
-If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example: 
+If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
 ```
 sudo apt install xvfb
 ```
-If you do not have root access on your machine, it may not be possible to install xvfb. 
+If you do not have root access on your machine, it may not be possible to install xvfb.
 
 You may get the following error when running `pyvista` visualization:
 
@@ -197,7 +114,7 @@ pip install -e <path to your clone of the geograypher repo>
 
 ### Example data
 
-The public example data is in `data/example_Emerald_Point_data` . You can run notebooks in the `examples` folder to see how to interact with this data. You can download this data using Google Drive from this [folder](https://drive.google.com/drive/folders/1gs5MkutQJEfg7tVnv01gzrf9NisAO5AT?usp=drive_link). Once you've downloaded it, extract it into the `data` folder. 
+The public example data is in `data/example_Emerald_Point_data` . You can run notebooks in the `examples` folder to see how to interact with this data. You can download this data using Google Drive from this [folder](https://drive.google.com/drive/folders/1gs5MkutQJEfg7tVnv01gzrf9NisAO5AT?usp=drive_link). Once you've downloaded it, extract it into the `data` folder.
 
 ### Using your own data
 
