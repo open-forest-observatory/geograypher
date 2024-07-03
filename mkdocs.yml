@@ -60,13 +60,13 @@ plugins:
   - git-revision-date-localized:
         enable_creation_date: true
   - git-committers:
-      repository: open-forest-observatory/ofo-docs
+      repository: open-forest-observatory/geograypher
       branch: main
 
 nav:
   - "← OFO home": https://openforestobservatory.org/
   - ...
 
-repo_url: https://github.com/open-forest-observatory/multiview-mapping-toolkit
+repo_url: https://github.com/open-forest-observatory/geograypher
 repo_name: open-forest-observatory/geograypher
 edit_uri: edit/main/docs/
