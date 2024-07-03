@@ -31,3 +31,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
 profile = "black"
+
+[project]
+dependencies = [
+    "mkdocstrings[python]>=0.18",
+]
