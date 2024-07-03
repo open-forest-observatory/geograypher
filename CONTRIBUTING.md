@@ -17,16 +17,18 @@ If you push changes to main or create a pull request, please be aware that Githu
 If you are adding a branch to this repository, please use the following convention: `{feature, bugfix, hotfix, release, docs}/{developer initials}/{short-hyphenated-description}`. For example, `docs/DR/add-branch-naming-convention` for this change. For a description of the prefixes, please see [here](https://medium.com/@abhay.pixolo/naming-conventions-for-git-branches-a-cheatsheet-8549feca2534).
 
 # Docstrings
-For documentation, we use the [Google](https://github.com/NilsJPWerner/autoDocstring/blob/HEAD/docs/google.md) format. I personally use [VSCode autoDocstring](https://marketplace.visualstudio.com/items?itemName=njpwerner.autodocstring) plugin for templating. 
+For documentation, we use the [Google](https://github.com/NilsJPWerner/autoDocstring/blob/HEAD/docs/google.md) format. I personally use [VSCode autoDocstring](https://marketplace.visualstudio.com/items?itemName=njpwerner.autodocstring) plugin for templating. Keeping the docstrings up-to-date is essential because we automatically integrate them into our documentation. If the docstrings are outdated, the docstrings shown on the documentation will also outdated. 
 
 # Type hints
 Typing hints, as introduced by [PEP 484](https://peps.python.org/pep-0484/), are strongly encouraged. This helps provide additional documentation and allows some code editors to make additional autocompletes. 
 
-# Contributing to MkDocs
+# Updating Documentation with MkDocs
 
 ### Step 1: Create a Conda Environment
 
-First, create a new Conda environment with Python 3.10 and activate it:
+First, navigate to the root directory of the project.
+
+Then create a new Conda environment with Python 3.10 and activate it:
 ```
 conda create --name docs-env python=3.10
 conda activate docs-env
@@ -46,3 +48,5 @@ pip install mkdocs-git-committers-plugin
 ```
 mkdocs serve
 ```
+
+After running `mkdocs serve`, MkDocs will provide instructions to view the page on the local host. You should open your web browser and navigate to http://127.0.0.1:8000 to see the live preview of your documentation.
