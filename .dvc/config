@@ -1,7 +1,0 @@
-[core]
-    autostage = true
-    remote = gdrive_public
-['remote "cyverse_public"']
-    url = webdavs://data.cyverse.org/dav/iplant/projects/ofo/public/MVPT-example-data-DVC
-['remote "gdrive_public"']
-    url = gdrive://1ujEOCpS3m9CDPlPF3p4fdEeebQOt5VTX
