@@ -27,7 +27,8 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material 
+      - run: pip install mkdocs-material
+      - run: pip install "mkdocstrings[python]"
       - run: pip install mkdocs-awesome-pages-plugin
       - run: pip install mkdocs-nav-weight
       - run: pip install mkdocs-git-revision-date-localized-plugin
