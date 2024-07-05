@@ -1,5 +1,4 @@
 nav:
-  - index.md
   - installation.md
   - data.md
   - conceptual_workflow.md
