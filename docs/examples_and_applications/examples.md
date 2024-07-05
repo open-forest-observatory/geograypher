@@ -17,7 +17,3 @@ The prior examples have assumed that per-image predictions are available. In man
 All the other examples use real data. To support conceptual understanding and rapid debugging, we developed an end-to-end workflow using only simulated data. The scene consists of various geometric objects arranged on a flat plane. Users can configure the objects in the scene and the locations of the virtual cameras observing them.
 
 * [geograypher/examples/concept_figure.ipynb](https://github.com/open-forest-observatory/geograypher/blob/main/examples/concept_figure.ipynb)
-
-# Projects using geograypher
-## Cross-site tree species classification for Western Conifers
-The goal of this project is to identify the species of western conifers in regions which have been burned by severe fire in the past decade. Data was collected at four sites and consisted of both drone surveys and manual field surveys. This work showed geograypher's multiview workflow enabled 75% prediction accuracy on a leave-on-site-out prediction task. Details can be found in this ArXiv [paper](https://arxiv.org/abs/2405.09544).
