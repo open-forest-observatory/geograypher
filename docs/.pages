@@ -1,6 +1,6 @@
 nav:
   - "← OFO home": https://openforestobservatory.org/
-  - index.md
+  - getting_started
   - applications.md
   - software_design.md
   - API_reference
