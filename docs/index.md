@@ -1,5 +1,5 @@
 ---
-title: "Docs home"
+title: "Getting started"
 ---
 
 # Welcome to Geograypher documentation
