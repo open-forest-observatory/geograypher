@@ -1,7 +1,7 @@
 ---
 title: Entrypoints
 ---
-Entrypoints are functions can be directly called to perform a high-level task. Each of the entrypoints listed below can be called as a command line script. These scripts except arguments that are directly passed to these functions.
+Entrypoints are functions can be directly called to perform a high-level task. Each of the entrypoints listed below can be called as a command line script. These scripts accept arguments that are directly passed to these functions.
 
 
 ::: geograypher.entrypoints.render_labels.render_labels

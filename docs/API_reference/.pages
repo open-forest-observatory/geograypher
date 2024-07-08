@@ -2,3 +2,5 @@ nav:
   - entrypoints.md
   - meshes
   - cameras
+  - predictors
+  - utils
