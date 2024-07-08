@@ -1,0 +1,13 @@
+nav:
+  - index.md
+  - numeric.md
+  - indexing.md
+  - geometric.md
+  - geospatial.md
+  - files.md
+  - io.md
+  - parsing.md
+  - prediction_metrics.md
+  - image.md
+  - visualization.md
+  - example_data.md
