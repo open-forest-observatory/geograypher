@@ -52,32 +52,9 @@ conda activate geograypher
 > chmod ugo+x <CONDA ENV LOCATION>/bin/python3.9
 > ```
 
-If you haven't already, install [poetry](https://python-poetry.org/docs/):
-
+## Install Geograypher:
 ```
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-Now use this to install the majority of dependencies. First `cd` to the directory containing the `geograypher` repo. Then run:
-
-```
-poetry install
-```
-
-Now install the `pytorch3d` dependencies that can't be installed with `poetry`:
-
-```
-conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
-conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
-conda install -c bottler nvidiacub -y
-conda install pytorch3d -c pytorch3d -y
-```
-
-Validate the installation
-
-```
-python -c "import torch; print(torch.cuda.is_available())"
-python -c "import pytorch3d; print(pytorch3d.__version__)"
+pip install geograypher
 ```
 
 If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
@@ -98,7 +75,21 @@ If this happens, you can fix it by symlinking to the system version. I don't kno
 ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
 ```
 
-If you want to be able to call geograypher fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
+## Optional: Install `pytorch3d`
+If you are working on a headless machine and are unable to install xvfb, `pytorch3d` can be a viable alternative since installing it does not require admin privileges.
+
+Install the pytorch3d dependencies:
+
 ```
-pip install -e <path to your clone of the geograypher repo>
+conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
+conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
+conda install -c bottler nvidiacub -y
+conda install pytorch3d -c pytorch3d -y
+```
+
+Validate the installation
+
+```
+python -c "import torch; print(torch.cuda.is_available())"
+python -c "import pytorch3d; print(pytorch3d.__version__)"
 ```
