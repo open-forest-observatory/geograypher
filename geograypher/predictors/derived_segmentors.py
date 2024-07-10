@@ -10,6 +10,7 @@ from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
 from geograypher.predictors import Segmentor
+from geograypher.utils.files import ensure_containing_folder
 
 
 class BrightnessSegmentor(Segmentor):
@@ -169,6 +170,13 @@ class TabularRectangleSegmentor(Segmentor):
             labels_df[image_path_key] = image_path_without_ext
 
         return labels_df
+
+    def get_all_detections(self):
+        return self.labels_df
+
+    def save_detection_data(self, output_csv_file: PATH_TYPE):
+        ensure_containing_folder(output_csv_file)
+        self.labels_df.to_csv(output_csv_file)
 
     def get_corners(self, data, as_int=True):
         if self.split_bbox:
