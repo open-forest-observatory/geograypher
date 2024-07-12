@@ -39,12 +39,6 @@ Now use this to install the majority of dependencies. First cd to the directory 
 poetry install
 ```
 
-If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
-```
-sudo apt install xvfb
-```
-If you do not have root access on your machine, it may not be possible to install xvfb. A viable option is using `pytorch3d` instead, scroll down to `Optional: Install pytorch3d` for more instructions. 
-
 You may get the following error when running `pyvista` visualization:
 
 ```
@@ -57,7 +51,14 @@ If this happens, you can fix it by symlinking to the system version. I don't kno
 ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 <CONDA ENV LOCATION>/lib/libstdc++.so.6
 ```
 
-## Optional: Install `pytorch3d` {#pytorch}
+## Working on Headless Machine
+If you are working on a headless machine, such as a remote server, you will need the [XVFB](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
+```
+sudo apt install xvfb
+```
+If you do not have root access on your machine, it may not be possible to install xvfb.
+
+## Optional: Install `pytorch3d`
 If you are working on a headless machine and are unable to install xvfb, `pytorch3d` can be a viable alternative since installing it does not require admin privileges.
 
 Install the pytorch3d dependencies:
