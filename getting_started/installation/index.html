@@ -514,18 +514,36 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#using-existing-environment" class="md-nav__link">
+  <a href="#basic-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Using existing environment
+      Basic Installation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#creating-a-new-environment" class="md-nav__link">
+  <a href="#advanceddeveloper-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Creating a new environment
+      Advanced/Developer Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-on-headless-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working on Headless Machine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-install-pytorch3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optional: Install pytorch3d
     </span>
   </a>
   
@@ -1504,18 +1522,36 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#using-existing-environment" class="md-nav__link">
+  <a href="#basic-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Using existing environment
+      Basic Installation
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#creating-a-new-environment" class="md-nav__link">
+  <a href="#advanceddeveloper-installation" class="md-nav__link">
     <span class="md-ellipsis">
-      Creating a new environment
+      Advanced/Developer Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-on-headless-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working on Headless Machine
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-install-pytorch3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optional: Install pytorch3d
     </span>
   </a>
   
@@ -1545,45 +1581,42 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>There are two ways to use this tool. If you are an internal collaborator working on the <code>JetStream2</code> cloud compute environment with access to the <code>/ofo-share</code> , you can directly use an existing <code>conda</code> environment. Note that this option is only suitable if you want to use the existing functionality and not make changes to the toolkit code or dependencies. If you are an external collaborator/user or want to do development work, please create your own new environment.</p>
-<h2 id="using-existing-environment">Using existing environment<a class="headerlink" href="#using-existing-environment" title="Permanent link">&para;</a></h2>
-<p>This is for internal collaborators working on Jetstream2. Note that you should not make any changes to this environment since these changes will impact others. Only edits to my copy of the repository will be reflected when you import the tool. To begin, you must have installed <code>conda</code> on your Jetstream. Note that the following steps assums a conda config file already exists on your VM, and that it points to your local user's home directory for conda envs and pkgs. You can check this with <code>conda config --show</code> and look at the values under <code>pkgs_dirs</code> and <code>envs_dirs</code>. Then you can tell <code>conda</code> to look, secondarily, in the following additional places for environments and packages.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda config --append envs_dirs /ofo-share/repos-david/conda/envs/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda config --append pkgs_dirs /ofo-share/repos-david/conda/pkgs/
+<p>If you only need to use the exisiting functionality of Geograypher and not make changes to the toolkit code or dependencies, follow the <code>Basic Installation</code> instructions. </p>
+<p>If you want to do development work, please see <code>Advanced/Developer Installation</code>.</p>
+<p>Internal collaborators please navigate <a href="https://docs.openforestobservatory.org/internal-docs/">here</a> for more instructions. </p>
+<h2 id="basic-installation">Basic Installation<a class="headerlink" href="#basic-installation" title="Permanent link">&para;</a></h2>
+<p>Create and activate a conda environment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda create -n geograypher python=3.9 -y
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda activate geograypher
 </code></pre></div>
-<p>Now you should see all of my conda environments when you do <code>conda env list</code> . The one you want is <code>geograypher-stable</code> , and can be activated as follows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda activate geograypher-stable
+<p>Install Geograypher:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip install geograypher
+</code></pre></div></p>
+<h2 id="advanceddeveloper-installation">Advanced/Developer Installation<a class="headerlink" href="#advanceddeveloper-installation" title="Permanent link">&para;</a></h2>
+<p>Create and activate a conda environment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda create -n geograypher python=3.9 -y
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>conda activate geograypher
 </code></pre></div>
-<p>Use this instead of <code>geograypher</code> in future steps.</p>
-<h2 id="creating-a-new-environment">Creating a new environment<a class="headerlink" href="#creating-a-new-environment" title="Permanent link">&para;</a></h2>
-<blockquote>
-<p>For internal collaborators working on <code>/ofo-share</code>, you can opt to store the new environment on <code>/ofo-share</code> so that you can access it from any VM. First make sure the location where you want to store the env is set to the default for conda:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda config --prepend envs_dirs /ofo-share/repos-&lt;yourname&gt;/conda/envs/
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>conda config --prepend pkgs_dirs /ofo-share/repos-&lt;yourname&gt;/conda/pkgs/
+<p>Install <a href="https://python-poetry.org/docs/">poetry</a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl -sSL https://install.python-poetry.org | python3 -
 </code></pre></div>
-<p>You will need to run the above two lines on all new VMs before you can activate the env.</p>
-</blockquote>
-<p>Create and activate the environment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda create -n geograypher python=3.9 -y
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>conda activate geograypher
+<p>Now use this to install the majority of dependencies. First cd to the directory containing the <code>geograypher</code> repo. Then run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>poetry install
 </code></pre></div>
-<blockquote>
-<p>For internal collaborators working on /ofo-share, you could run into permissions issues when installing dependencies. Check that your executable permissions are valid by running python and python3.9.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python3.9
+<p>You may get the following error when running <code>pyvista</code> visualization:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30&#39; not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
 </code></pre></div>
-<p>If you get a permission denied error, get the location of the python executable inside of your conda environment (from the error message).</p>
-<p>Use the output and change the permissions using chmod. What the command should look like:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>chmod ugo+x &lt;CONDA ENV LOCATION&gt;/bin/python3.9
+<p>If this happens, you can fix it by symlinking to the system version. I don't know why this is required.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 &lt;CONDA ENV LOCATION&gt;/lib/libstdc++.so.6
 </code></pre></div>
-</blockquote>
-<p>If you haven't already, install <a href="https://python-poetry.org/docs/">poetry</a>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl -sSL https://install.python-poetry.org | python3 -
+<h2 id="working-on-headless-machine">Working on Headless Machine<a class="headerlink" href="#working-on-headless-machine" title="Permanent link">&para;</a></h2>
+<p>If you are working on a headless machine, such as a remote server, you will need the <a href="https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml">XVFB</a> package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sudo apt install xvfb
 </code></pre></div>
-<p>Now use this to install the majority of dependencies. First <code>cd</code> to the directory containing the <code>geograypher</code> repo. Then run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>poetry install
-</code></pre></div>
-<p>Now install the <code>pytorch3d</code> dependencies that can't be installed with <code>poetry</code>:</p>
+If you do not have root access on your machine, it may not be possible to install xvfb.</p>
+<h2 id="optional-install-pytorch3d">Optional: Install <code>pytorch3d</code><a class="headerlink" href="#optional-install-pytorch3d" title="Permanent link">&para;</a></h2>
+<p>If you are working on a headless machine and are unable to install xvfb, <code>pytorch3d</code> can be a viable alternative since installing it does not require admin privileges.</p>
+<p>Install the pytorch3d dependencies:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>conda install -c bottler nvidiacub -y
@@ -1593,19 +1626,6 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>python -c &quot;import torch; print(torch.cuda.is_available())&quot;
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>python -c &quot;import pytorch3d; print(pytorch3d.__version__)&quot;
 </code></pre></div>
-<p>If you are working on a headless machine, such as a remote server, you will need the <a href="https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml">XVFB</a> package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sudo apt install xvfb
-</code></pre></div>
-If you do not have root access on your machine, it may not be possible to install xvfb.</p>
-<p>You may get the following error when running <code>pyvista</code> visualization:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30&#39; not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
-</code></pre></div>
-<p>If this happens, you can fix it by symlinking to the system version. I don't know why this is required.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 &lt;CONDA ENV LOCATION&gt;/lib/libstdc++.so.6
-</code></pre></div>
-<p>If you want to be able to call geograypher fucntions from Python (e.g. Jupyter notebooks), then you also need to install the Python module. You can install your local clone of the repo as a package:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pip install -e &lt;path to your clone of the geograypher repo&gt;
-</code></pre></div></p>
 
 
 
@@ -1628,7 +1648,7 @@ If you do not have root access on your machine, it may not be possible to instal
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1-2.1-2M12.5 7v5.2l4 2.4-1 1L11 13V7h1.5M11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2v1.8Z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">July 5, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">July 12, 2024</span>
   </span>
 
     
@@ -1655,6 +1675,11 @@ If you do not have root access on your machine, it may not be possible to instal
 
     
     <nav>
+      
+        <a href="https://github.com/asidhu0" class="md-author" title="@asidhu0">
+          
+          <img src="https://avatars.githubusercontent.com/u/85960421?v=4&size=72" alt="asidhu0">
+        </a>
       
         <a href="https://github.com/russelldj" class="md-author" title="@russelldj">
           
