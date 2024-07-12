@@ -7,8 +7,22 @@ In drone surveys, multiple overlapping images are taken of a region. A common te
 
 One task that this can support is multiview classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transferred to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averaging scheme to come up with a final land cover prediction for that location. The other task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
 
-### Documentation
-Documentation of this tool, including how to set it up and examples of how to use it, can be found [here](https://open-forest-observatory.github.io/geograypher/).
+### Basic Installation
+Internal Collaborators please navigate [here](https://docs.openforestobservatory.org/internal-docs/)
+
+Create and activate a conda environment:
+
+```
+conda create -n geograypher python=3.9 -y
+conda activate geograypher
+```
+
+Install Geograypher:
+```
+pip install geograypher
+```
+
+Note the instructions above are suitable if you only need to use the exisiting functionality of Geograypher and not make changes to the toolkit code or dependencies. If you want to do development work please navigate [here](https://open-forest-observatory.github.io/geograypher/getting_started/installation/) for more instructions. 
 
 ### Running
 
@@ -31,3 +45,6 @@ Quality metrics can be computed using the evaluation script
 conda activate geograypher
 python geograypher/entrypoints/evaluate_predictions.py --help
 ```
+
+### Documentation
+Documentation of this tool, including how to set it up and examples of how to use it, can be found [here](https://open-forest-observatory.github.io/geograypher/).
