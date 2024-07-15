@@ -36,6 +36,7 @@ def render_labels(
     textured_mesh_savefile: typing.Union[PATH_TYPE, None] = None,
     ROI: typing.Union[PATH_TYPE, gpd.GeoDataFrame, shapely.MultiPolygon, None] = None,
     ROI_buffer_radius_meters: float = 50,
+    IDs_to_labels: typing.Union[dict, None] = None,
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
     n_render_clusters: typing.Union[int, None] = None,
@@ -74,6 +75,8 @@ def render_labels(
             The region of interest to render labels for. Defaults to None.
         ROI_buffer_radius_meters (float, optional):
             The distance in meters to include around the ROI. Defaults to 50.
+        IDs_to_labels (typing.Union[None, dict], optional):
+            Mapping between the integer labels and string values for the classes. Defaults to None.
         render_image_scale (float, optional):
             Downsample the images to this fraction of the size for increased performance but lower quality. Defaults to 1.
         mesh_downsample (float, optional):
@@ -125,6 +128,7 @@ def render_labels(
         transform_filename=transform_file,
         ROI=ROI,
         ROI_buffer_meters=ROI_buffer_radius_meters,
+        IDs_to_labels=IDs_to_labels,
     )
 
     ## Set the ground class if applicable
