@@ -200,30 +200,38 @@ def parse_args():
     )
 
     # Add arguments
-    parser.add_argument("--mesh-file", default=EXAMPLE_MESH_FILENAME)
+    parser.add_argument(
+        "--mesh-file",
+        type=Path,
+        required=True,
+    )
     parser.add_argument(
         "--cameras-file",
-        default=EXAMPLE_CAMERAS_FILENAME,
+        type=Path,
+        required=True,
     )
     parser.add_argument(
         "--image-folder",
-        default=EXAMPLE_IMAGE_FOLDER,
+        type=Path,
+        required=True,
     )
     parser.add_argument(
         "--texture",
-        default=EXAMPLE_STANDARDIZED_LABELS_FILENAME,
+        type=Path,
+        required=True,
     )
     parser.add_argument(
         "--render-savefolder",
-        default=EXAMPLE_RENDERED_LABELS_FOLDER,
+        type=Path,
+        required=True,
     )
     parser.add_argument(
         "--subset-images-savefolder",
         type=Path,
+        required=True,
     )
     parser.add_argument(
         "--texture-column-name",
-        default="Species",
     )
     parser.add_argument(
         "--DTM-file",
@@ -256,7 +264,7 @@ def parse_args():
     parser.add_argument(
         "--render-image-scale",
         type=float,
-        default=0.25,
+        default=1,
     )
     parser.add_argument(
         "--mesh-downsample",
