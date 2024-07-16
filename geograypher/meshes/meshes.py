@@ -844,7 +844,9 @@ class TexturedPhotogrammetryMesh:
             max_ID = np.nanmax(vert_IDs)
             # This means that all textures are nans
             if not np.isfinite(max_ID):
-                self.logger.warn("In vertex to face texture conversion, all nans encountered")
+                self.logger.warn(
+                    "In vertex to face texture conversion, all nans encountered"
+                )
                 # Return all nans
                 return np.full(values_per_face.shape[0], fill_value=np.nan)
 
