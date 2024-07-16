@@ -35,7 +35,8 @@ def render_labels(
     render_ground_class: bool = False,
     textured_mesh_savefile: typing.Union[PATH_TYPE, None] = None,
     ROI: typing.Union[PATH_TYPE, gpd.GeoDataFrame, shapely.MultiPolygon, None] = None,
-    ROI_buffer_radius_meters: float = 50,
+    mesh_ROI_buffer_radius_meters: float = 50,
+    cameras_ROI_buffer_radius_meters: float = 150,
     IDs_to_labels: typing.Union[dict, None] = None,
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
@@ -73,8 +74,10 @@ def render_labels(
             Where to save the textured and subsetted mesh, if needed in the future. Defaults to None.
         ROI (typing.Union[PATH_TYPE, gpd.GeoDataFrame, shapely.MultiPolygon, None], optional):
             The region of interest to render labels for. Defaults to None.
-        ROI_buffer_radius_meters (float, optional):
-            The distance in meters to include around the ROI. Defaults to 50.
+        mesh_ROI_buffer_radius_meters (float, optional):
+            The distance in meters to include around the ROI for the mesh. Defaults to 50.
+        cameras_ROI_buffer_radius_meters (float, optional):
+            The distance in meters to include around the ROI for the cameras. Defaults to 150.
         IDs_to_labels (typing.Union[None, dict], optional):
             Mapping between the integer labels and string values for the classes. Defaults to None.
         render_image_scale (float, optional):
@@ -105,7 +108,7 @@ def render_labels(
     camera_set = MetashapeCameraSet(cameras_file, image_folder)
     # Extract cameras near the training data
     training_camera_set = camera_set.get_subset_ROI(
-        ROI=ROI, buffer_radius_meters=ROI_buffer_radius_meters
+        ROI=ROI, buffer_radius=cameras_ROI_buffer_radius_meters, is_geospatial=True
     )
     # If requested, save out the images corresponding to this subset of cameras.
     # This is useful for model training.
@@ -127,7 +130,7 @@ def render_labels(
         texture_column_name=texture_column_name,
         transform_filename=transform_file,
         ROI=ROI,
-        ROI_buffer_meters=ROI_buffer_radius_meters,
+        ROI_buffer_meters=mesh_ROI_buffer_radius_meters,
         IDs_to_labels=IDs_to_labels,
     )
 
@@ -241,8 +244,13 @@ def parse_args():
         "--ROI",
     )
     parser.add_argument(
-        "--ROI_buffer_radius_meters",
+        "--mesh-ROI_buffer_radius_meters",
         default=50,
+        type=float,
+    )
+    parser.add_argument(
+        "--cameras-ROI_buffer_radius_meters",
+        default=100,
         type=float,
     )
     parser.add_argument(
