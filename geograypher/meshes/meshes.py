@@ -841,7 +841,14 @@ class TexturedPhotogrammetryMesh:
         values_per_face = vert_IDs[self.faces]
         if discrete:
             # Now we need to "vote" for the best one
-            max_ID = int(np.nanmax(vert_IDs))
+            max_ID = np.nanmax(vert_IDs)
+            # This means that all textures are nans
+            if not np.isfinite(max_ID):
+                self.logger.warn("In vertex to face texture conversion, all nans encountered")
+                # Return all nans
+                return np.full(values_per_face.shape[0], fill_value=np.nan)
+
+            max_ID = int(max_ID)
             # TODO consider using unique if these indices are sparse
             counts_per_class_per_face = np.array(
                 [np.sum(values_per_face == i, axis=1) for i in range(max_ID + 1)]
