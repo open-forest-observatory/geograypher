@@ -1543,6 +1543,11 @@ class TexturedPhotogrammetryMesh:
                 for camera in cameras
             ]
             pix2face = np.stack(pix2face_list, axis=0)
+            print("Final pix2face:")
+            print(pix2face)
+            print()
+            print("Shape of final pix2face output:", pix2face.shape)
+            print()
             return pix2face
 
         ## Single camera case
@@ -1635,6 +1640,13 @@ class TexturedPhotogrammetryMesh:
         if save_to_cache:
             # Save the most recently computed pix2face correspondance in the cache
             cacher.save(pix2face)
+
+        print("Printing in mesh class")
+        print(pix2face)
+        print()
+        print("Shape of pix2face output:", pix2face.shape)
+        print()
+
 
         return pix2face
 

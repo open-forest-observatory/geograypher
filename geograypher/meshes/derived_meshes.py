@@ -8,9 +8,11 @@ from scipy.sparse import csr_array
 from shapely import Point
 from sklearn.cluster import KMeans
 from tqdm import tqdm
+import pyvista as pv
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
-from geograypher.constants import PATH_TYPE
+from geograypher.cameras.derived_cameras import PyTorch3DRenderingCamera, PyTorch3DRenderingCameraSet
+from geograypher.constants import PATH_TYPE, CACHE_FOLDER
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
 
@@ -514,3 +516,361 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         average_projections = summed_projections.multiply(projection_counts_reciprocal)
 
         return average_projections, additional_information
+
+
+class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
+    """Extends the TexturedPhotogrammtery mesh by rendering using PyTorch3d"""
+
+    try:
+        import torch
+        from pytorch3d.renderer import (
+                MeshRasterizer,
+                RasterizationSettings,
+            )
+    except ImportError:
+        raise ImportError("PyTorch3D is not installed. Please call pix2face method from TexturedPhotogrammetryMesh Class.")
+        
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        torch.cuda.set_device(device)
+    else:
+        device = torch.device("cpu")
+
+    def __init__(
+        self,
+        *args, 
+        **kwargs,
+        # mesh: typing.Union[PATH_TYPE, pv.PolyData],
+        # downsample_target: float = 1.0,
+        # transform_filename: PATH_TYPE = None,
+        # texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
+        # texture_column_name: typing.Union[PATH_TYPE, None] = None,
+        # IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
+        # ROI=None,
+        # ROI_buffer_meters: float = 0,
+        # require_transform: bool = False,
+        # log_level: str = "INFO",
+    ):
+        # super().__init__(mesh, downsample_target, transform_filename, texture, texture_column_name, IDs_to_labels, ROI, ROI_buffer_meters, require_transform, log_level)
+        super().__init__(*args, **kwargs)
+
+    def create_pytorch3d_mesh(
+        self,
+        vert_texture: np.ndarray = None,
+        batch_size: int = 1,
+    ):
+        """Create the pytorch_3d_mesh
+
+        Args:
+            vert_texture (np.ndarray, optional):
+                Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
+            batch_size (int):
+                Number of copies of the mesh to create in a batch. Defaults to 1.
+        """
+        # Import PyTorch3D
+        try:
+            import torch
+            from pytorch3d.renderer import (
+                    TexturesVertex,
+                )
+            from pytorch3d.structures import Meshes
+        except ImportError:
+            raise ImportError("PyTorch3D is not installed. Please call pix2face method.")
+        
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+            torch.cuda.set_device(device)
+        else:
+            device = torch.device("cpu")
+
+        # Create the texture object if provided
+        if vert_texture is not None:
+            vert_texture = (
+                torch.Tensor(vert_texture).to(torch.float).to(device).unsqueeze(0)
+            )
+            if len(vert_texture.shape) == 2:
+                vert_texture = vert_texture.unsqueeze(-1)
+            texture = TexturesVertex(verts_features=vert_texture).to(device)
+        else:
+            texture = None
+
+        # Create the pytorch mesh
+        pytorch3d_mesh = Meshes(
+            verts=[torch.Tensor(self.pyvista_mesh.points).to(device)],
+            faces=[torch.Tensor(self.faces).to(device)],
+            textures=texture,
+        ).to(device)
+
+        if batch_size != len(pytorch3d_mesh):
+            pytorch3d_mesh = pytorch3d_mesh.extend(batch_size)
+
+        return pytorch3d_mesh
+
+    # def get_rasterization_results_pytorch3d(
+    #     self,
+    #     cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+    #     render_img_scale: float = 1,
+    #     save_to_cache: bool = False,
+    #     cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+    #     cull_to_frustum: bool = False,
+    # ) -> np.ndarray:
+    #     """Use pytorch3d to get correspondences between pixels and vertices
+
+    #     Args:
+    #         camera (PhotogrammetryCamera): Camera to get raster for
+    #         img_scale (float): How much to resize the image by
+
+    #     Returns:
+    #         pytorch3d.PerspectiveCamera: The camera corresponding to the index
+    #         pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+    #     """
+    #     # Import PyTorch3D
+    #     try:
+    #         from pytorch3d.renderer import (
+    #                 MeshRasterizer,
+    #                 RasterizationSettings,
+    #             )
+    #     except ImportError:
+    #         raise ImportError("PyTorch3D is not installed. Please call pix2face method from TexturedPhotogrammetryMesh Class.")
+
+    #     # Promote to one-length list if only one camera is passed
+
+    #     if isinstance(cameras, PhotogrammetryCameraSet):
+    #         pix2face_list = [
+    #             self.get_rasterization_results_pytorch3d(camera, render_img_scale=render_img_scale)
+    #             for camera in cameras
+    #         ]
+    #         pix2face = np.stack(pix2face_list, axis=0)
+    #         return pix2face        
+
+    #     # Create a camera from the metashape parameters
+    #     p3d_cameras = cameras.get_pytorch3d_camera(device=self.device)
+    #     image_size = cameras.get_image_size(image_scale=render_img_scale)
+
+    #     raster_settings = RasterizationSettings(
+    #         image_size=image_size,
+    #         blur_radius=0.0,
+    #         faces_per_pixel=1,
+    #         cull_to_frustum=cull_to_frustum,
+    #     )
+
+    #     # Don't wrap this in a MeshRenderer like normal because we need intermediate results
+    #     rasterizer = MeshRasterizer(
+    #         cameras=p3d_cameras, raster_settings=raster_settings
+    #     ).to(self.device)
+
+    #     # Create a pytorch3d mesh
+    #     pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
+    #     # Perform the expensive pytorch3d operation
+    #     fragments = rasterizer(pytorch3d_mesh)
+
+    #     # Extract the correspondences as a flat array
+    #     pix_to_face = fragments.pix_to_face[:, :, 0].cpu().numpy().flatten()
+        
+    #     return pix_to_face
+    
+    # def get_rasterization_results_pytorch3d(
+    #     self,
+    #     # cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+    #     cameras: typing.Union[PyTorch3DRenderingCamera, PyTorch3DRenderingCameraSet],
+    #     render_img_scale: float = 1,
+    #     save_to_cache: bool = False,
+    #     cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+    #     cull_to_frustum: bool = False,
+    # ) -> np.ndarray:
+    #     """Use pytorch3d to get correspondences between pixels and vertices
+
+    #     Args:
+    #         camera (PhotogrammetryCamera): Camera to get raster for
+    #         img_scale (float): How much to resize the image by
+
+    #     Returns:
+    #         pytorch3d.PerspectiveCamera: The camera corresponding to the index
+    #         pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+    #     """
+    #     # Import PyTorch3D
+    #     try:
+    #         import torch
+    #         from pytorch3d.renderer import (
+    #                 MeshRasterizer,
+    #                 RasterizationSettings,
+    #             )
+    #     except ImportError:
+    #         raise ImportError("PyTorch3D is not installed. Please call pix2face method from TexturedPhotogrammetryMesh Class.")
+        
+    #     if torch.cuda.is_available():
+    #         device = torch.device("cuda:0")
+    #         torch.cuda.set_device(device)
+    #     else:
+    #         device = torch.device("cpu")
+
+    #     # Promote to one-length list if only one camera is passed
+
+    #     # Create a camera from the metashape parameters
+    #     print("In here:")
+    #     print(type(cameras))
+    #     print(type(cameras[0]))
+    #     p3d_cameras = cameras.get_pytorch3d_camera(device=device, dervied_cameras=cameras)
+    #     if isinstance(cameras, PhotogrammetryCamera):
+    #         image_size = cameras.get_image_size(image_scale=render_img_scale)
+    #     else:
+    #         image_size = cameras[0].get_image_size(image_scale=render_img_scale)
+
+    #     raster_settings = RasterizationSettings(
+    #         image_size=image_size,
+    #         blur_radius=0.0,
+    #         faces_per_pixel=1,
+    #         cull_to_frustum=cull_to_frustum,
+    #     )
+
+    #     # # Don't wrap this in a MeshRenderer like normal because we need intermediate results
+    #     # rasterizer = MeshRasterizer(
+    #     #     cameras=p3d_cameras, raster_settings=raster_settings
+    #     # ).to(device)
+
+    #     # # Create a pytorch3d mesh
+    #     # pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
+    #     # # Perform the expensive pytorch3d operation
+    #     # fragments = rasterizer(pytorch3d_mesh)
+
+    #     pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+    #     # pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=1)
+
+    #     pix_to_face_all_cameras = []
+    #     for i in range(len(p3d_cameras)):
+
+    #         rasterizer = MeshRasterizer(
+    #             cameras=p3d_cameras[i], raster_settings=raster_settings
+    #         ).to(device)
+
+    #         # pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
+    #         # Perform the expensive pytorch3d operation
+    #         fragments = rasterizer(pytorch3d_mesh)
+
+    #         # Extract the correspondences as a (2200, 3000, 1) array
+    #         pix_to_face = fragments.pix_to_face[0].cpu().numpy()
+
+    #         # Add the result to the list
+    #         pix_to_face_all_cameras.append(pix_to_face)
+
+    #         print("Printing in derived mesh class")
+    #         print(pix_to_face)
+    #         print()
+
+    #     # Extract the correspondences as a flat array
+    #     # pix_to_face = fragments.pix_to_face[1, :, :, 0].cpu().numpy()
+    #     # pix_to_face = fragments.pix_to_face[0].cpu().numpy()
+    #     # pix_to_face = pix_to_face.transpose(2, 0, 1)
+
+    #     pix_to_face_all_cameras = np.stack(pix_to_face_all_cameras, axis=0)
+
+
+    #     return pix_to_face
+
+    def pix2face(
+        self,
+        # cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        cameras: typing.Union[PyTorch3DRenderingCamera, PyTorch3DRenderingCameraSet],
+        render_img_scale: float = 1,
+        save_to_cache: bool = False,
+        cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+        cull_to_frustum: bool = False,
+    ) -> np.ndarray:
+        """Use pytorch3d to get correspondences between pixels and vertices
+
+        Args:
+            camera (PhotogrammetryCamera): Camera to get raster for
+            img_scale (float): How much to resize the image by
+
+        Returns:
+            pytorch3d.PerspectiveCamera: The camera corresponding to the index
+            pytorch3d.Fragments: The rendering results from the rasterer, before the shader
+        """
+        # Import PyTorch3D
+        try:
+            import torch
+            from pytorch3d.renderer import (
+                    MeshRasterizer,
+                    RasterizationSettings,
+                )
+        except ImportError:
+            raise ImportError("PyTorch3D is not installed. Please call pix2face method from TexturedPhotogrammetryMesh Class.")
+        
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+            torch.cuda.set_device(device)
+        else:
+            device = torch.device("cpu")
+
+        # Promote to one-length list if only one camera is passed
+
+        # Create a camera from the metashape parameters
+        print("In here:")
+        print(type(cameras))
+        print(type(cameras[0]))
+        p3d_cameras = cameras.get_pytorch3d_camera(device=device, dervied_cameras=cameras)
+        if isinstance(cameras, PhotogrammetryCamera):
+            image_size = cameras.get_image_size(image_scale=render_img_scale)
+        else:
+            image_size = cameras[0].get_image_size(image_scale=render_img_scale)
+
+        raster_settings = RasterizationSettings(
+            image_size=image_size,
+            blur_radius=0.0,
+            faces_per_pixel=1,
+            cull_to_frustum=cull_to_frustum,
+        )
+
+        # Don't wrap this in a MeshRenderer like normal because we need intermediate results
+        rasterizer = MeshRasterizer(
+            cameras=p3d_cameras, raster_settings=raster_settings
+        ).to(device)
+
+        rasterizer = MeshRasterizer(
+            cameras=p3d_cameras, raster_settings=raster_settings
+        ).to(device)
+
+        # Create a pytorch3d mesh
+        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
+        # Perform the expensive pytorch3d operation
+        fragments = rasterizer(pytorch3d_mesh)
+
+        # Extract the correspondences 
+        pix_to_faces = []
+        for i in range(len(p3d_cameras)):
+            pix_to_face_tensor = fragments.pix_to_face[i].cpu().numpy()
+            
+            print(f"Shape before squeezing: {pix_to_face_tensor.shape}")
+            
+            last_dimension = pix_to_face_tensor.shape[-1]
+            if last_dimension == 1:
+                print(f"The last dimension ({last_dimension}) is 1 for the {i}-th camera.")
+            else:
+                print(f"The last dimension ({last_dimension}) is not 1 for the {i}-th camera.")
+            
+            pix_to_face_tensor[pix_to_face_tensor != -1] -= self.pyvista_mesh.n_faces * i
+
+            pix_to_faces.append(pix_to_face_tensor.squeeze(-1))
+
+            print("Printing intermediate derived mesh class")
+            print(pix_to_faces[i])
+            print()
+            print("Shape of pix2face output:", pix_to_faces[i].shape)
+            print()
+
+            
+
+
+        pix_to_face = np.stack(pix_to_faces, axis=0)
+
+        print("Printing final in derived mesh class")
+        print(pix_to_face)
+        print()
+        print("Shape of pix2face output:", pix_to_face.shape)
+        print()
+
+        return pix_to_face
