@@ -1,7 +1,10 @@
+import logging
 import os
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
+import pandas as pd
 from imageio import imread
 from scipy.sparse import load_npz, save_npz
 
@@ -80,9 +83,12 @@ def project_detections(
         )
         # Infer the image shape from the first image in the folder
         if image_shape is None:
-            image_filename_list = list(Path(image_folder).glob("*.*"))
+            image_filename_list = sorted(list(Path(image_folder).glob("*.*")))
             if len(image_filename_list) > 0:
-                image_shape = imread(image_filename_list[0]).shape[:2]
+                first_file = image_filename_list[0]
+                logging.info(f"loading image shape from {first_file}")
+                first_image = imread(first_file)
+                image_shape = first_image.shape[:2]
             else:
                 raise ValueError(
                     f"No image_shape provided and folder of images {image_folder} was empty"
@@ -96,6 +102,16 @@ def project_detections(
             **segmentor_kwargs,
         )
 
+        # If a file is provided for the projections, save the detection info alongside it
+        if projections_to_mesh_filename is not None:
+            # Export the per-image detection information as one standardized file
+            detection_info_file = Path(
+                projections_to_mesh_filename.parent,
+                projections_to_mesh_filename.stem + "_detection_info.csv",
+            )
+            logging.info(f"Saving detection info to {detection_info_file}")
+            detections_predictor.save_detection_data(detection_info_file)
+
         # Wrap the camera set so that it returns the detections rather than the original images
         detections_camera_set = SegmentorPhotogrammetryCameraSet(
             camera_set, segmentor=detections_predictor
@@ -105,7 +121,6 @@ def project_detections(
             cameras=detections_camera_set, n_classes=detections_predictor.num_classes
         )
 
-        # If a file is provided, save the
         if projections_to_mesh_filename is not None:
             # Export the per-face texture to an npz file, since it's a sparse array
             ensure_containing_folder(projections_to_mesh_filename)
@@ -130,13 +145,40 @@ def project_detections(
                 raise ValueError("No projections_to_mesh_savefilename provided")
             elif os.path.isfile(projections_to_mesh_filename):
                 aggregated_projections = load_npz(projections_to_mesh_filename)
+                detection_info_file = Path(
+                    projections_to_mesh_filename.parent,
+                    projections_to_mesh_filename.stem + "_detection_info.csv",
+                )
+                detection_info = pd.read_csv(detection_info_file)
             else:
                 raise FileNotFoundError(
                     f"projections_to_mesh_filename {projections_to_mesh_filename} not found"
                 )
+        else:
+            detection_info = detections_predictor.get_all_detections()
+
         # Convert the per-face labels to geospatial coordinates. Optionally vis and/or export
         mesh.export_face_labels_vector(
             face_labels=aggregated_projections,
             export_file=projections_to_geospatial_savefilename,
             vis=vis_geodata,
         )
+
+        projected_geo_data = gpd.read_file(projections_to_geospatial_savefilename)
+        # Merge the two dataframes so the left df's "class_ID" field aligns with the right df's
+        # "instance_ID". This will add back the original data assocaited with each per-image detection
+        # to the projected data.
+        # Add the "_right" suffix to any of the original fields that share a name with the ones in the
+        # projected data
+        merged = projected_geo_data.merge(
+            detection_info,
+            left_on="class_ID",
+            right_on="instance_ID",
+            suffixes=(None, "_right"),
+        )
+        # Drop the columns that are just an integer ID, except for "instance_ID"
+        # TODO determine why "Unnamed: 0" appears
+        merged.drop(columns=["class_ID", "Unnamed: 0"], inplace=True)
+
+        # Save the data back out with the updated information
+        merged.to_file(projections_to_geospatial_savefilename)
