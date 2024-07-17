@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -85,7 +86,7 @@ def project_detections(
             image_filename_list = sorted(list(Path(image_folder).glob("*.*")))
             if len(image_filename_list) > 0:
                 first_file = image_filename_list[0]
-                print(f"loading image shape from {first_file}")
+                logging.info(f"loading image shape from {first_file}")
                 first_image = imread(first_file)
                 image_shape = first_image.shape[:2]
             else:
@@ -108,7 +109,7 @@ def project_detections(
                 projections_to_mesh_filename.parent,
                 projections_to_mesh_filename.stem + "_detection_info.csv",
             )
-            print(f"Saving detction info to {detection_info_file}")
+            logging.info(f"Saving detection info to {detection_info_file}")
             detections_predictor.save_detection_data(detection_info_file)
 
         # Wrap the camera set so that it returns the detections rather than the original images
