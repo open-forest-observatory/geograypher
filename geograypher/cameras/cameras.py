@@ -52,7 +52,6 @@ class PhotogrammetryCamera:
         distortion_params: Dict[str, float] = {},
         lon_lat: Union[None, Tuple[float, float]] = None,
     ):
-        print("Am i being called")
         """Represents the information about one camera location/image as determined by photogrammetry
 
         Args:
@@ -118,6 +117,24 @@ class PhotogrammetryCamera:
         hasher.update(camera_settings_data.encode("utf-8"))
 
         return hasher.hexdigest()
+
+    def get_instrinsic_camera_properties(self):
+        """Returns the properties that define a camera.
+
+        Returns:
+            dict: A dictionary containing the focal length, principal point coordinates,
+                image height, image width, distortion parameters, and world_to_cam_transform.
+        """
+        intrinsic_properties = {
+            "focal_length": self.f,
+            "principal_point_x": self.cx,
+            "principal_point_y": self.cy,
+            "image_height": self.image_height,
+            "image_width": self.image_width,
+            "distortion_params": self.distortion_params,
+            "world_to_cam_transform": self.world_to_cam_transform,
+        }
+        return intrinsic_properties
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
@@ -520,7 +537,6 @@ class PhotogrammetryCameraSet:
         image_folder: PATH_TYPE = None,
         sensor_IDs: List[int] = None,
         validate_images: bool = False,
-        class_type = PhotogrammetryCamera,
     ):
         """_summary_
 
@@ -602,10 +618,7 @@ class PhotogrammetryCameraSet:
             self.lon_lats,
         ):
             sensor_params = self.intrinsic_params_per_sensor_type[sensor_ID]
-            # new_camera = PhotogrammetryCamera(
-            #     image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
-            # )
-            new_camera = class_type(
+            new_camera = PhotogrammetryCamera(
                 image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )
             self.cameras.append(new_camera)
