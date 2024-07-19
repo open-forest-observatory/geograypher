@@ -11,11 +11,10 @@ import geopandas as gpd
 import networkx
 import numpy as np
 import numpy.ma as ma
-import pyproj
 import pyvista as pv
 from pyvista import demos
 from scipy.spatial.distance import pdist
-from shapely import MultiPolygon, Point, Polygon
+from shapely import MultiPolygon, Point, Polygon, unary_union
 from skimage.io import imread
 from skimage.transform import resize
 from tqdm import tqdm
@@ -838,21 +837,21 @@ class PhotogrammetryCameraSet:
             )
             image_locations_df.to_crs(ROI.crs, inplace=True)
 
-        # Merge all of the elements together into one multipolygon, destroying any attributes that were there
-        ROI = ROI.dissolve()
-        # Expand the geometry of the shape by the buffer
-        ROI["geometry"] = ROI.buffer(buffer_radius)
-        image_locations_df["index"] = image_locations_df.index
+        # Drop all the fields except the geometry for computational reasons
+        ROI = ROI["geometry"]
+        # Buffer out by the requested distance
+        ROI = ROI.buffer(buffer_radius)
+        # Merge the potentially-individual polygons to one
+        # TODO Do experiments to see if this step should be before or after the buffer.
+        # Counterintuitively, it seems that after is faster
+        ROI = unary_union(ROI.tolist())
 
-        points_in_field_buffer = gpd.sjoin(
-            image_locations_df, ROI, how="left"
-        )  # TODO: look into using .contains
-        valid_camera_points = np.isfinite(
-            points_in_field_buffer["index_right"].to_numpy()
-        )
-
-        valid_camera_inds = np.where(valid_camera_points)[0]
-        subset_camera_set = self.get_subset_cameras(valid_camera_inds)
+        # Determine the binary mask for which cameras are within the ROI
+        cameras_in_ROI = image_locations_df.within(ROI).to_numpy()
+        # Convert to the integer indices
+        cameras_in_ROI = np.where(cameras_in_ROI)[0]
+        # Get the corresponding subset of cameras
+        subset_camera_set = self.get_subset_cameras(cameras_in_ROI)
         return subset_camera_set
 
     def triangulate_detections(

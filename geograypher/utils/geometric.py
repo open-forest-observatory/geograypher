@@ -15,7 +15,7 @@ def batched_unary_union(
     grid_size: typing.Union[None, float] = None,
     subsequent_batch_size: int = 4,
     sort_by_loc: bool = False,
-    simplify_tol=0,
+    simplify_tol: float = 0,
     verbose: bool = False,
 ) -> shapely.MultiPolygon:
     """Roughly replicate the functionality of shapely.unary_union using a batched implementation
@@ -26,6 +26,7 @@ def batched_unary_union(
         grid_size (typing.Union[None, float]): grid size passed to unary_union
         subsequent_batch_size (int, optional): The batch size for subsequent (recursive) batches. Defaults to 4.
         sort_by_loc (bool, optional): Should the polygons be sorted by location to have a higher likelihood of merging. Defaults to False.
+        simplify_tol (float, optional): How much to simplify in intermediate steps
         verbose (bool, optional): Should additional print outs be provided
 
     Returns:
