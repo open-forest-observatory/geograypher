@@ -98,7 +98,7 @@ def aggregate_images(
     if ROI is not None and ROI_buffer_radius_meters is not None:
         # Extract cameras near the training data
         camera_set = camera_set.get_subset_ROI(
-            ROI=ROI, buffer_radius_meters=ROI_buffer_radius_meters
+            ROI=ROI, buffer_radius=ROI_buffer_radius_meters
         )
 
     if mesh_transform_file is None:

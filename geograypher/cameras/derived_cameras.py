@@ -8,11 +8,7 @@ import pyproj
 from scipy.spatial.transform import Rotation
 
 from geograypher.cameras import PhotogrammetryCameraSet
-from geograypher.constants import (
-    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
-    LAT_LON_EPSG_CODE,
-    PATH_TYPE,
-)
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
 from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
 
@@ -108,7 +104,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             cam_locs_in_epsg4327 = np.concatenate(cam_locs_in_epsg4327, axis=1)[:3].T
             # Transform these points into lat-lon-alt
             transformer = pyproj.Transformer.from_crs(
-                EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, LAT_LON_EPSG_CODE
+                EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS
             )
             lat, lon, _ = transformer.transform(
                 xx=cam_locs_in_epsg4327[:, 0],

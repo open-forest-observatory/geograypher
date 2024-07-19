@@ -22,9 +22,9 @@ from tqdm import tqdm
 
 from geograypher.constants import (
     DEFAULT_FRUSTUM_SCALE,
-    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
+    EARTH_CENTERED_EARTH_FIXED_CRS,
     EXAMPLE_INTRINSICS,
-    LAT_LON_EPSG_CODE,
+    LAT_LON_CRS,
     PATH_TYPE,
 )
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
@@ -813,7 +813,7 @@ class PhotogrammetryCameraSet:
         if isinstance(ROI, (Polygon, MultiPolygon)):
             # assume geodata is lat/lon if is_geospatial is True
             if is_geospatial:
-                ROI = gpd.GeoDataFrame(crs=LAT_LON_EPSG_CODE, geometry=[ROI])
+                ROI = gpd.GeoDataFrame(crs=LAT_LON_CRS, geometry=[ROI])
             else:
                 ROI = gpd.GeoDataFrame(geometry=[ROI])
         elif not isinstance(ROI, gpd.GeoDataFrame):
@@ -834,7 +834,7 @@ class PhotogrammetryCameraSet:
             image_locations = [Point(*x) for x in self.get_lon_lat_coords()]
             # Create a dataframe, assuming inputs are lat lon
             image_locations_df = gpd.GeoDataFrame(
-                geometry=image_locations, crs=LAT_LON_EPSG_CODE
+                geometry=image_locations, crs=LAT_LON_CRS
             )
             image_locations_df.to_crs(ROI.crs, inplace=True)
 
@@ -1040,8 +1040,8 @@ class PhotogrammetryCameraSet:
             # Convert the points from earth centered, earth fixed frame to lat lon
             community_points_lat_lon = convert_CRS_3D_points(
                 community_points_epsg_4978,
-                input_CRS=EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
-                output_CRS=LAT_LON_EPSG_CODE,
+                input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+                output_CRS=LAT_LON_CRS,
             )
             # Set the community points to lat lon
             community_points = community_points_lat_lon

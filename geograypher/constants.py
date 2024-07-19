@@ -23,8 +23,8 @@ PRED_CLASS_ID_KEY = "pred_class_ID"
 CLASS_NAMES_KEY = "class_names"
 RATIO_3D_2D_KEY = "ratio_3d_2d"
 NULL_TEXTURE_INT_VALUE = 255
-LAT_LON_EPSG_CODE = pyproj.CRS.from_epsg(4326)
-EARTH_CENTERED_EARTH_FIXED_EPSG_CODE = pyproj.CRS.from_epsg(4978)
+LAT_LON_CRS = pyproj.CRS.from_epsg(4326)
+EARTH_CENTERED_EARTH_FIXED_CRS = pyproj.CRS.from_epsg(4978)
 
 ### Example data variables
 ## Raw input data

@@ -27,8 +27,8 @@ from geograypher.constants import (
     CACHE_FOLDER,
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
-    EARTH_CENTERED_EARTH_FIXED_EPSG_CODE,
-    LAT_LON_EPSG_CODE,
+    EARTH_CENTERED_EARTH_FIXED_CRS,
+    LAT_LON_CRS,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
@@ -653,7 +653,7 @@ class TexturedPhotogrammetryMesh:
         output_CRS = pyproj.CRS.from_epsg(output_CRS.to_epsg())
         # Build a pyproj transfrormer from EPGS:4978 to the desired CRS
         transformer = pyproj.Transformer.from_crs(
-            EARTH_CENTERED_EARTH_FIXED_EPSG_CODE, output_CRS
+            EARTH_CENTERED_EARTH_FIXED_CRS, output_CRS
         )
 
         # Transform the coordinates
@@ -1182,7 +1182,7 @@ class TexturedPhotogrammetryMesh:
         self,
         face_labels: typing.Union[np.ndarray, None] = None,
         export_file: PATH_TYPE = None,
-        export_crs: pyproj.CRS = LAT_LON_EPSG_CODE,
+        export_crs: pyproj.CRS = LAT_LON_CRS,
         label_names: typing.Tuple = None,
         ensure_non_overlapping: bool = False,
         simplify_tol: float = 0.0,
@@ -1225,7 +1225,7 @@ class TexturedPhotogrammetryMesh:
         # Compute the working projected CRS
         # This is important because having things in meters makes things easier
         self.logger.info("Computing working CRS")
-        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_EPSG_CODE)[0]
+        lon, lat, _ = self.get_vertices_in_CRS(output_CRS=LAT_LON_CRS)[0]
         working_CRS = get_projected_CRS(lon=lon, lat=lat)
 
         # Try to extract face labels if not set
