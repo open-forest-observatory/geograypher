@@ -2,6 +2,7 @@ import argparse
 import typing
 from pathlib import Path
 
+import fiona
 import geopandas as gpd
 import numpy as np
 import shapely
@@ -93,9 +94,14 @@ def render_labels(
             Defaults to None.
     """
     ## Determine the ROI
-    # If the ROI is unset and the texture is a spatial file, set the ROI to that
-    if ROI is None and isinstance(texture, (str, Path, gpd.GeoDataFrame)):
+    # If the ROI is unset and the texture is a geodataframe, set the ROI to that
+    if ROI is None and isinstance(texture, gpd.GeoDataFrame):
         ROI = texture
+    elif ROI is None and isinstance(texture, (str, Path)):
+        try:
+            ROI = gpd.read_file(texture)
+        except fiona.errors.DriverError:
+            pass
 
     # If the transform filename is None, use the cameras filename instead
     # since this contains the transform information
@@ -106,14 +112,16 @@ def render_labels(
     # This is done first because it's often faster than mesh operations which
     # makes it a good place to check for failures
     camera_set = MetashapeCameraSet(cameras_file, image_folder)
-    # Extract cameras near the training data
-    training_camera_set = camera_set.get_subset_ROI(
-        ROI=ROI, buffer_radius=cameras_ROI_buffer_radius_meters, is_geospatial=True
-    )
+
+    if ROI is not None:
+        # Extract cameras near the training data
+        camera_set = camera_set.get_subset_ROI(
+            ROI=ROI, buffer_radius=cameras_ROI_buffer_radius_meters, is_geospatial=True
+        )
     # If requested, save out the images corresponding to this subset of cameras.
     # This is useful for model training.
     if subset_images_savefolder is not None:
-        training_camera_set.save_images(subset_images_savefolder)
+        camera_set.save_images(subset_images_savefolder)
 
     # Select whether to use a class that renders by chunks or not
     MeshClass = (
@@ -153,7 +161,7 @@ def render_labels(
 
     # Show the cameras and mesh if requested
     if vis or mesh_vis_file is not None:
-        mesh.vis(camera_set=training_camera_set, screenshot_filename=mesh_vis_file)
+        mesh.vis(camera_set=camera_set, screenshot_filename=mesh_vis_file)
 
     # Include n_render_clusters as an optional keyword argument, if provided. This is only applicable
     # if this mesh is a TexturedPhotogrammetryMeshChunked object
@@ -162,7 +170,7 @@ def render_labels(
     )
     # Render the labels and save them. This is the slow step.
     mesh.save_renders(
-        camera_set=training_camera_set,
+        camera_set=camera_set,
         render_image_scale=render_image_scale,
         save_native_resolution=True,
         output_folder=render_savefolder,

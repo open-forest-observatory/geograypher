@@ -179,7 +179,7 @@ def aggregate_images(
     mesh.export_face_labels_vector(
         face_labels=np.squeeze(predicted_face_classes),
         export_file=top_down_vector_projection_savefile,
-        vis=True,
+        vis=vis,
     )
 
 
