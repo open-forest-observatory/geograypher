@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
-from geograypher.constants import PATH_TYPE, CACHE_FOLDER
+from geograypher.constants import CACHE_FOLDER, PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
 
@@ -530,10 +530,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         try:
             import torch
             from pytorch3d.renderer import (
-                TexturesVertex,
-                RasterizationSettings,
-                PerspectiveCameras,
                 MeshRasterizer,
+                PerspectiveCameras,
+                RasterizationSettings,
+                TexturesVertex,
             )
             from pytorch3d.structures import Meshes
 
