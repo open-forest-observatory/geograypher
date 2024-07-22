@@ -546,7 +546,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             self.Meshes = Meshes
         except ImportError:
             raise ImportError(
-                "PyTorch3D is not installed. Please call pix2face method."
+                "PyTorch3D is not installed. Please call install PyTorch3D or use the pix2face method from the TexturedPhotogrammetryMesh class."
             )
 
         if torch.cuda.is_available():
@@ -633,14 +633,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         # Create a camera from the metashape parameters
         if isinstance(cameras, PhotogrammetryCamera):
-            p3d_cameras = self.get_single_pytorch3d_camera(
-                device=self.device, camera=cameras
-            )
+            p3d_cameras = self.get_single_pytorch3d_camera(camera=cameras)
             image_size = cameras.get_image_size(image_scale=render_img_scale)
         else:
-            p3d_cameras = self.transform_into_pytorch3d_camera_set(
-                device=self.device, cameras=cameras
-            )
+            p3d_cameras = self.transform_into_pytorch3d_camera_set(cameras=cameras)
             image_size = cameras[0].get_image_size(image_scale=render_img_scale)
 
         raster_settings = self.RasterizationSettings(
@@ -689,11 +685,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         return pix_to_face
 
-    def get_single_pytorch3d_camera(self, device: str, camera: PhotogrammetryCamera):
+    def get_single_pytorch3d_camera(self, camera: PhotogrammetryCamera):
         """Return a pytorch3d camera based on the parameters from metashape
 
         Args:
-            device (str): What device (cuda/cpu) to put the object on
             camera (PhotogrammetryCamera): The camera to be converted into a pythorch3d camera
 
         Returns:
@@ -701,7 +696,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         """
 
         # Retrieve intrinsic camera properties
-        camera_properties = camera.get_instrinsic_camera_properties()
+        camera_properties = camera.get_camera_properties()
 
         rotation_about_z = np.array(
             [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
@@ -741,21 +736,18 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             T=T,
             focal_length=fcl_screen,
             principal_point=prc_points_screen,
-            device=device,
+            device=self.device,
             in_ndc=False,  # screen coords
             image_size=image_size,
         )
         return cameras
 
-    def transform_into_pytorch3d_camera_set(
-        self, device: str, cameras: PhotogrammetryCameraSet
-    ):
+    def transform_into_pytorch3d_camera_set(self, cameras: PhotogrammetryCameraSet):
         """
         Return a pytorch3d cameras object based on the parameters from metashape.
         This has the information from each of the camears in the set to enabled batched rendering.
 
         Args:
-            device (str): What device (cuda/cpu) to put the object on
             cameras (PhotogrammetryCameraSet): Set of cameras to be converted into pytorch3d cameras
 
         Returns:
@@ -763,7 +755,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         """
         # Get the pytorch3d cameras for each of the cameras in the set
         p3d_cameras = [
-            self.get_single_pytorch3d_camera(device, camera) for camera in cameras
+            self.get_single_pytorch3d_camera(self.device, camera) for camera in cameras
         ]
         # Get the image sizes
         image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
@@ -780,7 +772,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             principal_point=self.torch.cat(
                 [camera.get_principal_point() for camera in p3d_cameras], 0
             ),
-            device=device,
+            device=self.device,
             in_ndc=False,  # screen coords
             image_size=image_sizes[0],
         )

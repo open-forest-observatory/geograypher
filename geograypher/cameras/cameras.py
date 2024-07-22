@@ -118,14 +118,14 @@ class PhotogrammetryCamera:
 
         return hasher.hexdigest()
 
-    def get_instrinsic_camera_properties(self):
-        """Returns the properties that define a camera.
+    def get_camera_properties(self):
+        """Returns the properties about a camera.
 
         Returns:
             dict: A dictionary containing the focal length, principal point coordinates,
                 image height, image width, distortion parameters, and world_to_cam_transform.
         """
-        intrinsic_properties = {
+        camera_properties = {
             "focal_length": self.f,
             "principal_point_x": self.cx,
             "principal_point_y": self.cy,
@@ -134,7 +134,7 @@ class PhotogrammetryCamera:
             "distortion_params": self.distortion_params,
             "world_to_cam_transform": self.world_to_cam_transform,
         }
-        return intrinsic_properties
+        return camera_properties
 
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
