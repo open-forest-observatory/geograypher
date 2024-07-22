@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans
 from tqdm import tqdm
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
-from geograypher.constants import PATH_TYPE
+from geograypher.constants import CACHE_FOLDER, PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
 
@@ -134,7 +134,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         n_clusters: int = 8,
         buffer_dist_meters: float = 50,
         vis_clusters: bool = False,
-        **pix2face_kwargs
+        **pix2face_kwargs,
     ):
         """
         Render the texture from the viewpoint of each camera in cameras. Note that this is a
@@ -197,7 +197,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         n_clusters: int = 8,
         buffer_dist_meters: float = 50,
         vis_clusters: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Aggregate the imagery from multiple cameras into per-face averges. This version chunks the
@@ -389,7 +389,7 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         batch_size: int = 1,
         aggregate_img_scale: float = 1,
         return_all: bool = False,
-        **kwargs
+        **kwargs,
     ) -> typing.Tuple[np.ndarray, dict]:
         """
         Aggregate the imagery from multiple cameras into per-face averges. This implementation uses
@@ -514,3 +514,266 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         average_projections = summed_projections.multiply(projection_counts_reciprocal)
 
         return average_projections, additional_information
+
+
+class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
+    """Extends the TexturedPhotogrammtery mesh by rendering using PyTorch3d"""
+
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        # Import PyTorch3D modules
+        try:
+            import torch
+            from pytorch3d.renderer import (
+                MeshRasterizer,
+                PerspectiveCameras,
+                RasterizationSettings,
+                TexturesVertex,
+            )
+            from pytorch3d.structures import Meshes
+
+            # Assign imported modules to instance variables for later use
+            self.torch = torch
+            self.TexturesVertex = TexturesVertex
+            self.RasterizationSettings = RasterizationSettings
+            self.PerspectiveCameras = PerspectiveCameras
+            self.MeshRasterizer = MeshRasterizer
+            self.Meshes = Meshes
+        except ImportError:
+            raise ImportError(
+                "PyTorch3D is not installed. Please call install PyTorch3D or use the pix2face method from the TexturedPhotogrammetryMesh class."
+            )
+
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda:0")
+            torch.cuda.set_device(self.device)
+        else:
+            self.device = torch.device("cpu")
+
+    def create_pytorch3d_mesh(
+        self,
+        vert_texture: np.ndarray = None,
+        batch_size: int = 1,
+    ):
+        """Create the pytorch_3d_mesh
+
+        Args:
+            vert_texture (np.ndarray, optional):
+                Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
+            batch_size (int):
+                Number of copies of the mesh to create in a batch. Defaults to 1.
+        """
+
+        # Create the texture object if provided
+        if vert_texture is not None:
+            vert_texture = (
+                self.torch.Tensor(vert_texture)
+                .to(self.torch.float)
+                .to(self.device)
+                .unsqueeze(0)
+            )
+            if len(vert_texture.shape) == 2:
+                vert_texture = vert_texture.unsqueeze(-1)
+            texture = self.TexturesVertex(verts_features=vert_texture).to(self.device)
+        else:
+            texture = None
+
+        # Create the pytorch mesh
+        pytorch3d_mesh = self.Meshes(
+            verts=[self.torch.Tensor(self.pyvista_mesh.points).to(self.device)],
+            faces=[self.torch.Tensor(self.faces).to(self.device)],
+            textures=texture,
+        ).to(self.device)
+
+        # Ensure the batch size matches the number of meshes
+        if batch_size != len(pytorch3d_mesh):
+            pytorch3d_mesh = pytorch3d_mesh.extend(batch_size)
+
+        return pytorch3d_mesh
+
+    def pix2face(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        render_img_scale: float = 1,
+        save_to_cache: bool = False,
+        cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+        cull_to_frustum: bool = False,
+    ) -> np.ndarray:
+        """Use pytorch3d to get correspondences between pixels and vertices
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                A single camera or set of cameras. For each camera, the correspondences between
+                pixels and the face IDs of the mesh will be computed. The images of all cameras
+                are assumed to be the same size.
+            render_img_scale (float, optional):
+                Create a pix2face map that is this fraction of the original image scale. Defaults
+                to 1.
+            save_to_cache (bool, optional):
+                Should newly-computed values be saved to the cache. This may speed up future operations
+                but can take up 100s of GBs of space. Defaults to False.
+            cache_folder ((PATH_TYPE, None), optional):
+                Where to check for and save to cached data. Only applicable if use_cache=True.
+                Defaults to CACHE_FOLDER
+            cull_to_frustum (bool, optional):
+                If True, enables frustum culling to exclude mesh faces outside the camera's view,
+                Defaults to False.
+
+        Returns:
+            np.ndarray: For each camera, returns an array of face indices corresponding to each pixel
+            in the image. Indices are adjusted for batch offsets and set to -1 where no valid face is
+            found. If the input is a single PhotogrammetryCamera, the shape is (h, w). If it's a camera
+            set, then it is (n_cameras, h, w).
+        """
+
+        # Create a camera from the metashape parameters
+        if isinstance(cameras, PhotogrammetryCamera):
+            p3d_cameras = self.get_single_pytorch3d_camera(camera=cameras)
+            image_size = cameras.get_image_size(image_scale=render_img_scale)
+        else:
+            p3d_cameras = self.transform_into_pytorch3d_camera_set(cameras=cameras)
+            image_size = cameras[0].get_image_size(image_scale=render_img_scale)
+
+        raster_settings = self.RasterizationSettings(
+            image_size=image_size,
+            blur_radius=0.0,
+            faces_per_pixel=1,
+            cull_to_frustum=cull_to_frustum,
+        )
+
+        # Don't wrap this in a MeshRenderer like normal because we need intermediate results
+        rasterizer = self.MeshRasterizer(
+            cameras=p3d_cameras, raster_settings=raster_settings
+        ).to(self.device)
+
+        # Create a pytorch3d mesh
+        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+
+        # Perform the expensive pytorch3d operation
+        fragments = rasterizer(pytorch3d_mesh)
+
+        # Extract pix_to_face from fragments, move it to the CPU, and convert tensor to NumPy array
+        pix_to_face = fragments.pix_to_face.cpu().numpy()
+
+        # Removes last dimension which is number of faces that can corrrespond to pixel
+        # pix_to_face now is (batch_size, height, width)
+        pix_to_face = pix_to_face[:, :, :, 0]
+
+        # Create an array mask to note where pix_to_face correspondances are -1 (invalid)
+        invalid_mask = pix_to_face == -1
+
+        # Track batch index offset to account for mesh extension
+        offset_array = np.arange(
+            0,
+            self.pyvista_mesh.n_faces * pix_to_face.shape[0],
+            self.pyvista_mesh.n_faces,
+        )
+
+        # Convert dimensions of offset_array from (batch_size,) to (batch_size, 1, 1) in order to match pix_to_face dimensions
+        offset_array = np.expand_dims(offset_array, (1, 2))
+
+        # Adjust pix_to_face indices based on the batch offset
+        pix_to_face = pix_to_face - offset_array
+
+        # Add -1 (invalid) values back into pix_to_face
+        pix_to_face[invalid_mask] = -1
+
+        return pix_to_face
+
+    def get_single_pytorch3d_camera(self, camera: PhotogrammetryCamera):
+        """Return a pytorch3d camera based on the parameters from metashape
+
+        Args:
+            camera (PhotogrammetryCamera): The camera to be converted into a pythorch3d camera
+
+        Returns:
+            pytorch3d.renderer.PerspectiveCameras:
+        """
+
+        # Retrieve intrinsic camera properties
+        camera_properties = camera.get_camera_properties()
+
+        rotation_about_z = np.array(
+            [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        )
+        # Rotate about the Z axis because the NDC coordinates are defined X: left, Y: up and we use X: right, Y: down
+        # See https://pytorch3d.org/docs/cameras
+        transform_4x4_world_to_cam = (
+            rotation_about_z @ camera_properties["world_to_cam_transform"]
+        )
+
+        R = self.torch.Tensor(
+            np.expand_dims(transform_4x4_world_to_cam[:3, :3].T, axis=0)
+        )
+        T = self.torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, 3], axis=0))
+
+        # The image size is (height, width) which completely disreagards any other conventions they use...
+        image_size = (
+            (camera_properties["image_height"], camera_properties["image_width"]),
+        )
+        # These parameters are in screen (pixel) coordinates.
+        # TODO see if a normalized version is more robust for any reason
+        fcl_screen = (camera_properties["focal_length"],)
+        prc_points_screen = (
+            (
+                camera_properties["image_width"] / 2
+                + camera_properties["principal_point_x"],
+                camera_properties["image_height"] / 2
+                + camera_properties["principal_point_y"],
+            ),
+        )
+
+        # Create camera
+        # TODO use the pytorch3d FishEyeCamera model that uses distortion
+        # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
+        cameras = self.PerspectiveCameras(
+            R=R,
+            T=T,
+            focal_length=fcl_screen,
+            principal_point=prc_points_screen,
+            device=self.device,
+            in_ndc=False,  # screen coords
+            image_size=image_size,
+        )
+        return cameras
+
+    def transform_into_pytorch3d_camera_set(self, cameras: PhotogrammetryCameraSet):
+        """
+        Return a pytorch3d cameras object based on the parameters from metashape.
+        This has the information from each of the camears in the set to enabled batched rendering.
+
+        Args:
+            cameras (PhotogrammetryCameraSet): Set of cameras to be converted into pytorch3d cameras
+
+        Returns:
+            pytorch3d.renderer.PerspectiveCameras:
+        """
+        # Get the pytorch3d cameras for each of the cameras in the set
+        p3d_cameras = [
+            self.get_single_pytorch3d_camera(self.device, camera) for camera in cameras
+        ]
+        # Get the image sizes
+        image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
+        # Check that all the image sizes are the same because this is required for proper batched rendering
+        if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
+            raise ValueError("Not all cameras have the same image size")
+        # Create the new pytorch3d cameras object with the information from each camera
+        cameras = self.PerspectiveCameras(
+            R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
+            T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
+            focal_length=self.torch.cat(
+                [camera.focal_length for camera in p3d_cameras], 0
+            ),
+            principal_point=self.torch.cat(
+                [camera.get_principal_point() for camera in p3d_cameras], 0
+            ),
+            device=self.device,
+            in_ndc=False,  # screen coords
+            image_size=image_sizes[0],
+        )
+        return cameras

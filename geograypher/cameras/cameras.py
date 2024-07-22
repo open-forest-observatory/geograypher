@@ -117,6 +117,24 @@ class PhotogrammetryCamera:
 
         return hasher.hexdigest()
 
+    def get_camera_properties(self):
+        """Returns the properties about a camera.
+
+        Returns:
+            dict: A dictionary containing the focal length, principal point coordinates,
+                image height, image width, distortion parameters, and world_to_cam_transform.
+        """
+        camera_properties = {
+            "focal_length": self.f,
+            "principal_point_x": self.cx,
+            "principal_point_y": self.cy,
+            "image_height": self.image_height,
+            "image_width": self.image_width,
+            "distortion_params": self.distortion_params,
+            "world_to_cam_transform": self.world_to_cam_transform,
+        }
+        return camera_properties
+
     def get_image(self, image_scale: float = 1.0) -> np.ndarray:
         # Check if the image is cached
         if self.image is None:
@@ -339,48 +357,6 @@ class PhotogrammetryCamera:
         camera.view_angle = vertical_FOV_angle
 
         return camera
-
-    def get_pytorch3d_camera(self, device: str):
-        """Return a pytorch3d camera based on the parameters from metashape
-
-        Args:
-            device (str): What device (cuda/cpu) to put the object on
-
-        Returns:
-            pytorch3d.renderer.PerspectiveCameras:
-        """
-        rotation_about_z = np.array(
-            [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
-        )
-        # Rotate about the Z axis because the NDC coordinates are defined X: left, Y: up and we use X: right, Y: down
-        # See https://pytorch3d.org/docs/cameras
-        transform_4x4_world_to_cam = rotation_about_z @ self.world_to_cam_transform
-
-        R = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, :3].T, axis=0))
-        T = torch.Tensor(np.expand_dims(transform_4x4_world_to_cam[:3, 3], axis=0))
-
-        # The image size is (height, width) which completely disreguards any other conventions they use...
-        image_size = ((self.image_height, self.image_width),)
-        # These parameters are in screen (pixel) coordinates.
-        # TODO see if a normalized version is more robust for any reason
-        fcl_screen = (self.f,)
-        prc_points_screen = (
-            (self.image_width / 2 + self.cx, self.image_height / 2 + self.cy),
-        )
-
-        # Create camera
-        # TODO use the pytorch3d FishEyeCamera model that uses distortion
-        # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
-        cameras = PerspectiveCameras(
-            R=R,
-            T=T,
-            focal_length=fcl_screen,
-            principal_point=prc_points_screen,
-            device=device,
-            in_ndc=False,  # screen coords
-            image_size=image_size,
-        )
-        return cameras
 
     def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
@@ -712,39 +688,6 @@ class PhotogrammetryCameraSet:
             return Path(filename)
         else:
             return Path(filename).relative_to(self.get_image_folder())
-
-    def get_pytorch3d_camera(self, device: str):
-        """
-        Return a pytorch3d cameras object based on the parameters from metashape.
-        This has the information from each of the camears in the set to enabled batched rendering.
-
-
-        Args:
-            device (str): What device (cuda/cpu) to put the object on
-
-        Returns:
-            pytorch3d.renderer.PerspectiveCameras:
-        """
-        # Get the pytorch3d cameras for each of the cameras in the set
-        p3d_cameras = [camera.get_pytorch3d_camera(device) for camera in self.cameras]
-        # Get the image sizes
-        image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
-        # Check that all the image sizes are the same because this is required for proper batched rendering
-        if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
-            raise ValueError("Not all cameras have the same image size")
-        # Create the new pytorch3d cameras object with the information from each camera
-        cameras = PerspectiveCameras(
-            R=torch.cat([camera.R for camera in p3d_cameras], 0),
-            T=torch.cat([camera.T for camera in p3d_cameras], 0),
-            focal_length=torch.cat([camera.focal_length for camera in p3d_cameras], 0),
-            principal_point=torch.cat(
-                [camera.get_principal_point() for camera in p3d_cameras], 0
-            ),
-            device=device,
-            in_ndc=False,  # screen coords
-            image_size=image_sizes[0],
-        )
-        return cameras
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
