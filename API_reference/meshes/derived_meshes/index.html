@@ -2152,7 +2152,7 @@
 <a id="__codelineno-0-134" name="__codelineno-0-134"></a>        <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
 <a id="__codelineno-0-135" name="__codelineno-0-135"></a>        <span class="n">buffer_dist_meters</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
 <a id="__codelineno-0-136" name="__codelineno-0-136"></a>        <span class="n">vis_clusters</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-137" name="__codelineno-0-137"></a>        <span class="o">**</span><span class="n">pix2face_kwargs</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>        <span class="o">**</span><span class="n">pix2face_kwargs</span><span class="p">,</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="p">):</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">        Render the texture from the viewpoint of each camera in cameras. Note that this is a</span>
@@ -2215,7 +2215,7 @@
 <a id="__codelineno-0-197" name="__codelineno-0-197"></a>        <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
 <a id="__codelineno-0-198" name="__codelineno-0-198"></a>        <span class="n">buffer_dist_meters</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
 <a id="__codelineno-0-199" name="__codelineno-0-199"></a>        <span class="n">vis_clusters</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a>        <span class="o">**</span><span class="n">kwargs</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a>        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="p">):</span>
 <a id="__codelineno-0-202" name="__codelineno-0-202"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="sd">        Aggregate the imagery from multiple cameras into per-face averges. This version chunks the</span>
@@ -2666,7 +2666,7 @@ locations. Defaults to 50.</p>
 <a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
 <a id="__codelineno-0-198" name="__codelineno-0-198"></a>    <span class="n">buffer_dist_meters</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
 <a id="__codelineno-0-199" name="__codelineno-0-199"></a>    <span class="n">vis_clusters</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="o">**</span><span class="n">kwargs</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <a id="__codelineno-0-201" name="__codelineno-0-201"></a><span class="p">):</span>
 <a id="__codelineno-0-202" name="__codelineno-0-202"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="sd">    Aggregate the imagery from multiple cameras into per-face averges. This version chunks the</span>
@@ -3750,7 +3750,7 @@ The pix2face array for the next camera. The shape is
 <a id="__codelineno-0-134" name="__codelineno-0-134"></a>    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
 <a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="n">buffer_dist_meters</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
 <a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="n">vis_clusters</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="o">**</span><span class="n">pix2face_kwargs</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="o">**</span><span class="n">pix2face_kwargs</span><span class="p">,</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="p">):</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">    Render the texture from the viewpoint of each camera in cameras. Note that this is a</span>
