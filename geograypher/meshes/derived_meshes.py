@@ -423,8 +423,8 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             all_projections = []
 
         # Initialize sparse arrays for number of projections per face and the summed projections
-        projection_counts = csr_array((n_faces, 1), dtype=np.uint16)
-        summed_projections = csr_array((n_faces, n_classes), dtype=np.uint16)
+        projection_counts = csr_array((n_faces, 1), dtype=float)
+        summed_projections = csr_array((n_faces, n_classes), dtype=float)
 
         # Create a generator for all the projections
         project_images_generator = self.project_images(
@@ -511,6 +511,7 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             shape=projection_counts.shape,
         )
         # Normalize the summed projection by the number of observations for that face
+        # TODO if we ever use int arrays this will break
         average_projections = summed_projections.multiply(projection_counts_reciprocal)
 
         return average_projections, additional_information

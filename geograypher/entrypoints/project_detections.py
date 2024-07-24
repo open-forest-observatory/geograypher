@@ -117,9 +117,13 @@ def project_detections(
             camera_set, segmentor=detections_predictor
         )
         # Project the detections to the mesh
-        aggregated_projections, _ = mesh.aggregate_projected_images(
+        aggregated_prejected_images_returns = mesh.aggregate_projected_images(
             cameras=detections_camera_set, n_classes=detections_predictor.num_classes
         )
+        # Get the summed (not averaged) projections
+        aggregated_projections = aggregated_prejected_images_returns[1][
+            "summed_projections"
+        ]
 
         if projections_to_mesh_filename is not None:
             # Export the per-face texture to an npz file, since it's a sparse array
