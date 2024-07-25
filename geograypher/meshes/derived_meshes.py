@@ -423,8 +423,9 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             all_projections = []
 
         # Initialize sparse arrays for number of projections per face and the summed projections
-        projection_counts = csr_array((n_faces, 1), dtype=float)
-        summed_projections = csr_array((n_faces, n_classes), dtype=float)
+        # TODO this datatype may need to be changed in the future
+        projection_counts = csr_array((n_faces, 1), dtype=int)
+        summed_projections = csr_array((n_faces, n_classes), dtype=int)
 
         # Create a generator for all the projections
         project_images_generator = self.project_images(
@@ -500,10 +501,13 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
         # We can't do per-element division of sparse matrices so instead we just take the reciprocal
         # of each count and then multiply it these values by the summed projections
         # https://stackoverflow.com/questions/21080430/taking-reciprocal-of-each-elements-in-a-sparse-matrix
+        # Since np.reciprocal doesn't handle integer values, it is important to cast the data to float
         projection_counts_reciprocal = csr_array(
             (
                 (
-                    np.reciprocal(projection_counts.data),
+                    np.reciprocal(
+                        projection_counts.data.astype(float),
+                    ),
                     projection_counts.indices,
                     projection_counts.indptr,
                 )
@@ -511,7 +515,6 @@ class TexturedPhotogrammetryMeshIndexPredictions(TexturedPhotogrammetryMesh):
             shape=projection_counts.shape,
         )
         # Normalize the summed projection by the number of observations for that face
-        # TODO if we ever use int arrays this will break
         average_projections = summed_projections.multiply(projection_counts_reciprocal)
 
         return average_projections, additional_information
