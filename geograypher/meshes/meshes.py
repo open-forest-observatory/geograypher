@@ -1258,7 +1258,7 @@ class TexturedPhotogrammetryMesh:
         # This is the same as geopandas.groupby, but that is slow and can out of memory easily
         # due to the large number of polygons
         # Instead, we replace the default shapely.unary_union with our batched implementation
-        for unique_ID in unique_IDs:
+        for unique_ID in tqdm(unique_IDs, desc="Merging faces for each class"):
             if face_labels_is_2d:
                 # Nonzero elements of the column
                 matching_face_mask = face_labels[:, unique_ID] > 0
@@ -1600,7 +1600,7 @@ class TexturedPhotogrammetryMesh:
         ]
 
         # ensure that there's a multiple of three channels
-        n_padding = n_channels % 3
+        n_padding = int(np.ceil(n_channels / 3.0) * 3 - n_channels)
         base_256_encoding.extend([np.zeros(n_faces)] * n_padding)
 
         # Assume that all images are the same size
