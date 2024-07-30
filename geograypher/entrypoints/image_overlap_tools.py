@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pyvista as pv
 from scipy.sparse import load_npz, save_npz
 from SetCoverPy.setcover import SetCover
 
@@ -63,14 +64,17 @@ def determine_minimum_overlapping_images(
             visualization is closed. Defaults to False.
     """
     if compute_projection:
+        # Load the mesh and optionally downsample it
         mesh = TexturedPhotogrammetryMeshIndexPredictions(
             mesh=mesh_file,
             downsample_target=downsample_target,
             transform_filename=cameras_file,
         )
+        # Load the camera set
         camera_set = MetashapeCameraSet(
             camera_file=cameras_file, image_folder=image_folder
         )
+        # Visualize the inputs if requested
         if vis:
             mesh.vis(camera_set=camera_set, frustum_scale=15)
 
@@ -94,6 +98,25 @@ def determine_minimum_overlapping_images(
         ensure_containing_folder(projections_filename)
         save_npz(projections_filename, summed_projections)
 
+        if vis:
+            # Compute the number of projections per face
+            counts = np.squeeze(np.asarray(np.sum(summed_projections, axis=1)))
+            # Compute the index of the camera that projects to a face. If multiple do, the one with
+            # the lowest index will be reported
+            projected_camera = np.asarray(np.argmax(summed_projections, axis=1)).astype(
+                float
+            )
+            # Mask out faces with no projections
+            projected_camera[counts == 0] = np.nan
+
+            print("Showing the number of projections per face")
+            mesh.vis(vis_scalars=counts)
+            print(
+                "Showing the index of the camera the projects to each face. "
+                + "If multiple, then the lowest index is reported."
+            )
+            mesh.vis(vis_scalars=projected_camera)
+
     if compute_minimal_set:
         # Load the projections
         projection_matrix = load_npz(projections_filename).astype(bool)
@@ -114,8 +137,9 @@ def determine_minimum_overlapping_images(
         # Define the costs for including each image as unit
         set_costs = np.ones(projection_matrix.shape[1]).astype(int)
 
+        # Set up the set cover problem
         problem = SetCover(projection_matrix, set_costs)
-        # TODO see what is contained in the solution
+        # Solve the problem
         solution_cost, time_used = problem.SolveSCP()
         print(
             f"The solution cost is {solution_cost} and solving took {time_used} minutes"
@@ -139,3 +163,14 @@ def determine_minimum_overlapping_images(
         subset_cameras_set = camera_set.get_subset_cameras(cameras_indices)
         # Save out the images corresponding to the selected subset
         subset_cameras_set.save_images(output_folder=selected_images_save_folder)
+
+        # Show the selected cameras bigger
+        if vis:
+            plotter = pv.Plotter()
+            # TODO update these constants to be more robust
+            # The issue is they are in the internal coordinate system of the camera set
+            # and the scale changes between projects. Ideally, we'd want to specify it in meters.
+            camera_set.vis(plotter=plotter, frustum_scale=0.4)
+            subset_cameras_set.vis(plotter=plotter, frustum_scale=0.8)
+            print("Showing the cameras, with selected ones larger.")
+            plotter.show()
