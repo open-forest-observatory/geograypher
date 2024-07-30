@@ -15,16 +15,53 @@ def determine_minimum_overlapping_images(
     mesh_file: PATH_TYPE,
     cameras_file: PATH_TYPE,
     image_folder: PATH_TYPE = "",
-    downsample_target: float = 1,
     compute_projection: bool = False,
     compute_minimal_set: bool = False,
     save_selected_images: bool = False,
-    vis: bool = False,
     projections_filename: Union[PATH_TYPE, None] = None,
     selected_images_mask_filename: Union[PATH_TYPE, None] = None,
     selected_images_save_folder: Union[PATH_TYPE, None] = None,
+    downsample_target: float = 1,
     min_observations_to_be_included: int = 1,
+    vis: bool = False,
 ):
+    """Determine a subset of images that together cover (or nearly cover) the entire scene.
+
+    Args:
+        mesh_file (PATH_TYPE):
+            Path to the mesh file exported by Metashape
+        cameras_file (PATH_TYPE):
+            Path to the cameras file exported by Metashape
+        image_folder (PATH_TYPE, optional):
+            Path to the image folder used to generate the project. Only required if
+            save_selected_images=True. Defaults to "".
+        compute_projection (bool, optional):
+            Compute which images project to which faces. Defaults to False.
+        compute_minimal_set (bool, optional):
+            Compute the minimal set of images required to cover the whole scene. Requires that the
+            projections_filename points to a valid projections file. Defaults to False.
+        save_selected_images (bool, optional):
+            Save the selected images out to selected_images_save_folder. Requires that
+            selected_images_mask_filename contain a mask inidicating which images should be
+            included. Defaults to False.
+        projections_filename (Union[PATH_TYPE, None], optional):
+            Where to save or load from the projections to faces. Will have a .npz extension.
+            Defaults to None.
+        selected_images_mask_filename (Union[PATH_TYPE, None], optional):
+            Where to save or load from the selected subset of images as a binary mask. Will have
+            a .npy extension. Defaults to None.
+        selected_images_save_folder (Union[PATH_TYPE, None], optional):
+            Where to save the selected folder of images. Defaults to None.
+        downsample_target (float, optional):
+            Downsample the mesh to this fraction of the original faces. Defaults to 1.
+        min_observations_to_be_included (int, optional):
+            Ensure that a camera observes all faces that are observed by at least this many cameras.
+            Setting to a higher value allows you to avoid including cameras only because they are
+            the sole camera to observe a few faces. Defaults to 1.
+        vis (bool, optional):
+            Show intermediate results. Note that this will cause the process to hang until the
+            visualization is closed. Defaults to False.
+    """
     if compute_projection:
         mesh = TexturedPhotogrammetryMeshIndexPredictions(
             mesh=mesh_file,
