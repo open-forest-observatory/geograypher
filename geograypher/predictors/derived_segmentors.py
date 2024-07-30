@@ -3,10 +3,10 @@ import typing
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from PIL import Image
 import numpy as np
 import pandas as pd
 from imageio import imread
+from PIL import Image
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
