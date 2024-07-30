@@ -14,12 +14,15 @@ from geograypher.utils.files import ensure_containing_folder
 def determine_minimum_overlapping_images(
     mesh_file: PATH_TYPE,
     cameras_file: PATH_TYPE,
+    image_folder: PATH_TYPE = "",
     downsample_target: float = 1,
     compute_projection: bool = False,
     compute_minimal_set: bool = False,
+    save_selected_images: bool = False,
     vis: bool = False,
     projections_filename: Union[PATH_TYPE, None] = None,
     selected_images_mask_filename: Union[PATH_TYPE, None] = None,
+    selected_images_save_folder: Union[PATH_TYPE, None] = None,
     min_observations_to_be_included: int = 1,
 ):
     if compute_projection:
@@ -28,7 +31,9 @@ def determine_minimum_overlapping_images(
             downsample_target=downsample_target,
             transform_filename=cameras_file,
         )
-        camera_set = MetashapeCameraSet(camera_file=cameras_file, image_folder="")
+        camera_set = MetashapeCameraSet(
+            camera_file=cameras_file, image_folder=image_folder
+        )
         if vis:
             mesh.vis(camera_set=camera_set, frustum_scale=15)
 
@@ -83,3 +88,17 @@ def determine_minimum_overlapping_images(
         selected_images = problem.s
         ensure_containing_folder(selected_images_mask_filename)
         np.save(selected_images_mask_filename, selected_images)
+
+    if save_selected_images:
+        # Load the camera set
+        camera_set = MetashapeCameraSet(
+            camera_file=cameras_file, image_folder=image_folder
+        )
+        # Load the mask identifying the selected cameras
+        cameras_mask = np.load(selected_images_mask_filename)
+        # Convert it from a boolean mask to indices
+        cameras_indices = np.where(cameras_mask)[0]
+        # Take the corresponding set of cameras
+        subset_cameras_set = camera_set.get_subset_cameras(cameras_indices)
+        # Save out the images corresponding to the selected subset
+        subset_cameras_set.save_images(output_folder=selected_images_save_folder)
