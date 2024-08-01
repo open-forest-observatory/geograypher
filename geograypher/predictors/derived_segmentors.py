@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
+from PIL import Image
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
@@ -46,6 +47,36 @@ class LookUpSegmentor(Segmentor):
             )
         one_hot_image = self.inds_to_one_hot(image, num_classes=self.num_classes)
         return one_hot_image
+
+
+class ImageIDSegmentor(Segmentor):
+    """Setmentor that returns an image full of the index of that camera in the set"""
+
+    def __init__(self, image_filenames: typing.List[PATH_TYPE]):
+        """Set up the segmentor based on a list of image filenames.
+
+        Args:
+            image_filenames (typing.List[PATH_TYPE]):
+                The list of absolute image paths. In the segmentation stage, the returned value with
+                be the index of an image within this list.
+        """
+        self.image_filenames = image_filenames
+
+    def segment_image(self, image: np.ndarray, filename: PATH_TYPE, image_scale: float):
+        # Get the shape of the image without reading it into memory
+        img_handler = Image.open(filename)
+        w, h = img_handler.size
+
+        # Get the index of the image in the list
+        image_index = self.image_filenames.index(filename)
+        if image_index is None:
+            raise ValueError(f"Image {filename} not found in list")
+
+        # Get the scaled shape to output
+        output_shape = (int(h * image_scale), int(w * image_scale))
+        # Create an array of the appropriate size filled with the value of the index within the list
+        ID_image = np.full(output_shape, fill_value=image_index, dtype=int)
+        return ID_image
 
 
 class TabularRectangleSegmentor(Segmentor):

@@ -23,6 +23,7 @@ ipywidgets = "^8.1.1"
 cchardet = "^2.1.7"
 tqdm = "^4.66.2"
 ubelt = "^1.3.5"
+setcoverpy = "^0.9.1"
 
 
 [build-system]

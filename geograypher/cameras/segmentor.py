@@ -32,7 +32,7 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
             raw_image = None
         else:
             raw_image = self.base_camera_set.get_image_by_index(index, image_scale)
-        image_filename = self.base_camera_set.get_image_filename(index)
+        image_filename = self.base_camera_set.get_image_filename(index, absolute=True)
         segmented_image = self.segmentor.segment_image(
             raw_image, filename=image_filename, image_scale=image_scale
         )
