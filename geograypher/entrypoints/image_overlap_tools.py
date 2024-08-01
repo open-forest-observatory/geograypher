@@ -110,12 +110,16 @@ def determine_minimum_overlapping_images(
             projected_camera[counts == 0] = np.nan
 
             print("Showing the number of projections per face")
-            mesh.vis(vis_scalars=counts)
-            print(
-                "Showing the index of the camera the projects to each face. "
-                + "If multiple, then the lowest index is reported."
+            mesh.vis(
+                vis_scalars=counts,
+                plotter_kwargs={"title": "Number of cameras projecting to each face"},
             )
-            mesh.vis(vis_scalars=projected_camera)
+            mesh.vis(
+                vis_scalars=projected_camera,
+                plotter_kwargs={
+                    "title": "Index of projected camera, lowest in case of multiple"
+                },
+            )
 
     if compute_minimal_set:
         # Load the projections
