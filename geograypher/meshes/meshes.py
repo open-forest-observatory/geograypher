@@ -1960,12 +1960,6 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs["annotations"] = IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
-        if "jupyter_backend" not in plotter_kwargs:
-            if interactive_jupyter:
-                plotter_kwargs["jupyter_backend"] = "trame"
-            else:
-                plotter_kwargs["jupyter_backend"] = "static"
-
         # Add the mesh
         plotter.add_mesh(
             self.pyvista_mesh,
@@ -1999,10 +1993,18 @@ class TexturedPhotogrammetryMesh:
         if screenshot_filename is not None:
             ensure_containing_folder(screenshot_filename)
 
+        if "jupyter_backend" not in plotter_kwargs:
+            if interactive_jupyter:
+                plotter_kwargs["jupyter_backend"] = "trame"
+            else:
+                plotter_kwargs["jupyter_backend"] = "static"
+
+        if "title" not in plotter_kwargs:
+            plotter_kwargs["title"] = "Geograypher mesh viewer"
+
         # Show
         return plotter.show(
             screenshot=screenshot_filename,
-            title="Geograypher mesh viewer",
             **plotter_kwargs,
         )
 
