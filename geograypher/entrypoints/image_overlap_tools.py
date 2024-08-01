@@ -1,3 +1,4 @@
+import argparse
 from typing import Union
 
 import numpy as np
@@ -178,3 +179,37 @@ def determine_minimum_overlapping_images(
             subset_cameras_set.vis(plotter=plotter, frustum_scale=0.8)
             print("Showing the cameras, with selected ones larger.")
             plotter.show()
+
+
+def parse_args():
+    description = (
+        "This script determines a minimum set of images that fully observe the mesh."
+        + "The command line arguments are directly passed to"
+        + "geograypher.entrypoints.workflow_functions.determine_minimum_overlapping_images "
+        + "which has the following documentation:\n\n"
+        + determine_minimum_overlapping_images.__doc__
+    )
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description=description
+    )
+    parser.add_argument("--mesh-file")
+    parser.add_argument("--cameras-file")
+    parser.add_argument("--image-folder")
+    parser.add_argument("--compute-projection", action="store_true")
+    parser.add_argument("--compute-minimal-set", action="store_true")
+    parser.add_argument("--save-selected-images", action="store_true")
+    parser.add_argument("--projections-filename")
+    parser.add_argument("--selected-images-save-folder")
+    parser.add_argument("--downsample-target", default=1.0, type=float)
+    parser.add_argument("--min-observations-to-be-included", default=1, type=float)
+    parser.add_argument("--vis", action="store_true")
+
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # Parse command line args
+    args = parse_args()
+    # Pass command line args to determine_minimum_overlapping_images
+    determine_minimum_overlapping_images(**args.__dict__)
