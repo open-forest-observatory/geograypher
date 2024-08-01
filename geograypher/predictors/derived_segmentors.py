@@ -50,7 +50,16 @@ class LookUpSegmentor(Segmentor):
 
 
 class ImageIDSegmentor(Segmentor):
-    def __init__(self, image_filenames):
+    """Setmentor that returns an image full of the index of that camera in the set"""
+
+    def __init__(self, image_filenames: typing.List[PATH_TYPE]):
+        """Set up the segmentor based on a list of image filenames.
+
+        Args:
+            image_filenames (typing.List[PATH_TYPE]):
+                The list of absolute image paths. In the segmentation stage, the returned value with
+                be the index of an image within this list.
+        """
         self.image_filenames = image_filenames
 
     def segment_image(self, image: np.ndarray, filename: PATH_TYPE, image_scale: float):

@@ -683,6 +683,21 @@ class PhotogrammetryCameraSet:
         return self[index].get_image(image_scale=image_scale)
 
     def get_image_filename(self, index: Union[int, None], absolute=True):
+        """Get the image filename(s) based on the index
+
+        Args:
+            index (Union[int, None]):
+                Return the filename of the camera at this index, or all filenames if None.
+                #TODO update to support lists of integer indices as well
+            absolute (bool, optional):
+                Return the absolute filepath, as oposed to the path relative to the image folder.
+                Defaults to True.
+
+        Returns:
+            typing.Union[PATH_TYPE, list[PATH_TYPE]]:
+                If an integer index is provided, one path will be returned. If None, a list of paths
+                will be returned.
+        """
         if index is None:
             return [
                 self.get_image_filename(i, absolute=absolute)
