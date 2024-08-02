@@ -50,6 +50,7 @@ class PhotogrammetryCamera:
         image_height: int,
         distortion_params: Dict[str, float] = {},
         lon_lat: Union[None, Tuple[float, float]] = None,
+        local_to_epsg_4978_transform: Union[np.array, None] = None,
     ):
         """Represents the information about one camera location/image as determined by photogrammetry
 
@@ -73,6 +74,7 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
         self.distortion_params = distortion_params
+        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         if lon_lat is None:
             self.lon_lat = (None, None)
@@ -536,6 +538,7 @@ class PhotogrammetryCameraSet:
         image_folder: PATH_TYPE = None,
         sensor_IDs: List[int] = None,
         validate_images: bool = False,
+        local_to_epsg_4978_transform: Union[np.array, None] = None,
     ):
         """_summary_
 
@@ -622,7 +625,11 @@ class PhotogrammetryCameraSet:
                 continue
 
             new_camera = PhotogrammetryCamera(
-                image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
+                image_filename,
+                cam_to_world_transform,
+                lon_lat=lon_lat,
+                local_to_epsg_4978_transform=local_to_epsg_4978_transform,
+                **sensor_params,
             )
             self.cameras.append(new_camera)
 
