@@ -125,6 +125,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             image_folder=image_folder,
             sensor_IDs=sensor_IDs,
             validate_images=validate_images,
+            local_to_epsg_4978_transform=chunk_to_epsg4327,
         )
 
 
