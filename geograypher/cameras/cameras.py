@@ -617,6 +617,10 @@ class PhotogrammetryCameraSet:
             self.lon_lats,
         ):
             sensor_params = self.intrinsic_params_per_sensor_type[sensor_ID]
+            # This means the sensor did not have enough parameters to be valid
+            if sensor_params is None:
+                continue
+
             new_camera = PhotogrammetryCamera(
                 image_filename, cam_to_world_transform, lon_lat=lon_lat, **sensor_params
             )

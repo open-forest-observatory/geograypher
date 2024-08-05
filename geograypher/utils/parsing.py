@@ -66,7 +66,7 @@ def parse_sensors(sensors, default_sensor_dict=None):
                 for k, v in default_sensor_dict.items():
                     sensor_dict[k] = v
             else:
-                raise ValueError("No calibration provided")
+                sensor_dict = None
         else:
             sensor_dict["f"] = float(calibration.find("f").text)
 
@@ -74,22 +74,22 @@ def parse_sensors(sensors, default_sensor_dict=None):
             cx = calibration.find("cx")
             cy = calibration.find("cx")
 
-            # If they are set, use the value. Otherwise, use the default.
-            # TODO handle the case where no default is provided explicitly
-            sensor_dict["cx"] = (
-                float(cx.text) if cx is not None else default_sensor_dict["cx"]
-            )
-            sensor_dict["cy"] = (
-                float(cy.text) if cy is not None else default_sensor_dict["cy"]
-            )
-            # Get potentially-empty dict of distortion parameters
-            sensor_dict["distortion_params"] = {
-                calibration[i].tag: float(calibration[i].text)
-                for i in range(3, len(calibration))
-            }
-
-        if None in (sensor_dict["f"], sensor_dict["cx"], sensor_dict["cy"]):
-            ValueError("Incomplete calibration provided")
+            try:
+                # If they are set, use the value. Otherwise, use the default.
+                # TODO handle the case where no default is provided explicitly
+                sensor_dict["cx"] = (
+                    float(cx.text) if cx is not None else default_sensor_dict["cx"]
+                )
+                sensor_dict["cy"] = (
+                    float(cy.text) if cy is not None else default_sensor_dict["cy"]
+                )
+                # Get potentially-empty dict of distortion parameters
+                sensor_dict["distortion_params"] = {
+                    calibration[i].tag: float(calibration[i].text)
+                    for i in range(3, len(calibration))
+                }
+            except KeyError:
+                sensor_dict = None
 
         sensor_ID = int(sensor.get("id"))
         sensors_dict[sensor_ID] = sensor_dict
