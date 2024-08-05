@@ -214,13 +214,23 @@ class PhotogrammetryCamera:
             else tuple(self.cam_to_world_transform[0:2, 3])
         )
 
-    def get_camera_view_angle(self, in_deg=True):
-        # This is the origin, a point at one unit along the principal axis, a point one unit up (-Y), and a point one unit right (+X)
+    def get_camera_view_angle(self, in_deg: bool = True) -> tuple:
+        """Get the off-nadir pitch and yaw angles, computed geometrically from the photogrammtery result
+
+        Args:
+            in_deg (bool, optional): Return the angles in degrees rather than radians. Defaults to True.
+
+        Returns:
+            tuple: (pitch-from-nadir, yaw-from-nadir). Units are defined by in_deg parameter
+        """
+        # This is the origin, a point at one unit along the principal axis, a point one unit
+        # up (-Y), and a point one unit right (+X)
         points_in_camera_frame = np.array(
             [[0, 0, 0, 1], [0, 0, 1, 1], [0, -1, 0, 1], [1, 0, 0, 1]]
         ).T
 
-        # Transform the points first into the world frame and then into the earth-centered, earth-fixed frame
+        # Transform the points first into the world frame and then into the earth-centered,
+        # earth-fixed frame
         points_in_ECEF = (
             self.local_to_epsg_4978_transform
             @ self.cam_to_world_transform
@@ -230,7 +240,6 @@ class PhotogrammetryCamera:
         points_in_ECEF = points_in_ECEF[:-1].T
         # Convert to shapely points
         points_in_ECEF = [Point(*point) for point in points_in_ECEF]
-
         # Convert to a dataframe
         points_in_ECEF = gpd.GeoDataFrame(
             geometry=points_in_ECEF, crs=EARTH_CENTERED_EARTH_FIXED_CRS
@@ -240,13 +249,17 @@ class PhotogrammetryCamera:
         points_in_lat_lon = points_in_ECEF.to_crs(LAT_LON_CRS)
         # Convert to a local projected CRS
         points_in_projected_CRS = ensure_projected_CRS(points_in_lat_lon)
+        # Extract the geometry
         points_in_projected_CRS = np.array(
             [[p.x, p.y, p.z] for p in points_in_projected_CRS.geometry]
         )
+
+        # Compute three vectors starting at the camera origin
         view_vector = points_in_projected_CRS[1] - points_in_projected_CRS[0]
         up_vector = points_in_projected_CRS[2] - points_in_projected_CRS[0]
         right_vector = points_in_projected_CRS[3] - points_in_projected_CRS[0]
 
+        # The nadir vector points straight down
         NADIR_VEC = np.array([0, 0, -1])
 
         # For pitch, project the view vector onto the plane defined by the up vector and the nadir
@@ -262,8 +275,10 @@ class PhotogrammetryCamera:
         pitch_angle = angle_between(pitch_projection_view_vec, NADIR_VEC)
         yaw_angle = angle_between(yaw_projection_view_vec, NADIR_VEC)
 
+        # Return in degrees if requested
         if in_deg:
             return (np.rad2deg(pitch_angle), np.rad2deg(yaw_angle))
+        # Return in radians
         return (pitch_angle, yaw_angle)
 
     def check_projected_in_image(
@@ -750,7 +765,15 @@ class PhotogrammetryCameraSet:
     def get_image_by_index(self, index: int, image_scale: float = 1.0) -> np.ndarray:
         return self[index].get_image(image_scale=image_scale)
 
-    def get_camera_view_angles(self, in_deg=True):
+    def get_camera_view_angles(self, in_deg: bool = True) -> List[Tuple[float]]:
+        """Compute the pitch and yaw off-nadir for all cameras in the set
+
+        Args:
+            in_deg (bool, optional): Return the angles in degrees rather than radians. Defaults to True.
+
+        Returns:
+            List[Tuple[float]]: A list of (pitch, yaw) tuples for each camera.
+        """
         return [
             camera.get_camera_view_angle(in_deg=in_deg)
             for camera in tqdm(self.cameras, desc="Computing view angles")
