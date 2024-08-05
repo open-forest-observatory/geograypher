@@ -103,3 +103,38 @@ def get_scale_from_transform(transform: typing.Union[np.ndarray, None]):
     transform_determinant = np.linalg.det(transform[:3, :3])
     scale_factor = np.cbrt(transform_determinant)
     return scale_factor
+
+
+def unit_vector(vector):
+    """Returns the unit vector of the vector."""
+    return vector / np.linalg.norm(vector)
+
+
+# https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
+def angle_between(v1, v2):
+    """Returns the angle in radians between vectors 'v1' and 'v2'::
+
+    >>> angle_between((1, 0, 0), (0, 1, 0))
+    1.5707963267948966
+    >>> angle_between((1, 0, 0), (1, 0, 0))
+    0.0
+    >>> angle_between((1, 0, 0), (-1, 0, 0))
+    3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+
+def orthogonal_projection(v1, v2):
+    # component of v2 along v1
+    scalar = np.dot(v1, v2) / np.linalg.norm(v1) ** 2
+    return scalar * v1
+
+
+def projection_onto_plane(v1, e1, e2):
+    # Compute the projection of vector v1 onto the plane defined by e1, e2
+    plane_normal = np.cross(e1, e2)
+    out_of_plane_projection = orthogonal_projection(plane_normal, v1)
+    in_plane_projection = v1 - out_of_plane_projection
+    return in_plane_projection
