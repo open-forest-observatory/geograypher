@@ -247,6 +247,10 @@ def parse_args():
         default=0.25,
     )
     parser.add_argument(
+        "--n-aggregation-clusters",
+        type=int,
+    )
+    parser.add_argument(
         "--aggregated-face-values-savefile",
         type=Path,
     )
