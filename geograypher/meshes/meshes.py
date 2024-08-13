@@ -1952,7 +1952,7 @@ class TexturedPhotogrammetryMesh:
         )
 
         # Data in the range [0, 255] must be uint8 type
-        if is_rgb and np.max(vis_scalars) > 1.0:
+        if is_rgb and np.nanmax(vis_scalars) > 1.0:
             vis_scalars = np.clip(vis_scalars, 0, 255).astype(np.uint8)
 
         scalar_bar_args = {"vertical": True}
