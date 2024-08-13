@@ -163,7 +163,9 @@ def aggregate_images(
         np.save(aggregated_face_values_savefile, aggregated_face_labels)
 
     # Find the index of the most common class per face, with faces with no predictions set to nan
-    predicted_face_classes = find_argmax_nonzero_value(aggregated_face_labels, keepdims=True)
+    predicted_face_classes = find_argmax_nonzero_value(
+        aggregated_face_labels, keepdims=True
+    )
 
     # If requested, label the ground faces
     if DTM_file is not None and height_above_ground_threshold is not None:
@@ -222,9 +224,7 @@ def parse_args():
     parser.add_argument(
         "--subset-images-folder",
     )
-    parser.add_argument(
-        "--take-every-nth-camera", type=int
-    )
+    parser.add_argument("--take-every-nth-camera", type=int)
     parser.add_argument(
         "--mesh-transform-file",
     )

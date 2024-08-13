@@ -6,13 +6,12 @@ import pandas as pd
 
 def find_argmax_nonzero_value(array, keepdims=False):
     # Find the most common
-    argmax_column = np.argmax(
-        array, axis=1, keepdims=keepdims
-    ).astype(float)
+    argmax_column = np.argmax(array, axis=1, keepdims=keepdims).astype(float)
     zeros_mask = np.sum(array, axis=1)
     argmax_column[zeros_mask] = np.nan
 
     return argmax_column
+
 
 def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
     # Standardizing the type
