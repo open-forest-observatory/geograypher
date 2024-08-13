@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+
 def find_argmax_nonzero_value(array, keepdims=False):
     # Find the most common
     argmax_column = np.argmax(
