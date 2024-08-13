@@ -2692,7 +2692,9 @@ to 1.0.</p>
 <span class="normal"><a href="#__codelineno-0-188">188</a></span>
 <span class="normal"><a href="#__codelineno-0-189">189</a></span>
 <span class="normal"><a href="#__codelineno-0-190">190</a></span>
-<span class="normal"><a href="#__codelineno-0-191">191</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="k">def</span> <span class="nf">aggregate_images</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#__codelineno-0-193">193</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="k">def</span> <span class="nf">aggregate_images</span><span class="p">(</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="n">mesh_file</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="n">cameras_file</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>    <span class="n">image_folder</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
@@ -2835,32 +2837,34 @@ to 1.0.</p>
 <a id="__codelineno-0-163" name="__codelineno-0-163"></a>        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">aggregated_face_values_savefile</span><span class="p">,</span> <span class="n">aggregated_face_labels</span><span class="p">)</span>
 <a id="__codelineno-0-164" name="__codelineno-0-164"></a>
 <a id="__codelineno-0-165" name="__codelineno-0-165"></a>    <span class="c1"># Find the index of the most common class per face, with faces with no predictions set to nan</span>
-<a id="__codelineno-0-166" name="__codelineno-0-166"></a>    <span class="n">predicted_face_classes</span> <span class="o">=</span> <span class="n">find_argmax_nonzero_value</span><span class="p">(</span><span class="n">aggregated_face_labels</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-167" name="__codelineno-0-167"></a>
-<a id="__codelineno-0-168" name="__codelineno-0-168"></a>    <span class="c1"># If requested, label the ground faces</span>
-<a id="__codelineno-0-169" name="__codelineno-0-169"></a>    <span class="k">if</span> <span class="n">DTM_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">height_above_ground_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-170" name="__codelineno-0-170"></a>        <span class="n">predicted_face_classes</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">label_ground_class</span><span class="p">(</span>
-<a id="__codelineno-0-171" name="__codelineno-0-171"></a>            <span class="n">labels</span><span class="o">=</span><span class="n">predicted_face_classes</span><span class="p">,</span>
-<a id="__codelineno-0-172" name="__codelineno-0-172"></a>            <span class="n">height_above_ground_threshold</span><span class="o">=</span><span class="n">height_above_ground_threshold</span><span class="p">,</span>
-<a id="__codelineno-0-173" name="__codelineno-0-173"></a>            <span class="n">DTM_file</span><span class="o">=</span><span class="n">DTM_file</span><span class="p">,</span>
-<a id="__codelineno-0-174" name="__codelineno-0-174"></a>            <span class="n">ground_ID</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
-<a id="__codelineno-0-175" name="__codelineno-0-175"></a>            <span class="n">set_mesh_texture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-176" name="__codelineno-0-176"></a>        <span class="p">)</span>
-<a id="__codelineno-0-177" name="__codelineno-0-177"></a>
-<a id="__codelineno-0-178" name="__codelineno-0-178"></a>    <span class="k">if</span> <span class="n">predicted_face_classes_savefile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-179" name="__codelineno-0-179"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">predicted_face_classes_savefile</span><span class="p">)</span>
-<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">predicted_face_classes_savefile</span><span class="p">,</span> <span class="n">predicted_face_classes</span><span class="p">)</span>
-<a id="__codelineno-0-181" name="__codelineno-0-181"></a>
-<a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="k">if</span> <span class="n">vis</span><span class="p">:</span>
-<a id="__codelineno-0-183" name="__codelineno-0-183"></a>        <span class="c1"># Show the mesh with predicted classes</span>
-<a id="__codelineno-0-184" name="__codelineno-0-184"></a>        <span class="n">mesh</span><span class="o">.</span><span class="n">vis</span><span class="p">(</span><span class="n">vis_scalars</span><span class="o">=</span><span class="n">predicted_face_classes</span><span class="p">)</span>
-<a id="__codelineno-0-185" name="__codelineno-0-185"></a>
-<a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="c1"># TODO this should be updated to take IDs_to_labels</span>
-<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="n">mesh</span><span class="o">.</span><span class="n">export_face_labels_vector</span><span class="p">(</span>
-<a id="__codelineno-0-188" name="__codelineno-0-188"></a>        <span class="n">face_labels</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">predicted_face_classes</span><span class="p">),</span>
-<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="n">export_file</span><span class="o">=</span><span class="n">top_down_vector_projection_savefile</span><span class="p">,</span>
-<a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="n">vis</span><span class="o">=</span><span class="n">vis</span><span class="p">,</span>
-<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="p">)</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>    <span class="n">predicted_face_classes</span> <span class="o">=</span> <span class="n">find_argmax_nonzero_value</span><span class="p">(</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>        <span class="n">aggregated_face_labels</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>    <span class="p">)</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>    <span class="c1"># If requested, label the ground faces</span>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="k">if</span> <span class="n">DTM_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">height_above_ground_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-172" name="__codelineno-0-172"></a>        <span class="n">predicted_face_classes</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">label_ground_class</span><span class="p">(</span>
+<a id="__codelineno-0-173" name="__codelineno-0-173"></a>            <span class="n">labels</span><span class="o">=</span><span class="n">predicted_face_classes</span><span class="p">,</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a>            <span class="n">height_above_ground_threshold</span><span class="o">=</span><span class="n">height_above_ground_threshold</span><span class="p">,</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>            <span class="n">DTM_file</span><span class="o">=</span><span class="n">DTM_file</span><span class="p">,</span>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>            <span class="n">ground_ID</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>            <span class="n">set_mesh_texture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a>        <span class="p">)</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>    <span class="k">if</span> <span class="n">predicted_face_classes_savefile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">predicted_face_classes_savefile</span><span class="p">)</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">predicted_face_classes_savefile</span><span class="p">,</span> <span class="n">predicted_face_classes</span><span class="p">)</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="k">if</span> <span class="n">vis</span><span class="p">:</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="c1"># Show the mesh with predicted classes</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>        <span class="n">mesh</span><span class="o">.</span><span class="n">vis</span><span class="p">(</span><span class="n">vis_scalars</span><span class="o">=</span><span class="n">predicted_face_classes</span><span class="p">)</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a>    <span class="c1"># TODO this should be updated to take IDs_to_labels</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>    <span class="n">mesh</span><span class="o">.</span><span class="n">export_face_labels_vector</span><span class="p">(</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="n">face_labels</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">predicted_face_classes</span><span class="p">),</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>        <span class="n">export_file</span><span class="o">=</span><span class="n">top_down_vector_projection_savefile</span><span class="p">,</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>        <span class="n">vis</span><span class="o">=</span><span class="n">vis</span><span class="p">,</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
