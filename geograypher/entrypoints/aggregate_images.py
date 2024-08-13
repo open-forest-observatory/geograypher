@@ -25,6 +25,7 @@ def aggregate_images(
     image_folder: PATH_TYPE,
     label_folder: PATH_TYPE,
     subset_images_folder: typing.Union[PATH_TYPE, None] = None,
+    take_every_nth_camera: typing.Union[int, None] = 100,
     mesh_transform_file: typing.Union[PATH_TYPE, None] = None,
     DTM_file: typing.Union[PATH_TYPE, None] = None,
     height_above_ground_threshold: float = 2.0,
@@ -53,6 +54,8 @@ def aggregate_images(
             structure as the images
         subset_images_folder (typing.Union[PATH_TYPE, None], optional):
             Use only images from this subset. Defaults to None.
+        take_every_nth_camera (typing.Union[int, None], optional):
+            Downsample the camera set to only every nth camera if set. Defaults to None.
         mesh_transform_file (typing.Union[PATH_TYPE, None], optional):
             Transform from the mesh coordinates to the earth-centered, earth-fixed frame. Can be a
             4x4 matrix represented as a .csv, or a Metashape cameras file containing the
@@ -94,6 +97,10 @@ def aggregate_images(
     # TODO let get_subset_ROI accept a None ROI and return the full camera set
     if subset_images_folder is not None:
         camera_set = camera_set.get_cameras_in_folder(subset_images_folder)
+
+    # If you only want to take every nth camera, helpful for initial testing
+    if take_every_nth_camera is not None:
+        camera_set = camera_set.get_subset_cameras(range(0, len(camera_set), take_every_nth_camera))
 
     if ROI is not None and ROI_buffer_radius_meters is not None:
         # Extract cameras near the training data
@@ -213,6 +220,9 @@ def parse_args():
     )
     parser.add_argument(
         "--subset-images-folder",
+    )
+    parser.add_argument(
+        "--take-every-nth-camera",
     )
     parser.add_argument(
         "--mesh-transform-file",
