@@ -4,13 +4,28 @@ import numpy as np
 import pandas as pd
 
 
-def find_argmax_nonzero_value(array, keepdims=False):
-    # Find the most common
-    argmax_column = np.argmax(array, axis=1, keepdims=keepdims).astype(float)
-    zeros_mask = np.sum(array, axis=1)
-    argmax_column[zeros_mask] = np.nan
+def find_argmax_nonzero_value(
+    array: np.ndarray, keepdims: bool = False, axis: int = 1
+) -> np.array:
+    """Find the argmax of an array, setting entires with zero sum or finite values to nan
 
-    return argmax_column
+    Args:
+        array (np.ndarray): The input array
+        keepdims (bool, optional): Should the dimensions be kept. Defaults to False.
+        axis (int, optional): Which axis to perform the argmax along. Defaults to 1.
+
+    Returns:
+        np.array: The argmax, with nans for invalid or all-zero entries
+    """
+    # Find the column with the highest value per row
+    argmax = np.argmax(array, axis=axis, keepdims=keepdims).astype(float)
+    # Find rows with zero sum or any infinite values
+    zero_sum_mask = np.sum(array, axis=axis)
+    infinite_mask = np.any(~np.isfinite(array), axis=axis)
+    # Set these rows in the argmax to nan
+    argmax[np.logical_or(zero_sum_mask, infinite_mask)] = np.nan
+
+    return argmax
 
 
 def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
