@@ -100,7 +100,9 @@ def aggregate_images(
 
     # If you only want to take every nth camera, helpful for initial testing
     if take_every_nth_camera is not None:
-        camera_set = camera_set.get_subset_cameras(range(0, len(camera_set), take_every_nth_camera))
+        camera_set = camera_set.get_subset_cameras(
+            range(0, len(camera_set), take_every_nth_camera)
+        )
 
     if ROI is not None and ROI_buffer_radius_meters is not None:
         # Extract cameras near the training data
