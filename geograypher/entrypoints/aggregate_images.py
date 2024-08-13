@@ -17,6 +17,7 @@ from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.predictors.derived_segmentors import LookUpSegmentor
 from geograypher.utils.files import ensure_containing_folder
+from geograypher.utils.indexing import find_argmax_nonzero_value
 
 
 def aggregate_images(
@@ -159,10 +160,8 @@ def aggregate_images(
         ensure_containing_folder(aggregated_face_values_savefile)
         np.save(aggregated_face_values_savefile, aggregated_face_labels)
 
-    # Find the most common class per face
-    predicted_face_classes = np.argmax(
-        aggregated_face_labels, axis=1, keepdims=True
-    ).astype(float)
+    # Find the index of the most common class per face, with faces with no predictions set to nan
+    predicted_face_classes = find_argmax_nonzero_value(aggregated_face_labels, keepdims=True)
 
     # If requested, label the ground faces
     if DTM_file is not None and height_above_ground_threshold is not None:
@@ -222,7 +221,7 @@ def parse_args():
         "--subset-images-folder",
     )
     parser.add_argument(
-        "--take-every-nth-camera",
+        "--take-every-nth-camera", type=int
     )
     parser.add_argument(
         "--mesh-transform-file",
@@ -244,7 +243,6 @@ def parse_args():
     parser.add_argument(
         "--IDs-to-labels",
         default=EXAMPLE_IDS_TO_LABELS,
-        type=dict,
     )
     parser.add_argument(
         "--mesh-downsample",
