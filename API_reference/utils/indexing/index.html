@@ -1736,7 +1736,9 @@
 <span class="normal"><a href="#__codelineno-0-25">25</a></span>
 <span class="normal"><a href="#__codelineno-0-26">26</a></span>
 <span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="k">def</span> <span class="nf">find_argmax_nonzero_value</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="k">def</span> <span class="nf">find_argmax_nonzero_value</span><span class="p">(</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8"></a>    <span class="n">array</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">keepdims</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the argmax of an array, setting entires with zero sum or finite values to nan</span>
@@ -1751,13 +1753,15 @@
 <a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="c1"># Find the column with the highest value per row</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="n">argmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="n">keepdims</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22"></a>    <span class="c1"># Find rows with zero sum or any infinite values</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23"></a>    <span class="n">zero_sum_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="n">infinite_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">array</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="c1"># Set these rows in the argmax to nan</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a>    <span class="n">argmax</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">zero_sum_mask</span><span class="p">,</span> <span class="n">infinite_mask</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="k">return</span> <span class="n">argmax</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a>    <span class="c1"># Find rows with zero sum or any infinite values</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="n">zero_sum_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="n">infinite_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">array</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">)</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="c1"># Set these rows in the argmax to nan</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="n">argmax</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">zero_sum_mask</span><span class="p">,</span> <span class="n">infinite_mask</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="k">return</span> <span class="n">argmax</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
