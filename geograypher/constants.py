@@ -29,68 +29,66 @@ EARTH_CENTERED_EARTH_FIXED_CRS = pyproj.CRS.from_epsg(4978)
 ### Example data variables
 ## Raw input data
 # The input labels
-EXAMPLE_LABELS_FILENAME = Path(
-    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "labels.geojson"
-)
+EXAMPLE_SEGMENTATION_TASK_DATA = Path(DATA_FOLDER, "chips_tree_species")
+
+# Name of the column to use in the example data
+EXAMPLE_LABEL_COLUMN_NAME = "species_observed"
 EXAMPLE_IDS_TO_LABELS = {
     0: "ABCO",
-    1: "ABMA",
-    2: "CADE",
-    3: "PI",
-    4: "PICO",
-    5: "PIJE",
-    6: "PILA",
-    7: "PIPO",
-    8: "SALSCO",
-    9: "TSME",
+    1: "CADE",
+    2: "PILA",
+    3: "PIPJ",
+    4: "PSME",
+    5: "GROUND",
 }
+EXAMPLE_LABELS_FILENAME = Path(
+    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_ground_truth_labels.gpkg"
+)
 # The mesh exported from Metashape
 EXAMPLE_MESH_FILENAME = Path(
-    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "mesh.ply"
+    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_mesh_subset.ply"
 )
 # The camera file exported from Metashape
 EXAMPLE_CAMERAS_FILENAME = Path(
-    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "cameras.xml"
+    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_cameras.xml"
 )
 # The digital elevation map exported by Metashape
-EXAMPLE_DTM_FILE = Path(DATA_FOLDER, "example_Emerald_Point_data", "inputs", "dtm.tif")
+EXAMPLE_DTM_FILE = Path(EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_DTM.tif")
 # The image folder used to create the Metashape project
-EXAMPLE_IMAGE_FOLDER = Path(
-    DATA_FOLDER, "example_Emerald_Point_data", "inputs", "images"
-)
+EXAMPLE_IMAGE_FOLDER = Path(EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_images")
 
 ## Define the intermediate results
 # Processed geo file
-EXAMPLE_STANDARDIZED_LABELS_FILENAME = Path(
-    DATA_FOLDER,
-    "example_Emerald_Point_data",
-    "intermediate_results",
-    "standardized_labels.geojson",
-)
-# Where to save the mesh after labeling
 EXAMPLE_LABELED_MESH_FILENAME = Path(
-    DATA_FOLDER,
-    "example_Emerald_Point_data",
+    EXAMPLE_SEGMENTATION_TASK_DATA,
     "intermediate_results",
     "labeled_mesh.ply",
 )
 # Where to save the rendering label images
 EXAMPLE_RENDERED_LABELS_FOLDER = Path(
-    DATA_FOLDER, "example_Emerald_Point_data", "intermediate_results", "rendered_labels"
+    EXAMPLE_SEGMENTATION_TASK_DATA,
+    "intermediate_results",
+    "rendered_labels",
 )
 # Predicted images from a segementation algorithm
+# TODO update this to real data
 EXAMPLE_PREDICTED_LABELS_FOLDER = Path(
-    DATA_FOLDER,
-    "example_Emerald_Point_data",
+    EXAMPLE_SEGMENTATION_TASK_DATA,
     "intermediate_results",
-    "predicted_segmentations",
+    "rendered_labels",
 )
 # The predicted aggregated face data
 EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
-    DATA_FOLDER,
-    "example_Emerald_Point_data",
+    EXAMPLE_SEGMENTATION_TASK_DATA,
     "intermediate_results",
     "aggregated_face_labels.npy",
+)
+
+## Outputs
+EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
+    EXAMPLE_SEGMENTATION_TASK_DATA,
+    "outputs",
+    "predicted_labels.geojson",
 )
 
 EXAMPLE_INTRINSICS = {
@@ -115,28 +113,6 @@ MATPLOTLIB_PALLETE = [
     hex_to_rgb(x) for x in plt.rcParams["axes.prop_cycle"].by_key()["color"]
 ]
 TEN_CLASS_VIS_KWARGS = {"cmap": "tab10", "clim": (-0.5, 9.5)}
-TWENTY_CLASS_VIS_KWARGS = {"cmap": "tab20", "clim": (-0.5, 19.5)}
-
-## Outputs
-EXAMPLE_PREDICTED_VECTOR_LABELS_FILE = Path(
-    DATA_FOLDER,
-    "example_Emerald_Point_data",
-    "outputs",
-    "predicted_labels.geojson",
-)
-
-EXAMPLE_LABEL_NAMES = (
-    "ABCO",
-    "ABMA",
-    "CADE",
-    "PI",
-    "PICO",
-    "PIJE",
-    "PILA",
-    "PIPO",
-    "SALSCO",
-    "TSME",
-)
 
 DEFAULT_FRUSTUM_SCALE = 1
 CHUNKED_MESH_BUFFER_DIST_METERS = 250
