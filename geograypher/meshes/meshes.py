@@ -1468,9 +1468,12 @@ class TexturedPhotogrammetryMesh:
         if IDs_to_labels is None and ground_ID is None:
             # This means that the label is continous, so the concept of ID is meaningless
             ground_ID = np.nan
-        elif IDs_to_labels is not None and ground_class_name in IDs_to_labels:
+        elif IDs_to_labels is not None and ground_class_name in IDs_to_labels.values():
             # If the ground class name is already in the list, set newly-predicted vertices to that class
-            ground_ID = IDs_to_labels.find(ground_class_name)
+            # Get the dictionary mapping in the reverse direction
+            labels_to_IDs = {v: k for k, v in IDs_to_labels.items()}
+            # Determine the ID corresponding to the ground class name
+            ground_ID = labels_to_IDs.get(ground_class_name)
         elif IDs_to_labels is not None:
             # If the label names are present, and the class is not already included, add it as the last element
             if ground_ID is None:
