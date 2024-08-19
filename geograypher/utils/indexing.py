@@ -19,9 +19,11 @@ def find_argmax_nonzero_value(
     """
     # Find the column with the highest value per row
     argmax = np.argmax(array, axis=axis, keepdims=keepdims).astype(float)
+
     # Find rows with zero sum or any infinite values
-    zero_sum_mask = np.sum(array, axis=axis)
+    zero_sum_mask = np.sum(array, axis=axis) == 0
     infinite_mask = np.any(~np.isfinite(array), axis=axis)
+
     # Set these rows in the argmax to nan
     argmax[np.logical_or(zero_sum_mask, infinite_mask)] = np.nan
 
