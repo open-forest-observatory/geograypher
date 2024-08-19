@@ -205,72 +205,25 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
-    parser.add_argument(
-        "--mesh-file",
-        default=EXAMPLE_MESH_FILENAME,
-    )
-    parser.add_argument(
-        "--cameras-file",
-        default=EXAMPLE_CAMERAS_FILENAME,
-    )
-    parser.add_argument(
-        "--image-folder",
-        default=EXAMPLE_IMAGE_FOLDER,
-    )
-    parser.add_argument(
-        "--label-folder",
-        default=EXAMPLE_PREDICTED_LABELS_FOLDER,
-    )
-    parser.add_argument(
-        "--subset-images-folder",
-    )
+    parser.add_argument("--mesh-file", required=True)
+    parser.add_argument("--cameras-file", required=True)
+    parser.add_argument("--image-folder", required=True)
+    parser.add_argument("--label-folder", required=True)
+    parser.add_argument("--subset-images-folder")
     parser.add_argument("--take-every-nth-camera", type=int)
-    parser.add_argument(
-        "--mesh-transform-file",
-    )
-    parser.add_argument(
-        "--DTM-file",
-    )
-    parser.add_argument(
-        "--height-above-ground-threshold",
-        type=float,
-        default=2,
-    )
+    parser.add_argument("--mesh-transform-file")
+    parser.add_argument("--DTM-file")
+    parser.add_argument("--height-above-ground-threshold", type=float, default=2)
     parser.add_argument("--ROI")
+    parser.add_argument("--ROI-buffer-radius-meters", default=50, type=float)
+    parser.add_argument("--IDs-to-labels", default=EXAMPLE_IDS_TO_LABELS)
+    parser.add_argument("--mesh-downsample", type=float, default=1.0)
+    parser.add_argument("--aggregate-image-scale", type=float, default=0.25)
+    parser.add_argument("--n-aggregation-clusters", type=int)
+    parser.add_argument("--aggregated-face-values-savefile", type=Path)
+    parser.add_argument("--predicted-face-classes-savefile", type=Path)
     parser.add_argument(
-        "--ROI-buffer-radius-meters",
-        default=50,
-        type=float,
-    )
-    parser.add_argument(
-        "--IDs-to-labels",
-        default=EXAMPLE_IDS_TO_LABELS,
-    )
-    parser.add_argument(
-        "--mesh-downsample",
-        type=float,
-        default=1.0,
-    )
-    parser.add_argument(
-        "--aggregate-image-scale",
-        type=float,
-        default=0.25,
-    )
-    parser.add_argument(
-        "--n-aggregation-clusters",
-        type=int,
-    )
-    parser.add_argument(
-        "--aggregated-face-values-savefile",
-        type=Path,
-    )
-    parser.add_argument(
-        "--predicted-face-classes-savefile",
-        type=Path,
-    )
-    parser.add_argument(
-        "--top-down-vector-projection-savefile",
-        default="vis/predicted_map.geojson",
+        "--top-down-vector-projection-savefile", default="vis/predicted_map.geojson"
     )
     parser.add_argument("--vis", action="store_true")
 

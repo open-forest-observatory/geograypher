@@ -134,48 +134,18 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
-    parser.add_argument(
-        "--mesh-file",
-        default=EXAMPLE_MESH_FILENAME,
-    )
-    parser.add_argument(
-        "--mesh-transform-file",
-        default=EXAMPLE_CAMERAS_FILENAME,
-    )
-    parser.add_argument(
-        "--aggregate-face-values-file",
-    )
-    parser.add_argument(
-        "--geospatial-polygons-to-label",
-    )
-    parser.add_argument(
-        "--geospatial-polygons-labeled-savefile",
-    )
-    parser.add_argument(
-        "--mesh-downsample",
-        type=float,
-        default=1.0,
-    )
-    parser.add_argument(
-        "--DTM-file",
-    )
-    parser.add_argument(
-        "--height-above-ground-threshold",
-        type=float,
-        default=2,
-    )
+    parser.add_argument("--mesh-file", required=True)
+    parser.add_argument("--mesh-transform-file", required=True)
+    parser.add_argument("--aggregate-face-values-file")
+    parser.add_argument("--geospatial-polygons-to-label")
+    parser.add_argument("--geospatial-polygons-labeled-savefile")
+    parser.add_argument("--mesh-downsample", type=float, default=1.0)
+    parser.add_argument("--DTM-file")
+    parser.add_argument("--height-above-ground-threshold", type=float, default=2)
     parser.add_argument("--ground-voting-weight")
     parser.add_argument("--ROI")
-    parser.add_argument(
-        "--ROI-buffer-radius-meters",
-        default=50,
-        type=float,
-    )
-    parser.add_argument(
-        "--IDs-to-labels",
-        default=EXAMPLE_IDS_TO_LABELS,
-        type=dict,
-    )
+    parser.add_argument("--ROI-buffer-radius-meters", default=50, type=float)
+    parser.add_argument("--IDs-to-labels", type=dict)
 
     args = parser.parse_args()
     return args
