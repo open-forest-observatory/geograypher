@@ -763,7 +763,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         """
         # Get the pytorch3d cameras for each of the cameras in the set
         p3d_cameras = [
-            self.get_single_pytorch3d_camera(self.device, camera) for camera in cameras
+            self.get_single_pytorch3d_camera(camera) for camera in cameras
         ]
         # Get the image sizes
         image_sizes = [camera.image_size.cpu().numpy() for camera in p3d_cameras]
