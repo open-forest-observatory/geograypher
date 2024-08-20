@@ -39,7 +39,7 @@ EXAMPLE_IDS_TO_LABELS = {
     2: "PILA",
     3: "PIPJ",
     4: "PSME",
-    5: "GROUND",
+    5: "SNAG",
 }
 EXAMPLE_LABELS_FILENAME = Path(
     EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_ground_truth_labels.gpkg"
@@ -75,7 +75,7 @@ EXAMPLE_RENDERED_LABELS_FOLDER = Path(
 EXAMPLE_PREDICTED_LABELS_FOLDER = Path(
     EXAMPLE_SEGMENTATION_TASK_DATA,
     "intermediate_results",
-    "rendered_labels",
+    "image_predictions",
 )
 # The predicted aggregated face data
 EXAMPLE_AGGREGATED_FACE_LABELS_FILE = Path(
