@@ -8,14 +8,7 @@ import numpy as np
 import shapely
 
 from geograypher.cameras import MetashapeCameraSet
-from geograypher.constants import (
-    EXAMPLE_CAMERAS_FILENAME,
-    EXAMPLE_IMAGE_FOLDER,
-    EXAMPLE_MESH_FILENAME,
-    EXAMPLE_RENDERED_LABELS_FOLDER,
-    EXAMPLE_STANDARDIZED_LABELS_FILENAME,
-    PATH_TYPE,
-)
+from geograypher.constants import PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.utils.visualization import show_segmentation_labels

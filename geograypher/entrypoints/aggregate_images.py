@@ -5,14 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from geograypher.cameras import MetashapeCameraSet, SegmentorPhotogrammetryCameraSet
-from geograypher.constants import (
-    EXAMPLE_CAMERAS_FILENAME,
-    EXAMPLE_IDS_TO_LABELS,
-    EXAMPLE_IMAGE_FOLDER,
-    EXAMPLE_MESH_FILENAME,
-    EXAMPLE_PREDICTED_LABELS_FOLDER,
-    PATH_TYPE,
-)
+from geograypher.constants import EXAMPLE_IDS_TO_LABELS, PATH_TYPE
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.predictors.derived_segmentors import LookUpSegmentor

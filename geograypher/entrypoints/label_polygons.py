@@ -5,13 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 
-from geograypher.constants import (
-    EXAMPLE_CAMERAS_FILENAME,
-    EXAMPLE_IDS_TO_LABELS,
-    EXAMPLE_MESH_FILENAME,
-    PATH_TYPE,
-    PRED_CLASS_ID_KEY,
-)
+from geograypher.constants import PATH_TYPE, PRED_CLASS_ID_KEY
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.utils.files import ensure_containing_folder
 

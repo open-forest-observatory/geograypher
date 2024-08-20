@@ -1,6 +1,5 @@
 import argparse
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from geograypher.cameras import MetashapeCameraSet
