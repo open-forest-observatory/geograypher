@@ -10,7 +10,7 @@ from scipy.sparse import load_npz, save_npz
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
-from geograypher.constants import PATH_TYPE
+from geograypher.constants import PATH_TYPE, INSTANCE_ID_KEY, CLASS_ID_KEY
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshIndexPredictions
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
@@ -176,13 +176,15 @@ def project_detections(
         # projected data
         merged = projected_geo_data.merge(
             detection_info,
-            left_on="class_ID",
-            right_on="instance_ID",
+            left_on=CLASS_ID_KEY,
+            right_on=INSTANCE_ID_KEY,
             suffixes=(None, "_right"),
         )
         # Drop the columns that are just an integer ID, except for "instance_ID"
         # TODO determine why "Unnamed: 0" appears
-        merged.drop(columns=["class_ID", "Unnamed: 0"], inplace=True)
+        merged.drop(
+            columns=[CLASS_ID_KEY, "Unnamed: 0", "geometry_right"], inplace=True
+        )
 
         # Save the data back out with the updated information
         merged.to_file(projections_to_geospatial_savefilename)
