@@ -1,5 +1,4 @@
 import argparse
-import json
 from pathlib import Path
 
 from geograypher.utils.prediction_metrics import (
