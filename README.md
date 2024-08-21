@@ -22,29 +22,11 @@ Install Geograypher:
 pip install geograypher
 ```
 
-Note the instructions above are suitable if you only need to use the exisiting functionality of Geograypher and not make changes to the toolkit code or dependencies. If you want to do development work please navigate [here](https://open-forest-observatory.github.io/geograypher/getting_started/installation/) for more instructions. 
+Note the instructions above are suitable if you only need to use the exisiting functionality of Geograypher and not make changes to the toolkit code or dependencies. If you want to do development work please navigate [here](https://open-forest-observatory.github.io/geograypher/getting_started/installation/) for more instructions.
 
-### Running
+### Getting started
 
-There are currently two main 3D workflows that this tool supports, rendering and aggregation. The goal of rendering is to take data that is associated with a mesh or geospatially referenced and translate it to the viewpoint of each image. An example of this is exporting the height above ground or species classification for each point on an image. The goal of aggregation is to take information from each viewpoint and aggregate it onto a mesh and optionally export it as a geospatial file. An example of this is taking species or veg-cover type predictions from each viewpoints and aggregating them onto the mesh.
-
-It also provides functionality for making predictions on top-down orthomosaics. This is not the main focus of the tool but is intended as a strong baseline or for applications where only this data is available.
-
-There is one script for each of these workflows. They each have a variety of command line options that can be used to control the behavior. But in either case, they can be run without any flags to produce an example result. To see the options, run either script with the `-h` flag as seen below.
-
-```
-conda activate geograypher
-python geograypher/entrypoints/render_labels.py --help
-python geograypher/entrypoints/aggregate_viewpoints.py --help
-python geograypher/entrypoints/orthomosaic_predictions.py --help
-```
-
-Quality metrics can be computed using the evaluation script
-
-```
-conda activate geograypher
-python geograypher/entrypoints/evaluate_predictions.py --help
-```
+There are two main places to look when getting started, the `example` notebooks and the command line scripts in `geograypher/entrypoints`. You can start by using the  [example data](https://ucdavis.box.com/v/geograypher-example-data) and download it to the `data` folder of this project. The notebooks have paths that point to this example data by default, so once the data is downloaded they can be run without any modifications. The command line tools each provide a help (`--help/-h`) option that describes the purpose of the tool and the command line options.
 
 ### Documentation
 Documentation of this tool, including how to set it up and examples of how to use it, can be found [here](https://open-forest-observatory.github.io/geograypher/).
