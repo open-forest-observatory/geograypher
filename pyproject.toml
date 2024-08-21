@@ -1,8 +1,13 @@
 [tool.poetry]
 name = "geograypher"
-version = "0.1.0"
-description = ""
-authors = ["David Russell <davidrussell327@gmail.com>"]
+version = "0.2.0"
+description = "Enabling Geospatial Predictions from Individual Drone Images"
+authors = [
+  {name = "David Russell", email = "djrussell@ucdavis.edu"},
+  {name = "Avnoor Singh Sidhu", email = "avsidhu@ucdavis.edu"},
+  {name = "Derek Young", email = "djyoung@ucdavis.edu"},
+  {name = "Rahul Prabhu"},
+]
 readme = "README.md"
 packages = [{include = "geograypher"}]
 
