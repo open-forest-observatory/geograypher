@@ -10,7 +10,7 @@ from scipy.sparse import load_npz, save_npz
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
-from geograypher.constants import PATH_TYPE, INSTANCE_ID_KEY, CLASS_ID_KEY
+from geograypher.constants import CLASS_ID_KEY, INSTANCE_ID_KEY, PATH_TYPE
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshIndexPredictions
 from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
 from geograypher.utils.files import ensure_containing_folder
