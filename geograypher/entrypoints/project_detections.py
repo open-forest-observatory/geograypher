@@ -182,9 +182,7 @@ def project_detections(
         )
         # Drop the columns that are just an integer ID, except for "instance_ID"
         # TODO determine why "Unnamed: 0" appears
-        merged.drop(
-            columns=[CLASS_ID_KEY, "Unnamed: 0", "geometry_right"], inplace=True
-        )
+        merged.drop(columns=[CLASS_ID_KEY, "Unnamed: 0"], inplace=True)
 
         # Save the data back out with the updated information
         merged.to_file(projections_to_geospatial_savefilename)
