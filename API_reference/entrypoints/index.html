@@ -3276,9 +3276,7 @@ from. Defaults to None.</p>
 <span class="normal"><a href="#__codelineno-0-185">185</a></span>
 <span class="normal"><a href="#__codelineno-0-186">186</a></span>
 <span class="normal"><a href="#__codelineno-0-187">187</a></span>
-<span class="normal"><a href="#__codelineno-0-188">188</a></span>
-<span class="normal"><a href="#__codelineno-0-189">189</a></span>
-<span class="normal"><a href="#__codelineno-0-190">190</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="k">def</span> <span class="nf">project_detections</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="k">def</span> <span class="nf">project_detections</span><span class="p">(</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="n">mesh_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="n">cameras_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
 <a id="__codelineno-0-22" name="__codelineno-0-22"></a>    <span class="n">project_to_mesh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -3444,12 +3442,10 @@ from. Defaults to None.</p>
 <a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="p">)</span>
 <a id="__codelineno-0-183" name="__codelineno-0-183"></a>        <span class="c1"># Drop the columns that are just an integer ID, except for &quot;instance_ID&quot;</span>
 <a id="__codelineno-0-184" name="__codelineno-0-184"></a>        <span class="c1"># TODO determine why &quot;Unnamed: 0&quot; appears</span>
-<a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="n">merged</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
-<a id="__codelineno-0-186" name="__codelineno-0-186"></a>            <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">CLASS_ID_KEY</span><span class="p">,</span> <span class="s2">&quot;Unnamed: 0&quot;</span><span class="p">,</span> <span class="s2">&quot;geometry_right&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
-<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="p">)</span>
-<a id="__codelineno-0-188" name="__codelineno-0-188"></a>
-<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="c1"># Save the data back out with the updated information</span>
-<a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="n">merged</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">projections_to_geospatial_savefilename</span><span class="p">)</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="n">merged</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">CLASS_ID_KEY</span><span class="p">,</span> <span class="s2">&quot;Unnamed: 0&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="c1"># Save the data back out with the updated information</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a>        <span class="n">merged</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">projections_to_geospatial_savefilename</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
