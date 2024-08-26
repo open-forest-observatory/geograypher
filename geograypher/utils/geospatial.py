@@ -357,3 +357,36 @@ def reproject_raster(in_path, out_path, out_crs=pyproj.CRS.from_epsg(4326)):
                     resampling=rio.warp.Resampling.nearest,
                 )
     logging.warn("Done reprojecting raster")
+
+
+def load_downsampled_raster_data(dataset_filename: PATH_TYPE, downsample_factor: float):
+    """Load a raster file spatially downsampled
+
+    Args:
+        dataset (PATH_TYPE): Path to the raster
+        downsample_factor (float): Downsample factor of 10 means that pixels are 10 times larger
+
+    Returns:
+        np.array: The downsampled array in the rasterio (c, h, w) convention
+        rio.DatasetReader: The reader with the transform updated
+        rio.Transform: The updated transform
+    """
+    # Open the dataset handler. Note that this doesn't read into memory.
+    dataset = rio.open(dataset_filename)
+
+    # resample data to target shape
+    data = dataset.read(
+        out_shape=(
+            dataset.count,
+            int(dataset.height / downsample_factor),
+            int(dataset.width / downsample_factor),
+        ),
+        resampling=rio.enums.Resampling.bilinear,
+    )
+
+    # scale image transform
+    updated_transform = dataset.transform * dataset.transform.scale(
+        (dataset.width / data.shape[-1]), (dataset.height / data.shape[-2])
+    )
+    # Return the data and the transform
+    return data, dataset, updated_transform
