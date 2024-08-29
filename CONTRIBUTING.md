@@ -16,6 +16,9 @@ If you push changes to main or create a pull request, please be aware that Githu
 # Branch naming
 If you are adding a branch to this repository, please use the following convention: `{feature, bugfix, hotfix, release, docs}/{developer initials}/{short-hyphenated-description}`. For example, `docs/DR/add-branch-naming-convention` for this change. For a description of the prefixes, please see [here](https://medium.com/@abhay.pixolo/naming-conventions-for-git-branches-a-cheatsheet-8549feca2534).
 
+# Testing
+If you make functional changes, please try to test them. One good option is running the notebooks. Do not commit the results of the notebook run unless your changes is intended to meaningfully change the output. In the future we plan to implement a more conventional unit test framework.
+
 # Docstrings
 For documentation, we use the [Google](https://github.com/NilsJPWerner/autoDocstring/blob/HEAD/docs/google.md) format. I personally use [VSCode autoDocstring](https://marketplace.visualstudio.com/items?itemName=njpwerner.autodocstring) plugin for templating. Keeping the docstrings up-to-date is essential because we automatically integrate them into our documentation. If the docstrings are outdated, the docstrings shown on the documentation will also outdated. 
 
