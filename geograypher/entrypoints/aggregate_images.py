@@ -19,6 +19,7 @@ def aggregate_images(
     image_folder: PATH_TYPE,
     label_folder: PATH_TYPE,
     subset_images_folder: typing.Union[PATH_TYPE, None] = None,
+    filename_regex: typing.Optional[str] = None,
     take_every_nth_camera: typing.Union[int, None] = 100,
     mesh_transform_file: typing.Union[PATH_TYPE, None] = None,
     DTM_file: typing.Union[PATH_TYPE, None] = None,
@@ -43,6 +44,8 @@ def aggregate_images(
             Path to the MetaShape-exported .xml cameras file
         image_folder (PATH_TYPE):
             Path to the folder of images used to create the mesh
+        filename_regex (str, optional):
+            Use only images with paths matching this regex
         label_folder (PATH_TYPE):
             Path to the folder of labels to be aggregated onto the mesh. Must be in the same
             structure as the images
@@ -91,6 +94,12 @@ def aggregate_images(
     # TODO let get_subset_ROI accept a None ROI and return the full camera set
     if subset_images_folder is not None:
         camera_set = camera_set.get_cameras_in_folder(subset_images_folder)
+
+    # Subset based on regex if requested
+    if filename_regex is not None:
+        camera_set = camera_set.get_cameras_matching_filename_regex(
+            filename_regex=filename_regex
+        )
 
     # If you only want to take every nth camera, helpful for initial testing
     if take_every_nth_camera is not None:
@@ -147,7 +156,7 @@ def aggregate_images(
     aggregated_face_labels, _ = mesh.aggregate_projected_images(
         segmentor_camera_set,
         aggregate_img_scale=aggregate_image_scale,
-        **n_clusters_kwargs
+        **n_clusters_kwargs,
     )
 
     # If requested, save this data
