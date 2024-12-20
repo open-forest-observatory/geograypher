@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 from copy import deepcopy
 from pathlib import Path
@@ -755,6 +756,29 @@ class PhotogrammetryCameraSet:
         ]
         # Return the PhotogrammetryCameraSet with those subset of cameras
         subset_cameras = self.get_subset_cameras(imgs_in_folder_inds)
+        return subset_cameras
+
+    def get_cameras_matching_filename_regex(
+        self, filename_regex: str
+    ) -> "PhotogrammetryCameraSet":
+        """Return the subset of cameras who's filenames match the provided regex
+
+        Args:
+            filename_regex (str): Regular expression passed to 're' engine
+
+        Returns:
+            PhotogrammetryCameraSet: Subset of cameras matching the regex
+        """
+        # Compute boolean array for which ones match
+        imgs_matching_regex = [
+            bool(re.search(filename_regex, str(filename)))
+            for filename in self.image_filenames
+        ]
+        # Convert to integer indices within the set
+        imgs_matching_regex_inds = np.where(imgs_matching_regex)[0]
+
+        # Get the corresponding subset
+        subset_cameras = self.get_subset_cameras(imgs_matching_regex_inds)
         return subset_cameras
 
     def get_subset_cameras(self, inds: List[int]):
