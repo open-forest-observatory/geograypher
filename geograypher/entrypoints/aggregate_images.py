@@ -187,11 +187,21 @@ def aggregate_images(
         # Show the mesh with predicted classes
         mesh.vis(vis_scalars=predicted_face_classes)
 
-    # TODO this should be updated to take IDs_to_labels
+    # Compute the label names
+    if IDs_to_labels is not None:
+        # This ensures that any missing keys are replaced with None so proper indexing is retained
+        label_names = [
+            IDs_to_labels.get(i, None)
+            for i in range(max(list(IDs_to_labels.keys()) + 1))
+        ]
+    else:
+        label_names = None
+    # Export the 2D top down projection
     mesh.export_face_labels_vector(
         face_labels=np.squeeze(predicted_face_classes),
         export_file=top_down_vector_projection_savefile,
         vis=vis,
+        label_names=label_names,
     )
 
 
