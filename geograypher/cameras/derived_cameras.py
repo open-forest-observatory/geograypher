@@ -18,6 +18,7 @@ def update_lists(
     cam_to_world_transforms,
     image_filenames,
     sensor_IDs,
+    original_image_folder=None,
 ):
     transform = camera.find("transform")
     if transform is None:
@@ -27,8 +28,14 @@ def update_lists(
     cam_to_world_transforms.append(np.fromstring(transform.text, sep=" ").reshape(4, 4))
 
     # The label should contain the image path
-    # TODO see if we want to do any fixup here, or punt to automate-metashape
-    image_filenames.append(Path(image_folder, camera.get("label")))
+    # Get the image filename stored in the label field
+    image_filename = Path(camera.get("label"))
+    if original_image_folder is not None:
+        # The original paths are often absolute, corresponding to where the images used for metashape
+        # were. The new images may be different, so we can make the path relative to this folder.
+        image_filename = image_filename.relative_to(original_image_folder)
+    # Prepend the current path of the images on disk
+    image_filenames.append(Path(image_folder, image_filename))
     # This says which sensor model it came from
     sensor_IDs.append(int(camera.get("sensor_id")))
     # Try to get the lat lon information
@@ -39,14 +46,24 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         self,
         camera_file: PATH_TYPE,
         image_folder: PATH_TYPE,
+        original_image_folder: typing.Optional[PATH_TYPE] = None,
         validate_images: bool = False,
         default_sensor_params: dict = {},
     ):
         """Parse the information about the camera intrinsics and extrinsics
 
         Args:
-            camera_file (PATH_TYPE): Path to metashape .xml export
-            image_folder: (PATH_TYPE): Path to image folder root
+            camera_file (PATH_TYPE):
+                Path to metashape .xml export
+            image_folder (PATH_TYPE):
+                Path to image folder root
+            original_image_folder (PATH_TYPE, optional):
+                Path to where the original images for photogrammetry were. This is removed from the
+                absolute path recorded in the file. Defaults to None.
+            validate_images (bool, optional):
+                Should you ensure that the images are present on disk. Defaults to False.
+            default_sensor_params (dict, optional):
+                Default parameters for the intrinsic parameters if not present. Defaults to None.
 
         Raises:
             ValueError: If camera calibration does not contain the f, cx, and cy params
@@ -78,15 +95,16 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                         cam_to_world_transforms,
                         image_filenames,
                         sensor_IDs,
+                        original_image_folder=original_image_folder,
                     )
             else:
-                # 4x4 transform
                 update_lists(
                     cam_or_group,
                     image_folder,
                     cam_to_world_transforms,
                     image_filenames,
                     sensor_IDs,
+                    original_image_folder=original_image_folder,
                 )
 
         # Compute the lat lon using the transforms, because the reference values recorded in the file
