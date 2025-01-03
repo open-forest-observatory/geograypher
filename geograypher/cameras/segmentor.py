@@ -53,3 +53,21 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
 
     def n_image_channels(self) -> int:
         return self.segmentor.num_classes
+
+    def get_subset_with_valid_segmentation(self) -> "SegmentorPhotogrammetryCameraSet":
+        """Get a new camera set consisting of all images that have a valid segmentation result
+
+        Returns:
+            SegmentorPhotogrammetryCameraSet: The subset of cameras with valid segmentation
+        """
+        valid_inds = []
+        for i in range(len(self)):
+            try:
+                # Try to get the segmented result
+                self.get_image_by_index(i)
+                # If successful, append it to the list of valid IDs
+                valid_inds.append(i)
+            except:
+                pass
+        # Return the valid subset
+        return self.get_subset_cameras(valid_inds)
