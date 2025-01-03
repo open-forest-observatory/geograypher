@@ -57,6 +57,10 @@ EXAMPLE_CAMERAS_FILENAME = Path(
 EXAMPLE_DTM_FILE = Path(EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_DTM.tif")
 # The image folder used to create the Metashape project
 EXAMPLE_IMAGE_FOLDER = Path(EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_images")
+# The orthomosaic
+EXAMPLE_ORTHO_FILENAME = Path(
+    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_ortho.tif"
+)
 
 ## Define the intermediate results
 # Processed geo file
@@ -70,6 +74,10 @@ EXAMPLE_RENDERED_LABELS_FOLDER = Path(
     EXAMPLE_SEGMENTATION_TASK_DATA,
     "intermediate_results",
     "rendered_labels",
+)
+# Tiles from the orthomosaic
+EXAMPLE_ORTHO_TILES_FOLDER = Path(
+    EXAMPLE_SEGMENTATION_TASK_DATA, "intermediate_results", "ortho_tiles"
 )
 # Predicted images from a segementation algorithm
 # TODO update this to real data
