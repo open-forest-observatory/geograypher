@@ -1018,6 +1018,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#geograypher.cameras.SegmentorPhotogrammetryCameraSet.get_subset_with_valid_segmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_subset_with_valid_segmentation
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1561,6 +1570,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#geograypher.cameras.SegmentorPhotogrammetryCameraSet.get_subset_with_valid_segmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;get_subset_with_valid_segmentation
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1664,7 +1682,25 @@
 <span class="normal"><a href="#__codelineno-0-52">52</a></span>
 <span class="normal"><a href="#__codelineno-0-53">53</a></span>
 <span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="k">class</span> <span class="nc">SegmentorPhotogrammetryCameraSet</span><span class="p">(</span><span class="n">PhotogrammetryCameraSet</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="k">class</span> <span class="nc">SegmentorPhotogrammetryCameraSet</span><span class="p">(</span><span class="n">PhotogrammetryCameraSet</span><span class="p">):</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12"></a>        <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13"></a>        <span class="n">base_camera_set</span><span class="p">:</span> <span class="n">PhotogrammetryCameraSet</span><span class="p">,</span>
@@ -1710,6 +1746,24 @@
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">def</span> <span class="nf">n_image_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">segmentor</span><span class="o">.</span><span class="n">num_classes</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="k">def</span> <span class="nf">get_subset_with_valid_segmentation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SegmentorPhotogrammetryCameraSet&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a new camera set consisting of all images that have a valid segmentation result</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">            SegmentorPhotogrammetryCameraSet: The subset of cameras with valid segmentation</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">valid_inds</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>                <span class="c1"># Try to get the segmented result</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">get_image_by_index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>                <span class="c1"># If successful, append it to the list of valid IDs</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>                <span class="n">valid_inds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>            <span class="k">except</span><span class="p">:</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>                <span class="k">pass</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="c1"># Return the valid subset</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_subset_cameras</span><span class="p">(</span><span class="n">valid_inds</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -1822,6 +1876,83 @@
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="c1"># This should allow all un-overridden methods to work as expected</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">cameras</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_camera_set</span><span class="o">.</span><span class="n">cameras</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="geograypher.cameras.SegmentorPhotogrammetryCameraSet.get_subset_with_valid_segmentation" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">get_subset_with_valid_segmentation</span><span class="p">()</span></code>
+
+<a href="#geograypher.cameras.SegmentorPhotogrammetryCameraSet.get_subset_with_valid_segmentation" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Get a new camera set consisting of all images that have a valid segmentation result</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>SegmentorPhotogrammetryCameraSet</code></td>            <td>
+                  <code><a class="autorefs autorefs-internal" title="geograypher.cameras.segmentor.SegmentorPhotogrammetryCameraSet" href="#geograypher.cameras.SegmentorPhotogrammetryCameraSet">SegmentorPhotogrammetryCameraSet</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The subset of cameras with valid segmentation</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>geograypher/cameras/segmentor.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#__codelineno-0-73">73</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="k">def</span> <span class="nf">get_subset_with_valid_segmentation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SegmentorPhotogrammetryCameraSet&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a new camera set consisting of all images that have a valid segmentation result</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">        SegmentorPhotogrammetryCameraSet: The subset of cameras with valid segmentation</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="n">valid_inds</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>            <span class="c1"># Try to get the segmented result</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">get_image_by_index</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>            <span class="c1"># If successful, append it to the list of valid IDs</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>            <span class="n">valid_inds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="k">except</span><span class="p">:</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>            <span class="k">pass</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="c1"># Return the valid subset</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_subset_cameras</span><span class="p">(</span><span class="n">valid_inds</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
