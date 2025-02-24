@@ -2083,6 +2083,19 @@ class TexturedPhotogrammetryMesh:
                     order=(0 if self.is_discrete_texture() else 1),
                 )
 
+            if cast_to_uint8:
+                # Deterimine values that cannot be represented as uint8
+                mask = np.logical_or.reduce(
+                    [
+                        rendered < 0,
+                        rendered > 255,
+                        np.logical_not(np.isfinite(rendered)),
+                    ]
+                )
+                rendered[mask] = uint8_value_for_null_texture
+                # Cast and squeeze since you can't save a one-channel image
+                rendered = np.squeeze(rendered.astype(np.uint8))
+
             if make_composites:
                 RGB_image = camera_set[i].get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
@@ -2096,19 +2109,6 @@ class TexturedPhotogrammetryMesh:
                 # Clip channels if needed
                 if rendered.ndim == 3:
                     rendered = rendered[..., :3]
-
-            if cast_to_uint8:
-                # Deterimine values that cannot be represented as uint8
-                mask = np.logical_or.reduce(
-                    [
-                        rendered < 0,
-                        rendered > 255,
-                        np.logical_not(np.isfinite(rendered)),
-                    ]
-                )
-                rendered[mask] = uint8_value_for_null_texture
-                # Cast and squeeze since you can't save a one-channel image
-                rendered = np.squeeze(rendered.astype(np.uint8))
 
             # Saving
             output_filename = Path(
