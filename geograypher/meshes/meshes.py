@@ -6,6 +6,7 @@ import typing
 from pathlib import Path
 from time import time
 
+import fiona
 import geopandas as gpd
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -482,7 +483,7 @@ class TexturedPhotogrammetryMesh:
                         vector_source=texture,
                     )
                     self.logger.warn("- success")
-                except IndexError:
+                except (IndexError, fiona.errors.DriverError):
                     self.logger.warn("- failed")
 
             # Raster file
