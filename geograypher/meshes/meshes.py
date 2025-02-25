@@ -1656,6 +1656,7 @@ class TexturedPhotogrammetryMesh:
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
         render_img_scale: float = 1,
+        return_camera=False,
         **pix2face_kwargs,
     ):
         """
@@ -1707,7 +1708,7 @@ class TexturedPhotogrammetryMesh:
             )
 
             # Iterate over the batch dimension
-            for pix2face in batch_pix2face:
+            for i, pix2face in enumerate(batch_pix2face):
                 # Record the original shape of the image
                 img_shape = pix2face.shape[:2]
                 # Flatten for indexing
@@ -1724,7 +1725,11 @@ class TexturedPhotogrammetryMesh:
                 ]
                 # reshape to an image, where the last dimension is the texture dimension
                 rendered_img = rendered_flattened.reshape(img_shape + (texture_dim,))
-                yield rendered_img
+
+                if return_camera:
+                    yield (rendered_img, batch_cameras[i])
+                else:
+                    yield rendered_img
 
     def project_images(
         self,
@@ -2055,25 +2060,25 @@ class TexturedPhotogrammetryMesh:
         # Create the generator object to render the images
         # Since this is a generator, this will be fast
         render_gen = self.render_flat(
-            camera_set, render_img_scale=render_image_scale, **render_kwargs
+            camera_set,
+            render_img_scale=render_image_scale,
+            return_camera=True,
+            **render_kwargs,
         )
 
         # The computation only happens when items are requested from the generator
-        for i, rendered in enumerate(
-            tqdm(
-                render_gen,
-                total=len(camera_set),
-                desc="Computing and saving renders",
-            )
+        for rendered, camera in tqdm(
+            render_gen,
+            total=len(camera_set),
+            desc="Computing and saving renders",
         ):
             ## All this is post-processing to visualize the rendered label.
             # rendered could either be a one channel image of integer IDs,
             # a one-channel image of scalars, or a three-channel image of
             # RGB. It could also be multi-channel image corresponding to anything,
             # but we don't expect that yet
-
             if save_native_resolution and render_image_scale != 1:
-                native_size = camera_set[i].get_image_size()
+                native_size = camera.get_image_size()
                 # Upsample using nearest neighbor interpolation for discrete labels and
                 # bilinear for non-discrete
                 # TODO this will need to be fixed for multi-channel images since I don't think resize works
@@ -2097,7 +2102,7 @@ class TexturedPhotogrammetryMesh:
                 rendered = np.squeeze(rendered.astype(np.uint8))
 
             if make_composites:
-                RGB_image = camera_set[i].get_image(
+                RGB_image = camera.get_image(
                     image_scale=(1.0 if save_native_resolution else render_image_scale)
                 )
                 rendered = create_composite(
@@ -2111,9 +2116,10 @@ class TexturedPhotogrammetryMesh:
                     rendered = rendered[..., :3]
 
             # Saving
-            output_filename = Path(
-                output_folder, camera_set.get_image_filename(i, absolute=False)
+            camera_filename = camera.get_image_filename().relative_to(
+                camera_set.image_folder
             )
+            output_filename = Path(output_folder, camera_filename)
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
