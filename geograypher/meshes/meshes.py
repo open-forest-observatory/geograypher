@@ -1656,7 +1656,7 @@ class TexturedPhotogrammetryMesh:
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
         batch_size: int = 1,
         render_img_scale: float = 1,
-        return_camera=False,
+        return_camera: bool = False,
         **pix2face_kwargs,
     ):
         """
@@ -1672,6 +1672,8 @@ class TexturedPhotogrammetryMesh:
             render_img_scale (float, optional):
                 The rendered image will be this fraction of the original image corresponding to the
                 virtual camera. Defaults to 1.
+            return_camera (bool, optional):
+                Should the camera be yielded as the second value
 
         Raises:
             TypeError: If cameras is not the correct type
