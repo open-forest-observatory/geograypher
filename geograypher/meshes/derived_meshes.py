@@ -193,6 +193,12 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
             for render_item in render_gen:
                 yield render_item
 
+            # This is another attempt to free memory
+            sub_mesh_TPM.pix2face_plotter.deep_clean()
+            # There's a strange memory leak, I think it may be because of the sub-mesh sticking around
+            print("About to delete sub mesh")
+            del sub_mesh_TPM
+
     def aggregate_projected_images(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
