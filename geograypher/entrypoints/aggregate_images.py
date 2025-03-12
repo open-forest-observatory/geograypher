@@ -1,7 +1,7 @@
 import argparse
+import math
 import typing
 from pathlib import Path
-import math
 
 import numpy as np
 
