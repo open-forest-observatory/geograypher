@@ -1,6 +1,7 @@
 import argparse
 import typing
 from pathlib import Path
+import math
 
 import numpy as np
 
@@ -29,6 +30,7 @@ def aggregate_images(
     IDs_to_labels: typing.Union[dict, None] = None,
     mesh_downsample: float = 1.0,
     n_aggregation_clusters: typing.Union[int, None] = None,
+    n_cameras_per_aggregation_cluster: typing.Union[int, None] = None,
     aggregate_image_scale: float = 1.0,
     aggregated_face_values_savefile: typing.Union[PATH_TYPE, None] = None,
     predicted_face_classes_savefile: typing.Union[PATH_TYPE, None] = None,
@@ -74,6 +76,9 @@ def aggregate_images(
             quality. Defaults to 1.0.
         n_aggregation_clusters (typing.Union[int, None]):
             If set, aggregate with this many clusters. Defaults to None.
+        n_cameras_per_aggregation_cluster (typing.Union[int, None]):
+            If set, and n_aggregation_clusters is not, use to compute a number of clusters such that
+            each cluster has this many cameras. Defaults to None.
         aggregate_image_scale (float, optional):
             Downsample the labels before aggregation for faster runtime but lower quality. Defaults
             to 1.0.
@@ -115,6 +120,13 @@ def aggregate_images(
 
     if mesh_transform_file is None:
         mesh_transform_file = cameras_file
+
+    # If the number of aggregation clusters is not set but the number of cameras per cluster is,
+    # then compute it
+    if n_aggregation_clusters is None and n_cameras_per_aggregation_cluster is not None:
+        n_aggregation_clusters = int(
+            math.ceil(len(camera_set) / n_cameras_per_aggregation_cluster)
+        )
 
     # Choose whether to use a mesh class that aggregates by clusters of cameras and chunks of the mesh
     MeshClass = (
@@ -192,7 +204,7 @@ def aggregate_images(
         # This ensures that any missing keys are replaced with None so proper indexing is retained
         label_names = [
             IDs_to_labels.get(i, None)
-            for i in range(max(list(IDs_to_labels.keys()) + 1))
+            for i in range(max(list(IDs_to_labels.keys())) + 1)
         ]
     else:
         label_names = None
