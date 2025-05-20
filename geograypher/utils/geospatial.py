@@ -88,7 +88,7 @@ def ensure_non_overlapping_polygons(
     areas = [geom.area for geom in geometries]
     sorted_inds = np.argsort(areas)
 
-    for ind in sorted_inds:
+    for ind in tqdm(sorted_inds):
         # Get the input geometry and ensure it's valid
         geom = make_valid(geometries[ind])
         # Subtract the union of all

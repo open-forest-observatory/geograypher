@@ -48,7 +48,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         image_folder: PATH_TYPE,
         original_image_folder: typing.Optional[PATH_TYPE] = None,
         validate_images: bool = False,
-        default_sensor_params: dict = {},
+        default_sensor_params: dict = {"cx":0.0, "cy":0.0},
     ):
         """Parse the information about the camera intrinsics and extrinsics
 
@@ -63,7 +63,8 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             validate_images (bool, optional):
                 Should you ensure that the images are present on disk. Defaults to False.
             default_sensor_params (dict, optional):
-                Default parameters for the intrinsic parameters if not present. Defaults to None.
+                Default parameters for the intrinsic parameters if not present. Defaults to zeros
+                "cx" and "cy".
 
         Raises:
             ValueError: If camera calibration does not contain the f, cx, and cy params
@@ -78,7 +79,6 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         sensors = chunk.find("sensors")
         # Parse the sensors representation
         sensors_dict = parse_sensors(sensors, default_sensor_dict=default_sensor_params)
-
         # Set up the lists to populate
         image_filenames = []
         cam_to_world_transforms = []
