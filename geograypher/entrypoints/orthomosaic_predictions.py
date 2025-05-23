@@ -3,8 +3,8 @@ import logging
 from pathlib import Path
 
 from geograypher.predictors.ortho_segmentor import (
-    write_chips,
     assemble_tiled_predictions,
+    write_chips,
 )
 
 
