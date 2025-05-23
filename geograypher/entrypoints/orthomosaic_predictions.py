@@ -2,7 +2,10 @@ import argparse
 import logging
 from pathlib import Path
 
-from geograypher.predictors import OrthoSegmentor
+from geograypher.predictors.ortho_segmentor import (
+    assemble_tiled_predictions,
+    write_chips,
+)
 
 
 def parse_args():
@@ -14,17 +17,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("raster_image_file", help="Path to raster tile")
+    parser.add_argument("raster_file", help="Path to raster tile")
+    parser.add_argument("--vector-label-file", help="Path to vector label file.")
     parser.add_argument(
-        "--vector-label-file",
-        help="Path to vector label file. Cannot be used with --raster-label-file",
+        "--vector-label-column",
+        help="Which column in the vector data to use as the label. This column should be integer values. If unset the index will be used.",
     )
     parser.add_argument(
-        "--raster-label-file",
-        help="Path to raster label file. Cannot be used with --vector-label-file",
+        "--write-empty-tiles",
+        action="store_true",
+        help="Write out training tiles that contain no labeled information",
     )
-
-    parser.add_argument("--class-names", nargs="+")
 
     parser.add_argument(
         "--chip-size", type=int, default=2048, help="Size of chips in pixels"
@@ -43,13 +46,6 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--brightness-multiplier",
-        type=float,
-        default=1.0,
-        help="Multiplier on chip brightness",
-    )
-
-    parser.add_argument(
         "--training-chips-folder",
         type=Path,
         help="Run chipping for training and export to this folder",
@@ -64,7 +60,6 @@ def parse_args():
         type=Path,
         help="Run aggregation using chipts from this folder",
     )
-    parser.add_argument("--class-names", nargs="+")
     parser.add_argument(
         "--aggregated-savefile",
         type=Path,
@@ -92,29 +87,25 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=args.log_level.upper())
 
-    logging.info("Loading data for ortho segmentor class")
-    ortho_seg = OrthoSegmentor(
-        raster_input_file=args.raster_image_file,
-        vector_label_file=args.vector_label_file,
-        raster_label_file=args.raster_label_file,
-        class_names=args.class_names,
-        chip_size=args.chip_size,
-        training_stride=int(args.training_stride_fraction * args.chip_size),
-        inference_stride=int(args.inference_stride_fraction * args.chip_size),
-        class_names=args.class_names,
-    )
-
     if args.training_chips_folder is not None:
         logging.info(f"Writing training chips to {args.training_chips_folder}")
-        ortho_seg.write_training_chips(
-            args.training_chips_folder, brightness_multiplier=args.brightness_multiplier
+        write_chips(
+            raster_file=args.raster_file,
+            output_folder=args.training_chips_folder,
+            chip_size=args.chip_size,
+            chip_stride=int(args.training_stride_fraction * args.chip_size),
+            label_vector_file=args.vector_label_file,
+            label_column=args.vector_label_column,
+            write_empty_tile=args.write_empty_tiles,
         )
 
     if args.inference_chips_folder is not None:
         logging.info(f"Writing inference chips to {args.inference_chips_folder}")
-        ortho_seg.write_inference_chips(
-            args.inference_chips_folder,
-            brightness_multiplier=args.brightness_multiplier,
+        write_chips(
+            raster_file=args.raster_file,
+            output_folder=args.inference_chips_folder,
+            chip_size=args.chip_size,
+            chip_stride=int(args.inference_stride_fraction * args.chip_size),
         )
 
     if args.prediction_chips_folder is not None:
@@ -126,8 +117,9 @@ if __name__ == "__main__":
                 else f" and saving to {args.aggregated_savefile}"
             )
         )
-        ortho_seg.assemble_tiled_predictions(
-            sorted(args.prediction_chips_folder.glob("*")),
+        assemble_tiled_predictions(
+            raster_input_file=args.raster_file,
+            pred_files=sorted(args.prediction_chips_folder.glob("*")),
             class_savefile=args.aggregated_savefile,
             downweight_edge_frac=args.downweight_edge_frac,
         )
