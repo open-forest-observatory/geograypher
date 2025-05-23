@@ -102,12 +102,14 @@ def write_chips(
     label_vector_file=None,
     label_column=None,
     label_remap=None,
+    write_empty_tile=False,
     drop_transparency=True,
     remove_old=True,
     output_suffix=".JPG",
     ROI_file=None,
     background_ind=NULL_TEXTURE_INT_VALUE,
 ):
+    # Remove the existing directory
     if remove_old and os.path.isdir(output_folder):
         shutil.rmtree(output_folder)
 
@@ -184,6 +186,13 @@ def write_chips(
                     fill=background_ind,
                 )
                 labels_raster = labels_raster.astype(np.uint8)
+                # See if we should skip this tile since it's only background data
+                if not write_empty_tile and np.all(
+                    labels_raster == NULL_TEXTURE_INT_VALUE
+                ):
+                    continue
+
+                # Write out the label
                 output_file_name = Path(
                     labels_folder,
                     get_str_from_window(
