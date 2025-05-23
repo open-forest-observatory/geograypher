@@ -21,12 +21,7 @@ def parse_args():
     parser.add_argument("--vector-label-file", help="Path to vector label file.")
     parser.add_argument(
         "--vector-label-column",
-        help="Which column in the vector data to use as the label. This column should be integer values or `vector-label-remap` should be set to remap to integers. If unset the index will be used.",
-    )
-    parser.add_argument(
-        "--vector-label-remap",
-        help="A dictionary mapping from the values in the `vector-label-column` of `vector-label-file` to integer values.",
-        type=dict,
+        help="Which column in the vector data to use as the label. This column should be integer values. If unset the index will be used.",
     )
     parser.add_argument(
         "--write-empty-tiles",
@@ -101,7 +96,6 @@ if __name__ == "__main__":
             chip_stride=int(args.training_stride_fraction * args.chip_size),
             label_vector_file=args.vector_label_file,
             label_column=args.vector_label_column,
-            label_remap=args.vector_label_remap,
             write_empty_tile=args.write_empty_tiles,
         )
 
