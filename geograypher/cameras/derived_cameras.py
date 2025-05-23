@@ -48,7 +48,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         image_folder: PATH_TYPE,
         original_image_folder: typing.Optional[PATH_TYPE] = None,
         validate_images: bool = False,
-        default_sensor_params: dict = {"cx":0.0, "cy":0.0},
+        default_sensor_params: dict = {"cx": 0.0, "cy": 0.0},
     ):
         """Parse the information about the camera intrinsics and extrinsics
 
