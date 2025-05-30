@@ -8,7 +8,7 @@ In drone surveys, multiple overlapping images are taken of a region. A common te
 One task that this can support is multiview classification. For example, if you have a computer vision model that generates land cover classifications (for example trees, shrubs, grasses, and bare earth) for each pixel in an image, these predictions can be transferred to the mesh. Then, the predictions for each viewpoint can be aggregated using a voting or averaging scheme to come up with a final land cover prediction for that location. The other task is effectively the reverse. If you have the data from the field, for example marking one geospatial region as shrubs and another as grasses, you can determine which portions of each image corresponds to these classes. This information can be used to train a computer vision model, that could be used in the first step.
 
 ### Basic Installation
-Internal Collaborators please navigate [here](https://docs.openforestobservatory.org/internal-docs/)
+Internal Collaborators please navigate [here](https://docs.openforestobservatory.org/internal-docs/jetstream/#geograypher)
 
 Create and activate a conda environment:
 
