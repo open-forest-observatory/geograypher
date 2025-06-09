@@ -1,14 +1,13 @@
 import os
 import shutil
 import tempfile
-import typing
 from pathlib import Path
+from typing import Optional, Union
 
 import geopandas as gpd
 import numpy as np
 import rasterio as rio
 from imageio import imwrite
-from IPython.core.debugger import set_trace
 from rasterio.features import rasterize
 from rasterio.plot import reshape_as_image
 from rasterio.transform import AffineTransformer
@@ -95,31 +94,70 @@ def pad_to_full_size(img, desired_size):
 
 
 def write_chips(
-    raster_file,
-    output_folder,
-    chip_size,
-    chip_stride,
-    label_vector_file=None,
-    label_column=None,
-    label_remap=None,
-    write_empty_tile=False,
-    drop_transparency=True,
-    remove_old=True,
-    output_suffix=".JPG",
-    ROI_file=None,
-    background_ind=NULL_TEXTURE_INT_VALUE,
+    raster_file: PATH_TYPE,
+    output_folder: PATH_TYPE,
+    chip_size: int,
+    chip_stride: int,
+    label_vector_file: Optional[PATH_TYPE] = None,
+    label_column: Optional[str] = None,
+    label_remap: Optional[dict] = None,
+    write_empty_tiles: bool = False,
+    drop_transparency: bool = True,
+    remove_old: bool = True,
+    output_suffix: str = ".JPG",
+    ROI_file: Optional[PATH_TYPE] = None,
+    background_ind: int = NULL_TEXTURE_INT_VALUE,
 ):
+    """Take raster data and tile it for machine learning training or inference
+
+    Args:
+        raster_file (PATH_TYPE):
+            Path to the raster file to tile.
+        output_folder (PATH_TYPE):
+            Where to write the tiled outputs.
+        chip_size (int):
+            Size of the square chip in pixels.
+        chip_stride (int):
+            The stride in pixels between sliding window tiles.
+        label_vector_file (Optional[PATH_TYPE], optional):
+            A path to a vector geofile for the same region as the raster file. If provided, a
+            parellel folder structure will be written to the chipped images that contains the
+            corresponding rasterized data from the vector file. This is primarily useful for
+            generating training data for ML. Defaults to None.
+        label_column (Optional[str], optional):
+            Which column to use within the provided file. If not provided, the index will be used.
+            Defaults to None.
+        label_remap (Optional[dict], optional):
+            A dictionary mapping from the values in the `label_column` to integers that will be used
+            for rasterization. Defaults to None.
+        write_empty_tiles (bool, optional):
+            Should tiles with no vector data be written. Defaults to False.
+        drop_transparency (bool, optional):
+            Should the forth channel be dropped if present. Defaults to True.
+        remove_old (bool, optional):
+            Remove `output_folder` if present. Defaults to True.
+        output_suffix (str, optional):
+            Suffix for written imagery files. Defaults to ".JPG".
+        ROI_file (Optional[PATH_TYPE], optional):
+            Path to a geospatial region of interest to restrict tile generation to. Defaults to None.
+        background_ind (int, optional):
+            If labels are written, any un-labeled region will have this value.
+            Defaults to `NULL_TEXTURE_INT_VALUE`.
+    """
     # Remove the existing directory
     if remove_old and os.path.isdir(output_folder):
         shutil.rmtree(output_folder)
 
+    # Read the labels if provided
     if label_vector_file is not None:
         label_gdf = gpd.read_file(label_vector_file)
     else:
         label_gdf = None
 
+    # Open the raster file
     with rio.open(raster_file, "r") as dataset:
         working_CRS = dataset.crs
+        # Create a list of windows for reading
         windows = create_windows(
             dataset_h_w=(dataset.height, dataset.width),
             window_size=chip_size,
@@ -187,7 +225,7 @@ def write_chips(
                 )
                 labels_raster = labels_raster.astype(np.uint8)
                 # See if we should skip this tile since it's only background data
-                if not write_empty_tile and np.all(
+                if not write_empty_tiles and np.all(
                     labels_raster == NULL_TEXTURE_INT_VALUE
                 ):
                     continue
@@ -233,32 +271,44 @@ def write_chips(
 
 
 def assemble_tiled_predictions(
-    raster_input_file: PATH_TYPE,
-    pred_files: list[PATH_TYPE],
+    raster_file: PATH_TYPE,
+    pred_folder: PATH_TYPE,
     class_savefile: PATH_TYPE,
     num_classes: int,
-    counts_savefile: typing.Union[PATH_TYPE, None] = None,
+    counts_savefile: Union[PATH_TYPE, None] = None,
     downweight_edge_frac: float = 0.25,
-    nodataval: typing.Union[int, None] = NULL_TEXTURE_INT_VALUE,
+    nodataval: Union[int, None] = NULL_TEXTURE_INT_VALUE,
     count_dtype: type = np.uint8,
     max_overlapping_tiles: int = 4,
 ):
     """Take tiled predictions on disk and aggregate them into a raster
 
     Args:
-        pred_files (list[PATH_TYPE]): List of filenames where predictions are written
-        class_savefile (PATH_TYPE): Where to save the merged raster.
+        raster_file (PATH_TYPE):
+            Path to the raster file used to generate chips. This is required only to understand the
+            geospatial reference.
+        pred_folder (PATH_TYPE):
+            A folder where every file is a prediction for a tile. The filename must encode the
+            bounds of the windowed crop.
+        class_savefile (PATH_TYPE):
+            Where to save the merged raster.
         counts_savefile (typing.Union[PATH_TYPE, NoneType], optional):
             Where to save the counts for the merged predictions raster.
             A tempfile will be created and then deleted if not specified. Defaults to None.
-        downweight_edge_frac (float, optional): Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
-        nodataval: (typing.Union[int, None]): Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255
-        count_dtype (type, optional): What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
+        downweight_edge_frac (float, optional):
+            Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
+        nodataval: (typing.Union[int, None]):
+            Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255
+        count_dtype (type, optional):
+            What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
         max_overlapping_tiles (int):
             The max number of prediction tiles that may overlap at a given point. This is used to upper bound the valud in the count matrix,
             because we use scaled np.uint8 values rather than floats for efficiency. Setting a lower value enables slightly more accuracy in the
             aggregation process, but too low can lead to overflow. Defaults to 4
     """
+    # Find the filenames of tiled predictions
+    pred_files = [f for f in pred_folder.glob("*") if f.is_file()]
+
     # Set nodataval to the first unused class ID
     if nodataval is None:
         nodataval = num_classes
@@ -277,7 +327,7 @@ def assemble_tiled_predictions(
     windows, extent = parse_windows_from_files(pred_files, return_in_extent_coords=True)
 
     # Aggregate predictions
-    with rio.open(raster_input_file) as src:
+    with rio.open(raster_file) as src:
         # Create file to store counts that is the same as the input raster except it has num_classes number of bands
         # TODO make this only the size of the extent computed by parse_windows_from_files
         extent_transform = src.window_transform(extent)
