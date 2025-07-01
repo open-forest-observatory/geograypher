@@ -2,6 +2,7 @@ import os
 import typing
 from pathlib import Path
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -302,3 +303,113 @@ class TabularRectangleSegmentor(Segmentor):
         # Average the left-right, top-bottom pairs
         centers = np.vstack([(imin + imax) / 2, (jmin + jmax) / 2]).T
         return centers
+
+
+class RegionDetectionSegmentor(Segmentor):
+    def __init__(
+        self,
+        detection_file_or_folder: PATH_TYPE,
+        image_file_extension: str = ".JPG",
+        strip_image_extension: bool = False,
+        use_absolute_filepaths: bool = False,
+        image_folder: typing.Union[PATH_TYPE, None] = None,
+    ):
+        """Lookup region detections from .gpkg files using geopandas.
+
+        Assumes that each .gpkg filename matches the corresponding image filename
+        (with different extension).
+
+        Args:
+            detection_file_or_folder (PATH_TYPE):
+                Path to the .gpkg file with detections or a folder thereof
+            image_file_extension (str, optional):
+                The file extension for the image files (e.g., ".jpg", ".png"). Defaults to ".jpg".
+            strip_image_extension (bool, optional):
+                Remove the extension from the image filenames. Defaults to False.
+            use_absolute_filepaths (bool, optional):
+                Add the absolute path from the image folder to the filenames. Defaults to False.
+            image_folder (PATH_TYPE, optional):
+                Path to the image folder. Defaults to None.
+        """
+        self.image_file_extension = image_file_extension
+
+        # Load the detections
+        self.labels_gdf = self.load_detection_files(
+            detection_file_or_folder=detection_file_or_folder,
+            image_folder=image_folder,
+            use_absolute_filepaths=use_absolute_filepaths,
+            strip_image_extension=strip_image_extension,
+        )
+
+        # Group the predictions by image name (derived from .gpkg filename)
+        self.grouped_labels_gdf = self.labels_gdf.groupby(by="image_name")
+
+        # List the images
+        self.image_names = list(self.grouped_labels_gdf.groups.keys())
+
+    def load_detection_files(
+        self,
+        detection_file_or_folder: PATH_TYPE,
+        image_folder: PATH_TYPE,
+        use_absolute_filepaths: bool,
+        strip_image_extension: bool,
+    ) -> pd.DataFrame:
+        # Determine whether the input is a file or folder
+        if Path(detection_file_or_folder).is_file():
+            # If it's a file, make a one-length list
+            files = [detection_file_or_folder]
+        else:
+            # List all the .gpkg files in the folder
+            files = sorted(Path(detection_file_or_folder).glob("*.gpkg"))
+
+        # Read the individual files using geopandas and add image name column
+        gdfs = []
+        for f in files:
+            gdf = gpd.read_file(f)
+            # Extract image name from .gpkg filename and add the image extension
+            image_name = (
+                f.stem + self.image_file_extension
+            )  # filename with image extension
+
+            # Prepend the image folder if requested
+            if image_folder is not None and use_absolute_filepaths:
+                image_name = str(Path(image_folder, image_name))
+
+            # Strip the extension if requested
+            if strip_image_extension:
+                image_name = str(Path(image_name).with_suffix(""))
+
+            # Add image name column to the geodataframe
+            gdf["image_name"] = image_name
+            gdfs.append(gdf)
+
+        # Concatenate the geodataframes into one
+        labels_gdf = pd.concat(gdfs, ignore_index=True)
+
+        return labels_gdf
+
+    def get_detection_centers(self, filename: str) -> np.ndarray:
+        """Get the centers of all detections for a given image filename.
+
+        Args:
+            filename: The image filename to get detection centers for.
+
+        Returns:
+            np.ndarray: (n,2) array for (i,j) centers for each detection
+        """
+        if filename not in self.image_names:
+            # Empty array of detection centers
+            return np.zeros((0, 2))
+
+        # Extract the corresponding geodataframe
+        gdf = self.grouped_labels_gdf.get_group(filename)
+
+        # Calculate centers from geometry centroids
+        centers = []
+        for _, row in gdf.iterrows():
+            # Get the centroid of the geometry (in pixel coordinates)
+            centroid = row.geometry.centroid
+            # Convert to (i, j) coordinates - note that geopandas uses (x, y) = (j, i)
+            centers.append([centroid.y, centroid.x])  # (i, j) format
+
+        return np.array(centers)

@@ -829,7 +829,14 @@ class PhotogrammetryCameraSet:
         if absolute:
             return Path(filename)
         else:
-            return Path(filename).relative_to(self.get_image_folder())
+            # THIS IS A HACK UNTIL CONSULTING DAVID - it's necessary because the images I
+            # ran segmentation on are not the same as those saved in camera.xml
+            try:
+                return Path(filename).relative_to(self.get_image_folder())
+            except ValueError:
+                path = self.get_image_folder() / filename.name
+                assert path.is_file()
+                return path
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
