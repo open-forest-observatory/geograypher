@@ -55,7 +55,8 @@ def main(
         transform_to_epsg_4978=mesh.local_to_epgs_4978_transform,
         similarity_threshold_meters=similarity_threshold_meters,
         louvain_resolution=louvain_resolution,
-        vis=True,
+        vis=False,
+        vis_dir=output_dir,
         plotter=plotter,
     )
 
@@ -68,23 +69,6 @@ def main(
         df, geometry=[Point(x, y, z) for x, y, z in tree_points], crs="EPSG:4978"
     )
     gdf.to_file(geojson_path, driver="GeoJSON")
-
-    # Save the 3D scene as a PLY file
-    ply_path = output_dir / "scene.ply"
-    # Collect all meshes from the plotter
-    combined = pv.PolyData()
-    for actor in plotter.actors.values():
-        try:
-            dataset = actor.mapper.dataset
-            if isinstance(dataset, pv.PolyData):
-                combined += dataset
-            else:
-                combined += dataset.extract_surface()
-        except AttributeError:
-            # Skip non-mesh actors (e.g., scalar bars)
-            continue
-    combined.save(str(ply_path))
-    print(f"Saved 3D visualization to {ply_path}")
 
     print(f"Saved triangulated tree locations to {csv_path} and {geojson_path}")
 

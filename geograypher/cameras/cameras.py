@@ -1,6 +1,8 @@
 import hashlib
 import json
 import logging
+from matplotlib import cm
+from matplotlib.colors import Normalize
 import os
 import re
 import shutil
@@ -955,6 +957,7 @@ class PhotogrammetryCameraSet:
         vis: bool = True,
         plotter: pv.Plotter = pv.Plotter(),
         vis_ray_length_meters: float = 200,
+        vis_dir: PATH_TYPE = None,
     ) -> np.ndarray:
         """Take per-image detections and triangulate them to 3D locations
 
@@ -976,6 +979,8 @@ class PhotogrammetryCameraSet:
                 created. Defaults to pv.Plotter().
             vis_ray_length_meters (float, optional):
                 The length of the visualized rays in meters. Defaults to 200.
+            vis_dir (PATH_TYPE, optional):
+                Directory to save visualization geometries if not None. Defaults to None.
 
         Returns:
             np.ndarray:
@@ -1116,6 +1121,47 @@ class PhotogrammetryCameraSet:
                 label="Triangulated locations",
             )
             plotter.add_legend()
+
+        # Save visualization geometries if vis_dir is given
+        if vis_dir is not None:
+            # Save all_line_segments as cylinders colored by community_IDs
+            cylinders = []
+            norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
+            cmap = cm.get_cmap('tab20')
+            for i, (start, end, comm_id) in enumerate(zip(ray_starts, segment_ends, community_IDs)):
+                # Create a cylinder between start and end
+                center = (start + end) / 2
+                direction = end - start
+                height = np.linalg.norm(direction)
+                if height == 0:
+                    continue
+                direction = direction / height
+                cyl = pv.Cylinder(center=center, direction=direction, radius=0.05, height=height, resolution=4, cap=True)
+                color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
+                cyl['scalars'] = np.full(cyl.n_points, comm_id)
+                cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
+                cylinders.append(cyl)
+            if cylinders:
+                cylinder_polydata = cylinders[0]
+                for c in cylinders[1:]:
+                    cylinder_polydata = cylinder_polydata.merge(c)
+                print("Saving visualized cylinders...")
+                cylinder_polydata.save(vis_dir / "rays.ply", texture="RGB")
+            # Save community_points as red cubes
+            cubes = []
+            for pt in tqdm(community_points, desc="Making point meshes"):
+                cube = pv.Cube(center=pt, x_length=0.2, y_length=0.2, z_length=0.2)
+                cube.point_data['RGB'] = np.tile(np.array([255, 0, 0], dtype=np.uint8), (cube.n_points, 1))
+                cubes.append(cube)
+            if cubes:
+                cube_polydata = cubes[0]
+                for s in cubes[1:]:
+                    cube_polydata = cube_polydata.merge(s)
+                print("Saving visualized cubes...")
+                cube_polydata.save(
+                    vis_dir / "points.ply",
+                    texture=np.tile(np.array([255, 0, 0], dtype=np.uint8), (cube_polydata.n_points, 1)),
+                )
 
         # Convert the intersection points from the local mesh coordinate system to lat lon
         if transform_to_epsg_4978 is not None:
