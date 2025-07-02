@@ -93,12 +93,19 @@ def batched_unary_union(
     )
 
 
-def get_scale_from_transform(transform: typing.Union[np.ndarray, None]):
+def get_scale_from_transform(transform: typing.Union[np.ndarray, None]) -> float:
+    """
+    Returns a scale factor between arbitrary photogrammetry model units and meters.
+    With that scale factor you can compute whichever you need:
+        meters = model units * scale factor
+        meters / scale factor = model units
+    """
+
     if transform is None:
         return 1
 
     if transform.shape != (4, 4):
-        raise ValueError(f"Transform shape was {transform.shape}")
+        raise ValueError(f"Transform shape was {transform.shape}, (4, 4) required")
 
     transform_determinant = np.linalg.det(transform[:3, :3])
     scale_factor = np.cbrt(transform_determinant)

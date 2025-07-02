@@ -34,7 +34,10 @@ def main(
     cameras.cameras = subset_cameras
 
     # Load mesh
-    mesh = TexturedPhotogrammetryMesh(mesh_file)
+    mesh = TexturedPhotogrammetryMesh(mesh_file, transform_filename=camera_xml, require_transform=True)
+    ceiling, floor = mesh.export_covering_meshes(N=600, z_buffer_m=(2, -2), subsample=2)
+    ceiling.save(output_dir / "b2_ceiling.ply")
+    floor.save(output_dir / "b2_floor.ply")
 
     # Load region detector
     detector = RegionDetectionSegmentor(
@@ -47,6 +50,7 @@ def main(
     # Triangulate detections (tree locations) and add lines/points to plotter
     tree_points = cameras.triangulate_detections(
         detector=detector,
+        boundaries=(ceiling, floor),
         transform_to_epsg_4978=mesh.local_to_epgs_4978_transform,
         similarity_threshold_meters=similarity_threshold_meters,
         louvain_resolution=louvain_resolution,

@@ -951,6 +951,7 @@ class PhotogrammetryCameraSet:
     def triangulate_detections(
         self,
         detector: TabularRectangleSegmentor,
+        boundaries: Union[None, tuple]
         transform_to_epsg_4978=None,
         similarity_threshold_meters: float = 0.1,
         louvain_resolution: float = 2,
@@ -964,6 +965,9 @@ class PhotogrammetryCameraSet:
         Args:
             detector (TabularRectangleSegmentor):
                 Produces detections per image using the get_detection_centers method
+            boundaries (typing.Union[None, tuple]):
+                If given, this should be [0] an upper surface and [1] a lower surface. These
+                surfaces will be used to clip the triangulation rays
             transform_to_epsg_4978 (typing.Union[np.ndarray, None], optional):
                 The 4x4 transform to earth centered earth fixed coordinates. Defaults to None.
             similarity_threshold_meters (float, optional):
@@ -1038,7 +1042,7 @@ class PhotogrammetryCameraSet:
 
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
-        interesection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
+        intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
 
         # Calculate the upper triangular matrix of ray-ray interesections
         for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
@@ -1051,18 +1055,18 @@ class PhotogrammetryCameraSet:
                 # TODO explore whether this could be vectorized
                 dist, valid = compute_approximate_ray_intersection(A, a, B, b)
 
-                interesection_dists[i, j] = dist if valid else np.nan
+                intersection_dists[i, j] = dist if valid else np.nan
 
         # Filter out intersections that are above the threshold distance
-        interesection_dists[interesection_dists > similarity_threshold_local] = np.nan
+        intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
 
         # Determine which intersections are valid, represented by finite values
-        i_inds, j_inds = np.where(np.isfinite(interesection_dists))
+        i_inds, j_inds = np.where(np.isfinite(intersection_dists))
 
         # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
         # distance
         positive_edges = [
-            (i, j, {"weight": 1 / interesection_dists[i, j]})
+            (i, j, {"weight": 1 / intersection_dists[i, j]})
             for i, j in zip(i_inds, j_inds)
         ]
 
