@@ -44,11 +44,6 @@ def main(
         image_folder=images_dir,
     )
 
-    # Set up pyvista plotter and add mesh
-    plotter = pv.Plotter(off_screen=True)
-    mesh_poly = pv.read(str(mesh_file))
-    plotter.add_mesh(mesh_poly, name="mesh", rgb=True)
-
     # Triangulate detections (tree locations) and add lines/points to plotter
     tree_points = cameras.triangulate_detections(
         detector=detector,
@@ -57,7 +52,7 @@ def main(
         louvain_resolution=louvain_resolution,
         vis=False,
         vis_dir=output_dir,
-        plotter=plotter,
+        vis_ray_length_meters=30,
     )
 
     # Save results as CSV and GeoJSON
