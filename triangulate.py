@@ -34,8 +34,10 @@ def main(
     cameras.cameras = subset_cameras
 
     # Load mesh
-    mesh = TexturedPhotogrammetryMesh(mesh_file, transform_filename=camera_xml, require_transform=True)
-    ceiling, floor = mesh.export_covering_meshes(N=600, z_buffer_m=(2, -2), subsample=2)
+    mesh = TexturedPhotogrammetryMesh(
+        mesh_file, transform_filename=camera_xml, require_transform=True
+    )
+    ceiling, floor = mesh.export_covering_meshes(N=100, z_buffer_m=(2, 0), subsample=2)
     ceiling.save(output_dir / "b2_ceiling.ply")
     floor.save(output_dir / "b2_floor.ply")
 
@@ -92,7 +94,7 @@ def parse_args():
     parser.add_argument(
         "--similarity_threshold_meters",
         type=float,
-        default=0.1,
+        default=4.0,
         help="Ray intersection threshold in meters",
     )
     parser.add_argument(

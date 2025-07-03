@@ -2195,7 +2195,7 @@ class TexturedPhotogrammetryMesh:
             & (points[:, 1] <= y_grid[index] + cell_h_half)
             for index in range(N)
         }
-        for i, (xi, yi) in enumerate(tqdm(grid_ind)):
+        for i, (xi, yi) in enumerate(tqdm(grid_ind, desc="Building covering meshes")):
             # Find mesh points within the cell
             mask = x_masks[xi] & y_masks[yi]
             z_candidates = points[mask, 2]

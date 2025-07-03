@@ -951,7 +951,7 @@ class PhotogrammetryCameraSet:
     def triangulate_detections(
         self,
         detector: TabularRectangleSegmentor,
-        boundaries: Union[None, tuple]
+        boundaries: Union[None, tuple],
         transform_to_epsg_4978=None,
         similarity_threshold_meters: float = 0.1,
         louvain_resolution: float = 2,
@@ -1040,13 +1040,44 @@ class PhotogrammetryCameraSet:
             ray_directions, axis=1, keepdims=True
         )
 
+        if boundaries is not None:
+            upper = boundaries[0].multi_ray_trace(
+                origins=ray_starts,
+                directions=ray_directions,
+                first_point=True,
+                retry=True,
+            )
+            lower = boundaries[1].multi_ray_trace(
+                origins=ray_starts,
+                directions=ray_directions,
+                first_point=True,
+                retry=True,
+            )
+            # Find the ray indices that were found to intersect with both surfaces
+            matched_set = list(set(upper[1]).intersection(set(lower[1])))
+
+            # Downsample to only the relevant ray indices
+            ray_directions = ray_directions[matched_set]
+
+            # Iterate through the rays with intersections and update the starts and ends
+            new_starts = []
+            new_ends = []
+            for ray_index in matched_set:
+                new_starts.append(upper[0][np.where(upper[1] == ray_index)[0][0]])
+                new_ends.append(lower[0][np.where(lower[1] == ray_index)[0][0]])
+            ray_starts = np.array(new_starts)
+            segment_ends = np.array(new_ends)
+
+        assert ray_starts.shape == ray_directions.shape
+        assert ray_starts.shape == segment_ends.shape
+
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
         intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
 
         # Calculate the upper triangular matrix of ray-ray interesections
         for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
-            for j in range(i, num_dets):
+            for j in range(i + 1, num_dets):
                 # Extract starts and directions
                 A = ray_starts[i]
                 B = ray_starts[j]
@@ -1074,7 +1105,7 @@ class PhotogrammetryCameraSet:
         # represent the quality of the matches between detections.
         graph = networkx.Graph(positive_edges)
         # Determine Louvain communities which are sets of nodes. Ideally, this represents a set of
-        # detections that all coorespond to one 3D object
+        # detections that all correspond to one 3D object
         communities = networkx.community.louvain_communities(
             graph, weight="weight", resolution=louvain_resolution
         )
@@ -1128,7 +1159,7 @@ class PhotogrammetryCameraSet:
 
         # Save visualization geometries if vis_dir is given
         if vis_dir is not None:
-            # Save all_line_segments as cylinders colored by community_IDs
+            # Save line segments as cylinders colored by community_IDs
             cylinders = []
             norm = Normalize(
                 vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs)
