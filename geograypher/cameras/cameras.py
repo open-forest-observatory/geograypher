@@ -955,6 +955,7 @@ class PhotogrammetryCameraSet:
         transform_to_epsg_4978=None,
         similarity_threshold_meters: float = 0.1,
         louvain_resolution: float = 2,
+        min_dist: float = 1e-6,
         vis: bool = True,
         plotter: pv.Plotter = pv.Plotter(),
         vis_ray_length_meters: float = 200,
@@ -976,6 +977,8 @@ class PhotogrammetryCameraSet:
             louvain_resolution (float, optional):
                 The resolution parameter of the networkx.louvain_communities function. Defaults to
                 2.0.
+            min_dist (float, optional):
+                Limits the minimum intersection distance to some arbitrary small number to avoid div by 0
             vis (bool, optional):
                 Whether to show the detection projections and intersecting points. Defaults to True.
             plotter (pv.Plotter, optional):
@@ -1075,7 +1078,7 @@ class PhotogrammetryCameraSet:
         num_dets = ray_starts.shape[0]
         intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
 
-        # Calculate the upper triangular matrix of ray-ray interesections
+        # Calculate the upper triangular matrix of ray-ray intersections
         for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
             for j in range(i + 1, num_dets):
                 # Extract starts and directions
@@ -1084,11 +1087,12 @@ class PhotogrammetryCameraSet:
                 b0 = ray_starts[j]
                 b1 = segment_ends[j]
                 # TODO explore whether this could be vectorized
-                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1)
-                interesection_dists[i, j] = dist
+                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
+                intersection_dists[i, j] = dist
 
         # Filter out intersections that are above the threshold distance
         intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
+        intersection_dists[intersection_dists < min_dist] = min_dist
 
         # Determine which intersections are valid, represented by finite values
         i_inds, j_inds = np.where(np.isfinite(intersection_dists))

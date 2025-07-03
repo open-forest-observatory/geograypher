@@ -37,7 +37,7 @@ def main(
     mesh = TexturedPhotogrammetryMesh(
         mesh_file, transform_filename=camera_xml, require_transform=True
     )
-    ceiling, floor = mesh.export_covering_meshes(N=100, z_buffer_m=(2, 0), subsample=2)
+    ceiling, floor = mesh.export_covering_meshes(N=40, z_buffer_m=(2, 0), subsample=2)
     ceiling.save(output_dir / "b2_ceiling.ply")
     floor.save(output_dir / "b2_floor.ply")
 
