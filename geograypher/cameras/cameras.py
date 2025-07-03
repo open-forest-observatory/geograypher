@@ -41,7 +41,7 @@ from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
     compute_approximate_ray_intersection,
-    triangulate_rays_lstsq,
+    intersection_average,
 )
 from geograypher.utils.visualization import safe_start_xvfb
 
@@ -1126,15 +1126,13 @@ class PhotogrammetryCameraSet:
             # Record the community ID for the corresponding detection IDs
             community_IDs[community_detection_inds] = community_ID
 
-            # Get the set of starts and directions for that community
-            community_starts = ray_starts[community_detection_inds]
-            community_directions = ray_directions[community_detection_inds]
-
-            # Determine the least squares triangulation of the rays
-            community_3D_point = triangulate_rays_lstsq(
-                community_starts, community_directions
+            # Determine the averages of the line segment intersections
+            community_points.append(
+                intersection_average(
+                    starts=ray_starts[community_detection_inds],
+                    ends=segment_ends[community_detection_inds]
+                )
             )
-            community_points.append(community_3D_point)
 
         # Stack all of the points into one vector
         community_points = np.vstack(community_points)
