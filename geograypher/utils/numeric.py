@@ -243,3 +243,33 @@ def compute_3D_triangle_area(corners, return_z_proj_area=True):
         return area, area_z_proj
 
     return area
+
+
+def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
+    """
+    Given arrays of line segment start and end points, compute the average of the closest
+    intersection points between all pairs of segments.
+
+    Args:
+        starts (np.ndarray): (N, 3) array of segment start points
+        ends (np.ndarray): (N, 3) array of segment end points
+
+    Returns:
+        np.ndarray: (3,) array, the average intersection point
+    """
+    N = starts.shape[0]
+    closest_points = []
+    for i in range(N):
+        for j in range(i + 1, N):
+            a0, a1 = starts[i], ends[i]
+            b0, b1 = starts[j], ends[j]
+            pA, pB, _ = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
+            if pA is not None and pB is not None:
+                closest_points.append(pA)
+                closest_points.append(pB)
+    if closest_points:
+        return np.mean(np.stack(closest_points, axis=0), axis=0)
+    else:
+        # If all are None, return the average of all start and end points
+        all_points = np.concatenate([starts, ends], axis=0)
+        return np.mean(all_points, axis=0)
