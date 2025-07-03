@@ -1,7 +1,6 @@
 import typing
 
 import numpy as np
-import pyvista as pv
 
 
 def create_ramped_weighting(
@@ -30,40 +29,129 @@ def create_ramped_weighting(
 
 
 def compute_approximate_ray_intersection(
-    A: np.array, a: np.array, B: np.array, b: np.array, vis=False
+    a0: np.array,
+    a1: np.array,
+    b0: np.array,
+    b1: np.array,
+    clamp: bool = False,
+    plotter=None,
 ):
-    # https://palitri.com/vault/stuff/maths/Rays%18closest%20point.pdf
-    c = B - A
+    """
+    Given two line segments defined by 3D numpy.array pairs (a0, a1, b0, b1), return the
+    closest points on each segment and their distance. If clamp is True, then respect
+    the line segment ends. If clamp is False, then use the infinite rays.
 
-    aa = np.dot(a, a)
-    ab = np.dot(a, b)
-    ac = np.dot(a, c)
-    bb = np.dot(b, b)
-    bc = np.dot(b, c)
+    Based on https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
 
-    denominator = aa * bb - ab * ab
+    Args:
+        a0 (np.ndarray): Start point of the first segment (shape: (3,)).
+        a1 (np.ndarray): End point of the first segment (shape: (3,)).
+        b0 (np.ndarray): Start point of the second segment (shape: (3,)).
+        b1 (np.ndarray): End point of the second segment (shape: (3,)).
+        clamp (bool, optional): If True, the closest points are clamped to the segment
+            endpoints. If False, the closest points may be anywhere along the infinite
+            lines.
+        plotter (pyvista.Plotter, optional): If provided, visualizes the segments
+            and closest points using pyvista.
 
-    a_scaler = (-ab * bc + ac * bb) / denominator
-    b_scaler = (ab * ac - bc * aa) / denominator
+    Returns:
+        pA (np.ndarray): Closest point on the first segment or line (shape: (3,)),
+            or None if segments are parallel and overlap.
+        pB (np.ndarray): Closest point on the second segment or line (shape: (3,)),
+            or None if segments are parallel and overlap.
+        dist (float): The minimum distance between the two segments or lines.
+    """
 
-    D = A + a_scaler * a
-    E = B + b_scaler * b
+    # Calculate vectors, normalized vectors, and denominator
+    A = a1 - a0
+    B = b1 - b0
+    magA = np.linalg.norm(A)
+    magB = np.linalg.norm(B)
+    # Normalized vectors
+    _A = A / magA
+    _B = B / magB
+    cross = np.cross(_A, _B)
+    denom = np.linalg.norm(cross) ** 2
 
-    dist = np.linalg.norm(D - E)
-    # Check that it's in front of the camera
-    # TODO I'm not sure if this will handle co-linear cases, probably should check for that
-    valid = a_scaler > -1 and b_scaler > 0
+    # If lines are parallel (denom=0) test if lines overlap. If they don't
+    # overlap then there is a closest point solution. If they do overlap,
+    # there are infinite closest positions, but there is a closest distance
+    if not denom:
+        d0 = np.dot(_A, (b0 - a0))
 
-    if vis:
-        points = np.vstack([A, D, B, E, D, E])
+        # Overlap only possible with clamping
+        if clamp:
+            d1 = np.dot(_A, (b1 - a0))
 
-        plotter = pv.Plotter()
+            # Is segment B before A?
+            if (0 >= d0) and (0 >= d1):
+                if np.absolute(d0) < np.absolute(d1):
+                    return a0, b0, np.linalg.norm(a0 - b0)
+                return a0, b1, np.linalg.norm(a0 - b1)
+
+            # Is segment B after A?
+            elif (magA <= d0) and (magA <= d1):
+                if np.absolute(d0) < np.absolute(d1):
+                    return a1, b0, np.linalg.norm(a1 - b0)
+                return a1, b1, np.linalg.norm(a1 - b1)
+
+        # Segments overlap, return distance between parallel segments.
+        # Closest point is meaningless on parallel lines.
+        return None, None, np.linalg.norm((a0 + (d0 * _A)) - b0)
+
+    # Lines criss-cross: Calculate the projected closest points
+    t = b0 - a0
+    detA = np.linalg.det([t, _B, cross])
+    detB = np.linalg.det([t, _A, cross])
+
+    # Scale vectors that stretch along the A and B vectors. If
+    # the scale is between 0 and the magnitude of that vector
+    # then the projected point is within the line segment
+    t0 = detA / denom
+    t1 = detB / denom
+
+    # Projected closest point on rays A and B
+    pA = a0 + (_A * t0)
+    pB = b0 + (_B * t1)
+
+    # Clamp projections
+    if clamp:
+        if t0 < 0:
+            pA = a0
+        elif t0 > magA:
+            pA = a1
+
+        if t1 < 0:
+            pB = b0
+        elif t1 > magB:
+            pB = b1
+
+        # Clamp projection A
+        if (t0 < 0) or (t0 > magA):
+            dot = np.dot(_B, (pA - b0))
+            if dot < 0:
+                dot = 0
+            elif dot > magB:
+                dot = magB
+            pB = b0 + (_B * dot)
+
+        # Clamp projection B
+        if (t1 < 0) or (t1 > magB):
+            dot = np.dot(_A, (pB - a0))
+            if dot < 0:
+                dot = 0
+            elif dot > magA:
+                dot = magA
+            pA = a0 + (_A * dot)
+
+    if plotter is not None:
+        points = np.vstack([a0, pA, a1, b1, pB, b0])
         plotter.add_lines(points)
         plotter.add_points(points)
         plotter.background_color = "black"
         plotter.show()
 
-    return dist, valid
+    return pA, pB, np.linalg.norm(pA - pB)
 
 
 def triangulate_rays_lstsq(starts, directions):
@@ -94,7 +182,7 @@ def triangulate_rays_lstsq(starts, directions):
     A = np.concatenate(As, axis=0)
     b = np.concatenate(bs, axis=0)
 
-    x, _, _, _ = np.linalg.lstsq(A, b)
+    x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
     return x
 
 
