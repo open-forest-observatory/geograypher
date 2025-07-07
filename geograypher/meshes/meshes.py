@@ -2118,9 +2118,7 @@ class TexturedPhotogrammetryMesh:
                     rendered = rendered[..., :3]
 
             # Saving
-            camera_filename = camera.get_image_filename().relative_to(
-                camera_set.image_folder
-            )
+            camera_filename = camera.get_image_filename().name
             output_filename = Path(output_folder, camera_filename)
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
