@@ -1,5 +1,7 @@
 import argparse
+import cProfile
 from pathlib import Path
+import time
 
 import geopandas as gpd
 import numpy as np
@@ -121,6 +123,8 @@ if __name__ == "__main__":
     # Ensure output directory exists
     ensure_folder(args.output_dir)
 
+    profile = cProfile.Profile()
+    profile.enable()
     main(
         images_dir=args.images_dir,
         gpkg_dir=args.gpkg_dir,
@@ -131,3 +135,5 @@ if __name__ == "__main__":
         similarity_threshold_meters=args.similarity_threshold_meters,
         louvain_resolution=args.louvain_resolution,
     )
+    profile.disable()
+    profile.dump_stats(args.output_dir / f"profile_{int(time.time() * 1e6)}.snakeviz")
