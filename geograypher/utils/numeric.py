@@ -29,25 +29,24 @@ def create_ramped_weighting(
 
 
 def compute_approximate_ray_intersection(
-    a0: np.array,
-    a1: np.array,
-    b0: np.array,
-    b1: np.array,
+    a0: np.ndarray,
+    a1: np.ndarray,
+    b0: np.ndarray,
+    b1: np.ndarray,
     clamp: bool = False,
     plotter=None,
 ):
     """
-    Given two line segments defined by 3D numpy.array pairs (a0, a1, b0, b1), return the
-    closest points on each segment and their distance. If clamp is True, then respect
-    the line segment ends. If clamp is False, then use the infinite rays.
-
-    Based on https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
+    Given a single line segment defined by 3D numpy.array points (a0, a1) and N line segments
+    defined by (b0, b1) (each (N, 3)), return the closest points on each segment and their
+    distances. If clamp is True, then respect the line segment ends. If clamp is False,
+    then use the infinite rays.
 
     Args:
         a0 (np.ndarray): Start point of the first segment (shape: (3,)).
         a1 (np.ndarray): End point of the first segment (shape: (3,)).
-        b0 (np.ndarray): Start point of the second segment (shape: (3,)).
-        b1 (np.ndarray): End point of the second segment (shape: (3,)).
+        b0 (np.ndarray): Start points of the second segments (shape: (N, 3)).
+        b1 (np.ndarray): End points of the second segments (shape: (N, 3)).
         clamp (bool, optional): If True, the closest points are clamped to the segment
             endpoints. If False, the closest points may be anywhere along the infinite
             lines.
@@ -55,103 +54,116 @@ def compute_approximate_ray_intersection(
             and closest points using pyvista.
 
     Returns:
-        pA (np.ndarray): Closest point on the first segment or line (shape: (3,)),
+        pA (np.ndarray): Closest points on the first segment or line (shape: (N, 3)),
             or None if segments are parallel and overlap.
-        pB (np.ndarray): Closest point on the second segment or line (shape: (3,)),
+        pB (np.ndarray): Closest points on the second segments or lines (shape: (N, 3)),
             or None if segments are parallel and overlap.
-        dist (float): The minimum distance between the two segments or lines.
+        dists (np.ndarray): The minimum distances between the two segments or lines (shape: (N,)).
     """
 
-    # Calculate vectors, normalized vectors, and denominator
+    # Normalize both the A vector and all B vectors
     A = a1 - a0
-    B = b1 - b0
     magA = np.linalg.norm(A)
-    magB = np.linalg.norm(B)
-    # Normalized vectors
     _A = A / magA
-    _B = B / magB
+    B = b1 - b0
+    magB = np.linalg.norm(B, axis=1)
+    _B = B / magB[:, None]
+
     cross = np.cross(_A, _B)
-    denom = np.linalg.norm(cross) ** 2
+    denom = np.linalg.norm(cross, axis=1) ** 2
 
-    # If lines are parallel (denom=0) test if lines overlap. If they don't
-    # overlap then there is a closest point solution. If they do overlap,
-    # there are infinite closest positions, but there is a closest distance
-    if not denom:
-        d0 = np.dot(_A, (b0 - a0))
-
-        # Overlap only possible with clamping
-        if clamp:
-            d1 = np.dot(_A, (b1 - a0))
-
-            # Is segment B before A?
-            if (0 >= d0) and (0 >= d1):
-                if np.absolute(d0) < np.absolute(d1):
-                    return a0, b0, np.linalg.norm(a0 - b0)
-                return a0, b1, np.linalg.norm(a0 - b1)
-
-            # Is segment B after A?
-            elif (magA <= d0) and (magA <= d1):
-                if np.absolute(d0) < np.absolute(d1):
-                    return a1, b0, np.linalg.norm(a1 - b0)
-                return a1, b1, np.linalg.norm(a1 - b1)
-
-        # Segments overlap, return distance between parallel segments.
-        # Closest point is meaningless on parallel lines.
-        return None, None, np.linalg.norm((a0 + (d0 * _A)) - b0)
-
-    # Lines criss-cross: Calculate the projected closest points
+    # Where the lines criss-cross (denom > 0): calculate the projected closest points
     t = b0 - a0
-    detA = np.linalg.det([t, _B, cross])
-    detB = np.linalg.det([t, _A, cross])
+    detA = np.einsum("ij,ij->i", np.cross(t, _B), cross)
+    detB = np.einsum("ij,ij->i", np.cross(t, np.broadcast_to(_A, _B.shape)), cross)
 
-    # Scale vectors that stretch along the A and B vectors. If
-    # the scale is between 0 and the magnitude of that vector
-    # then the projected point is within the line segment
-    t0 = detA / denom
-    t1 = detB / denom
+    # Where the denom is 0, for this division step replace it with 1
+    denom_safe = np.where(denom == 0, 1, denom)
+    # Scale vectors that stretch along the A and B vectors. If the scale is
+    # between 0 and the magnitude of that vector then the projected point is
+    # within the line segment
+    t0 = detA / denom_safe
+    t1 = detB / denom_safe
 
-    # Projected closest point on rays A and B
-    pA = a0 + (_A * t0)
-    pB = b0 + (_B * t1)
-
+    # Projected closest point on segments A and B
+    pA = a0 + t0[:, None] * _A
+    pB = b0 + t1[:, None] * _B
     # Clamp projections
     if clamp:
-        if t0 < 0:
-            pA = a0
-        elif t0 > magA:
-            pA = a1
 
-        if t1 < 0:
-            pB = b0
-        elif t1 > magB:
-            pB = b1
+        t0_clamped = np.clip(t0, 0, magA)
+        pA = a0 + t0_clamped[:, None] * _A
 
-        # Clamp projection A
-        if (t0 < 0) or (t0 > magA):
-            dot = np.dot(_B, (pA - b0))
-            if dot < 0:
-                dot = 0
-            elif dot > magB:
-                dot = magB
-            pB = b0 + (_B * dot)
+        t1_clamped = np.clip(t1, 0, magB)
+        pB = b0 + t1_clamped[:, None] * _B
 
-        # Clamp projection B
-        if (t1 < 0) or (t1 > magB):
-            dot = np.dot(_A, (pB - a0))
-            if dot < 0:
-                dot = 0
-            elif dot > magA:
-                dot = magA
-            pA = a0 + (_A * dot)
+        # Check if anything needs recomputing due to clamping (oob = out of bounds)
+        oob_A = (t0 < 0) | (t0 > magA)
+        oob_B = (t1 < 0) | (t1 > magB)
+
+        # Recompute pB where A is clamped
+        if np.any(oob_A):
+            dot = np.einsum("ij,ij->i", pA[oob_A] - b0[oob_A], _B[oob_A])
+            pB[oob_A] = b0[oob_A] + np.clip(dot, 0, magB[oob_A])[:, None] * _B[oob_A]
+
+        # Recompute pA where B is clamped
+        if np.any(oob_B):
+            dot = np.einsum("ij,j->i", pB[oob_B] - a0, _A)
+            pA[oob_B] = a0 + np.clip(dot, 0, magA)[:, None] * _A
+
+    # Handle exact parallel case by substituting results
+    parallel = denom == 0
+    if np.any(parallel):
+
+        d0 = np.einsum("j,ij->i", _A, b0 - a0)
+        if clamp:
+
+            d1 = np.einsum("j,ij->i", _A, b1 - a0)
+
+            before = (d0 <= 0) & (d1 <= 0) & parallel
+            after = (d0 >= magA) & (d1 >= magA) & parallel
+            middle = parallel & ~(before | after)
+
+            if np.any(before):
+                pA[before] = a0
+                pB[before] = np.where(
+                    np.abs(d0[before]) < np.abs(d1[before])[:, None],
+                    b0[before],
+                    b1[before],
+                )
+
+            if np.any(after):
+                pA[after] = a1
+                pB[after] = np.where(
+                    np.abs(d0[after]) < np.abs(d1[after])[:, None],
+                    b0[after],
+                    b1[after],
+                )
+
+            if np.any(middle):
+                t_mid = np.clip(d0[middle], 0, magA)
+                pA[middle] = a0 + t_mid[:, None] * _A
+                # Vector from A to B starting point
+                a2b = b0[middle] - pA[middle]
+                # Component along A
+                alongA = np.einsum("ij,j->i", a2b, _A)[:, None] * _A
+                # Remove the parallel component so we are left only with perpendicular
+                perpendicular = a2b - alongA
+                pB[middle] = pA[middle] + perpendicular
+
+        else:
+            pA[parallel] = a0 + d0[:, None] * _A
+            pB[parallel] = b0
 
     if plotter is not None:
-        points = np.vstack([a0, pA, a1, b1, pB, b0])
-        plotter.add_lines(points)
-        plotter.add_points(points)
-        plotter.background_color = "black"
-        plotter.show()
+        raise NotImplementedError()
+        # points = np.vstack([a0, pA, a1, b1, pB, b0])
+        # plotter.add_lines(points)
+        # plotter.add_points(points)
+        # plotter.background_color = "black"
+        # plotter.show()
 
-    return pA, pB, np.linalg.norm(pA - pB)
+    return pA, pB, np.linalg.norm(pA - pB, axis=1)
 
 
 def triangulate_rays_lstsq(starts, directions):
@@ -259,16 +271,14 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     """
     N = starts.shape[0]
     closest_points = []
-    for i in range(N):
-        for j in range(i + 1, N):
-            a0, a1 = starts[i], ends[i]
-            b0, b1 = starts[j], ends[j]
-            pA, pB, _ = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
-            if pA is not None and pB is not None:
-                closest_points.append(pA)
-                closest_points.append(pB)
+    for i in range(N - 1):
+        a0, a1 = starts[i], ends[i]
+        b0, b1 = starts[i + 1 : N], ends[i + 1 : N]
+        pA, pB, _ = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
+        closest_points.append(pA)
+        closest_points.append(pB)
     if closest_points:
-        return np.mean(np.stack(closest_points, axis=0), axis=0)
+        return np.mean(np.vstack(closest_points), axis=0)
     else:
         # If all are None, return the average of all start and end points
         all_points = np.concatenate([starts, ends], axis=0)

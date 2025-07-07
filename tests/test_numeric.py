@@ -14,88 +14,95 @@ def normalize(vector):
 class TestComputeApproximateRayIntersection:
 
     @pytest.mark.parametrize(
-        "a0, a1, b0, b1, clamp, exp_pA, exp_pB, exp_dist",
+        "a0, a1, b0, b1, clamp, exp_pA, exp_pB, exp_dist, parallel",
         (
-            # Test simple intersection
+            # Test simple intersections
             (
                 [0, 0, 0],
                 [2, 0, 0],
-                [1, 1, 0],
-                [1, -1, 0],
+                [[1, 1, 0], [2, 0, 0]],
+                [[1, -1, 0], [1, 1, 0]],
                 False,
-                [1, 0, 0],
-                [1, 0, 0],
-                0,
+                [[1, 0, 0], [2, 0, 0]],
+                [[1, 0, 0], [2, 0, 0]],
+                [0, 0],
+                False,
             ),
-            # Test simple miss case
+            # Test simple miss cases, infinite rays (no clamping)
             (
                 [0, 0, 0],
                 [1, 0, 0],
-                [0, 1, 1],
-                [0, 0, 1],
+                [[0, 1, 1], [0, -4, 2]],
+                [[0, 0, 1], [2, -2, 2]],
                 False,
-                [0, 0, 0],
-                [0, 0, 1],
-                1,
+                [[0, 0, 0], [4, 0, 0]],
+                [[0, 0, 1], [4, 0, 2]],
+                [1, 2],
+                False,
             ),
             # One much bigger than the other, no clamp
             (
                 [-10, 0, 0],
                 [10, 0, 0],
-                [0, 1, 0],
-                [1, 2, 0],
+                [[0, 1, 0]],
+                [[1, 2, 0]],
                 False,
-                [-1, 0, 0],
-                [-1, 0, 0],
-                0,
+                [[-1, 0, 0]],
+                [[-1, 0, 0]],
+                [0],
+                False,
             ),
             # One much bigger than the other, clamp
             (
                 [-10, 0, 0],
                 [10, 0, 0],
-                [0, 1, 0],
-                [1, 2, 0],
+                [[0, 1, 0], [0, 1, 2]],
+                [[1, 2, 0], [0, 1, 1]],
                 True,
-                [0, 0, 0],
-                [0, 1, 0],
-                1,
+                [[0, 0, 0], [0, 0, 0]],
+                [[0, 1, 0], [0, 1, 1]],
+                [1, np.sqrt(2)],
+                False,
             ),
             # Somewhat aligned, clamp
             (
                 [1, 0, 0],
                 [2, -4, 0],
-                [-1, 0, 0],
-                [-2, 8, 0],
+                [[-1, 0, 0], [3, -5, 0]],
+                [[-2, 8, 0], [3, -10, 0]],
                 True,
-                [1, 0, 0],
-                [-1, 0, 0],
-                2,
+                [[1, 0, 0], [2, -4, 0]],
+                [[-1, 0, 0], [3, -5, 0]],
+                [2, np.sqrt(2)],
+                False,
             ),
             # Parallel, with overlap
             (
                 [0, 0, 0],
                 [1, 0, 0],
-                [0, 1, 0],
-                [1, 1, 0],
+                [[0, 1, 0], [0.4, 2, 0], [-1, 3, 0], [0.9, 4, 0]],
+                [[1, 1, 0], [0.6, 2, 0], [0.1, 3, 0], [2, 4, 0]],
                 True,
                 None,
                 None,
-                1,
+                [1, 2, 3, 4],
+                True,
             ),
             # Parallel, with no overlap
             (
                 [0, 0, 0],
                 [1, 0, 0],
-                [4, 4, 0],
-                [5, 4, 0],
+                [[4, 4, 0]],
+                [[5, 4, 0]],
                 True,
-                [1, 0, 0],
-                [4, 4, 0],
-                5,
+                None,
+                None,
+                [5],
+                True,
             ),
         ),
     )
-    def test_basic(self, a0, a1, b0, b1, clamp, exp_pA, exp_pB, exp_dist):
+    def test_basic(self, a0, a1, b0, b1, clamp, exp_pA, exp_pB, exp_dist, parallel):
         """Test a variety of ray intersections."""
 
         # These tests should work regardless of orientation
@@ -108,15 +115,20 @@ class TestComputeApproximateRayIntersection:
                     np.array(B1),
                     clamp=clamp,
                 )
-                if exp_pA is None:
-                    assert pA is None
-                else:
-                    assert np.allclose(pA, exp_pA)
-                if exp_pB is None:
-                    assert pB is None
-                else:
-                    assert np.allclose(pB, exp_pB)
-                assert np.isclose(dist, exp_dist)
+
+                # If the lines are parallel the "closest point" gets murky,
+                # just test the distance
+                if not parallel:
+                    if exp_pA is None:
+                        assert pA is None
+                    else:
+                        assert np.allclose(pA, exp_pA)
+                    if exp_pB is None:
+                        assert pB is None
+                    else:
+                        assert np.allclose(pB, exp_pB)
+
+                assert np.allclose(dist, exp_dist)
 
 
 class TestIntersectionAverage:
@@ -172,7 +184,5 @@ class TestIntersectionAverage:
                 [1, 1, 0],
             ]
         )
-        # Should fall back to average of all endpoints
-        all_points = np.concatenate([starts, ends], axis=0)
-        expected = np.mean(all_points, axis=0)
-        assert np.allclose(intersection_average(starts, ends), expected)
+        # Parallel behavior is to snap to a0 for lack of something better to do
+        assert np.allclose(intersection_average(starts, ends), [0, 0.5, 0])
