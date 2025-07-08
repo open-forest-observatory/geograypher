@@ -28,20 +28,21 @@ def main(
     # Load camera set
     cameras = MetashapeCameraSet(camera_file=camera_xml, image_folder=images_dir)
 
-    # THIS IS A HACK WHILE WE ARE RUNNING WITH IMAGE SUBSETS
-    imset = set([path.name for path in images_dir.glob(f"*{image_file_extension}")])
-    subset_cameras = [
-        cam for cam in cameras.cameras if Path(cam.image_filename).name in imset
-    ]
-    cameras.cameras = subset_cameras
+    # # THIS IS A HACK WHILE WE ARE RUNNING WITH IMAGE SUBSETS
+    # imset = set([path.name for path in images_dir.glob(f"*{image_file_extension}")])
+    # subset_cameras = [
+    #     cam for cam in cameras.cameras if Path(cam.image_filename).name in imset
+    # ]
+    # cameras.cameras = subset_cameras
 
     # Load mesh
     mesh = TexturedPhotogrammetryMesh(
         mesh_file, transform_filename=camera_xml, require_transform=True
     )
-    ceiling, floor = mesh.export_covering_meshes(N=40, z_buffer_m=(2, 0), subsample=2)
+    ceiling, floor = mesh.export_covering_meshes(N=20, z_buffer_m=(2, 0), subsample=2)
     ceiling.save(output_dir / "b2_ceiling.ply")
     floor.save(output_dir / "b2_floor.ply")
+    print("Boundary meshes saved")
 
     # Load region detector
     detector = RegionDetectionSegmentor(

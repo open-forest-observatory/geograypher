@@ -1005,7 +1005,7 @@ class PhotogrammetryCameraSet:
         all_image_IDs = []
 
         # Iterate over the cameras
-        for camera_ind in range(len(self)):
+        for camera_ind in tqdm(range(len(self)), desc="Building line segments per camera"):
             # Get the image filename
             image_filename = str(self.get_image_filename(camera_ind, absolute=False))
             # Get the centers of associated detection from the detector
@@ -1044,6 +1044,7 @@ class PhotogrammetryCameraSet:
         )
 
         if boundaries is not None:
+            print("Clipping all line segments to boundary surfaces")
             upper = boundaries[0].multi_ray_trace(
                 origins=ray_starts,
                 directions=ray_directions,
@@ -1074,21 +1075,23 @@ class PhotogrammetryCameraSet:
         assert ray_starts.shape == ray_directions.shape
         assert ray_starts.shape == segment_ends.shape
 
+        print("Instantiating ray/ray intersections")
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
-        intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
+        # HACK - changed data time from float64 to float16 to change 80GB array (105449, 105449)
+        # into 20GB. Not a sustainable fix.
+        intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan, dtype=np.float16)
 
         # Calculate the upper triangular matrix of ray-ray intersections
-        for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
-            for j in range(i + 1, num_dets):
-                # Extract starts and directions
-                a0 = ray_starts[i]
-                a1 = segment_ends[i]
-                b0 = ray_starts[j]
-                b1 = segment_ends[j]
-                # TODO explore whether this could be vectorized
-                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
-                intersection_dists[i, j] = dist
+        for i in tqdm(range(num_dets - 1), desc="Calculating quality of ray intersections"):
+            # Extract starts and directions
+            a0 = ray_starts[i]
+            a1 = segment_ends[i]
+            j = slice(i + 1, num_dets)
+            b0 = ray_starts[j]
+            b1 = segment_ends[j]
+            _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
+            intersection_dists[i, j] = dist
 
         # Filter out intersections that are above the threshold distance
         intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
@@ -1100,10 +1103,13 @@ class PhotogrammetryCameraSet:
         # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
         # distance
         positive_edges = [
-            (i, j, {"weight": 1 / intersection_dists[i, j]})
+            (int(i), int(j), {"weight": float(1 / intersection_dists[i, j])})
             for i, j in zip(i_inds, j_inds)
         ]
+        if vis_dir is not None:  # TODO: HACK - replace this with a real caching process
+            json.dump(positive_edges, (vis_dir / "edges.json").open("w"))
 
+        print("Calculating community relationships")
         # Build a networkx graph. The nodes represent an individual detection while the edges
         # represent the quality of the matches between detections.
         graph = networkx.Graph(positive_edges)
@@ -1120,7 +1126,7 @@ class PhotogrammetryCameraSet:
         # Record the community IDs per detection
         community_IDs = np.full(num_dets, fill_value=np.nan)
         # Iterate over communities
-        for community_ID, community in enumerate(communities):
+        for community_ID, community in enumerate(tqdm(communities, desc="Build community points")):
             # Get the indices of the detections for that community
             community_detection_inds = np.array(list(community))
             # Record the community ID for the corresponding detection IDs
@@ -1167,7 +1173,7 @@ class PhotogrammetryCameraSet:
             )
             cmap = cm.get_cmap("tab20")
             for i, (start, end, comm_id) in enumerate(
-                zip(ray_starts, segment_ends, community_IDs)
+                zip(ray_starts, segment_ends, tqdm(community_IDs, desc="Building cylinders"))
             ):
                 # Create a cylinder between start and end
                 center = (start + end) / 2
@@ -1196,7 +1202,7 @@ class PhotogrammetryCameraSet:
                 cylinder_polydata.save(vis_dir / "rays.ply", texture="RGB")
             # Save community_points as red cubes
             cubes = []
-            for comm_id, pt in enumerate(community_points):
+            for comm_id, pt in enumerate(tqdm(community_points, desc="Building points")):
                 cube = pv.Cube(center=pt, x_length=0.2, y_length=0.2, z_length=0.2)
                 color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
                 cube.point_data["RGB"] = np.tile(color, (cube.n_points, 1))
