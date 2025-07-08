@@ -1,7 +1,7 @@
 import argparse
 import cProfile
-from pathlib import Path
 import time
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -28,12 +28,12 @@ def main(
     # Load camera set
     cameras = MetashapeCameraSet(camera_file=camera_xml, image_folder=images_dir)
 
-    # # THIS IS A HACK WHILE WE ARE RUNNING WITH IMAGE SUBSETS
-    # imset = set([path.name for path in images_dir.glob(f"*{image_file_extension}")])
-    # subset_cameras = [
-    #     cam for cam in cameras.cameras if Path(cam.image_filename).name in imset
-    # ]
-    # cameras.cameras = subset_cameras
+    # THIS IS A HACK WHILE WE ARE RUNNING WITH IMAGE SUBSETS
+    imset = set([path.name for path in images_dir.glob(f"*{image_file_extension}")])
+    subset_cameras = [
+        cam for cam in cameras.cameras if Path(cam.image_filename).name in imset
+    ]
+    cameras.cameras = subset_cameras
 
     # Load mesh
     mesh = TexturedPhotogrammetryMesh(
@@ -45,6 +45,8 @@ def main(
     print("Boundary meshes saved")
 
     # Load region detector
+    print("Loading region detection segmentor")
+    detector = None  # Use when line segments are precalculated
     detector = RegionDetectionSegmentor(
         detection_file_or_folder=gpkg_dir,
         image_file_extension=image_file_extension,
@@ -59,9 +61,11 @@ def main(
         transform_to_epsg_4978=mesh.local_to_epgs_4978_transform,
         similarity_threshold_meters=similarity_threshold_meters,
         louvain_resolution=louvain_resolution,
-        vis=False,
-        vis_dir=output_dir,
-        vis_ray_length_meters=30,
+        out_dir=output_dir,
+        # line_segments_file=output_dir / "line_segments.npz",
+        # positive_edges_file=output_dir / "positive_edges.json",
+        # communities_file=output_dir / "communities.npz",
+        # vis_dir=output_dir,
     )
 
     # Save results as CSV and GeoJSON

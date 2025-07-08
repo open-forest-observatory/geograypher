@@ -40,6 +40,7 @@ from geograypher.utils.geometric import (
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
+    calc_graph_weights,
     compute_approximate_ray_intersection,
     intersection_average,
 )
@@ -948,64 +949,23 @@ class PhotogrammetryCameraSet:
         subset_camera_set = self.get_subset_cameras(cameras_in_ROI)
         return subset_camera_set
 
-    def triangulate_detections(
+    def calc_line_segments(
         self,
-        detector: TabularRectangleSegmentor,
-        boundaries: Union[None, tuple],
-        transform_to_epsg_4978=None,
-        similarity_threshold_meters: float = 0.1,
-        louvain_resolution: float = 2,
-        min_dist: float = 1e-6,
-        vis: bool = True,
-        plotter: pv.Plotter = pv.Plotter(),
-        vis_ray_length_meters: float = 200,
-        vis_dir: PATH_TYPE = None,
-    ) -> np.ndarray:
-        """Take per-image detections and triangulate them to 3D locations
-
-        Args:
-            detector (TabularRectangleSegmentor):
-                Produces detections per image using the get_detection_centers method
-            boundaries (typing.Union[None, tuple]):
-                If given, this should be [0] an upper surface and [1] a lower surface. These
-                surfaces will be used to clip the triangulation rays
-            transform_to_epsg_4978 (typing.Union[np.ndarray, None], optional):
-                The 4x4 transform to earth centered earth fixed coordinates. Defaults to None.
-            similarity_threshold_meters (float, optional):
-                Consider rays a potential match if the distance between them is less than this
-                value. Defaults to 0.1.
-            louvain_resolution (float, optional):
-                The resolution parameter of the networkx.louvain_communities function. Defaults to
-                2.0.
-            min_dist (float, optional):
-                Limits the minimum intersection distance to some arbitrary small number to avoid div by 0
-            vis (bool, optional):
-                Whether to show the detection projections and intersecting points. Defaults to True.
-            plotter (pv.Plotter, optional):
-                The plotter to add the visualizations to is vis=True. If not set, a new one will be
-                created. Defaults to pv.Plotter().
-            vis_ray_length_meters (float, optional):
-                The length of the visualized rays in meters. Defaults to 200.
-            vis_dir (PATH_TYPE, optional):
-                Directory to save visualization geometries if not None. Defaults to None.
-
-        Returns:
-            np.ndarray:
-                (n unique objects, 3), the 3D locations of the identified objects.
-                If transform_to_epsg_4978 is set, then this is in (lat, lon, alt), if not, it's in the
-                local coordinate system of the mesh
-        """
-        # Determine scale factor relating meters to internal coordinates
-        meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
-        similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale
-        vis_ray_length_local = vis_ray_length_meters * meters_to_local_scale
+        detector,
+        boundaries,
+        transform_to_epsg_4978,
+        vis_ray_length_local,
+        out_dir,
+    ):
 
         # Record the lines corresponding to each detection and the associated image ID
         all_line_segments = []
         all_image_IDs = []
 
         # Iterate over the cameras
-        for camera_ind in tqdm(range(len(self)), desc="Building line segments per camera"):
+        for camera_ind in tqdm(
+            range(len(self)), desc="Building line segments per camera"
+        ):
             # Get the image filename
             image_filename = str(self.get_image_filename(camera_ind, absolute=False))
             # Get the centers of associated detection from the detector
@@ -1075,43 +1035,29 @@ class PhotogrammetryCameraSet:
         assert ray_starts.shape == ray_directions.shape
         assert ray_starts.shape == segment_ends.shape
 
-        print("Instantiating ray/ray intersections")
-        # Compute the distance matrix of ray-ray intersections
-        num_dets = ray_starts.shape[0]
-        # HACK - changed data time from float64 to float16 to change 80GB array (105449, 105449)
-        # into 20GB. Not a sustainable fix.
-        intersection_dists = np.full((num_dets, num_dets), fill_value=np.nan, dtype=np.float16)
+        # Save to file
+        path = out_dir / "line_segments.npz"
+        np.savez(path, ray_starts=ray_starts, segment_ends=segment_ends)
+        return path
 
-        # Calculate the upper triangular matrix of ray-ray intersections
-        for i in tqdm(range(num_dets - 1), desc="Calculating quality of ray intersections"):
-            # Extract starts and directions
-            a0 = ray_starts[i]
-            a1 = segment_ends[i]
-            j = slice(i + 1, num_dets)
-            b0 = ray_starts[j]
-            b1 = segment_ends[j]
-            _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
-            intersection_dists[i, j] = dist
-
-        # Filter out intersections that are above the threshold distance
-        intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
-        intersection_dists[intersection_dists < min_dist] = min_dist
-
-        # Determine which intersections are valid, represented by finite values
-        i_inds, j_inds = np.where(np.isfinite(intersection_dists))
-
-        # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
-        # distance
-        positive_edges = [
-            (int(i), int(j), {"weight": float(1 / intersection_dists[i, j])})
-            for i, j in zip(i_inds, j_inds)
-        ]
-        if vis_dir is not None:  # TODO: HACK - replace this with a real caching process
-            json.dump(positive_edges, (vis_dir / "edges.json").open("w"))
-
-        print("Calculating community relationships")
-        # Build a networkx graph. The nodes represent an individual detection while the edges
-        # represent the quality of the matches between detections.
+    def calc_communities(
+        self,
+        positive_edges_file,
+        line_segments_file,
+        louvain_resolution,
+        out_dir,
+        transform_to_epsg_4978=None,
+    ):
+        """
+        Build a networkx graph. The nodes represent an individual detection while the edges
+        represent the quality of the matches between detections.
+        Optionally, if transform_to_epsg_4978 is provided, also save community_points_lat_lon.
+        """
+        data = np.load(line_segments_file)
+        ray_starts = data["ray_starts"]
+        segment_ends = data["segment_ends"]
+        with open(positive_edges_file, "r") as file:
+            positive_edges = json.load(file)
         graph = networkx.Graph(positive_edges)
         # Determine Louvain communities which are sets of nodes. Ideally, this represents a set of
         # detections that all correspond to one 3D object
@@ -1124,9 +1070,12 @@ class PhotogrammetryCameraSet:
         ## Triangulate the rays for each community to identify the 3D location
         community_points = []
         # Record the community IDs per detection
+        num_dets = ray_starts.shape[0]
         community_IDs = np.full(num_dets, fill_value=np.nan)
         # Iterate over communities
-        for community_ID, community in enumerate(tqdm(communities, desc="Build community points")):
+        for community_ID, community in enumerate(
+            tqdm(communities, desc="Build community points")
+        ):
             # Get the indices of the detections for that community
             community_detection_inds = np.array(list(community))
             # Record the community ID for the corresponding detection IDs
@@ -1136,85 +1085,17 @@ class PhotogrammetryCameraSet:
             community_points.append(
                 intersection_average(
                     starts=ray_starts[community_detection_inds],
-                    ends=segment_ends[community_detection_inds]
+                    ends=segment_ends[community_detection_inds],
                 )
             )
 
         # Stack all of the points into one vector
         community_points = np.vstack(community_points)
+        save_dict = {
+            "community_IDs": community_IDs,
+            "community_points": community_points,
+        }
 
-        # Show the rays and detections
-        if vis:
-            # Show the line segements
-            # TODO: consider coloring these lines by community
-            lines_mesh = pv.line_segments_from_points(all_line_segments)
-            plotter.add_mesh(
-                lines_mesh,
-                scalars=community_IDs,
-                label="Rays, colored by community ID",
-            )
-            # Show the triangulated communtities as red spheres
-            detected_points = pv.PolyData(community_points)
-            plotter.add_points(
-                detected_points,
-                color="r",
-                render_points_as_spheres=True,
-                point_size=10,
-                label="Triangulated locations",
-            )
-            plotter.add_legend()
-
-        # Save visualization geometries if vis_dir is given
-        if vis_dir is not None:
-            # Save line segments as cylinders colored by community_IDs
-            cylinders = []
-            norm = Normalize(
-                vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs)
-            )
-            cmap = cm.get_cmap("tab20")
-            for i, (start, end, comm_id) in enumerate(
-                zip(ray_starts, segment_ends, tqdm(community_IDs, desc="Building cylinders"))
-            ):
-                # Create a cylinder between start and end
-                center = (start + end) / 2
-                direction = end - start
-                height = np.linalg.norm(direction)
-                if height == 0:
-                    continue
-                direction = direction / height
-                cyl = pv.Cylinder(
-                    center=center,
-                    direction=direction,
-                    radius=0.05,
-                    height=height,
-                    resolution=4,
-                    capping=True,
-                )
-                color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
-                cyl["scalars"] = np.full(cyl.n_points, comm_id)
-                cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
-                cylinders.append(cyl)
-            if cylinders:
-                cylinder_polydata = cylinders[0]
-                for c in cylinders[1:]:
-                    cylinder_polydata = cylinder_polydata.merge(c)
-                print(f"Saving visualized cylinders to {vis_dir / 'rays.ply'}")
-                cylinder_polydata.save(vis_dir / "rays.ply", texture="RGB")
-            # Save community_points as red cubes
-            cubes = []
-            for comm_id, pt in enumerate(tqdm(community_points, desc="Building points")):
-                cube = pv.Cube(center=pt, x_length=0.2, y_length=0.2, z_length=0.2)
-                color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
-                cube.point_data["RGB"] = np.tile(color, (cube.n_points, 1))
-                cubes.append(cube)
-            if cubes:
-                cube_polydata = cubes[0]
-                for s in cubes[1:]:
-                    cube_polydata = cube_polydata.merge(s)
-                print(f"Saving visualized cubes to {vis_dir / 'points.ply'}")
-                cube_polydata.save(vis_dir / "points.ply", texture="RGB")
-
-        # Convert the intersection points from the local mesh coordinate system to lat lon
         if transform_to_epsg_4978 is not None:
             # Append a column of all ones to make the homogenous coordinates
             community_points_homogenous = np.concatenate(
@@ -1231,11 +1112,153 @@ class PhotogrammetryCameraSet:
                 input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
                 output_CRS=LAT_LON_CRS,
             )
-            # Set the community points to lat lon
-            community_points = community_points_lat_lon
+            save_dict["community_points_lat_lon"] = community_points_lat_lon
+        path = out_dir / "communities.npz"
+        np.savez(path, **save_dict)
+        return path
 
-        # Return the 3D locations of the community points
-        return community_points
+    def vis_lines(self, line_segments_file, communities_file, out_dir):
+
+        data = np.load(line_segments_file)
+        ray_starts = data["ray_starts"]
+        segment_ends = data["segment_ends"]
+
+        data = np.load(communities_file)
+        community_IDs = data["community_IDs"]
+        community_points = data["community_points"]
+
+        norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
+        cmap = cm.get_cmap("tab20")
+        cylinder_polydata = None
+        for i, (start, end, comm_id) in enumerate(
+            zip(
+                ray_starts, segment_ends, tqdm(community_IDs, desc="Building cylinders")
+            )
+        ):
+            center = (start + end) / 2
+            direction = end - start
+            height = np.linalg.norm(direction)
+            if height == 0:
+                continue
+            direction = direction / height
+            cyl = pv.Cylinder(
+                center=center,
+                direction=direction,
+                radius=0.05,
+                height=height,
+                resolution=4,
+                capping=True,
+            )
+            color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
+            cyl["scalars"] = np.full(cyl.n_points, comm_id)
+            cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
+            if cylinder_polydata is None:
+                cylinder_polydata = cyl
+            else:
+                cylinder_polydata = cylinder_polydata.merge(cyl)
+
+        if cylinder_polydata is not None:
+            print(f"Saving visualized cylinders to {os.path.join(out_dir, 'rays.ply')}")
+            cylinder_polydata.save(os.path.join(out_dir, "rays.ply"), texture="RGB")
+
+        cube_polydata = None
+        for comm_id, pt in enumerate(tqdm(community_points, desc="Building points")):
+            cube = pv.Cube(center=pt, x_length=0.2, y_length=0.2, z_length=0.2)
+            color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
+            cube.point_data["RGB"] = np.tile(color, (cube.n_points, 1))
+            if cube_polydata is None:
+                cube_polydata = cube
+            else:
+                cube_polydata = cube_polydata.merge(cube)
+
+        if cube_polydata is not None:
+            print(f"Saving visualized cubes to {os.path.join(out_dir, 'points.ply')}")
+            cube_polydata.save(os.path.join(out_dir, "points.ply"), texture="RGB")
+
+    def triangulate_detections(
+        self,
+        detector: TabularRectangleSegmentor,
+        out_dir: PATH_TYPE,
+        boundaries: Union[None, tuple],
+        transform_to_epsg_4978=None,
+        similarity_threshold_meters: float = 0.1,
+        louvain_resolution: float = 2,
+        vis_ray_length_meters: float = 200,
+        vis_dir: PATH_TYPE = None,
+        line_segments_file=None,
+        positive_edges_file=None,
+        communities_file=None,
+    ) -> np.ndarray:
+        """Take per-image detections and triangulate them to 3D locations
+
+        Args:
+            detector (TabularRectangleSegmentor):
+                Produces detections per image using the get_detection_centers method
+            boundaries (typing.Union[None, tuple]):
+                If given, this should be [0] an upper surface and [1] a lower surface. These
+                surfaces will be used to clip the triangulation rays
+            transform_to_epsg_4978 (typing.Union[np.ndarray, None], optional):
+                The 4x4 transform to earth centered earth fixed coordinates. Defaults to None.
+            similarity_threshold_meters (float, optional):
+                Consider rays a potential match if the distance between them is less than this
+                value. Defaults to 0.1.
+            louvain_resolution (float, optional):
+                The resolution parameter of the networkx.louvain_communities function. Defaults to
+                2.0.
+            vis_ray_length_meters (float, optional):
+                The length of the visualized rays in meters. Defaults to 200.
+            vis_dir (PATH_TYPE, optional):
+                Directory to save visualization geometries if not None. Defaults to None.
+            out_dir (PATH_TYPE, optional):
+                Directory to save intermediate results if not None. Defaults to None.
+
+        Returns:
+            np.ndarray:
+                (n unique objects, 3), the 3D locations of the identified objects.
+                If transform_to_epsg_4978 is set, then this is in (lat, lon, alt), if not, it's in the
+                local coordinate system of the mesh
+        """
+
+        meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
+        similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale
+        vis_ray_length_local = vis_ray_length_meters * meters_to_local_scale
+
+        # Calculate line segments
+        if line_segments_file is None:
+            line_segments_file = self.calc_line_segments(
+                detector,
+                boundaries,
+                transform_to_epsg_4978,
+                vis_ray_length_local,
+                out_dir,
+            )
+
+        # Calculate intersections
+        if positive_edges_file is None:
+            print("Calculating graph weights")
+            positive_edges_file = calc_graph_weights(
+                line_segments_file, similarity_threshold_local, out_dir
+            )
+
+        # Calculate communities
+        if communities_file is None:
+            communities_file = self.calc_communities(
+                positive_edges_file,
+                line_segments_file,
+                louvain_resolution,
+                out_dir,
+                transform_to_epsg_4978=transform_to_epsg_4978,
+            )
+
+        # Visualization if requested
+        if vis_dir is not None:
+            self.vis_lines(line_segments_file, communities_file, vis_dir)
+        # Load and return community points (lat/lon if present, else local)
+        data = np.load(communities_file)
+        if "community_points_lat_lon" in data:
+            return data["community_points_lat_lon"]
+        else:
+            return data["community_points"]
 
     def vis(
         self,

@@ -1,6 +1,9 @@
+import json
 import typing
+from itertools import product
 
 import numpy as np
+from tqdm import tqdm
 
 
 def create_ramped_weighting(
@@ -29,141 +32,124 @@ def create_ramped_weighting(
 
 
 def compute_approximate_ray_intersection(
-    a0: np.ndarray,
-    a1: np.ndarray,
-    b0: np.ndarray,
-    b1: np.ndarray,
-    clamp: bool = False,
-    plotter=None,
+    a0: np.ndarray, a1: np.ndarray, b0: np.ndarray, b1: np.ndarray, clamp: bool = False
 ):
     """
-    Given a single line segment defined by 3D numpy.array points (a0, a1) and N line segments
-    defined by (b0, b1) (each (N, 3)), return the closest points on each segment and their
-    distances. If clamp is True, then respect the line segment ends. If clamp is False,
-    then use the infinite rays.
-
-    Args:
-        a0 (np.ndarray): Start point of the first segment (shape: (3,)).
-        a1 (np.ndarray): End point of the first segment (shape: (3,)).
-        b0 (np.ndarray): Start points of the second segments (shape: (N, 3)).
-        b1 (np.ndarray): End points of the second segments (shape: (N, 3)).
-        clamp (bool, optional): If True, the closest points are clamped to the segment
-            endpoints. If False, the closest points may be anywhere along the infinite
-            lines.
-        plotter (pyvista.Plotter, optional): If provided, visualizes the segments
-            and closest points using pyvista.
-
-    Returns:
-        pA (np.ndarray): Closest points on the first segment or line (shape: (N, 3)),
-            or None if segments are parallel and overlap.
-        pB (np.ndarray): Closest points on the second segments or lines (shape: (N, 3)),
-            or None if segments are parallel and overlap.
-        dists (np.ndarray): The minimum distances between the two segments or lines (shape: (N,)).
+    Compute closest points and distances between N line segments a0->a1 and b0->b1.
+    Returns (N, N, 3), (N, N, 3), (N, N)
     """
 
-    # Normalize both the A vector and all B vectors
-    A = a1 - a0
-    magA = np.linalg.norm(A)
-    _A = A / magA
-    B = b1 - b0
-    magB = np.linalg.norm(B, axis=1)
-    _B = B / magB[:, None]
+    A = a1 - a0  # (N, 3)
+    B = b1 - b0  # (N, 3)
+    magA = np.linalg.norm(A, axis=1)  # (N,)
+    magB = np.linalg.norm(B, axis=1)  # (N,)
+    _A = A / magA[:, None]  # (N, 3)
+    _B = B / magB[:, None]  # (N, 3)
 
-    cross = np.cross(_A, _B)
-    denom = np.linalg.norm(cross, axis=1) ** 2
+    a0_exp = a0[:, None, :]  # (N, 1, 3)
+    b0_exp = b0[None, :, :]  # (1, N, 3)
+    _A_exp = _A[:, None, :]  # (N, 1, 3)
+    _B_exp = _B[None, :, :]  # (1, N, 3)
 
-    # Where the lines criss-cross (denom > 0): calculate the projected closest points
-    t = b0 - a0
-    detA = np.einsum("ij,ij->i", np.cross(t, _B), cross)
-    detB = np.einsum("ij,ij->i", np.cross(t, np.broadcast_to(_A, _B.shape)), cross)
+    cross = np.cross(_A_exp, _B_exp)  # (N, N, 3)
+    denom = np.linalg.norm(cross, axis=2) ** 2  # (N, N)
 
-    # Where the denom is 0, for this division step replace it with 1
+    t = b0_exp - a0_exp  # (N, N, 3)
+
+    detA = np.einsum("ijk,ijk->ij", np.cross(t, _B_exp), cross)  # (N, N)
+    detB = np.einsum("ijk,ijk->ij", np.cross(t, _A_exp), cross)  # (N, N)
+
     denom_safe = np.where(denom == 0, 1, denom)
-    # Scale vectors that stretch along the A and B vectors. If the scale is
-    # between 0 and the magnitude of that vector then the projected point is
-    # within the line segment
     t0 = detA / denom_safe
     t1 = detB / denom_safe
 
-    # Projected closest point on segments A and B
-    pA = a0 + t0[:, None] * _A
-    pB = b0 + t1[:, None] * _B
-    # Clamp projections
     if clamp:
+        t0_clamped = np.clip(t0, 0, magA[:, None])  # (N, N)
+        t1_clamped = np.clip(t1, 0, magB[None, :])  # (N, N)
 
-        t0_clamped = np.clip(t0, 0, magA)
-        pA = a0 + t0_clamped[:, None] * _A
+        pA = a0_exp + t0_clamped[:, :, None] * _A_exp
+        pB = b0_exp + t1_clamped[:, :, None] * _B_exp
 
-        t1_clamped = np.clip(t1, 0, magB)
-        pB = b0 + t1_clamped[:, None] * _B
+        oob_A = (t0 < 0) | (t0 > magA[:, None])
+        oob_B = (t1 < 0) | (t1 > magB[None, :])
 
-        # Check if anything needs recomputing due to clamping (oob = out of bounds)
-        oob_A = (t0 < 0) | (t0 > magA)
-        oob_B = (t1 < 0) | (t1 > magB)
+        # Broadcast a0 and _A to (N, N, 3)
+        a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+        _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
+        b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+        _B_bcast = np.broadcast_to(_B[None, :, :], pB.shape)
 
-        # Recompute pB where A is clamped
         if np.any(oob_A):
-            dot = np.einsum("ij,ij->i", pA[oob_A] - b0[oob_A], _B[oob_A])
-            pB[oob_A] = b0[oob_A] + np.clip(dot, 0, magB[oob_A])[:, None] * _B[oob_A]
+            dot = np.einsum("ijk,ijk->ij", pA - b0_bcast, _B_bcast)
+            dot_clipped = np.clip(dot, 0, magB[None, :])
+            pB[oob_A] = b0_bcast[oob_A] + dot_clipped[oob_A, None] * _B_bcast[oob_A]
 
-        # Recompute pA where B is clamped
         if np.any(oob_B):
-            dot = np.einsum("ij,j->i", pB[oob_B] - a0, _A)
-            pA[oob_B] = a0 + np.clip(dot, 0, magA)[:, None] * _A
+            dot = np.einsum("ijk,ijk->ij", pB - a0_bcast, _A_bcast)
+            dot_clipped = np.clip(dot, 0, magA[:, None])
+            pA[oob_B] = a0_bcast[oob_B] + dot_clipped[oob_B, None] * _A_bcast[oob_B]
+    else:
+        pA = a0_exp + t0[:, :, None] * _A_exp
+        pB = b0_exp + t1[:, :, None] * _B_exp
 
-    # Handle exact parallel case by substituting results
+    # Handle parallel case
     parallel = denom == 0
     if np.any(parallel):
-
-        d0 = np.einsum("j,ij->i", _A, b0 - a0)
+        d0 = np.einsum("ij,kj->ik", _A, b0) - np.einsum("ij,ij->i", _A, a0)[:, None]
         if clamp:
-
-            d1 = np.einsum("j,ij->i", _A, b1 - a0)
+            d1 = np.einsum("ij,kj->ik", _A, b1) - np.einsum("ij,ij->i", _A, a0)[:, None]
 
             before = (d0 <= 0) & (d1 <= 0) & parallel
-            after = (d0 >= magA) & (d1 >= magA) & parallel
+            after = (d0 >= magA[:, None]) & (d1 >= magA[:, None]) & parallel
             middle = parallel & ~(before | after)
 
             if np.any(before):
-                pA[before] = a0
+                pA[before] = a0[:, None, :][before]
                 pB[before] = np.where(
-                    np.abs(d0[before]) < np.abs(d1[before])[:, None],
-                    b0[before],
-                    b1[before],
+                    np.abs(d0[before])[:, None] < np.abs(d1[before])[:, None],
+                    b0[None, :, :][before],
+                    b1[None, :, :][before],
                 )
 
             if np.any(after):
-                pA[after] = a1
+                pA[after] = a1[:, None, :][after]
                 pB[after] = np.where(
-                    np.abs(d0[after]) < np.abs(d1[after])[:, None],
-                    b0[after],
-                    b1[after],
+                    np.abs(d0[after])[:, None] < np.abs(d1[after])[:, None],
+                    b0[None, :, :][after],
+                    b1[None, :, :][after],
                 )
 
             if np.any(middle):
-                t_mid = np.clip(d0[middle], 0, magA)
-                pA[middle] = a0 + t_mid[:, None] * _A
-                # Vector from A to B starting point
-                a2b = b0[middle] - pA[middle]
-                # Component along A
-                alongA = np.einsum("ij,j->i", a2b, _A)[:, None] * _A
-                # Remove the parallel component so we are left only with perpendicular
-                perpendicular = a2b - alongA
-                pB[middle] = pA[middle] + perpendicular
+                t_mid = np.clip(
+                    d0[middle], 0, np.broadcast_to(magA[:, None], d0.shape)[middle]
+                )
+
+                a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+                _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
+
+                a0_mid = a0_bcast[middle]
+                _A_mid = _A_bcast[middle]
+
+                pA[middle] = a0_mid + t_mid[:, None] * _A_mid
+
+                b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+                a2b = b0_bcast[middle] - pA[middle]
+
+                alongA = np.einsum("ij,ij->i", a2b, _A_mid)[:, None] * _A_mid
+                pB[middle] = pA[middle] + (a2b - alongA)
 
         else:
-            pA[parallel] = a0 + d0[:, None] * _A
-            pB[parallel] = b0
+            pA[parallel] = (
+                a0[:, None, :][parallel]
+                + d0[:, :, None][parallel] * _A[:, None, :][parallel]
+            )
+            pB[parallel] = b0[None, :, :][parallel]
 
-    if plotter is not None:
-        raise NotImplementedError()
-        # points = np.vstack([a0, pA, a1, b1, pB, b0])
-        # plotter.add_lines(points)
-        # plotter.add_points(points)
-        # plotter.background_color = "black"
-        # plotter.show()
+    return pA, pB, np.linalg.norm(pA - pB, axis=2)  # (N, N)
 
-    return pA, pB, np.linalg.norm(pA - pB, axis=1)
+
+def SUMS(p, oob, v0_bcast, dot_clipped, _V_bcast):
+    p[oob] = v0_bcast[oob] + dot_clipped[oob, None] * _V_bcast[oob]
 
 
 def triangulate_rays_lstsq(starts, directions):
@@ -269,17 +255,88 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: (3,) array, the average intersection point
     """
-    N = starts.shape[0]
     closest_points = []
-    for i in range(N - 1):
-        a0, a1 = starts[i], ends[i]
-        b0, b1 = starts[i + 1 : N], ends[i + 1 : N]
-        pA, pB, _ = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
-        closest_points.append(pA)
-        closest_points.append(pB)
-    if closest_points:
-        return np.mean(np.vstack(closest_points), axis=0)
-    else:
-        # If all are None, return the average of all start and end points
-        all_points = np.concatenate([starts, ends], axis=0)
-        return np.mean(all_points, axis=0)
+    pA, pB, _ = compute_approximate_ray_intersection(
+        a0=starts, a1=ends, b0=starts, b1=ends, clamp=True
+    )
+    mask = ~np.eye(starts.shape[0], dtype=bool)
+    return np.mean(np.vstack([pA[mask], pB[mask]]), axis=0)
+
+
+def calc_graph_weights(
+    line_segments_file, similarity_threshold, out_dir, min_dist=1e-6, step=5000
+):
+    """
+    Arguments:
+        min_dist (float, optional): Limits the minimum intersection distance to some
+            arbitrary small number to avoid div by 0
+    """
+    data = np.load(line_segments_file)
+    starts = data["ray_starts"]
+    ends = data["segment_ends"]
+
+    # Calculate the indices for ray-ray intersections
+    positive_edges = []
+
+    # Calculate and filter intersection distances
+    # For memory reasons, we need to iterate over blocks. When the number of segments starts
+    # getting very large, the matrices for calculating ray intersections take a great
+    # deal of RAM
+    num_steps = len(starts) // step + 1
+    total = int(num_steps * (num_steps + 1) / 2)
+    for islice, jslice, diagonal in tqdm(
+        chunk_slices(N=len(starts), step=step),
+        total=total,
+        desc="Calculating graph weights",
+    ):
+        _, _, dist = compute_approximate_ray_intersection(
+            a0=starts[islice],
+            a1=ends[islice],
+            b0=starts[jslice],
+            b1=ends[jslice],
+            clamp=True,
+        )
+        if diagonal:
+            np.fill_diagonal(dist, np.nan)
+        dist[dist > similarity_threshold] = np.nan
+        dist[dist < min_dist] = min_dist
+
+        # Determine which intersections are valid, represented by finite values
+        i_inds, j_inds = np.where(np.isfinite(dist))
+        positive_edges.extend(make_indices(i_inds, j_inds, islice, jslice, dist))
+
+    path = out_dir / "positive_edges.json"
+    with path.open("w") as file:
+        json.dump(positive_edges, file)
+    return path
+
+
+def chunk_slices(
+    N: int, step: int
+) -> typing.Iterator[typing.Tuple[slice, slice, bool]]:
+    """
+    Yield slices for (step, step) chunks of an (N, N) square matrix.
+
+    Each yielded value is (islice, jslice, is_diag), where:
+    - islice: slice along the first axis
+    - jslice: slice along the second axis
+    - is_diag: True if the chunk is in the upper triangle (including diagonal)
+    """
+    ranges = range(0, N, step)
+    for i, j in product(ranges, repeat=2):
+        if j >= i:  # upper triangle including diagonal
+            islice = slice(i, min(i + step, N))
+            jslice = slice(j, min(j + step, N))
+            yield islice, jslice, i == j
+
+
+def make_indices(i_inds, j_inds, islice, jslice, dist):
+    return [
+        (
+            int(i) + islice.start,
+            int(j) + jslice.start,
+            {"weight": float(1 / dist[i, j])},
+        )
+        for i, j in zip(i_inds, j_inds)
+        if i + islice.start < j + jslice.start
+    ]
