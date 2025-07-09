@@ -67,6 +67,17 @@ class TestComputeApproximateRayIntersection:
                 [-1, 0, 0],
                 2,
             ),
+            # One at the endpoint, one along the vector, clamp
+            (
+                [2, 2, 0],
+                [3, 3, 0],
+                [1, 0, 0],
+                [3, 0, 0],
+                True,
+                [2, 2, 0],
+                [2, 0, 0],
+                2,
+            ),
             # Parallel, with overlap
             (
                 [0, 0, 0],
