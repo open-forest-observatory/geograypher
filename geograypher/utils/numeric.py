@@ -76,7 +76,7 @@ def compute_approximate_ray_intersection(
     # If lines are parallel (denom=0) test if lines overlap. If they don't
     # overlap then there is a closest point solution. If they do overlap,
     # there are infinite closest positions, but there is a closest distance
-    if not denom:
+    if denom == 0:
         d0 = np.dot(_A, (b0 - a0))
 
         # Overlap only possible with clamping
@@ -267,7 +267,7 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
             if pA is not None and pB is not None:
                 closest_points.append(pA)
                 closest_points.append(pB)
-    if closest_points:
+    if len(closest_points) > 0:
         return np.mean(np.stack(closest_points, axis=0), axis=0)
     else:
         # If all are None, return the average of all start and end points

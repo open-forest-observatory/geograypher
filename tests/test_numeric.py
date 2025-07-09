@@ -7,10 +7,6 @@ from geograypher.utils.numeric import (
 )
 
 
-def normalize(vector):
-    return vector / np.linalg.norm(vector)
-
-
 class TestComputeApproximateRayIntersection:
 
     @pytest.mark.parametrize(
