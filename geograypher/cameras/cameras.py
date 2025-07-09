@@ -1117,7 +1117,7 @@ class PhotogrammetryCameraSet:
         np.savez(path, **save_dict)
         return path
 
-    def vis_lines(self, line_segments_file, communities_file, out_dir):
+    def vis_lines(self, line_segments_file, communities_file, out_dir, batch=250):
 
         data = np.load(line_segments_file)
         ray_starts = data["ray_starts"]
@@ -1130,32 +1130,20 @@ class PhotogrammetryCameraSet:
         norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
         cmap = cm.get_cmap("tab20")
         cylinder_polydata = None
-        for i, (start, end, comm_id) in enumerate(
-            zip(
-                ray_starts, segment_ends, tqdm(community_IDs, desc="Building cylinders")
+        n_batches = int(np.ceil(len(community_IDs) / batch))
+        for i in tqdm(range(n_batches), desc="Building cylinders"):
+            islice = slice(i * batch, min((i + 1) * batch, len(community_IDs)))
+            batched = merge_cylinders(
+                starts=ray_starts[islice],
+                ends=segment_ends[islice],
+                community_IDs=community_IDs[islice],
+                cmap=cmap,
+                norm=norm,
             )
-        ):
-            center = (start + end) / 2
-            direction = end - start
-            height = np.linalg.norm(direction)
-            if height == 0:
-                continue
-            direction = direction / height
-            cyl = pv.Cylinder(
-                center=center,
-                direction=direction,
-                radius=0.05,
-                height=height,
-                resolution=4,
-                capping=True,
-            )
-            color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
-            cyl["scalars"] = np.full(cyl.n_points, comm_id)
-            cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
             if cylinder_polydata is None:
-                cylinder_polydata = cyl
+                cylinder_polydata = batched
             else:
-                cylinder_polydata = cylinder_polydata.merge(cyl)
+                cylinder_polydata = cylinder_polydata.merge(batched)
 
         if cylinder_polydata is not None:
             print(f"Saving visualized cylinders to {os.path.join(out_dir, 'rays.ply')}")
@@ -1327,3 +1315,30 @@ class PhotogrammetryCameraSet:
             if force_xvfb:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
+
+
+def merge_cylinders(starts, ends, community_IDs, cmap, norm):
+    polydata = None
+    for start, end, comm_id in zip(starts, ends, community_IDs):
+        center = (start + end) / 2
+        direction = end - start
+        height = np.linalg.norm(direction)
+        if height == 0:
+            continue
+        direction = direction / height
+        cyl = pv.Cylinder(
+            center=center,
+            direction=direction,
+            radius=0.05,
+            height=height,
+            resolution=3,
+            capping=False,
+        )
+        color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
+        cyl["scalars"] = np.full(cyl.n_points, comm_id)
+        cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
+        if polydata is None:
+            polydata = cyl
+        else:
+            polydata = polydata.merge(cyl)
+    return polydata
