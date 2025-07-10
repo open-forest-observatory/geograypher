@@ -92,12 +92,18 @@ def detection_filter(
     # against the image. detections that are mostly valid will be kept and returned
     good_row_indices = []
     for idx, row in gdf.iterrows():
+        geom = row.geometry
+        assert geom.geom_type in {"Polygon", "MultiPolygon"}, \
+            f"Process won't work with non-polygons ({geom.geom_type})"
 
-        assert (
-            row.geometry.geom_type == "Polygon"
-        ), "Process won't work with non-polygonal shapes"
+        # If it's a MultiPolygon, split into individual polygons
+        if geom.geom_type == "MultiPolygon":
+            shapes = [(poly, 1) for poly in geom.geoms]
+        else:
+            shapes = [(geom, 1)]
+
         mask = rasterize(
-            [(row.geometry, 1)],
+            shapes,
             out_shape=img.shape,
             fill=0,
             dtype=np.uint8,
@@ -138,10 +144,19 @@ def eval_image(
     draw = ImageDraw.Draw(overlay_draw, "RGBA")
     for idx, row in gdf.iterrows():
         color = (0, 255, 0, 70) if idx in good_row_indices else (255, 0, 0, 70)
-        # Convert polygon to pixel coordinates
-        coords = list(row.geometry.exterior.coords)
-        # coords are (x, y), but PIL expects (col, row) so we're good
-        draw.polygon(coords, outline=(0, 0, 0, 255), fill=color)
+        geom = row.geometry
+        if geom.geom_type == "Polygon":
+            polygons = [geom]
+        elif geom.geom_type == "MultiPolygon":
+            polygons = list(geom.geoms)
+        else:
+            raise NotImplementedError(f"Can't handle {type(geom)}")
+        for poly in polygons:
+            # Convert polygon to pixel coordinates
+            coords = list(poly.exterior.coords)
+            # coords are (x, y), but PIL expects (col, row) so we're good
+            draw.polygon(coords, outline=(0, 0, 0, 255), fill=color)
+
     detection_overlay = Image.alpha_composite(pil_img, overlay_draw)
 
     for image, suffix in (mask_overlay, "_ground_mask"), (detection_overlay, "_detections"):
