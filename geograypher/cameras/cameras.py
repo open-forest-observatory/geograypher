@@ -1037,7 +1037,12 @@ class PhotogrammetryCameraSet:
 
         # Save to file
         path = out_dir / "line_segments.npz"
-        np.savez(path, ray_starts=ray_starts, segment_ends=segment_ends)
+        np.savez(
+            path,
+            ray_starts=ray_starts,
+            segment_ends=segment_ends,
+            ray_IDs=all_image_IDs,
+        )
         return path
 
     def calc_communities(

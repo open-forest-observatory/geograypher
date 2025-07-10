@@ -274,6 +274,7 @@ def calc_graph_weights(
     data = np.load(line_segments_file)
     starts = data["ray_starts"]
     ends = data["segment_ends"]
+    ray_IDs = data["ray_IDs"]
 
     # Calculate the indices for ray-ray intersections
     positive_edges = []
@@ -303,7 +304,9 @@ def calc_graph_weights(
 
         # Determine which intersections are valid, represented by finite values
         i_inds, j_inds = np.where(np.isfinite(dist))
-        positive_edges.extend(make_indices(i_inds, j_inds, islice, jslice, dist))
+        positive_edges.extend(
+            make_indices(i_inds, j_inds, islice, jslice, dist, ray_IDs)
+        )
 
     path = out_dir / "positive_edges.json"
     with path.open("w") as file:
@@ -330,7 +333,7 @@ def chunk_slices(
             yield islice, jslice, i == j
 
 
-def make_indices(i_inds, j_inds, islice, jslice, dist):
+def make_indices(i_inds, j_inds, islice, jslice, dist, ray_IDs):
     return [
         (
             int(i) + islice.start,
@@ -338,5 +341,6 @@ def make_indices(i_inds, j_inds, islice, jslice, dist):
             {"weight": float(1 / dist[i, j])},
         )
         for i, j in zip(i_inds, j_inds)
-        if i + islice.start < j + jslice.start
+        if (i + islice.start < j + jslice.start)
+        and (ray_IDs[i + islice.start] != ray_IDs[j + jslice.start])
     ]
