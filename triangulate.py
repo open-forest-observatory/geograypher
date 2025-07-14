@@ -67,6 +67,8 @@ def main(
         # positive_edges_file=output_dir / "positive_edges.json",
         # communities_file=output_dir / "communities.npz",
         # vis_dir=output_dir,
+        limit_ray_length_meters=160,
+        limit_angle_from_vert=np.deg2rad(50),
     )
 
     # Save results as CSV and GeoJSON

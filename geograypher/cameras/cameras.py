@@ -956,6 +956,8 @@ class PhotogrammetryCameraSet:
         transform_to_epsg_4978,
         vis_ray_length_local,
         out_dir,
+        limit_ray_length_local=None,
+        limit_angle_from_vert=None,
     ):
 
         # Record the lines corresponding to each detection and the associated image ID
@@ -1003,6 +1005,17 @@ class PhotogrammetryCameraSet:
             ray_directions, axis=1, keepdims=True
         )
 
+        # Filter by angle from vertical if requested
+        if limit_angle_from_vert is not None:
+            # Angle from vertical (z-axis): arccos(|z component of unit vector|)
+            z_axis = ray_directions[:, 2]
+            angles = np.arccos(np.abs(z_axis))
+            keep_mask = angles <= limit_angle_from_vert
+            ray_starts = ray_starts[keep_mask]
+            segment_ends = segment_ends[keep_mask]
+            ray_directions = ray_directions[keep_mask]
+            all_image_IDs = all_image_IDs[keep_mask]
+
         if boundaries is not None:
             print("Clipping all line segments to boundary surfaces")
             upper = boundaries[0].multi_ray_trace(
@@ -1020,20 +1033,29 @@ class PhotogrammetryCameraSet:
             # Find the ray indices that were found to intersect with both surfaces
             matched_set = list(set(upper[1]).intersection(set(lower[1])))
 
-            # Downsample to only the relevant ray indices
-            ray_directions = ray_directions[matched_set]
-
             # Iterate through the rays with intersections and update the starts and ends
             new_starts = []
             new_ends = []
+            new_directions = []
+            new_IDs = []
             for ray_index in matched_set:
+                lowpt = lower[0][np.where(lower[1] == ray_index)[0][0]]
+                if limit_ray_length_local is not None:
+                    vector = ray_starts[ray_index] - lowpt
+                    if np.linalg.norm(vector) > limit_ray_length_local:
+                        continue
                 new_starts.append(upper[0][np.where(upper[1] == ray_index)[0][0]])
-                new_ends.append(lower[0][np.where(lower[1] == ray_index)[0][0]])
+                new_ends.append(lowpt)
+                new_directions.append(ray_directions[ray_index])
+                new_IDs.append(all_image_IDs[ray_index])
             ray_starts = np.array(new_starts)
             segment_ends = np.array(new_ends)
+            ray_directions = np.array(new_directions)
+            all_image_IDs = np.array(new_IDs)
 
         assert ray_starts.shape == ray_directions.shape
         assert ray_starts.shape == segment_ends.shape
+        assert len(ray_starts) == len(all_image_IDs)
 
         # Save to file
         path = out_dir / "line_segments.npz"
@@ -1181,6 +1203,8 @@ class PhotogrammetryCameraSet:
         line_segments_file=None,
         positive_edges_file=None,
         communities_file=None,
+        limit_ray_length_meters: float = None,
+        limit_angle_from_vert: float = None,
     ) -> np.ndarray:
         """Take per-image detections and triangulate them to 3D locations
 
@@ -1204,6 +1228,12 @@ class PhotogrammetryCameraSet:
                 Directory to save visualization geometries if not None. Defaults to None.
             out_dir (PATH_TYPE, optional):
                 Directory to save intermediate results if not None. Defaults to None.
+            limit_ray_length_meters (float, optional):
+                If set, limits the length of rays used for triangulation (in meters).
+                Defaults to None (no limit).
+            limit_angle_from_vert (float, optional):
+                If set, limits the angle from vertical (z-axis) for rays, in radians.
+                Defaults to None (no limit).
 
         Returns:
             np.ndarray:
@@ -1215,6 +1245,9 @@ class PhotogrammetryCameraSet:
         meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
         similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale
         vis_ray_length_local = vis_ray_length_meters * meters_to_local_scale
+        limit_ray_length_local = None
+        if limit_ray_length_meters is not None:
+            limit_ray_length_local = limit_ray_length_meters * meters_to_local_scale
 
         # Calculate line segments
         if line_segments_file is None:
@@ -1224,6 +1257,8 @@ class PhotogrammetryCameraSet:
                 transform_to_epsg_4978,
                 vis_ray_length_local,
                 out_dir,
+                limit_ray_length_local=limit_ray_length_local,
+                limit_angle_from_vert=limit_angle_from_vert,
             )
 
         # Calculate intersections
