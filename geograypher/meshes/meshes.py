@@ -46,7 +46,6 @@ from geograypher.utils.geospatial import (
 )
 from geograypher.utils.indexing import ensure_float_labels
 from geograypher.utils.numeric import compute_3D_triangle_area
-from geograypher.utils.parsing import parse_transform_metashape
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
 
@@ -54,14 +53,13 @@ class TexturedPhotogrammetryMesh:
     def __init__(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
+        input_CRS: pyproj.CRS,
         downsample_target: float = 1.0,
-        transform_filename: typing.Union[PATH_TYPE, None] = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
         ROI=None,
         ROI_buffer_meters: float = 0,
-        require_transform: bool = False,
         log_level: str = "INFO",
     ):
         """_summary_
@@ -97,15 +95,13 @@ class TexturedPhotogrammetryMesh:
         if not self.logger.hasHandlers():
             self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
-        # Load the transform
-        self.logger.info("Loading transform to EPSG:4326")
-        self.load_transform_to_epsg_4326(
-            transform_filename, require_transform=require_transform
-        )
+        # Load the transform to the metashape coordinate system
+        self.logger.info("Loading transform to internal coordinate system")
         # Load the mesh with the pyvista loader
         self.logger.info("Loading mesh")
         self.load_mesh(
             mesh=mesh,
+            input_CRS=input_CRS,
             downsample_target=downsample_target,
             ROI=ROI,
             ROI_buffer_meters=ROI_buffer_meters,
@@ -129,6 +125,7 @@ class TexturedPhotogrammetryMesh:
     def load_mesh(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
+        input_CRS: pyproj.CRS,
         downsample_target: float = 1.0,
         ROI=None,
         ROI_buffer_meters=0,
@@ -148,6 +145,8 @@ class TexturedPhotogrammetryMesh:
             ROI_simplify_tol_meters:
                 See select_mesh_ROI. Defaults to 2.
         """
+        self.CRS = input_CRS
+
         if isinstance(mesh, pv.PolyData):
             self.pyvista_mesh = mesh
         else:
@@ -164,10 +163,12 @@ class TexturedPhotogrammetryMesh:
             simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
+        # Reproject to a meters-based CRS. TODO consider if there's a better option than ECEF.
+        self.reproject_CRS(target_CRS=EARTH_CENTERED_EARTH_FIXED_CRS, inplace=True)
+
         # Downsample mesh and transfer active scalars from original mesh to downsampled mesh
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
-            # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
             self.logger.info("Downsampling the mesh")
             # Have a temporary mesh so we can use the original mesh to transfer the active scalars to the downsampled one
@@ -178,6 +179,46 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
+
+    def reproject_CRS(self, target_CRS: pyproj.CRS, inplace: bool = True):
+        """_summary_
+
+        Args:
+            target_CRS (_type_): _description_
+            inplace (bool, optional): _description_. Defaults to True.
+        """
+        # Deal with potential malformed CRS objects, like those from rasterio
+        target_CRS = pyproj.CRS.from_epsg(target_CRS.to_epsg())
+        # Build a pyproj transfrormer from the current to the desired CRS
+        transformer = pyproj.Transformer.from_crs(self.CRS, target_CRS)
+
+        # Convert the mesh vertices to a numpy array
+        mesh_verts = np.array(self.pyvista_mesh.points)
+
+        # Transform the coordinates
+        verts_in_output_CRS = transformer.transform(
+            xx=mesh_verts[:, 0],
+            yy=mesh_verts[:, 1],
+            zz=mesh_verts[:, 2],
+        )
+        # Stack and transpose
+        verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+
+        # TODO figure out how to deal with the fact that this may no longer be a right-handed coordinate system
+        # See comment in `get_vertices_in_CRS`
+
+        if inplace:
+            # Update the CRS
+            self.CRS = target_CRS
+            # Update the mesh points
+            self.pyvista_mesh.points = pv.pyvista_ndarray(verts_in_output_CRS)
+        else:
+            # Create a copy of the mesh
+            copied_mesh = self.pyvista_mesh.copy(deep=True)
+            # Update its points
+            copied_mesh.points = pv.pyvista_ndarray(verts_in_output_CRS)
+            # Return the updated copy
+            return copied_mesh
 
     def transfer_texture(self, downsampled_mesh):
         """Transfer texture from original mesh to a downsampled version using KDTree for nearest neighbor point searches
@@ -215,47 +256,6 @@ class TexturedPhotogrammetryMesh:
                 "Textures not transferred, active scalars data is assoicated with cell data not point data"
             )
         return downsampled_mesh
-
-    def load_transform_to_epsg_4326(
-        self, transform_filename: PATH_TYPE, require_transform: bool = False
-    ):
-        """
-        Load the 4x4 transform projects points from their local coordnate system into EPSG:4326,
-        the earth-centered, earth-fixed coordinate frame. This can either be from a CSV file specifying
-        it directly or extracted from a Metashape camera output
-
-        Args
-            transform_filename (PATH_TYPE):
-            require_transform (bool): Does a local-to-global transform file need to be available"
-        Raises:
-            FileNotFoundError: Cannot find texture file
-            ValueError: Transform file doesn't have 4x4 matrix
-        """
-        if transform_filename is None:
-            if require_transform:
-                raise ValueError("Transform is required but not provided")
-            # If not required, do nothing. TODO consider adding a warning
-            return
-
-        elif Path(transform_filename).suffix == ".xml":
-            self.local_to_epgs_4978_transform = parse_transform_metashape(
-                transform_filename
-            )
-        elif Path(transform_filename).suffix == ".csv":
-            self.local_to_epgs_4978_transform = np.loadtxt(
-                transform_filename, delimiter=","
-            )
-            if self.local_to_epgs_4978_transform.shape != (4, 4):
-                raise ValueError(
-                    f"Transform should be (4,4) but is {self.local_to_epgs_4978_transform.shape}"
-                )
-        else:
-            if require_transform:
-                raise ValueError(
-                    f"Transform could not be loaded from {transform_filename}"
-                )
-            # Not set
-            return
 
     def standardize_texture(self, texture_array: np.ndarray):
         # TODO consider coercing into a numpy array
@@ -642,29 +642,9 @@ class TexturedPhotogrammetryMesh:
         Returns:
             np.ndarray: (n_points, 3)
         """
-        # If no CRS is requested, just return the points
-        if output_CRS is None:
-            return self.pyvista_mesh.points
-
-        # The mesh points are defined in an arbitrary local coordinate system but we can transform them to EPGS:4978,
-        # the earth-centered, earth-fixed coordinate system, using an included transform
-        epgs4978_verts = self.transform_vertices(self.local_to_epgs_4978_transform)
-
-        # TODO figure out why this conversion was required. I think it was some typing issue
-        output_CRS = pyproj.CRS.from_epsg(output_CRS.to_epsg())
-        # Build a pyproj transfrormer from EPGS:4978 to the desired CRS
-        transformer = pyproj.Transformer.from_crs(
-            EARTH_CENTERED_EARTH_FIXED_CRS, output_CRS
-        )
-
-        # Transform the coordinates
-        verts_in_output_CRS = transformer.transform(
-            xx=epgs4978_verts[:, 0],
-            yy=epgs4978_verts[:, 1],
-            zz=epgs4978_verts[:, 2],
-        )
-        # Stack and transpose
-        verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+        # Reproject the mesh
+        reprojected_mesh = self.reproject_CRS(output_CRS, inplace=False)
+        verts_in_output_CRS = np.array(reprojected_mesh.points)
 
         # Pyproj respects the CRS axis ordering, which is northing/easting for most projected coordinate systems
         # This causes headaches because it's assumed by rasterio and geopandas to be easting/northing
@@ -1547,6 +1527,7 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
+        # TODO figure out how to do the transform into local coordinates only once
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
@@ -1912,6 +1893,7 @@ class TexturedPhotogrammetryMesh:
                 Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh
                 IDs_to_labels if unset.
         """
+        # TODO conside reprojecting to ensure axes are both meters-based
         off_screen = (not interactive) or (screenshot_filename is not None)
 
         # If the IDs to labels is not set, use the default ones for this mesh
