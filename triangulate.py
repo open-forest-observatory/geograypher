@@ -39,9 +39,9 @@ def main(
     mesh = TexturedPhotogrammetryMesh(
         mesh_file, transform_filename=camera_xml, require_transform=True
     )
-    ceiling, floor = mesh.export_covering_meshes(N=20, z_buffer_m=(2, 0), subsample=2)
-    ceiling.save(output_dir / "b2_ceiling.ply")
-    floor.save(output_dir / "b2_floor.ply")
+    ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer_m=(0, 1), subsample=2)
+    ceiling.save(output_dir / "boundary_ceiling.ply")
+    floor.save(output_dir / "boundary_floor.ply")
     print("Boundary meshes saved")
 
     # Load region detector
