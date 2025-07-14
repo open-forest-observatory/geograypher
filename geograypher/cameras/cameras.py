@@ -1032,14 +1032,14 @@ class PhotogrammetryCameraSet:
         for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
             for j in range(i, num_dets):
                 # Extract starts and directions
-                A = ray_starts[i]
-                B = ray_starts[j]
-                a = ray_directions[i]
-                b = ray_directions[j]
+                a0 = ray_starts[i]
+                a1 = segment_ends[i]
+                b0 = ray_starts[j]
+                b1 = segment_ends[j]
                 # TODO explore whether this could be vectorized
-                dist, valid = compute_approximate_ray_intersection(A, a, B, b)
+                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1)
 
-                interesection_dists[i, j] = dist if valid else np.nan
+                interesection_dists[i, j] = dist
 
         # Filter out intersections that are above the threshold distance
         interesection_dists[interesection_dists > similarity_threshold_local] = np.nan
