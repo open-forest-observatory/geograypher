@@ -71,6 +71,9 @@ def compute_approximate_ray_intersection(
     _A = A / magA
     _B = B / magB
     cross = np.cross(_A, _B)
+    # Denom is the area of the parallelogram formed by the A and B unit vectors
+    # (norm of the cross product), squared. As that area goes to zero, it
+    # means that the unit vectors are aligned.
     denom = np.linalg.norm(cross) ** 2
 
     # If lines are parallel (denom=0) test if lines overlap. If they don't
