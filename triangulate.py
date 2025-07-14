@@ -10,6 +10,7 @@ import pyvista as pv
 from shapely.geometry import Point
 
 from geograypher.cameras import MetashapeCameraSet
+from geograypher.constants import LAT_LON_CRS
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
 from geograypher.utils.files import ensure_folder
@@ -69,16 +70,17 @@ def main(
     )
 
     # Save results as CSV and GeoJSON
-    csv_path = output_dir / "tree_locations.csv"
     geojson_path = output_dir / "tree_locations.geojson"
-    df = pd.DataFrame(tree_points, columns=["x", "y", "z"])
-    df.to_csv(csv_path, index=False)
+    # Note that we want to store (lat, lon) - which is what tree_points
+    # comes in as - in the form (y, x)
     gdf = gpd.GeoDataFrame(
-        df, geometry=[Point(x, y, z) for x, y, z in tree_points], crs="EPSG:4978"
+        pd.DataFrame(tree_points, columns=["y", "x", "z"]),
+        geometry=[Point(x, y, z) for y, x, z in tree_points],
+        crs=LAT_LON_CRS,
     )
     gdf.to_file(geojson_path, driver="GeoJSON")
 
-    print(f"Saved triangulated tree locations to {csv_path} and {geojson_path}")
+    print(f"Saved triangulated tree locations to {geojson_path}")
 
 
 def parse_args():
