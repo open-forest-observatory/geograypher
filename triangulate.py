@@ -25,7 +25,18 @@ def main(
     image_file_extension: str = ".JPG",
     similarity_threshold_meters: float = 0.1,
     louvain_resolution: float = 2.0,
+    nonlinearity = None,
 ):
+    # Convert nonlinearity argument to lambda function
+    if nonlinearity is None:
+        transform = None
+    elif nonlinearity == "square":
+        transform = lambda x: x**2
+    elif nonlinearity == "cube":
+        transform = lambda x: x**3
+    else:
+        raise ValueError(f"Unknown nonlinearity: {nonlinearity}")
+
     # Load camera set
     cameras = MetashapeCameraSet(camera_file=camera_xml, image_folder=images_dir)
 
@@ -66,9 +77,10 @@ def main(
         # line_segments_file=output_dir / "line_segments.npz",
         # positive_edges_file=output_dir / "positive_edges.json",
         # communities_file=output_dir / "communities.npz",
-        # vis_dir=output_dir,
+        vis_dir=output_dir,
         limit_ray_length_meters=160,
         limit_angle_from_vert=np.deg2rad(50),
+        transform=transform,
     )
 
     # Save results as CSV and GeoJSON
@@ -114,6 +126,12 @@ def parse_args():
         default=2.0,
         help="Louvain community resolution parameter",
     )
+    parser.add_argument(
+        "--nonlinearity",
+        choices=["square", "cube"],
+        default=None,
+        help="Nonlinearity transform to apply to distances before inversion",
+    )
     return parser.parse_args()
 
 
@@ -143,6 +161,7 @@ if __name__ == "__main__":
         image_file_extension=args.image_file_extension,
         similarity_threshold_meters=args.similarity_threshold_meters,
         louvain_resolution=args.louvain_resolution,
+        nonlinearity=args.nonlinearity,
     )
     profile.disable()
     profile.dump_stats(args.output_dir / f"profile_{int(time.time() * 1e6)}.snakeviz")

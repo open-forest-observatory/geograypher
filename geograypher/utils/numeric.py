@@ -264,12 +264,13 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
 
 
 def calc_graph_weights(
-    line_segments_file, similarity_threshold, out_dir, min_dist=1e-6, step=5000
+    line_segments_file, similarity_threshold, out_dir, min_dist=1e-6, step=5000, transform=None
 ):
     """
     Arguments:
         min_dist (float, optional): Limits the minimum intersection distance to some
             arbitrary small number to avoid div by 0
+        transform (callable, optional): Function to apply to distances before inversion
     """
     data = np.load(line_segments_file)
     starts = data["ray_starts"]
@@ -301,6 +302,10 @@ def calc_graph_weights(
             np.fill_diagonal(dist, np.nan)
         dist[dist > similarity_threshold] = np.nan
         dist[dist < min_dist] = min_dist
+
+        # Apply transform if provided
+        if transform is not None:
+            dist = transform(dist)
 
         # Determine which intersections are valid, represented by finite values
         i_inds, j_inds = np.where(np.isfinite(dist))

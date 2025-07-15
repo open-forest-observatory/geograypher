@@ -1205,6 +1205,7 @@ class PhotogrammetryCameraSet:
         communities_file=None,
         limit_ray_length_meters: float = None,
         limit_angle_from_vert: float = None,
+        transform=None,
     ) -> np.ndarray:
         """Take per-image detections and triangulate them to 3D locations
 
@@ -1234,6 +1235,8 @@ class PhotogrammetryCameraSet:
             limit_angle_from_vert (float, optional):
                 If set, limits the angle from vertical (z-axis) for rays, in radians.
                 Defaults to None (no limit).
+            transform (callable, optional):
+                Function to apply to distances before inversion. Defaults to None (no transform).
 
         Returns:
             np.ndarray:
@@ -1265,7 +1268,7 @@ class PhotogrammetryCameraSet:
         if positive_edges_file is None:
             print("Calculating graph weights")
             positive_edges_file = calc_graph_weights(
-                line_segments_file, similarity_threshold_local, out_dir
+                line_segments_file, similarity_threshold_local, out_dir, transform=transform
             )
 
         # Calculate communities
