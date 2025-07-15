@@ -611,25 +611,6 @@ class TexturedPhotogrammetryMesh:
         return list(self.IDs_to_labels.values())
 
     # Vertex methods
-
-    def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
-        """Apply a transform to the vertex coordinates
-
-        Args:
-            transform_4x4 (np.ndarray): Transform to be applied
-            in_place (bool): Should the vertices be updated for all member objects
-        """
-        homogenous_local_points = np.vstack(
-            (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.points.shape[0]))
-        )
-        transformed_local_points = transform_4x4 @ homogenous_local_points
-        transformed_local_points = transformed_local_points[:3].T
-
-        # Overwrite existing vertices in both pytorch3d and pyvista mesh
-        if in_place:
-            self.pyvista_mesh.points = transformed_local_points.copy()
-        return transformed_local_points
-
     def get_vertices_in_CRS(
         self, output_CRS: pyproj.CRS, force_easting_northing: bool = True
     ):
@@ -1953,9 +1934,17 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs["annotations"] = IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
+        # TODO consider if there's a better CRS to use
+        vis_mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
+
+        # If camera set is provided, transform the mesh into those coordinates
+        if camera_set is not None:
+            epsg_4978_to_camera = np.linalg.inv(camera_set.cameras[0].local_to_epsg_4978_transform)
+            vis_mesh.transform(epsg_4978_to_camera, inplace=True)
+
         # Add the mesh
         plotter.add_mesh(
-            self.pyvista_mesh,
+            vis_mesh,
             scalars=vis_scalars,
             rgb=is_rgb,
             scalar_bar_args=scalar_bar_args,
