@@ -282,6 +282,9 @@ class PhotogrammetryCamera:
         # Return in radians
         return (pitch_angle, yaw_angle)
 
+    def get_local_to_epsg_4978_transform(self):
+        return self.local_to_epsg_4978_transform
+
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
     ):
@@ -669,6 +672,7 @@ class PhotogrammetryCameraSet:
         self.lon_lats = lon_lats
         self.sensor_IDs = sensor_IDs
         self.image_folder = image_folder
+        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         if validate_images:
             missing_images, invalid_images = self.find_missing_images()
@@ -832,6 +836,9 @@ class PhotogrammetryCameraSet:
             return Path(filename)
         else:
             return Path(filename).relative_to(self.get_image_folder())
+
+    def get_local_to_epsg_4978_transform(self):
+        self.local_to_epsg_4978_transform
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
