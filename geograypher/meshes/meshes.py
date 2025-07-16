@@ -64,6 +64,7 @@ class TexturedPhotogrammetryMesh:
     ):
         """_summary_
 
+        TODO update this
         Args:
             mesh (typing.Union[PATH_TYPE, pv.PolyData]): Path to the mesh, in a format pyvista can read, or pyvista mesh
             downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
@@ -1477,6 +1478,18 @@ class TexturedPhotogrammetryMesh:
         hasher.update(self.pyvista_mesh.faces.tobytes())
         return hasher.hexdigest()
 
+    def get_mesh_in_cameras_coords(self, cameras):
+        mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
+
+        # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
+        # to the coordinates that the cameras are in
+        epsg_4978_to_camera = np.linalg.inv(
+            cameras.get_local_to_epsg_4978_transform()
+        )
+        # Transform the mesh using this transform
+        mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
+        return mesh
+
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
@@ -1509,13 +1522,9 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
-        # If no local has been created for this task, create it
+        # Create a local mesh if it hasn't been created yet
         if mesh is None:
-            # TODO make a more general way to get the transform from camera or camera set
-            epsg_4978_to_camera = np.linalg.inv(
-                cameras.cameras[0].local_to_epsg_4978_transform
-            )
-            mesh = self.pyvista_mesh.transform(epsg_4978_to_camera, inplace=False)
+            mesh = self.get_mesh_in_cameras_coords(cameras)
 
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista

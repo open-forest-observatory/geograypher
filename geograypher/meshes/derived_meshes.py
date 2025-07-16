@@ -647,13 +647,9 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             found. If the input is a single PhotogrammetryCamera, the shape is (h, w). If it's a camera
             set, then it is (n_cameras, h, w).
         """
-        # If no local has been created for this task, create it
+        # Create a local mesh if it hasn't been created yet
         if mesh is None:
-            # TODO make a more general way to get the transform from camera or camera set
-            epsg_4978_to_camera = np.linalg.inv(
-                cameras.cameras[0].local_to_epsg_4978_transform
-            )
-            mesh = self.pyvista_mesh.transform(epsg_4978_to_camera, inplace=False)
+            mesh = self.get_mesh_in_cameras_coords(cameras)
 
         # Create a camera from the metashape parameters
         if isinstance(cameras, PhotogrammetryCamera):
