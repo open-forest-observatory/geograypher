@@ -1483,9 +1483,7 @@ class TexturedPhotogrammetryMesh:
 
         # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
         # to the coordinates that the cameras are in
-        epsg_4978_to_camera = np.linalg.inv(
-            cameras.get_local_to_epsg_4978_transform()
-        )
+        epsg_4978_to_camera = np.linalg.inv(cameras.get_local_to_epsg_4978_transform())
         # Transform the mesh using this transform
         mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
         return mesh
