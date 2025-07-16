@@ -532,12 +532,12 @@ class PhotogrammetryCamera:
         # Transform from i, j to x, y
         pixel_coords_xy = np.flip(pixel_coords_ij, axis=1)
 
-        # Cast a ray from the center of the mesh for vis
-        principal_point = np.array(
-            [[self.image_width / 2.0 + self.cx, self.image_height / 2.0 + self.cy]]
-        )
-        centered_pixel_coords = pixel_coords_xy - principal_point
-        scaled_pixel_coords = centered_pixel_coords / self.f
+        # Cast a ray from the center of the camera
+        scaled_pixel_coords = self.pinhole(pixel_coords_xy)
+
+        if self.distortion_params is not None and len(self.distortion_params) > 0:
+            dewarped_pixel_coords_xy = self.dewarp_rays(scaled_pixel_coords)
+            scaled_pixel_coords = self.pinhole(dewarped_pixel_coords_xy)
 
         n_points = len(scaled_pixel_coords)
 
@@ -569,6 +569,58 @@ class PhotogrammetryCamera:
         projected_vertices = projected_vertices[:3, :].T
 
         return projected_vertices
+
+    def dewarp_rays(self, hrays: np.ndarray) -> np.ndarray:
+        """
+        Arguments:
+            hrays: (N, 2) array of *homogeneous* pixel rays. These should take the form
+                (x, y), and it is important that they are scaled so the theoretical Z
+                column would be equal to 1.
+        """
+
+        # For now, only defined for Metashape distortion params
+        assert sorted(self.distortion_params.keys()) == [
+            "b1",
+            "b2",
+            "k1",
+            "k2",
+            "k3",
+            "k4",
+            "p1",
+            "p2",
+        ]
+        b1 = self.distortion_params["b1"]
+        b2 = self.distortion_params["b2"]
+        k1 = self.distortion_params["k1"]
+        k2 = self.distortion_params["k2"]
+        k3 = self.distortion_params["k3"]
+        k4 = self.distortion_params["k4"]
+        p1 = self.distortion_params["p1"]
+        p2 = self.distortion_params["p2"]
+        # See page 246 of the manual (labeled page 240) "Frame Cameras" section
+        # for what these parameters mean
+        # https://www.agisoft.com/pdf/metashape-pro_2_2_en.pdf
+        x = hrays[:, 0]
+        y = hrays[:, 1]
+        r = np.sqrt(x**2 + y**2)
+        #  Distorted rays
+        xd = x * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p1 * (r**2 + 2 * x**2) + 2 * p2 * x * y
+        )
+        yd = y * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p2 * (r**2 + 2 * y**2) + 2 * p1 * x * y
+        )
+        # Pixels
+        u = self.image_width / 2.0 + self.cx + xd * self.f + xd * b1 + yd * b2
+        v = self.image_height / 2.0 + self.cy + yd * self.f
+        return np.vstack([u, v]).T
+
+    def pinhole(self, pix_xy):
+        principal_point = np.array(
+            [[self.image_width / 2.0 + self.cx, self.image_height / 2.0 + self.cy]]
+        )
+        centered_pixel_coords = pix_xy - principal_point
+        return centered_pixel_coords / self.f
 
     def vis_rays(
         self, pixel_coords_ij: np.ndarray, plotter: pv.Plotter, line_length: float = 10
@@ -699,7 +751,6 @@ class PhotogrammetryCameraSet:
             # This means the sensor did not have enough parameters to be valid
             if sensor_params is None:
                 continue
-
             new_camera = PhotogrammetryCamera(
                 image_filename,
                 cam_to_world_transform,
@@ -1268,7 +1319,10 @@ class PhotogrammetryCameraSet:
         if positive_edges_file is None:
             print("Calculating graph weights")
             positive_edges_file = calc_graph_weights(
-                line_segments_file, similarity_threshold_local, out_dir, transform=transform
+                line_segments_file,
+                similarity_threshold_local,
+                out_dir,
+                transform=transform,
             )
 
         # Calculate communities
