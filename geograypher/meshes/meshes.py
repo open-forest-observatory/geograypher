@@ -1480,6 +1480,7 @@ class TexturedPhotogrammetryMesh:
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        mesh: typing.Optional[pv.PolyData] = None,
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
@@ -1508,13 +1509,18 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
-        # TODO figure out how to do the transform into local coordinates only once
+        # If no local has been created for this task, create it
+        if mesh is None:
+            # TODO make a more general way to get the transform from camera or camera set
+            epsg_4978_to_camera = np.linalg.inv(cameras.cameras[0].local_to_epsg_4978_transform)
+            mesh = self.pyvista_mesh.transform(epsg_4978_to_camera, inplace=False)
+
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
         if isinstance(cameras, PhotogrammetryCameraSet):
             pix2face_list = [
-                self.pix2face(camera, render_img_scale=render_img_scale)
+                self.pix2face(camera, mesh=mesh, render_img_scale=render_img_scale)
                 for camera in cameras
             ]
             pix2face = np.stack(pix2face_list, axis=0)
@@ -1581,7 +1587,7 @@ class TexturedPhotogrammetryMesh:
             ).astype(np.uint8)
             # Add the mesh with the associated scalars
             self.pix2face_plotter.add_mesh(
-                self.pyvista_mesh,
+                mesh,
                 scalars=chunk_scalars.copy(),
                 rgb=True,
                 diffuse=0.0,
