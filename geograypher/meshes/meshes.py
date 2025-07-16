@@ -1512,7 +1512,9 @@ class TexturedPhotogrammetryMesh:
         # If no local has been created for this task, create it
         if mesh is None:
             # TODO make a more general way to get the transform from camera or camera set
-            epsg_4978_to_camera = np.linalg.inv(cameras.cameras[0].local_to_epsg_4978_transform)
+            epsg_4978_to_camera = np.linalg.inv(
+                cameras.cameras[0].local_to_epsg_4978_transform
+            )
             mesh = self.pyvista_mesh.transform(epsg_4978_to_camera, inplace=False)
 
         # If a set of cameras is passed in, call this method on each camera and concatenate
@@ -1945,7 +1947,9 @@ class TexturedPhotogrammetryMesh:
 
         # If camera set is provided, transform the mesh into those coordinates
         if camera_set is not None:
-            epsg_4978_to_camera = np.linalg.inv(camera_set.cameras[0].local_to_epsg_4978_transform)
+            epsg_4978_to_camera = np.linalg.inv(
+                camera_set.cameras[0].local_to_epsg_4978_transform
+            )
             vis_mesh.transform(epsg_4978_to_camera, inplace=True)
 
         # Add the mesh
