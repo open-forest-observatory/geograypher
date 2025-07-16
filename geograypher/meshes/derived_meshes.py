@@ -4,6 +4,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
+import pyvista as pv
 from scipy.sparse import csr_array
 from shapely import Point
 from sklearn.cluster import KMeans
@@ -571,6 +572,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
     def create_pytorch3d_mesh(
         self,
+        mesh: pv.PolyData,
         vert_texture: np.ndarray = None,
         batch_size: int = 1,
     ):
@@ -599,7 +601,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         # Create the pytorch mesh
         pytorch3d_mesh = self.Meshes(
-            verts=[self.torch.Tensor(self.pyvista_mesh.points).to(self.device)],
+            verts=[self.torch.Tensor(mesh.points).to(self.device)],
             faces=[self.torch.Tensor(self.faces).to(self.device)],
             textures=texture,
         ).to(self.device)
@@ -613,6 +615,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        mesh: typing.Optional[pv.PolyData] = None,
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
@@ -644,6 +647,13 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             found. If the input is a single PhotogrammetryCamera, the shape is (h, w). If it's a camera
             set, then it is (n_cameras, h, w).
         """
+        # If no local has been created for this task, create it
+        if mesh is None:
+            # TODO make a more general way to get the transform from camera or camera set
+            epsg_4978_to_camera = np.linalg.inv(
+                cameras.cameras[0].local_to_epsg_4978_transform
+            )
+            mesh = self.pyvista_mesh.transform(epsg_4978_to_camera, inplace=False)
 
         # Create a camera from the metashape parameters
         if isinstance(cameras, PhotogrammetryCamera):
@@ -666,7 +676,9 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         ).to(self.device)
 
         # Create a pytorch3d mesh
-        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+        pytorch3d_mesh = self.create_pytorch3d_mesh(
+            mesh=mesh, batch_size=len(p3d_cameras)
+        )
 
         # Perform the expensive pytorch3d operation
         fragments = rasterizer(pytorch3d_mesh)
@@ -684,8 +696,8 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         # Track batch index offset to account for mesh extension
         offset_array = np.arange(
             0,
-            self.pyvista_mesh.n_faces * pix_to_face.shape[0],
-            self.pyvista_mesh.n_faces,
+            mesh.n_faces * pix_to_face.shape[0],
+            mesh.n_faces,
         )
 
         # Convert dimensions of offset_array from (batch_size,) to (batch_size, 1, 1) in order to match pix_to_face dimensions
