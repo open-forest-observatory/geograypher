@@ -1026,10 +1026,19 @@ class PhotogrammetryCameraSet:
 
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
-        _, _, intersection_dists = compute_approximate_ray_intersections(a0, a1, b0, b1)
+        _, _, intersection_dists = compute_approximate_ray_intersections(
+            a0=ray_starts, a1=segment_ends, b0=ray_starts, b1=segment_ends
+        )
+
+        # Invalidate the lower triangle and the diagonal to avoid self intersections
+        # and duplicated distances
+        intersection_dists[np.tril_indices(num_dets)] = np.nan
 
         # Filter out intersections that are above the threshold distance
         intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
+
+        # Avoid div by 0 by setting some arbitrarily small value
+        intersection_dists[intersection_dists < 1e-6] = 1e-6
 
         # Build a list of (i, j, info_dict) tuples encoding the valid edges
         # (represented by finite values) and their intersection distance

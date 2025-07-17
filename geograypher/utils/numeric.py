@@ -214,19 +214,17 @@ def compute_approximate_ray_intersections(
         else:
             # If we're not clamping, arbitrarily set the parallel "closest
             # points" to b0 and the matching point on A
+            a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+            b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+            _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
             pA[parallel] = (
-                a0[:, None, :][parallel]
-                + d0[:, :, None][parallel] * _A[:, None, :][parallel]
+                a0_bcast[parallel] + d0[:, :, None][parallel] * _A_bcast[parallel]
             )
-            pB[parallel] = b0[None, :, :][parallel]
+            pB[parallel] = b0_bcast[parallel]
 
     # pA and pB are existing (N, N, 3) matrices. In addition, calculate the
     # (N, N) distances between each pair
     return pA, pB, np.linalg.norm(pA - pB, axis=2)
-
-
-def SUMS(p, oob, v0_bcast, dot_clipped, _V_bcast):
-    p[oob] = v0_bcast[oob] + dot_clipped[oob, None] * _V_bcast[oob]
 
 
 def triangulate_rays_lstsq(starts, directions):

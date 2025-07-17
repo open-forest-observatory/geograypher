@@ -116,6 +116,18 @@ class TestComputeApproximateRayIntersection:
                 [[5]],
                 True,
             ),
+            # Parallel, no clamp
+            (
+                [[0, 0, 0], [0, -1, 0]],
+                [[1, 0, 0], [1, -1, 0]],
+                [[0, 1, 0], [0.4, 2, 0], [-1, 3, 0], [0.9, 4, 0]],
+                [[1, 1, 0], [0.6, 2, 0], [0.1, 3, 0], [2, 4, 0]],
+                False,
+                None,
+                None,
+                [[1, 2, 3, 4], [2, 3, 4, 5]],
+                True,
+            ),
         ),
     )
     def test_basic(self, a0, a1, b0, b1, clamp, exp_pA, exp_pB, exp_dist, parallel):
