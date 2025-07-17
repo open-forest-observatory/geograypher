@@ -96,8 +96,8 @@ def compute_approximate_ray_intersections(
     parallel = denom == 0
     denom[parallel] = 1
 
-     # t0 and t1 are (N, N) matrices representing how far along A the closest
-     # point is (t0) where 0 is at a0 and 1 is at a1. B and t1 are the same.
+    # t0 and t1 are (N, N) matrices representing how far along A the closest
+    # point is (t0) where 0 is at a0 and 1 is at a1. B and t1 are the same.
     t0 = detA / denom
     t1 = detB / denom
 
