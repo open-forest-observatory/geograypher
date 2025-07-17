@@ -91,13 +91,15 @@ def compute_approximate_ray_intersections(
     detA = np.einsum("ijk,ijk->ij", np.cross(t, _B_exp), cross)
     detB = np.einsum("ijk,ijk->ij", np.cross(t, _A_exp), cross)
 
-    # Make the denom safe for division by (temporarily) replacing 0 values
-    # with 1. Later we check for 0 locations and fix them
-    denom_safe = np.where(denom == 0, 1, denom)
-    # t0 and t1 are (N, N) matrices representing how far along A the closest
-    # point is (t0) where 0 is at a0 and 1 is at a1. B and t1 are the same.
-    t0 = detA / denom_safe
-    t1 = detB / denom_safe
+    # Make the denom safe for division by replacing 0 values with 1. Later we
+    # check for parallel locations and fix them
+    parallel = denom == 0
+    denom[parallel] = 1
+
+     # t0 and t1 are (N, N) matrices representing how far along A the closest
+     # point is (t0) where 0 is at a0 and 1 is at a1. B and t1 are the same.
+    t0 = detA / denom
+    t1 = detB / denom
 
     if clamp:
         # (N, N) matrix where t0 and t1 are clipped to the vector length
@@ -142,7 +144,6 @@ def compute_approximate_ray_intersections(
         pB = b0_exp + t1[:, :, None] * _B_exp
 
     # Handle parallel case
-    parallel = denom == 0
     if np.any(parallel):
         # Get the (N, N) projection of each point in b0 onto each unit vector
         # in A. Subtract the (N, 1) projection of each point in a0 along their
