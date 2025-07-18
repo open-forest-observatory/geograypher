@@ -38,7 +38,7 @@ from geograypher.utils.geometric import (
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
-    compute_approximate_ray_intersection,
+    compute_approximate_ray_intersections,
     triangulate_rays_lstsq,
 )
 from geograypher.utils.visualization import safe_start_xvfb
@@ -1026,32 +1026,25 @@ class PhotogrammetryCameraSet:
 
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
-        interesection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
+        _, _, intersection_dists = compute_approximate_ray_intersections(
+            a0=ray_starts, a1=segment_ends, b0=ray_starts, b1=segment_ends
+        )
 
-        # Calculate the upper triangular matrix of ray-ray interesections
-        for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
-            for j in range(i, num_dets):
-                # Extract starts and directions
-                a0 = ray_starts[i]
-                a1 = segment_ends[i]
-                b0 = ray_starts[j]
-                b1 = segment_ends[j]
-                # TODO explore whether this could be vectorized
-                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1)
-
-                interesection_dists[i, j] = dist
+        # Invalidate the lower triangle and the diagonal to avoid self intersections
+        # and duplicated distances
+        intersection_dists[np.tril_indices(num_dets)] = np.nan
 
         # Filter out intersections that are above the threshold distance
-        interesection_dists[interesection_dists > similarity_threshold_local] = np.nan
+        intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
 
-        # Determine which intersections are valid, represented by finite values
-        i_inds, j_inds = np.where(np.isfinite(interesection_dists))
+        # Avoid div by 0 by setting some arbitrarily small value
+        intersection_dists[intersection_dists < 1e-6] = 1e-6
 
-        # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
-        # distance
+        # Build a list of (i, j, info_dict) tuples encoding the valid edges
+        # (represented by finite values) and their intersection distance
         positive_edges = [
-            (i, j, {"weight": 1 / interesection_dists[i, j]})
-            for i, j in zip(i_inds, j_inds)
+            (i, j, {"weight": 1 / intersection_dists[i, j]})
+            for i, j in zip(*np.where(np.isfinite(intersection_dists)))
         ]
 
         # Build a networkx graph. The nodes represent an individual detection while the edges

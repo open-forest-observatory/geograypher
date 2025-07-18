@@ -28,133 +28,204 @@ def create_ramped_weighting(
     return ramped_weighting
 
 
-def compute_approximate_ray_intersection(
-    a0: np.array,
-    a1: np.array,
-    b0: np.array,
-    b1: np.array,
-    clamp: bool = False,
-    plotter=None,
-):
+def compute_approximate_ray_intersections(
+    a0: np.ndarray, a1: np.ndarray, b0: np.ndarray, b1: np.ndarray, clamp: bool = False
+) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Given two line segments defined by 3D numpy.array pairs (a0, a1, b0, b1), return the
-    closest points on each segment and their distance. If clamp is True, then respect
+    Compute closest points and distances between N line segments a0->a1 and
+    b0->b1. Returns (N, N, 3), (N, N, 3), (N, N). If clamp is True, then respect
     the line segment ends. If clamp is False, then use the infinite rays.
 
     Based on https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
 
     Args:
-        a0 (np.ndarray): Start point of the first segment (shape: (3,)).
-        a1 (np.ndarray): End point of the first segment (shape: (3,)).
-        b0 (np.ndarray): Start point of the second segment (shape: (3,)).
-        b1 (np.ndarray): End point of the second segment (shape: (3,)).
-        clamp (bool, optional): If True, the closest points are clamped to the segment
-            endpoints. If False, the closest points may be anywhere along the infinite
-            lines.
-        plotter (pyvista.Plotter, optional): If provided, visualizes the segments
-            and closest points using pyvista.
+        a0 (np.ndarray): Start points of the first segments (N, 3).
+        a1 (np.ndarray): End points of the first segments (N, 3).
+        b0 (np.ndarray): Start points of the second segments (N, 3).
+        b1 (np.ndarray): End points of the second segments (N, 3).
+        clamp (bool, optional): If True, the closest points are clamped to the
+            segment endpoints. If False, the closest points may be anywhere
+            along the infinite rays.
 
     Returns:
-        pA (np.ndarray): Closest point on the first segment or line (shape: (3,)),
-            or None if segments are parallel and overlap.
-        pB (np.ndarray): Closest point on the second segment or line (shape: (3,)),
-            or None if segments are parallel and overlap.
-        dist (float): The minimum distance between the two segments or lines.
+        pA (np.ndarray): Closest point on the A segments (axis 0) compared to
+            each of the B segments (axis 1) (N, N, 3). For example, the closest
+            point between A[5] and B[2] at pA[5, 2]
+        pB (np.ndarray): Closest point on the B segments (axis 1) compared to
+            each of the A segments (axis 1) (N, N, 3)
+        dist (np.ndarray): The minimum distance between the A (axis 0) and B
+            (axis 1) segments.
     """
 
-    # Calculate vectors, normalized vectors, and denominator
+    # (N, 3) vectors, representing the A and B line segments
     A = a1 - a0
     B = b1 - b0
-    magA = np.linalg.norm(A)
-    magB = np.linalg.norm(B)
-    # Normalized vectors
-    _A = A / magA
-    _B = B / magB
-    cross = np.cross(_A, _B)
-    # Denom is the area of the parallelogram formed by the A and B unit vectors
-    # (norm of the cross product), squared. As that area goes to zero, it
-    # means that the unit vectors are aligned.
-    denom = np.linalg.norm(cross) ** 2
+    # (N,) distances, representing the length of each A and B vector
+    magA = np.linalg.norm(A, axis=1)
+    magB = np.linalg.norm(B, axis=1)
+    # (N, 3) vectors, representing the A and B unit vectors
+    _A = A / magA[:, None]
+    _B = B / magB[:, None]
 
-    # If lines are parallel (denom=0) test if lines overlap. If they don't
-    # overlap then there is a closest point solution. If they do overlap,
-    # there are infinite closest positions, but there is a closest distance
-    if denom == 0:
-        d0 = np.dot(_A, (b0 - a0))
+    # Expand the A vectors to (N, 1, 3) and the B vectors to (1, N, 3) so that
+    # they project together to an (N, N, 3) matrix later
+    a0_exp = a0[:, None, :]
+    b0_exp = b0[None, :, :]
+    _A_exp = _A[:, None, :]
+    _B_exp = _B[None, :, :]
 
-        # Overlap only possible with clamping
-        if clamp:
-            d1 = np.dot(_A, (b1 - a0))
+    # (N, N, 3) cross product. The cross product of unit vectors calculates the
+    # area of the parallelogram formed by the unit vectors, a larger value
+    # indicates lines that are more orthogonal
+    cross = np.cross(_A_exp, _B_exp)
+    # (N, N) representing the squared area of the unit vector parallelograms
+    denom = np.linalg.norm(cross, axis=2) ** 2
 
-            # Is segment B before A?
-            if (0 >= d0) and (0 >= d1):
-                if np.absolute(d0) < np.absolute(d1):
-                    return a0, b0, np.linalg.norm(a0 - b0)
-                return a0, b1, np.linalg.norm(a0 - b1)
+    # (N, N, 3) matrix, representing the vector from the start of each A
+    # segment to the start of each B segment
+    t = b0_exp - a0_exp
 
-            # Is segment B after A?
-            elif (magA <= d0) and (magA <= d1):
-                if np.absolute(d0) < np.absolute(d1):
-                    return a1, b0, np.linalg.norm(a1 - b0)
-                return a1, b1, np.linalg.norm(a1 - b1)
+    # (N, N) matrix, calculate the determinant by multiplying all axes (ijk)
+    # and then sum across k, leaving only an ij matrix. The determinant
+    # represents how a given transform scales space
+    detA = np.einsum("ijk,ijk->ij", np.cross(t, _B_exp), cross)
+    detB = np.einsum("ijk,ijk->ij", np.cross(t, _A_exp), cross)
 
-        # Segments overlap, return distance between parallel segments.
-        # Closest point is meaningless on parallel lines.
-        return None, None, np.linalg.norm((a0 + (d0 * _A)) - b0)
+    # Make the denom safe for division by replacing 0 values with 1. Later we
+    # check for parallel locations and fix them
+    parallel = denom == 0
+    denom[parallel] = 1
 
-    # Lines criss-cross: Calculate the projected closest points
-    t = b0 - a0
-    detA = np.linalg.det([t, _B, cross])
-    detB = np.linalg.det([t, _A, cross])
-
-    # Scale vectors that stretch along the A and B vectors. If
-    # the scale is between 0 and the magnitude of that vector
-    # then the projected point is within the line segment
+    # t0 and t1 are (N, N) matrices representing how far along A the closest
+    # point is (t0) where 0 is at a0 and 1 is at a1. B and t1 are the same.
     t0 = detA / denom
     t1 = detB / denom
 
-    # Projected closest point on rays A and B
-    pA = a0 + (_A * t0)
-    pB = b0 + (_B * t1)
-
-    # Clamp projections
     if clamp:
-        if t0 < 0:
-            pA = a0
-        elif t0 > magA:
-            pA = a1
+        # (N, N) matrix where t0 and t1 are clipped to the vector length
+        t0_clamped = np.clip(t0, 0, magA[:, None])
+        t1_clamped = np.clip(t1, 0, magB[None, :])
 
-        if t1 < 0:
-            pB = b0
-        elif t1 > magB:
-            pB = b1
+        # (N, N, 3) matrix where we start at each vector starting point (a0
+        # and b0 expanded) then travel along them to the closest clamped point
+        pA = a0_exp + t0_clamped[:, :, None] * _A_exp
+        pB = b0_exp + t1_clamped[:, :, None] * _B_exp
 
-        # Clamp projection A
-        if (t0 < 0) or (t0 > magA):
-            dot = np.dot(_B, (pA - b0))
-            if dot < 0:
-                dot = 0
-            elif dot > magB:
-                dot = magB
-            pB = b0 + (_B * dot)
+        # Check whether the original scale values where out of bounds
+        oob_A = (t0 < 0) | (t0 > magA[:, None])
+        oob_B = (t1 < 0) | (t1 > magB[None, :])
 
-        # Clamp projection B
-        if (t1 < 0) or (t1 > magB):
-            dot = np.dot(_A, (pB - a0))
-            if dot < 0:
-                dot = 0
-            elif dot > magA:
-                dot = magA
-            pA = a0 + (_A * dot)
+        # Broadcast a0 and _A to (N, N, 3), similar for b0/_B
+        a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+        _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
+        b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+        _B_bcast = np.broadcast_to(_B[None, :, :], pB.shape)
 
-    if plotter is not None:
-        points = np.vstack([a0, pA, a1, b1, pB, b0])
-        plotter.add_lines(points)
-        plotter.add_points(points)
-        plotter.background_color = "black"
-        plotter.show()
+        # If any of the scale vectors were clipped, we may have to adjust the
+        # closest point on the opposite vector. For example if the closest
+        # point on an A vector was clipped, the corresponding B point may need
+        # to update
+        if np.any(oob_A):
+            # Get the projection of the new A point onto the B vectors
+            dot = np.einsum("ijk,ijk->ij", pA - b0_bcast, _B_bcast)
+            # Get a new B point matching that projection
+            dot_clipped = np.clip(dot, 0, magB[None, :])
+            pB[oob_A] = b0_bcast[oob_A] + dot_clipped[oob_A, None] * _B_bcast[oob_A]
+        if np.any(oob_B):
+            # Get the projection of the new B point onto the A vectors
+            dot = np.einsum("ijk,ijk->ij", pB - a0_bcast, _A_bcast)
+            # Get a new A point matching that projection
+            dot_clipped = np.clip(dot, 0, magA[:, None])
+            pA[oob_B] = a0_bcast[oob_B] + dot_clipped[oob_B, None] * _A_bcast[oob_B]
+    else:
+        # If there is no clamping, we use the scale value as-is to get the
+        # closest points between the rays
+        pA = a0_exp + t0[:, :, None] * _A_exp
+        pB = b0_exp + t1[:, :, None] * _B_exp
 
-    return pA, pB, np.linalg.norm(pA - pB)
+    # Handle parallel case
+    if np.any(parallel):
+        # Get the (N, N) projection of each point in b0 onto each unit vector
+        # in A. Subtract the (N, 1) projection of each point in a0 along their
+        # unit vector. By subtracting them, we calculating whether b0 falls
+        # "ahead" or "behind" of a0, along the relevant axis (_A)
+        d0 = np.einsum("ij,kj->ik", _A, b0) - np.einsum("ij,ij->i", _A, a0).reshape(
+            -1, 1
+        )
+        if clamp:
+            # Same logic as d0, but with a1 and b1
+            d1 = np.einsum("ij,kj->ik", _A, b1) - np.einsum("ij,ij->i", _A, a0).reshape(
+                -1, 1
+            )
+
+            # Check in which of the (N, N) combinations b0 and b1 fall before
+            # a0, forming an (N, N) boolean mask
+            before = (d0 <= 0) & (d1 <= 0) & parallel
+            # Same logic for after
+            after = (d0 >= magA[:, None]) & (d1 >= magA[:, None]) & parallel
+            # If an A and B vector is parallel and partially overlapping,
+            # middle will be true (N, N) boolean mask
+            middle = parallel & ~(before | after)
+
+            if np.any(before):
+                # Set pA to a0 where relevant
+                pA[before] = a0[:, None, :][before]
+                # Set pB to whichever endpoint is closer to a0
+                pB[before] = np.where(
+                    np.abs(d0[before])[:, None] < np.abs(d1[before])[:, None],
+                    b0[None, :, :][before],
+                    b1[None, :, :][before],
+                )
+
+            if np.any(after):
+                # Set pA to a1 where relevant
+                pA[after] = a1[:, None, :][after]
+                # Set pB to whichever endpoint is closer to a1
+                pB[after] = np.where(
+                    np.abs(d0[after])[:, None] < np.abs(d1[after])[:, None],
+                    b0[None, :, :][after],
+                    b1[None, :, :][after],
+                )
+
+            if np.any(middle):
+                # Clip d0 along the A vectors (from 0 to the magnitude of A)
+                t_mid = np.clip(
+                    d0[middle], 0, np.broadcast_to(magA[:, None], d0.shape)[middle]
+                )
+
+                # Get the broadcast components that align with the state we
+                # care about (middle)
+                a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+                _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
+                a0_mid = a0_bcast[middle]
+                _A_mid = _A_bcast[middle]
+
+                # Reproject onto the A vectors
+                pA[middle] = a0_mid + t_mid[:, None] * _A_mid
+
+                # Get the vector from the new pA points to b0
+                b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+                a2b = b0_bcast[middle] - pA[middle]
+
+                # Then subtract the component that is along the A vectors, and
+                # that gives us the final pB location
+                alongA = np.einsum("ij,ij->i", a2b, _A_mid)[:, None] * _A_mid
+                pB[middle] = pA[middle] + (a2b - alongA)
+
+        else:
+            # If we're not clamping, arbitrarily set the parallel "closest
+            # points" to b0 and the matching point on A
+            a0_bcast = np.broadcast_to(a0[:, None, :], pA.shape)
+            b0_bcast = np.broadcast_to(b0[None, :, :], pB.shape)
+            _A_bcast = np.broadcast_to(_A[:, None, :], pA.shape)
+            pA[parallel] = (
+                a0_bcast[parallel] + d0[:, :, None][parallel] * _A_bcast[parallel]
+            )
+            pB[parallel] = b0_bcast[parallel]
+
+    # pA and pB are existing (N, N, 3) matrices. In addition, calculate the
+    # (N, N) distances between each pair
+    return pA, pB, np.linalg.norm(pA - pB, axis=2)
 
 
 def triangulate_rays_lstsq(starts, directions):
@@ -260,19 +331,9 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: (3,) array, the average intersection point
     """
-    N = starts.shape[0]
     closest_points = []
-    for i in range(N):
-        for j in range(i + 1, N):
-            a0, a1 = starts[i], ends[i]
-            b0, b1 = starts[j], ends[j]
-            pA, pB, _ = compute_approximate_ray_intersection(a0, a1, b0, b1, clamp=True)
-            if pA is not None and pB is not None:
-                closest_points.append(pA)
-                closest_points.append(pB)
-    if len(closest_points) > 0:
-        return np.mean(np.stack(closest_points, axis=0), axis=0)
-    else:
-        # If all are None, return the average of all start and end points
-        all_points = np.concatenate([starts, ends], axis=0)
-        return np.mean(all_points, axis=0)
+    pA, pB, _ = compute_approximate_ray_intersections(
+        a0=starts, a1=ends, b0=starts, b1=ends, clamp=True
+    )
+    mask = ~np.eye(starts.shape[0], dtype=bool)
+    return np.mean(np.vstack([pA[mask], pB[mask]]), axis=0)
