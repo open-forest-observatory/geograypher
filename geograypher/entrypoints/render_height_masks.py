@@ -10,10 +10,11 @@ from each camera's perspective. There are two options:
 """
 
 import argparse
-from matplotlib.pyplot import cm, Normalize
+from pathlib import Path
+
 import numpy as np
 import pyvista as pv
-from pathlib import Path
+from matplotlib.pyplot import Normalize, cm
 
 from geograypher.cameras.derived_cameras import MetashapeCameraSet
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
