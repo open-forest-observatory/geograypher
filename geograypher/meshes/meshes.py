@@ -601,7 +601,10 @@ class TexturedPhotogrammetryMesh:
             self.IDs_to_labels[label_ID] = label_name
 
     def get_IDs_to_labels(self):
-        return self.IDs_to_labels
+        # Convert to int type to avoid json serialization issues
+        if self.IDs_to_labels is None:
+            return None
+        return {int(k): v for k, v in self.IDs_to_labels.items()}
 
     def get_label_names(self):
         self.logger.warning(
@@ -1483,7 +1486,8 @@ class TexturedPhotogrammetryMesh:
 
         # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
         # to the coordinates that the cameras are in
-        epsg_4978_to_camera = np.linalg.inv(cameras.get_local_to_epsg_4978_transform())
+        local_to_epsg_4978_transform = cameras.get_local_to_epsg_4978_transform()
+        epsg_4978_to_camera = np.linalg.inv(local_to_epsg_4978_transform)
         # Transform the mesh using this transform
         mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
         return mesh
@@ -1660,6 +1664,9 @@ class TexturedPhotogrammetryMesh:
                The pix2face array for the next camera. The shape is
                (int(img_h*render_img_scale), int(img_w*render_img_scale)).
         """
+        # Create a local mesh
+        mesh = self.get_mesh_in_cameras_coords(cameras)
+
         if isinstance(cameras, PhotogrammetryCamera):
             # Construct a camera set of length one
             cameras = PhotogrammetryCameraSet([cameras])
@@ -1682,6 +1689,7 @@ class TexturedPhotogrammetryMesh:
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
                 cameras=batch_cameras,
+                mesh=mesh,
                 render_img_scale=render_img_scale,
                 **pix2face_kwargs,
             )
@@ -1736,6 +1744,9 @@ class TexturedPhotogrammetryMesh:
         Yields:
             np.ndarray: The per-face projection of an image in the camera set
         """
+        # Create a local mesh
+        mesh = self.get_mesh_in_cameras_coords(cameras)
+
         n_faces = self.faces.shape[0]
 
         # Iterate over batch of the cameras
@@ -1746,6 +1757,7 @@ class TexturedPhotogrammetryMesh:
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
                 cameras=batch_cameras,
+                mesh=mesh,
                 render_img_scale=aggregate_img_scale,
                 **pix2face_kwargs,
             )
@@ -1905,6 +1917,7 @@ class TexturedPhotogrammetryMesh:
             if IDs_to_labels is not None:
                 # Compute the largest ID
                 max_ID = max(IDs_to_labels.keys())
+                print(max_ID)
                 if max_ID < 20:
                     colors = [
                         matplotlib.colors.to_hex(c)

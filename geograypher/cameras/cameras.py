@@ -630,6 +630,16 @@ class PhotogrammetryCameraSet:
         Raises:
             ValueError: _description_
         """
+        # Record the values
+        # TODO see if we ever use these
+        self.cam_to_world_transforms = cam_to_world_transforms
+        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
+        self.image_filenames = image_filenames
+        self.lon_lats = lon_lats
+        self.sensor_IDs = sensor_IDs
+        self.image_folder = image_folder
+        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
+
         # Create an object using the supplied cameras
         if cameras is not None:
             if isinstance(cameras, PhotogrammetryCamera):
@@ -662,15 +672,6 @@ class PhotogrammetryCameraSet:
             # TODO set it to the least common ancestor of all filenames
             pass
 
-        # Record the values
-        # TODO see if we ever use these
-        self.cam_to_world_transforms = cam_to_world_transforms
-        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
-        self.image_filenames = image_filenames
-        self.lon_lats = lon_lats
-        self.sensor_IDs = sensor_IDs
-        self.image_folder = image_folder
-        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         if validate_images:
             missing_images, invalid_images = self.find_mising_images()
@@ -719,7 +720,7 @@ class PhotogrammetryCameraSet:
             # this is just one item indexed
             return subset_cameras
         # else, wrap the list of cameras in a CameraSet
-        return PhotogrammetryCameraSet(subset_cameras)
+        return PhotogrammetryCameraSet(subset_cameras,local_to_epsg_4978_transform=self.local_to_epsg_4978_transform)
 
     def get_image_folder(self):
         return self.image_folder
@@ -836,7 +837,7 @@ class PhotogrammetryCameraSet:
             return Path(filename).relative_to(self.get_image_folder())
 
     def get_local_to_epsg_4978_transform(self):
-        self.local_to_epsg_4978_transform
+        return self.local_to_epsg_4978_transform
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
