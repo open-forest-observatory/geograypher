@@ -2,11 +2,13 @@ import os
 import typing
 from pathlib import Path
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
 from PIL import Image
+from skimage import draw
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
@@ -302,3 +304,126 @@ class TabularRectangleSegmentor(Segmentor):
         # Average the left-right, top-bottom pairs
         centers = np.vstack([(imin + imax) / 2, (jmin + jmax) / 2]).T
         return centers
+
+
+class RegionDetectionSegmentor(Segmentor):
+    def __init__(
+        self,
+        detection_file_or_folder: PATH_TYPE,
+        image_file_extension: str = ".JPG",
+    ):
+        """Lookup region detections from .gpkg files using geopandas.
+
+        Assumes that each .gpkg filename matches the corresponding image filename
+        (with different extension).
+
+        Args:
+            detection_file_or_folder (PATH_TYPE):
+                Path to the .gpkg file with detections or a folder thereof
+            image_file_extension (str, optional):
+                The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
+        """
+        self.image_file_extension = image_file_extension
+
+        # Load the detections
+        self.labels_gdf = self.load_detection_files(detection_file_or_folder)
+
+        # Group the predictions by image name (derived from .gpkg filename)
+        self.grouped_labels_gdf = self.labels_gdf.groupby(by="image_name")
+
+        # List the images
+        self.image_names = list(self.grouped_labels_gdf.groups.keys())
+
+    def load_detection_files(self, detection_file_or_folder: PATH_TYPE) -> pd.DataFrame:
+
+        # Determine whether the input is a file or folder
+        if Path(detection_file_or_folder).is_file():
+            # If it's a file, make a one-length list
+            files = [detection_file_or_folder]
+        else:
+            # List all the .gpkg files in the folder
+            files = sorted(Path(detection_file_or_folder).glob("*.gpkg"))
+
+        # Read the individual files using geopandas and add image name column
+        gdfs = []
+        for f in files:
+            gdf = gpd.read_file(f)
+            # Extract image name from .gpkg filename and add the image extension
+            image_name = f.stem + self.image_file_extension
+
+            # Add image name column to the geodataframe
+            gdf["image_name"] = image_name
+            gdfs.append(gdf)
+
+        # Concatenate the geodataframes into one
+        if len(gdfs) > 0:
+            labels_gdf = pd.concat(gdfs, ignore_index=True)
+        else:
+            # Empty dataframe
+            labels_gdf = gpd.GeoDataFrame(
+                columns=["image_name", "geometry"], geometry="geometry"
+            )
+
+        return labels_gdf
+
+    def get_detection_centers(self, filename: str) -> np.ndarray:
+        """Get the centers of all detections for a given image filename.
+
+        Args:
+            filename: The image filename to get detection centers for.
+
+        Returns:
+            np.ndarray: (n,2) array for (i,j) centers for each detection
+        """
+        if filename not in self.image_names:
+            # Empty array of detection centers
+            return np.zeros((0, 2))
+
+        # Extract the corresponding geodataframe
+        gdf = self.grouped_labels_gdf.get_group(filename)
+
+        # Calculate centers from geometry centroids
+        centers = []
+        for _, row in gdf.iterrows():
+            # Get the centroid of the geometry (in pixel coordinates)
+            centroid = row.geometry.centroid
+            # Convert to (i, j) coordinates - note that geopandas uses (x, y) = (j, i)
+            centers.append([centroid.y, centroid.x])
+
+        return np.array(centers)
+
+    def segment_image(
+        self, image: None, filename: str, image_shape: tuple
+    ) -> np.ndarray:
+        """
+        Produce a segmentation mask for an image using region (polygon) detections.
+        Note that since region detections can overlap but segmentation masks cannot,
+        the order of the regions will be respected and so later regions will be placed
+        on top of conflicting earlier regions. Each region will be assigned a unique
+        integer label corresponding to its order in the file (0, 1, 2, ...).
+
+        Args:
+            image: The input image array (not used for region lookup, but kept for
+                API compatibility).
+            filename: The image filename to look up regions for.
+            image_shape: (2,) tuple of the (height, width) of the output mask we want
+
+        Returns:
+            label_image: A 2D numpy array of shape (H, W) with integer region indices for each pixel.
+                         Pixels not covered by any region are set to np.nan.
+        """
+        label_image = np.full(image_shape, fill_value=np.nan, dtype=float)
+
+        if filename not in self.image_names:
+            return label_image
+
+        gdf = self.grouped_labels_gdf.get_group(filename)
+
+        for label, (_, row) in enumerate(gdf.iterrows()):
+            if row.geometry.geom_type != "Polygon":
+                continue
+            y, x = row.geometry.exterior.xy
+            rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
+            label_image[rows, cols] = label
+
+        return label_image
