@@ -144,7 +144,8 @@ def create_composite(
         # Rescale to float range and implicitly cast
         RGB_image = RGB_image / 255
 
-    if label_image.dtype == np.uint8:
+    vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
+    if label_image.dtype == np.uint8 and not vis_options["discrete"]:
         # Rescale to float range and implicitly cast
         label_image = label_image / 255
 
@@ -152,7 +153,6 @@ def create_composite(
         # If it's a one channel image make it not have a channel dim
         label_image = np.squeeze(label_image)
 
-        vis_options = get_vis_options_from_IDs_to_labels(IDs_to_labels)
         cmap = plt.get_cmap(vis_options["cmap"])
         null_mask = np.logical_or(
             label_image == NULL_TEXTURE_INT_VALUE,
@@ -207,20 +207,37 @@ def read_img_npy(filename):
 
 
 def show_segmentation_labels(
-    label_folder,
-    image_folder,
+    label_folder: PATH_TYPE,
+    image_folder: PATH_TYPE,
     savefolder: typing.Union[None, PATH_TYPE] = None,
-    num_show=10,
-    label_suffix=".png",
-    image_suffix=".JPG",
-    IDs_to_labels=None,
-):
+    num_show: int = 10,
+    label_suffix: str = ".png",
+    image_suffix: str = ".JPG",
+    IDs_to_labels: typing.Optional[dict] = None,
+) -> None:
+    """
+    Visualize and optionally save composite images showing segmentation labels overlaid
+    on their corresponding images.
+
+    Args:
+        label_folder: Path to the folder containing label images.
+        image_folder: Path to the folder containing original images.
+        savefolder: If provided, composites are saved here; otherwise, they are displayed.
+        num_show: Number of samples to show or save.
+        label_suffix: Suffix for label image files.
+        image_suffix: Suffix for image files.
+        IDs_to_labels: Mapping from label IDs to class names. If None, will attempt
+            to load from label_folder.
+    """
+    # Find all label files in the label_folder and shuffle them
     rendered_files = list(Path(label_folder).rglob("*" + label_suffix))
     np.random.shuffle(rendered_files)
 
+    # Ensure the save folder exists if saving output
     if savefolder is not None:
         ensure_folder(savefolder)
 
+    # Attempt to load IDs_to_labels from a JSON file if not provided
     if (
         IDs_to_labels is None
         and (IDs_to_labels_file := Path(label_folder, "IDs_to_labels.json")).exists()
@@ -228,21 +245,32 @@ def show_segmentation_labels(
         with open(IDs_to_labels_file, "r") as infile:
             IDs_to_labels = json.load(infile)
             IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
+    print("IDs_to_labels", IDs_to_labels)
 
+    # Iterate through a subset of label files and create composites
     for i, rendered_file in tqdm(
-        enumerate(rendered_files[:num_show]), desc="Showing segmentation labels"
+        enumerate(rendered_files[:num_show]),
+        desc="Showing segmentation labels",
+        total=min(len(rendered_files), num_show),
     ):
+        # Find the corresponding image file by matching the label path to an image path.
+        # Assumes that image_folder and label_folder have the same subdirectory structure
+        # and file stems for corresponding images/labels.
         image_file = Path(
             image_folder, rendered_file.relative_to(label_folder)
         ).with_suffix(image_suffix)
 
+        # Read the image and label data
         image = imread(image_file)
         render = read_img_npy(rendered_file)
+        # Create a composite visualization
         composite = create_composite(image, render, IDs_to_labels=IDs_to_labels)
 
         if savefolder is None:
+            # Display the composite
             plt.imshow(composite)
             plt.show()
         else:
+            # Save the composite to the output folder
             output_file = Path(savefolder, f"rendered_label_{i:03}.png")
             imwrite(output_file, composite)

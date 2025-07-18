@@ -55,7 +55,7 @@ class TexturedPhotogrammetryMesh:
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
         downsample_target: float = 1.0,
-        transform_filename: PATH_TYPE = None,
+        transform_filename: typing.Union[PATH_TYPE, None] = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
@@ -2117,11 +2117,19 @@ class TexturedPhotogrammetryMesh:
                 if rendered.ndim == 3:
                     rendered = rendered[..., :3]
 
-            # Saving
-            camera_filename = camera.get_image_filename().relative_to(
-                camera_set.image_folder
-            )
+            try:
+                # If the filename stored with the camera data [camera.get_image_filename]
+                # is a subpath of your camera set image folder, use the same subpath for
+                # the output data.
+                camera_filename = camera.get_image_filename().relative_to(
+                    camera_set.image_folder
+                )
+            except ValueError:
+                # If the given image folder is not a parent of the originally captured
+                # data [camera.get_image_filename] then just use the name of the file
+                camera_filename = camera.get_image_filename().name
             output_filename = Path(output_folder, camera_filename)
+
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
