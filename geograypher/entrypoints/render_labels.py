@@ -5,8 +5,8 @@ from pathlib import Path
 import fiona
 import geopandas as gpd
 import numpy as np
-import shapely
 import pyproj
+import shapely
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
