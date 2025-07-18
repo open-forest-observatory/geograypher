@@ -245,8 +245,6 @@ def show_segmentation_labels(
         with open(IDs_to_labels_file, "r") as infile:
             IDs_to_labels = json.load(infile)
             IDs_to_labels = {int(k): v for k, v in IDs_to_labels.items()}
-    print("IDs_to_labels", IDs_to_labels)
-
     # Iterate through a subset of label files and create composites
     for i, rendered_file in tqdm(
         enumerate(rendered_files[:num_show]),

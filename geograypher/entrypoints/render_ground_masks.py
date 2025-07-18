@@ -5,6 +5,7 @@ by checking the height of mesh vertices above the DTM.
 """
 
 import argparse
+from matplotlib.pyplot import cm, Normalize
 import numpy as np
 import pyvista as pv
 from pathlib import Path
@@ -51,10 +52,20 @@ def parse_args():
         help="Folder to save the rendered ground masks. Will be created if it doesn't exist",
     )
     parser.add_argument(
-        "--cutoff",
+        "--output-mode",
+        type=str,
+        choices=["threshold", "raw"],
+        default="raw",
+        help="How to render the output: 'threshold' will render scenes with values"
+        " 0=invalid, 1=below cutoff, 2=above cutoff; 'raw' will render scenes with the"
+        " raw height values from the camera perspective.",
+    )
+    parser.add_argument(
+        "--threshold-cutoff",
         type=float,
         default=1.0,
-        help="Height threshold (in same units as DTM) for ground/aboveground separation.",
+        help="Height threshold (in same units as DTM) for ground/aboveground separation."
+        " Only used if --output-mode is 'threshold'.",
     )
     parser.add_argument(
         "--vis-folder",
@@ -98,12 +109,23 @@ def main():
         )
     mesh = load_mesh()
 
-    # Sort the ground height into texture, so that 0=nan, 1=ground, 2=aboveground
-    ground_mask = mesh.get_height_above_ground(DTM_file=args.dtm_file)
-    texture = np.zeros(len(ground_mask), dtype=float)
-    texture[ground_mask > args.cutoff] = 2
-    texture[ground_mask <= args.cutoff] = 1
-    texture[np.isnan(ground_mask)] = 0
+    # Calculate the height of each mesh vertex above the detected ground (DTM)
+    height = mesh.get_height_above_ground(DTM_file=args.dtm_file)
+
+    if args.output_mode == "threshold":
+        # Sort the ground height into texture, so that 0=nan, 1=ground, 2=aboveground
+        texture = np.zeros(len(height), dtype=float)
+        texture[np.isnan(height)] = 0
+        texture[(~np.isnan(height)) & (height <= args.threshold_cutoff)] = 1
+        texture[(~np.isnan(height)) & (height > args.threshold_cutoff)] = 2
+        cast_to_uint8 = True
+        label_suffix = ".png"
+    elif args.output_mode == "raw":
+        texture = height
+        cast_to_uint8 = False
+        label_suffix = ".npy"
+    else:
+        raise NotImplementedError(f"Unknown mode: {args.output_mode}")
 
     # Reload the same mesh, but applying the height-labeled texture to the vertices
     ground_mesh = load_mesh(texture=texture.reshape(-1, 1))
@@ -125,9 +147,12 @@ def main():
     # Note that the render_flat call in save_renders removes vertex textures. That
     # means we need to save an evaluation mesh beforehand, if relevant
     if args.vis_folder is not None:
-        # Change the 0, 1, 2 textures to a color mapped version and save the mesh
-        cmap = np.array([[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8)
-        colored = cmap[ground_mesh.get_texture(request_vertex_texture=True).flatten().astype(int)]
+        if args.output_mode == "threshold":
+            cmap = np.array([[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8)
+            colored = cmap[texture.flatten().astype(int)]
+        else:
+            normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
+            colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(np.uint8)
         vis_mesh = load_mesh(texture=colored)
         vis_mesh.save_mesh(args.vis_folder / "ground_mesh.ply", save_vert_texture=True)
 
@@ -136,6 +161,7 @@ def main():
         camera_set,
         output_folder=args.output_folder,
         save_native_resolution=True,
+        cast_to_uint8=cast_to_uint8,
     )
 
     if args.vis_folder is not None:
@@ -146,6 +172,7 @@ def main():
             savefolder=args.vis_folder,
             num_show=args.vis_n_images,
             image_suffix=extension,
+            label_suffix=label_suffix,
         )
 
 
