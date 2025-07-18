@@ -144,7 +144,6 @@ def create_composite(
         # Rescale to float range and implicitly cast
         RGB_image = RGB_image / 255
 
-
     if not (label_image.ndim == 3 and label_image.shape[2] == 3):
         # If it's a one channel image make it not have a channel dim
         label_image = np.squeeze(label_image)
