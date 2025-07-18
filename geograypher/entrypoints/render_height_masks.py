@@ -90,8 +90,12 @@ def parse_args():
     args = parser.parse_args()
 
     # Assert existence of all required Path arguments except output_folders
-    assert args.image_folder.exists(), f"Image folder does not exist: {args.image_folder}"
-    assert args.camera_xml.exists(), f"Camera XML file does not exist: {args.camera_xml}"
+    assert (
+        args.image_folder.exists()
+    ), f"Image folder does not exist: {args.image_folder}"
+    assert (
+        args.camera_xml.exists()
+    ), f"Camera XML file does not exist: {args.camera_xml}"
     assert args.dtm_file.exists(), f"DTM file does not exist: {args.dtm_file}"
     assert args.mesh_file.exists(), f"Mesh file does not exist: {args.mesh_file}"
 
@@ -115,6 +119,7 @@ def main():
             require_transform=True,
             texture=texture,
         )
+
     mesh = load_mesh()
 
     # Calculate the height of each mesh vertex above the detected ground (DTM)
@@ -149,18 +154,23 @@ def main():
     assert len(imset) > 0, f"No images found in {args.image_folder} with *{extension}"
     # Limit the cameras to a subset, potentially
     camera_set.cameras = [
-        cam for cam in camera_set.cameras
+        cam
+        for cam in camera_set.cameras
         if Path(cam.get_image_filename()).name in imset
     ]
 
     if args.vis_folder is not None:
         # Save an evaluation mesh
         if args.output_mode == "threshold":
-            cmap = np.array([[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8)
+            cmap = np.array(
+                [[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8
+            )
             colored = cmap[texture.flatten().astype(int)]
         else:
             normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
-            colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(np.uint8)
+            colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(
+                np.uint8
+            )
         vis_mesh = load_mesh(texture=colored)
         vis_mesh.save_mesh(args.vis_folder / "height_mesh.ply", save_vert_texture=True)
 
