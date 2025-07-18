@@ -1,7 +1,12 @@
 """
-Render ground/aboveground masks made from a mesh and digital terrain model (DTM), saving renders
-from each camera's perspective. Determining which points are below vs. above ground is done
-by checking the height of mesh vertices above the DTM.
+Render height masks made from a mesh and digital terrain model (DTM), saving renders
+from each camera's perspective. There are two options:
+- Threshold - Render a discrete mask with below ground, above ground, and invalid points.
+    Determining which points are below vs. above ground is done by checking the height
+    of mesh vertices above the DTM against a threshold.
+- Raw - Render the mesh from each camera view, where the pixel value is the height of
+    the mesh at that point above the STM. The output is an (M, N) numpy array instead
+    of an image file.
 """
 
 import argparse
@@ -25,7 +30,9 @@ def parse_args():
         "--image-folder",
         type=Path,
         required=True,
-        help="Path to the folder containing images matching the camera XML data.",
+        help="Path to the folder containing images matching the camera XML data"
+        " or a subset thereof. This script will iterate over available images"
+        " in this folder.",
     )
     parser.add_argument(
         "--camera-xml",
@@ -113,7 +120,7 @@ def main():
     height = mesh.get_height_above_ground(DTM_file=args.dtm_file)
 
     if args.output_mode == "threshold":
-        # Sort the ground height into texture, so that 0=nan, 1=ground, 2=aboveground
+        # Sort the ground height into mesh texture, so that 0=nan, 1=ground, 2=aboveground
         texture = np.zeros(len(height), dtype=float)
         texture[np.isnan(height)] = 0
         texture[(~np.isnan(height)) & (height <= args.threshold_cutoff)] = 1
@@ -121,6 +128,7 @@ def main():
         cast_to_uint8 = True
         label_suffix = ".png"
     elif args.output_mode == "raw":
+        # Just use the raw height values to retexture the mesh
         texture = height
         cast_to_uint8 = False
         label_suffix = ".npy"
@@ -128,7 +136,7 @@ def main():
         raise NotImplementedError(f"Unknown mode: {args.output_mode}")
 
     # Reload the same mesh, but applying the height-labeled texture to the vertices
-    ground_mesh = load_mesh(texture=texture.reshape(-1, 1))
+    height_mesh = load_mesh(texture=texture.reshape(-1, 1))
 
     # Load camera metadata
     camera_set = MetashapeCameraSet(args.camera_xml, args.image_folder)
@@ -144,9 +152,8 @@ def main():
         if Path(cam.get_image_filename()).name in imset
     ]
 
-    # Note that the render_flat call in save_renders removes vertex textures. That
-    # means we need to save an evaluation mesh beforehand, if relevant
     if args.vis_folder is not None:
+        # Save an evaluation mesh
         if args.output_mode == "threshold":
             cmap = np.array([[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8)
             colored = cmap[texture.flatten().astype(int)]
@@ -154,10 +161,10 @@ def main():
             normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
             colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(np.uint8)
         vis_mesh = load_mesh(texture=colored)
-        vis_mesh.save_mesh(args.vis_folder / "ground_mesh.ply", save_vert_texture=True)
+        vis_mesh.save_mesh(args.vis_folder / "height_mesh.ply", save_vert_texture=True)
 
     # For each camera, render the height-painted mesh onto that camera view
-    ground_mesh.save_renders(
+    height_mesh.save_renders(
         camera_set,
         output_folder=args.output_folder,
         save_native_resolution=True,
