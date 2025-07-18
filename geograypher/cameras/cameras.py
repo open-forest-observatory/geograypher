@@ -674,7 +674,6 @@ class PhotogrammetryCameraSet:
             # TODO set it to the least common ancestor of all filenames
             pass
 
-
         if validate_images:
             missing_images, invalid_images = self.find_missing_images()
             if len(missing_images) > 0:
@@ -722,7 +721,10 @@ class PhotogrammetryCameraSet:
             # this is just one item indexed
             return subset_cameras
         # else, wrap the list of cameras in a CameraSet
-        return PhotogrammetryCameraSet(subset_cameras,local_to_epsg_4978_transform=self.local_to_epsg_4978_transform)
+        return PhotogrammetryCameraSet(
+            subset_cameras,
+            local_to_epsg_4978_transform=self.local_to_epsg_4978_transform,
+        )
 
     def get_image_folder(self):
         return self.image_folder

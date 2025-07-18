@@ -173,9 +173,6 @@ def create_composite(
         label_image = cmap(label_image)[..., :3]
         # Mask invalid values
         label_image[null_mask] = 0
-    elif label_image.dtype == np.uint8:
-        # For uin8 RGB, rescale to float range and implicitly cast
-        label_image = label_image / 255
 
     # Create a blended image
     if grayscale_RGB_overlay:
