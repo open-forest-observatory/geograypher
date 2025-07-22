@@ -1,18 +1,25 @@
 import geopandas as gpd
 import numpy as np
 import pytest
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
 
 
-def create_vector_data_with_polygons(path, polygons):
+def create_vector_data_with_polygons(path, polygons, multi_polygons=None):
+
+    geometry = [Polygon(poly) for poly in polygons]
+    if multi_polygons is not None:
+        geometry.append(
+            MultiPolygon([Polygon(poly) for poly in multi_polygons])
+        )
+
     gdf = gpd.GeoDataFrame(
         {
-            "geometry": [Polygon(poly) for poly in polygons],
-            "unique_ID": [f"{i:05}" for i in range(len(polygons))],
-            "labels": [0] * len(polygons),
-            "score": np.random.random(len(polygons)),
+            "geometry": geometry,
+            "unique_ID": [f"{i:05}" for i in range(len(geometry))],
+            "labels": [0] * len(geometry),
+            "score": np.random.random(len(geometry)),
         }
     )
     driver_options = {
@@ -92,8 +99,12 @@ class TestRegionDetectionSegmentor:
             [(20, 20), (20, 30), (30, 30), (30, 20), (20, 20)],
             [(25, 20), (25, 30), (35, 30), (35, 20), (25, 20)],
         ]
+        multi_polygons = [
+            [(0, 20), (0, 30), (10, 30), (10, 20), (0, 20)],
+            [(0, 26), (0, 36), (10, 36), (10, 26), (0, 26)],
+        ]
         geo_path = tmp_path / f"test{geo_extension}"
-        create_vector_data_with_polygons(geo_path, polygons)
+        create_vector_data_with_polygons(geo_path, polygons, multi_polygons)
 
         segmentor = RegionDetectionSegmentor(
             detection_file_or_folder=geo_path,
@@ -107,16 +118,18 @@ class TestRegionDetectionSegmentor:
         )
         # Check shape
         assert mask.shape == imshape
-        # Check that only 0, 1, and nan are present
+        # Check that only 0, 1, 2, 3, and nan are present
         unique_labels = set(np.unique(mask[~np.isnan(mask)]))
-        assert unique_labels == {0, 1, 2}
+        assert unique_labels == {0, 1, 2, 3}
 
         # Check that the areas are correct
         assert (mask == 0).sum() == 121
         assert (mask == 1).sum() == 55
         assert (mask == 2).sum() == 121
+        assert (mask == 3).sum() == 187
 
         # Check that the location is correct
         assert np.allclose(np.average(np.where(mask == 0), axis=1), [5, 5])
         assert np.allclose(np.average(np.where(mask == 1), axis=1), [22, 25])
         assert np.allclose(np.average(np.where(mask == 2), axis=1), [30, 25])
+        assert np.allclose(np.average(np.where(mask == 3), axis=1), [5, 28])

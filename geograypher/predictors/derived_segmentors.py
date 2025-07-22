@@ -390,15 +390,8 @@ class RegionDetectionSegmentor(Segmentor):
         # Extract the corresponding geodataframe
         gdf = self.grouped_labels_gdf.get_group(filename)
 
-        # Calculate centers from geometry centroids
-        centers = []
-        for _, row in gdf.iterrows():
-            # Get the centroid of the geometry (in pixel coordinates)
-            centroid = row.geometry.centroid
-            # Convert to (i, j) coordinates - note that geopandas uses (x, y) = (j, i)
-            centers.append([centroid.y, centroid.x])
-
-        return np.array(centers)
+        # Calculate (N, 2) centers from geometry centroids
+        return np.vstack([gdf.centroid.x, gdf.centroid.y]).T
 
     def segment_image(
         self, image: None, filename: str, image_shape: tuple
@@ -428,10 +421,19 @@ class RegionDetectionSegmentor(Segmentor):
         gdf = self.grouped_labels_gdf.get_group(filename)
 
         for label, (_, row) in enumerate(gdf.iterrows()):
-            if row.geometry.geom_type != "Polygon":
+
+            # Collect all polygons (whether single or multi) into a list
+            if row.geometry.geom_type == "Polygon":
+                polygons = [row.geometry]
+            elif row.geometry.geom_type == "MultiPolygon":
+                polygons = list(row.geometry.geoms)
+            else:
                 continue
-            y, x = row.geometry.exterior.xy
-            rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
-            label_image[rows, cols] = label
+
+            for poly in polygons:
+                # Note: (y, x) because draw.polygon uses row, col
+                y, x = poly.exterior.xy
+                rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
+                label_image[rows, cols] = label
 
         return label_image
