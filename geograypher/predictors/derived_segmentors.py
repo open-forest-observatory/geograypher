@@ -310,9 +310,11 @@ class RegionDetectionSegmentor(Segmentor):
     def __init__(
         self,
         detection_file_or_folder: PATH_TYPE,
+        geo_file_extension: str = ".gpkg",
         image_file_extension: str = ".JPG",
     ):
-        """Lookup region detections from .gpkg files using geopandas.
+        """Lookup region detections from a geospatial vector file (such as .gpkg,
+        .geojson, or .shp) files using geopandas.
 
         Assumes that each .gpkg filename matches the corresponding image filename
         (with different extension).
@@ -320,9 +322,13 @@ class RegionDetectionSegmentor(Segmentor):
         Args:
             detection_file_or_folder (PATH_TYPE):
                 Path to the .gpkg file with detections or a folder thereof
+            geo_file_extension (str, optional):
+                The file extension for the image files (e.g., ".gpkg", "geojson", ".shp").
+                Defaults to ".gpkg".
             image_file_extension (str, optional):
                 The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
         """
+        self.geo_file_extension = geo_file_extension
         self.image_file_extension = image_file_extension
 
         # Load the detections
@@ -341,8 +347,10 @@ class RegionDetectionSegmentor(Segmentor):
             # If it's a file, make a one-length list
             files = [detection_file_or_folder]
         else:
-            # List all the .gpkg files in the folder
-            files = sorted(Path(detection_file_or_folder).glob("*.gpkg"))
+            # List all geodata files in the folder
+            files = sorted(
+                Path(detection_file_or_folder).glob(f"*{self.geo_file_extension}")
+            )
 
         # Read the individual files using geopandas and add image name column
         gdfs = []

@@ -6,7 +6,7 @@ from shapely.geometry import Polygon
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
 
 
-def create_gpkg_with_polygons(gpkg_path, polygons):
+def create_vector_data_with_polygons(path, polygons):
     gdf = gpd.GeoDataFrame(
         {
             "geometry": [Polygon(poly) for poly in polygons],
@@ -15,14 +15,20 @@ def create_gpkg_with_polygons(gpkg_path, polygons):
             "score": np.random.random(len(polygons)),
         }
     )
-    gdf.to_file(gpkg_path, driver="GPKG")
+    driver_options = {
+        ".gpkg": "GPKG",
+        ".geojson": "GeoJSON",
+        ".shp": "ESRI Shapefile",
+    }
+    gdf.to_file(path, driver=driver_options[path.suffix])
 
 
 class TestRegionDetectionSegmentor:
 
     @pytest.mark.parametrize("multiple", (True, False))
-    @pytest.mark.parametrize("extension", (".jpg", ".JPG", ".png", ".tif"))
-    def test_segmentor(self, tmp_path, extension, multiple):
+    @pytest.mark.parametrize("geo_extension", (".gpkg", ".geojson", ".shp"))
+    @pytest.mark.parametrize("im_extension", (".jpg", ".JPG", ".png", ".tif"))
+    def test_segmentor(self, tmp_path, geo_extension, im_extension, multiple):
 
         polygons = [
             [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)],
@@ -31,19 +37,20 @@ class TestRegionDetectionSegmentor:
         ]
         if multiple:
             for i in range(5):
-                gpkg_path = tmp_path / f"test_{i}.gpkg"
-                create_gpkg_with_polygons(gpkg_path, polygons)
-            gpkg_location = tmp_path
-            image_names = [f"test_{i}{extension}" for i in range(5)]
+                geo_path = tmp_path / f"test_{i}{geo_extension}"
+                create_vector_data_with_polygons(geo_path, polygons)
+            data_location = tmp_path
+            image_names = [f"test_{i}{im_extension}" for i in range(5)]
         else:
-            gpkg_path = tmp_path / f"test.gpkg"
-            create_gpkg_with_polygons(gpkg_path, polygons)
-            gpkg_location = gpkg_path
-            image_names = [f"test{extension}"]
+            geo_path = tmp_path / f"test{geo_extension}"
+            create_vector_data_with_polygons(geo_path, polygons)
+            data_location = geo_path
+            image_names = [f"test{im_extension}"]
 
         segmentor = RegionDetectionSegmentor(
-            detection_file_or_folder=gpkg_location,
-            image_file_extension=extension,
+            detection_file_or_folder=data_location,
+            geo_file_extension=geo_extension,
+            image_file_extension=im_extension,
         )
 
         for imname in image_names:
@@ -75,8 +82,9 @@ class TestRegionDetectionSegmentor:
         assert centers.shape == (0, 2)
 
     @pytest.mark.parametrize("imshape", [(40, 40), (60, 40), (100, 120)])
-    @pytest.mark.parametrize("extension", (".jpg", ".JPG", ".png", ".tif"))
-    def test_segment_image_basic(self, tmp_path, extension, imshape):
+    @pytest.mark.parametrize("geo_extension", (".gpkg", ".geojson", ".shp"))
+    @pytest.mark.parametrize("im_extension", (".jpg", ".JPG", ".png", ".tif"))
+    def test_segment_image_basic(self, tmp_path, geo_extension, im_extension, imshape):
 
         # Create polygons, the third of which is overlapping the second
         polygons = [
@@ -84,17 +92,17 @@ class TestRegionDetectionSegmentor:
             [(20, 20), (20, 30), (30, 30), (30, 20), (20, 20)],
             [(25, 20), (25, 30), (35, 30), (35, 20), (25, 20)],
         ]
-        gpkg_path = tmp_path / "test.gpkg"
-        create_gpkg_with_polygons(gpkg_path, polygons)
+        geo_path = tmp_path / f"test{geo_extension}"
+        create_vector_data_with_polygons(geo_path, polygons)
 
         segmentor = RegionDetectionSegmentor(
-            detection_file_or_folder=gpkg_path,
-            image_file_extension=extension,
+            detection_file_or_folder=geo_path,
+            image_file_extension=im_extension,
         )
 
         mask = segmentor.segment_image(
             image=None,
-            filename=f"test{extension}",
+            filename=f"test{im_extension}",
             image_shape=imshape,
         )
         # Check shape
