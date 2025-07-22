@@ -2125,9 +2125,14 @@ class TexturedPhotogrammetryMesh:
                     camera_set.image_folder
                 )
             except ValueError:
-                # If the given image folder is not a parent of the originally captured
-                # data [camera.get_image_filename] then just use the name of the file
-                camera_filename = camera.get_image_filename().name
+                raise ValueError(
+                    "Tried to find the relative path of the camera path"
+                    f" ({camera.get_image_filename()}) inside of the camera set image"
+                    f" folder ({camera_set.image_folder}), but failed. The tool being called"
+                    " may have an 'original_image_folder' argument, which could be used to"
+                    " delete the initial, mismatched portion of the camera path. See more here:"
+                    " https://github.com/open-forest-observatory/automate-metashape/issues/90."
+                )
             output_filename = Path(output_folder, camera_filename)
 
             # This may create nested folders in the output dir

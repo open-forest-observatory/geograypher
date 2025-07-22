@@ -56,6 +56,13 @@ def parse_args():
         help="Path to the digital terrain model (DTM) raster file (usually a tif).",
     )
     parser.add_argument(
+        "--original-image-folder",
+        type=Path,
+        required=False,
+        help="If provided, this will be subtracted off the beginning of absolute image paths"
+        " stored in the camera_file. See MetashapeCameraSet for details.",
+    )
+    parser.add_argument(
         "--output-folder",
         type=Path,
         required=True,
@@ -115,6 +122,7 @@ def render_height_masks(
     camera_file: PATH_TYPE,
     mesh_file: PATH_TYPE,
     dtm_file: PATH_TYPE,
+    original_image_folder: typing.Optional[PATH_TYPE],
     output_folder: PATH_TYPE,
     output_mode: str,
     threshold_cutoff: float,
@@ -133,6 +141,9 @@ def render_height_masks(
         mesh_file: PATH_TYPE, Path to the mesh file (e.g., .ply) that we will assess point
             height on.
         dtm_file: PATH_TYPE, Path to the digital terrain model (DTM) raster file (usually a tif).
+        original_image_folder: typing.Optional[PATH_TYPE], If provided, this will be subtracted
+            off the beginning of absolute image paths stored in the camera_file. See
+            MetashapeCameraSet for details.
         output_folder: PATH_TYPE, Folder to save the rendered ground masks. Will be created
             if it doesn't exist
         output_mode: str, How to render the output: 'threshold' will render scenes with values
@@ -185,19 +196,13 @@ def render_height_masks(
     height_mesh = load_mesh(texture=texture.reshape(-1, 1))
 
     # Load camera metadata
-    camera_set = MetashapeCameraSet(camera_file, image_folder)
-
-    # If your image folder has a subset of images, use those image
-    # names to limit your renders to only the matching camera subset
+    camera_set = MetashapeCameraSet(
+        camera_file,
+        image_folder,
+        original_image_folder=original_image_folder,
+        validate_images=True,
+    )
     extension = Path(camera_set.cameras[0].get_image_filename()).suffix
-    imset = set([im.name for im in image_folder.glob(f"*{extension}")])
-    assert len(imset) > 0, f"No images found in {image_folder} with *{extension}"
-    # Limit the cameras to a subset, potentially
-    camera_set.cameras = [
-        cam
-        for cam in camera_set.cameras
-        if Path(cam.get_image_filename()).name in imset
-    ]
 
     if vis_folder is not None:
         # Save an evaluation mesh
@@ -238,6 +243,7 @@ if __name__ == "__main__":
         camera_file=args.camera_file,
         mesh_file=args.mesh_file,
         dtm_file=args.dtm_file,
+        original_image_folder=args.original_image_folder,
         output_folder=args.output_folder,
         output_mode=args.output_mode,
         threshold_cutoff=args.threshold_cutoff,

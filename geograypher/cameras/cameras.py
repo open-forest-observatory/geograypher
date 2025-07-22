@@ -622,7 +622,9 @@ class PhotogrammetryCameraSet:
             lon_lats (Union[None, List[Union[None, Tuple[float, float]]]]): A list of lon,lat tuples, or list of Nones, or None
             image_folder (PATH_TYPE): The top level folder of the images
             sensor_IDs (List[int]): The list of sensor IDs, that index into the sensors_params_dict
-            validate_images (bool, optional): Should the existance of the images be checked. Defaults to False.
+            validate_images (bool, optional): Should the existance of the images be checked.
+                Any image_filenames that do not exist will be dropped, leaving a CameraSet only
+                containing existing images. Defaults to False.
 
         Raises:
             ValueError: _description_
@@ -669,7 +671,7 @@ class PhotogrammetryCameraSet:
         self.image_folder = image_folder
 
         if validate_images:
-            missing_images, invalid_images = self.find_mising_images()
+            missing_images, invalid_images = self.find_missing_images()
             if len(missing_images) > 0:
                 print(f"Deleting {len(missing_images)} missing images")
                 valid_images = np.where(np.logical_not(invalid_images))[0]
@@ -720,7 +722,7 @@ class PhotogrammetryCameraSet:
     def get_image_folder(self):
         return self.image_folder
 
-    def find_mising_images(self):
+    def find_missing_images(self):
         invalid_mask = []
         for image_file in self.image_filenames:
             if not image_file.is_file():
