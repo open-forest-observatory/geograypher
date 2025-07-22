@@ -58,10 +58,12 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             image_folder (PATH_TYPE):
                 Path to image folder root
             original_image_folder (PATH_TYPE, optional):
-                Path to where the original images for photogrammetry were. This is removed from the
-                absolute path recorded in the file. Defaults to None.
-            validate_images (bool, optional):
-                Should you ensure that the images are present on disk. Defaults to False.
+                Path to where the original images for photogrammetry were, which was not included
+                in the stored image zip files. This is removed from the absolute path recorded in
+                the camera file. Defaults to None.
+            validate_images (bool, optional): Should the existance of the images be checked.
+                Any image_filenames found in the camera_file that do not exist on disk will be
+                dropped, leaving a CameraSet only containing existing images. Defaults to False.
             default_sensor_params (dict, optional):
                 Default parameters for the intrinsic parameters if not present. Defaults to zeros
                 "cx" and "cy".

@@ -55,7 +55,7 @@ class TexturedPhotogrammetryMesh:
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
         downsample_target: float = 1.0,
-        transform_filename: PATH_TYPE = None,
+        transform_filename: typing.Union[PATH_TYPE, None] = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
@@ -2117,11 +2117,24 @@ class TexturedPhotogrammetryMesh:
                 if rendered.ndim == 3:
                     rendered = rendered[..., :3]
 
-            # Saving
-            camera_filename = camera.get_image_filename().relative_to(
-                camera_set.image_folder
-            )
+            try:
+                # If the filename stored with the camera data [camera.get_image_filename]
+                # is a subpath of your camera set image folder, use the same subpath for
+                # the output data.
+                camera_filename = camera.get_image_filename().relative_to(
+                    camera_set.image_folder
+                )
+            except ValueError:
+                raise ValueError(
+                    "Tried to find the relative path of the camera path"
+                    f" ({camera.get_image_filename()}) inside of the camera set image"
+                    f" folder ({camera_set.image_folder}), but failed. The tool being called"
+                    " may have an 'original_image_folder' argument, which could be used to"
+                    " delete the initial, mismatched portion of the camera path. See more here:"
+                    " https://github.com/open-forest-observatory/automate-metashape/issues/90."
+                )
             output_filename = Path(output_folder, camera_filename)
+
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
             if rendered.dtype == np.uint8:
