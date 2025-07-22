@@ -10,9 +10,7 @@ def create_vector_data_with_polygons(path, polygons, multi_polygons=None):
 
     geometry = [Polygon(poly) for poly in polygons]
     if multi_polygons is not None:
-        geometry.append(
-            MultiPolygon([Polygon(poly) for poly in multi_polygons])
-        )
+        geometry.append(MultiPolygon([Polygon(poly) for poly in multi_polygons]))
 
     gdf = gpd.GeoDataFrame(
         {

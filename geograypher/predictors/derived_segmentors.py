@@ -423,7 +423,9 @@ class RegionDetectionSegmentor(Segmentor):
 
         # Store the polygon masks in a (H, W, N indices) array
         num_polygons = gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).sum()
-        label_image = np.full(image_shape + (num_polygons,), fill_value=False, dtype=bool)
+        label_image = np.full(
+            image_shape + (num_polygons,), fill_value=False, dtype=bool
+        )
 
         # Bookkeep which polygon we are currently drawing, in case the GDF has non
         # polygonal rows that get skipped.
@@ -441,7 +443,9 @@ class RegionDetectionSegmentor(Segmentor):
             for poly in polygons:
                 # Note: (y, x) because draw.polygon uses row, col
                 y, x = poly.exterior.xy
-                rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
+                rows, cols = draw.polygon(
+                    np.array(y), np.array(x), shape=label_image.shape
+                )
                 label_image[rows, cols, index] = True
 
             # Note that we have finished drawing an index
