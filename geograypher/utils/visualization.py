@@ -220,14 +220,15 @@ def show_segmentation_labels(
     on their corresponding images.
 
     Args:
-        label_folder: Path to the folder containing label images.
-        image_folder: Path to the folder containing original images.
-        savefolder: If provided, composites are saved here; otherwise, they are displayed.
-        num_show: Number of samples to show or save.
-        label_suffix: Suffix for label image files.
-        image_suffix: Suffix for image files.
-        IDs_to_labels: Mapping from label IDs to class names. If None, will attempt
-            to load from label_folder.
+        label_folder (PATH_TYPE): Path to the folder containing label images.
+        image_folder (PATH_TYPE): Path to the folder containing original images.
+        savefolder (PATH_TYPE, optional): If provided, composites are saved here;
+            otherwise, they are displayed using pyplot. Defaults to None.
+        num_show (int): Number of samples to show or save. Defaults to 10.
+        label_suffix (str): Suffix for label image files. Defaults to ".png".
+        image_suffix (str): Suffix for image files. Defaults to ".JPG".
+        IDs_to_labels (dict, optional): Mapping from label IDs to class names.
+            If None, will attempt to load from label_folder. Defaults to None.
     """
     # Find all label files in the label_folder and shuffle them
     rendered_files = list(Path(label_folder).rglob("*" + label_suffix))

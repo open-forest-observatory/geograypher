@@ -36,7 +36,7 @@ def parse_args():
         " in this folder.",
     )
     parser.add_argument(
-        "--camera-xml",
+        "--camera-file",
         type=Path,
         required=True,
         help="Path to the Metashape camera XML file with camera positions.",
@@ -72,7 +72,7 @@ def parse_args():
         "--threshold-cutoff",
         type=float,
         default=1.0,
-        help="Height threshold (in same units as DTM) for ground/aboveground separation."
+        help="Height threshold (same units as DTM → m) for ground/aboveground separation."
         " Only used if --output-mode is 'threshold'.",
     )
     parser.add_argument(
@@ -94,8 +94,8 @@ def parse_args():
         args.image_folder.exists()
     ), f"Image folder does not exist: {args.image_folder}"
     assert (
-        args.camera_xml.exists()
-    ), f"Camera XML file does not exist: {args.camera_xml}"
+        args.camera_file.exists()
+    ), f"Camera XML file does not exist: {args.camera_file}"
     assert args.dtm_file.exists(), f"DTM file does not exist: {args.dtm_file}"
     assert args.mesh_file.exists(), f"Mesh file does not exist: {args.mesh_file}"
 
@@ -108,50 +108,62 @@ def parse_args():
     return args
 
 
-def main():
-    args = parse_args()
+def main(
+    mesh_file,
+    camera_file,
+    dtm_file,
+    output_mode,
+    threshold_cutoff,
+    image_folder,
+    output_mode,
+    output_folder,
+    vis_folder,
+    vis_n_images,
+):
 
     def load_mesh(texture=None):
         """Small helper function for something we repeat."""
         return TexturedPhotogrammetryMesh(
-            args.mesh_file,
-            transform_filename=args.camera_xml,
+            mesh_file,
+            transform_filename=camera_file,
             require_transform=True,
             texture=texture,
         )
 
     mesh = load_mesh()
 
-    # Calculate the height of each mesh vertex above the detected ground (DTM)
-    height = mesh.get_height_above_ground(DTM_file=args.dtm_file)
+    # Calculate the height of each mesh vertex above the detected ground (DTM).
+    # Note that DTM files usually cover a smaller area spatially than the mesh,
+    # and points outside the DTM ROI will have a height of NaN.
+    height = mesh.get_height_above_ground(DTM_file=dtm_file)
 
-    if args.output_mode == "threshold":
+    if output_mode == "threshold":
         # Sort the ground height into mesh texture, so that 0=nan, 1=ground, 2=aboveground
         texture = np.zeros(len(height), dtype=float)
         texture[np.isnan(height)] = 0
-        texture[(~np.isnan(height)) & (height <= args.threshold_cutoff)] = 1
-        texture[(~np.isnan(height)) & (height > args.threshold_cutoff)] = 2
+        texture[(~np.isnan(height)) & (height <= threshold_cutoff)] = 1
+        texture[(~np.isnan(height)) & (height > threshold_cutoff)] = 2
         cast_to_uint8 = True
         label_suffix = ".png"
-    elif args.output_mode == "raw":
+    elif output_mode == "raw":
         # Just use the raw height values to retexture the mesh
         texture = height
         cast_to_uint8 = False
         label_suffix = ".npy"
     else:
-        raise NotImplementedError(f"Unknown mode: {args.output_mode}")
+        raise ValueError(f"Unknown mode: {output_mode}")
 
     # Reload the same mesh, but applying the height-labeled texture to the vertices
     height_mesh = load_mesh(texture=texture.reshape(-1, 1))
 
     # Load camera metadata
-    camera_set = MetashapeCameraSet(args.camera_xml, args.image_folder)
+    camera_set = MetashapeCameraSet(camera_file, image_folder)
 
     # If your image folder has a subset of images, use those image
     # names to limit your renders to only the matching camera subset
     extension = Path(camera_set.cameras[0].get_image_filename()).suffix
-    imset = set([im.name for im in args.image_folder.glob(f"*{extension}")])
-    assert len(imset) > 0, f"No images found in {args.image_folder} with *{extension}"
+    imset = set([im.name for im in image_folder.glob(f"*{extension}")])
+    assert len(imset) > 0, f"No images found in {image_folder} with *{extension}"
     # Limit the cameras to a subset, potentially
     camera_set.cameras = [
         cam
@@ -159,40 +171,49 @@ def main():
         if Path(cam.get_image_filename()).name in imset
     ]
 
-    if args.vis_folder is not None:
+    if vis_folder is not None:
         # Save an evaluation mesh
-        if args.output_mode == "threshold":
-            cmap = np.array(
-                [[170, 0, 0], [140, 140, 255], [90, 200, 90]], dtype=np.uint8
-            )
-            colored = cmap[texture.flatten().astype(int)]
+        if output_mode == "threshold":
+            colored = cm.get_cmap("tab10")(texture.flatten())
         else:
             normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
             colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(
                 np.uint8
             )
         vis_mesh = load_mesh(texture=colored)
-        vis_mesh.save_mesh(args.vis_folder / "height_mesh.ply", save_vert_texture=True)
+        vis_mesh.save_mesh(vis_folder / "height_mesh.ply", save_vert_texture=True)
 
     # For each camera, render the height-painted mesh onto that camera view
     height_mesh.save_renders(
         camera_set,
-        output_folder=args.output_folder,
+        output_folder=output_folder,
         save_native_resolution=True,
         cast_to_uint8=cast_to_uint8,
     )
 
-    if args.vis_folder is not None:
+    if vis_folder is not None:
         # Save evaluation images of the ground masks
         show_segmentation_labels(
-            label_folder=args.output_folder,
-            image_folder=args.image_folder,
-            savefolder=args.vis_folder,
-            num_show=args.vis_n_images,
+            label_folder=output_folder,
+            image_folder=image_folder,
+            savefolder=vis_folder,
+            num_show=vis_n_images,
             image_suffix=extension,
             label_suffix=label_suffix,
         )
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(
+        mesh_file=args.mesh_file,
+        camera_file=args.camera_file,
+        dtm_file=args.dtm_file,
+        output_mode=args.output_mode,
+        threshold_cutoff=args.threshold_cutoff,
+        image_folder=args.image_folder,
+        output_mode=args.output_mode,
+        output_folder=args.output_folder,
+        vis_folder=args.vis_folder,
+        vis_n_images=args.vis_n_images,
+    )
