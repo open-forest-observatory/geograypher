@@ -91,7 +91,7 @@ class TestRegionDetectionSegmentor:
     @pytest.mark.parametrize("imshape", [(40, 40), (60, 40), (100, 120)])
     @pytest.mark.parametrize("geo_extension", (".gpkg", ".geojson", ".shp"))
     @pytest.mark.parametrize("im_extension", (".jpg", ".JPG", ".png", ".tif"))
-    def test_segment_image_basic(self, tmp_path, geo_extension, im_extension, imshape):
+    def test_segment_image(self, tmp_path, geo_extension, im_extension, imshape):
 
         # Create polygons, the third of which is overlapping the second
         polygons = [
@@ -116,20 +116,21 @@ class TestRegionDetectionSegmentor:
             filename=f"test{im_extension}",
             image_shape=imshape,
         )
-        # Check shape
-        assert mask.shape == imshape
-        # Check that only 0, 1, 2, 3, and nan are present
-        unique_labels = set(np.unique(mask[~np.isnan(mask)]))
-        assert unique_labels == {0, 1, 2, 3}
+        # Check the shape is (H, W, N indices) where each mask has its own
+        # one-hot slice
+        assert mask.shape == imshape + (4,)
+        assert mask.dtype == bool
 
-        # Check that the areas are correct
-        assert (mask == 0).sum() == 121
-        assert (mask == 1).sum() == 55
-        assert (mask == 2).sum() == 121
-        assert (mask == 3).sum() == 187
+        # Check that the areas are correct. Because segment_image returns a
+        # one_hot array, overlapping masks (like #3 overlapping #2) don't
+        # affect the mask area
+        assert (mask[..., 0]).sum() == 121
+        assert (mask[..., 1]).sum() == 121
+        assert (mask[..., 2]).sum() == 121
+        assert (mask[..., 3]).sum() == 187
 
         # Check that the location is correct
-        assert np.allclose(np.average(np.where(mask == 0), axis=1), [5, 5])
-        assert np.allclose(np.average(np.where(mask == 1), axis=1), [22, 25])
-        assert np.allclose(np.average(np.where(mask == 2), axis=1), [30, 25])
-        assert np.allclose(np.average(np.where(mask == 3), axis=1), [5, 28])
+        assert np.allclose(np.average(np.where(mask[..., 0]), axis=1), [5, 5])
+        assert np.allclose(np.average(np.where(mask[..., 1]), axis=1), [25, 25])
+        assert np.allclose(np.average(np.where(mask[..., 2]), axis=1), [30, 25])
+        assert np.allclose(np.average(np.where(mask[..., 3]), axis=1), [5, 28])

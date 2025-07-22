@@ -410,17 +410,25 @@ class RegionDetectionSegmentor(Segmentor):
             image_shape: (2,) tuple of the (height, width) of the output mask we want
 
         Returns:
-            label_image: A 2D numpy array of shape (H, W) with integer region indices for each pixel.
-                         Pixels not covered by any region are set to np.nan.
+            one_hot_labels: A 3D one-hot numpy array of shape (H, W, N indices). For a
+                given polygon index, the [:, :, index] slice will be True where the
+                mask is present and False otherwise. dtype=bool. If no image match is
+                present, return a (H, W, 0) mask.
         """
-        label_image = np.full(image_shape, fill_value=np.nan, dtype=float)
 
         if filename not in self.image_names:
-            return label_image
+            return np.full(image_shape + (0,), fill_value=False, dtype=bool)
 
         gdf = self.grouped_labels_gdf.get_group(filename)
 
-        for label, (_, row) in enumerate(gdf.iterrows()):
+        # Store the polygon masks in a (H, W, N indices) array
+        num_polygons = gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).sum()
+        label_image = np.full(image_shape + (num_polygons,), fill_value=False, dtype=bool)
+
+        # Bookkeep which polygon we are currently drawing, in case the GDF has non
+        # polygonal rows that get skipped.
+        index = 0
+        for _, row in gdf.iterrows():
 
             # Collect all polygons (whether single or multi) into a list
             if row.geometry.geom_type == "Polygon":
@@ -434,6 +442,9 @@ class RegionDetectionSegmentor(Segmentor):
                 # Note: (y, x) because draw.polygon uses row, col
                 y, x = poly.exterior.xy
                 rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
-                label_image[rows, cols] = label
+                label_image[rows, cols, index] = True
+
+            # Note that we have finished drawing an index
+            index += 1
 
         return label_image
