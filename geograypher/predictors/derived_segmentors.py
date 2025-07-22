@@ -433,7 +433,9 @@ class RegionDetectionSegmentor(Segmentor):
             for poly in polygons:
                 # Note: (y, x) because draw.polygon uses row, col
                 y, x = poly.exterior.xy
-                rows, cols = draw.polygon(np.array(y), np.array(x), shape=label_image.shape)
+                rows, cols = draw.polygon(
+                    np.array(y), np.array(x), shape=label_image.shape
+                )
                 label_image[rows, cols] = label
 
         return label_image
