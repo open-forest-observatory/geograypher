@@ -4259,12 +4259,25 @@
 <span class="normal"><a href="#__codelineno-0-2132">2132</a></span>
 <span class="normal"><a href="#__codelineno-0-2133">2133</a></span>
 <span class="normal"><a href="#__codelineno-0-2134">2134</a></span>
-<span class="normal"><a href="#__codelineno-0-2135">2135</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-2135">2135</a></span>
+<span class="normal"><a href="#__codelineno-0-2136">2136</a></span>
+<span class="normal"><a href="#__codelineno-0-2137">2137</a></span>
+<span class="normal"><a href="#__codelineno-0-2138">2138</a></span>
+<span class="normal"><a href="#__codelineno-0-2139">2139</a></span>
+<span class="normal"><a href="#__codelineno-0-2140">2140</a></span>
+<span class="normal"><a href="#__codelineno-0-2141">2141</a></span>
+<span class="normal"><a href="#__codelineno-0-2142">2142</a></span>
+<span class="normal"><a href="#__codelineno-0-2143">2143</a></span>
+<span class="normal"><a href="#__codelineno-0-2144">2144</a></span>
+<span class="normal"><a href="#__codelineno-0-2145">2145</a></span>
+<span class="normal"><a href="#__codelineno-0-2146">2146</a></span>
+<span class="normal"><a href="#__codelineno-0-2147">2147</a></span>
+<span class="normal"><a href="#__codelineno-0-2148">2148</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a>        <span class="n">mesh</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">],</span>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="n">downsample_target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="n">transform_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="n">transform_filename</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">texture</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="n">texture_column_name</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="n">IDs_to_labels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -6326,22 +6339,35 @@
 <a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>                <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
 <a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                    <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
 <a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>
-<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>            <span class="c1"># Saving</span>
-<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>            <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
-<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>                <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
-<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>            <span class="c1"># This may create nested folders in the output dir</span>
-<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>
-<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>                <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
+<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>                <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
+<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>                <span class="c1"># the output data.</span>
+<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>                <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
+<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>                    <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
+<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                    <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
+<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                    <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
+<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                    <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
+<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>                    <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
+<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>                    <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
+<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                    <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
+<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>
+<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>            <span class="c1"># This may create nested folders in the output dir</span>
+<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
+<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>
+<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>                <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>                <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>                <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -6544,7 +6570,7 @@
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="n">mesh</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">],</span>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="n">downsample_target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="n">transform_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="n">transform_filename</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="n">texture</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="n">texture_column_name</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="n">IDs_to_labels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11744,7 +11770,20 @@ Defaults to NULL_TEXTURE_INT_VALUE</p>
 <span class="normal"><a href="#__codelineno-0-2132">2132</a></span>
 <span class="normal"><a href="#__codelineno-0-2133">2133</a></span>
 <span class="normal"><a href="#__codelineno-0-2134">2134</a></span>
-<span class="normal"><a href="#__codelineno-0-2135">2135</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2022" name="__codelineno-0-2022"></a><span class="k">def</span><span class="w"> </span><span class="nf">save_renders</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-2135">2135</a></span>
+<span class="normal"><a href="#__codelineno-0-2136">2136</a></span>
+<span class="normal"><a href="#__codelineno-0-2137">2137</a></span>
+<span class="normal"><a href="#__codelineno-0-2138">2138</a></span>
+<span class="normal"><a href="#__codelineno-0-2139">2139</a></span>
+<span class="normal"><a href="#__codelineno-0-2140">2140</a></span>
+<span class="normal"><a href="#__codelineno-0-2141">2141</a></span>
+<span class="normal"><a href="#__codelineno-0-2142">2142</a></span>
+<span class="normal"><a href="#__codelineno-0-2143">2143</a></span>
+<span class="normal"><a href="#__codelineno-0-2144">2144</a></span>
+<span class="normal"><a href="#__codelineno-0-2145">2145</a></span>
+<span class="normal"><a href="#__codelineno-0-2146">2146</a></span>
+<span class="normal"><a href="#__codelineno-0-2147">2147</a></span>
+<span class="normal"><a href="#__codelineno-0-2148">2148</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2022" name="__codelineno-0-2022"></a><span class="k">def</span><span class="w"> </span><span class="nf">save_renders</span><span class="p">(</span>
 <a id="__codelineno-0-2023" name="__codelineno-0-2023"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-2024" name="__codelineno-0-2024"></a>    <span class="n">camera_set</span><span class="p">:</span> <span class="n">PhotogrammetryCameraSet</span><span class="p">,</span>
 <a id="__codelineno-0-2025" name="__codelineno-0-2025"></a>    <span class="n">render_image_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
@@ -11842,22 +11881,35 @@ Defaults to NULL_TEXTURE_INT_VALUE</p>
 <a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
 <a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
 <a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>
-<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>        <span class="c1"># Saving</span>
-<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>        <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
-<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>            <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
-<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>        <span class="p">)</span>
-<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>        <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>        <span class="c1"># This may create nested folders in the output dir</span>
-<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>        <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>
-<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>            <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>            <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>            <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>            <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
+<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>            <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
+<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>            <span class="c1"># the output data.</span>
+<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>            <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
+<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>                <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
+<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
+<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
+<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
+<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>                <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
+<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>                <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
+<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
+<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>        <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>
+<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>        <span class="c1"># This may create nested folders in the output dir</span>
+<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>        <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
+<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>
+<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>            <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>            <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>            <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
