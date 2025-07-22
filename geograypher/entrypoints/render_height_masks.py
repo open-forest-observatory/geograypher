@@ -10,6 +10,7 @@ from each camera's perspective. There are two options:
 """
 
 import argparse
+import typing
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,7 @@ import pyvista as pv
 from matplotlib.pyplot import Normalize, cm
 
 from geograypher.cameras.derived_cameras import MetashapeCameraSet
+from geograypher.constants import PATH_TYPE
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.files import ensure_folder
 from geograypher.utils.visualization import show_segmentation_labels
@@ -109,17 +111,43 @@ def parse_args():
 
 
 def main(
-    mesh_file,
-    camera_file,
-    dtm_file,
-    output_mode,
-    threshold_cutoff,
-    image_folder,
-    output_mode,
-    output_folder,
-    vis_folder,
-    vis_n_images,
+    image_folder: PATH_TYPE,
+    camera_file: PATH_TYPE,
+    mesh_file: PATH_TYPE,
+    dtm_file: PATH_TYPE,
+    output_folder: PATH_TYPE,
+    output_mode: str,
+    threshold_cutoff: float,
+    vis_folder: typing.Optional[PATH_TYPE],
+    vis_n_images: int,
 ):
+    """
+    Render height masks made from a mesh and digital terrain model (DTM), saving renders
+    geofrom each camera's perspective.
+
+    Arguments:
+        image_folder: PATH_TYPE, Path to the folder containing images matching the camera
+            XML data or a subset thereof. This script will iterate over available images
+            in this folder.
+        camera_file: PATH_TYPE, Path to the Metashape camera XML file with camera positions.
+        mesh_file: PATH_TYPE, Path to the mesh file (e.g., .ply) that we will assess point
+            height on.
+        dtm_file: PATH_TYPE, Path to the digital terrain model (DTM) raster file (usually a tif).
+        output_folder: PATH_TYPE, Folder to save the rendered ground masks. Will be created
+            if it doesn't exist
+        output_mode: str, How to render the output: 'threshold' will render scenes with values
+            0=invalid, 1=below cutoff, 2=above cutoff; 'raw' will render scenes with the
+            raw height values from the camera perspective.
+        threshold_cutoff: float, Height threshold (same units as DTM → m) for ground/aboveground
+            separation. Only used if --output-mode is 'threshold'.
+        vis_folder: typing.Optional[PATH_TYPE], If provided, a textured mesh and evaluation
+            images will be saved in this folder.
+        vis_n_images: int, Number of eval images to save in the vis folder (only used if
+            --vis-folder given).
+
+    Raises:
+        ValueError: the output mode is an invalid mode
+    """
 
     def load_mesh(texture=None):
         """Small helper function for something we repeat."""
@@ -174,13 +202,13 @@ def main(
     if vis_folder is not None:
         # Save an evaluation mesh
         if output_mode == "threshold":
-            colored = cm.get_cmap("tab10")(texture.flatten())
+            # Note that we have to divide by 10 to get (0, 1, 2) to fit nicely into
+            # the 0-1 range of tab10
+            colored = cm.get_cmap("tab10")(texture.flatten() / 10)
         else:
             normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
-            colored = (cm.get_cmap("viridis")(normalize(texture))[:, :3] * 255).astype(
-                np.uint8
-            )
-        vis_mesh = load_mesh(texture=colored)
+            colored = cm.get_cmap("viridis")(normalize(texture))
+        vis_mesh = load_mesh(texture=(colored[:, :3] * 255).astype(np.uint8))
         vis_mesh.save_mesh(vis_folder / "height_mesh.ply", save_vert_texture=True)
 
     # For each camera, render the height-painted mesh onto that camera view
@@ -206,14 +234,13 @@ def main(
 if __name__ == "__main__":
     args = parse_args()
     main(
-        mesh_file=args.mesh_file,
+        image_folder=args.image_folder,
         camera_file=args.camera_file,
+        mesh_file=args.mesh_file,
         dtm_file=args.dtm_file,
+        output_folder=args.output_folder,
         output_mode=args.output_mode,
         threshold_cutoff=args.threshold_cutoff,
-        image_folder=args.image_folder,
-        output_mode=args.output_mode,
-        output_folder=args.output_folder,
         vis_folder=args.vis_folder,
         vis_n_images=args.vis_n_images,
     )
