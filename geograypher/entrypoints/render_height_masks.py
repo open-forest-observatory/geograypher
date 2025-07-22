@@ -110,7 +110,7 @@ def parse_args():
     return args
 
 
-def main(
+def render_height_masks(
     image_folder: PATH_TYPE,
     camera_file: PATH_TYPE,
     mesh_file: PATH_TYPE,
@@ -233,7 +233,7 @@ def main(
 
 if __name__ == "__main__":
     args = parse_args()
-    main(
+    render_height_masks(
         image_folder=args.image_folder,
         camera_file=args.camera_file,
         mesh_file=args.mesh_file,
