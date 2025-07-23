@@ -21,6 +21,7 @@ def render_labels(
     image_folder: PATH_TYPE,
     texture: typing.Union[PATH_TYPE, np.ndarray, None],
     render_savefolder: PATH_TYPE,
+    original_image_folder: typing.Union[PATH_TYPE, None] = None,
     transform_file: typing.Union[PATH_TYPE, None] = None,
     subset_images_savefolder: typing.Union[PATH_TYPE, None] = None,
     texture_column_name: typing.Union[str, None] = None,
@@ -52,6 +53,11 @@ def render_labels(
             See TexturedPhotogrammetryMesh.load_texture
         render_savefolder (PATH_TYPE):
             Where to save the rendered labels
+        original_images_folder (typing.Union[PATH_TYPE, None], optional):
+            Where the images where when photogrammetry was run. Metashape saves imagenames with an
+            absolute path which can cause issues. If this argument is provided, this path is removed
+            from the start of each image file name, which allows the camera set to be used with a
+            moved folder of images specified by `image_folder`. Defaults to None.
         transform_file (typing.Union[PATH_TYPE, None], optional):
             File containing the transform from local coordinates to EPSG:4978. Defaults to None.
         subset_images_savefolder (typing.Union[PATH_TYPE, None], optional):
@@ -104,7 +110,9 @@ def render_labels(
     ## Create the camera set
     # This is done first because it's often faster than mesh operations which
     # makes it a good place to check for failures
-    camera_set = MetashapeCameraSet(cameras_file, image_folder)
+    camera_set = MetashapeCameraSet(
+        cameras_file, image_folder, original_image_folder=original_image_folder
+    )
 
     if ROI is not None:
         # Extract cameras near the training data
