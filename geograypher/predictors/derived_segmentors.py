@@ -309,92 +309,85 @@ class TabularRectangleSegmentor(Segmentor):
 class RegionDetectionSegmentor(Segmentor):
     def __init__(
         self,
-        detection_file_or_folder: PATH_TYPE,
-        geo_file_extension: str = ".gpkg",
+        base_folder: PATH_TYPE,
+        lookup_folder: PATH_TYPE,
         image_file_extension: str = ".JPG",
+        geo_file_extension: str = ".gpkg",
     ):
-        """Lookup region detections from a geospatial vector file (such as .gpkg,
-        .geojson, or .shp) files using geopandas.
+        """Lookup region detections from geospatial vector files (such as .gpkg,
+        .geojson, or .shp) files using geopandas. The lookup process will start with
+        an image name, which will then be used to search for the proper detection file.
 
-        Assumes that each .gpkg filename matches the corresponding image filename
-        (with different extension).
+        Assumes that each geospatial filepath matches the corresponding image path
+        (with different extension, and relative to a different root directory).
 
         Args:
-            detection_file_or_folder (PATH_TYPE):
-                Path to the .gpkg file with detections or a folder thereof
+            base_folder (PATH_TYPE):
+                Path to the root directory for the images. There may be images in this
+                directory, or a nested set of folders with images inside.
+            lookup_folder (PATH_TYPE):
+                Path to the root directory for the geospatial files with detections. The
+                nested geospatial folder/file structure should match that of the images in
+                the base folder.
+            image_file_extension (str, optional):
+                The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
             geo_file_extension (str, optional):
                 The file extension for the image files (e.g., ".gpkg", "geojson", ".shp").
                 Defaults to ".gpkg".
-            image_file_extension (str, optional):
-                The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
         """
-        self.geo_file_extension = geo_file_extension
+        self.base_folder = Path(base_folder)
+        self.lookup_folder = Path(lookup_folder)
         self.image_file_extension = image_file_extension
+        self.geo_file_extension = geo_file_extension
 
-        # Load the detections
-        self.labels_gdf = self.load_detection_files(detection_file_or_folder)
+        # Do some input checking
+        for folder in [self.base_folder, self.lookup_folder]:
+            if not folder.is_dir():
+                raise ValueError(f"Folder {folder} not found")
 
-        # Group the predictions by image name (derived from .gpkg filename)
-        self.grouped_labels_gdf = self.labels_gdf.groupby(by="image_name")
-
-        # List the images
-        self.image_names = list(self.grouped_labels_gdf.groups.keys())
-
-    def load_detection_files(self, detection_file_or_folder: PATH_TYPE) -> pd.DataFrame:
-
-        # Determine whether the input is a file or folder
-        if Path(detection_file_or_folder).is_file():
-            # If it's a file, make a one-length list
-            files = [detection_file_or_folder]
-        else:
-            # List all geodata files in the folder
-            files = sorted(
-                Path(detection_file_or_folder).glob(f"*{self.geo_file_extension}")
+        # List the image paths
+        self.image_paths = sorted(self.base_folder.glob(f"**/*{image_file_extension}"))
+        if len(self.image_paths) == 0:
+            raise ValueError(
+                f"No images found in {self.base_folder}/**/*{image_file_extension}"
             )
 
-        # Read the individual files using geopandas and add image name column
-        gdfs = []
-        for f in files:
-            gdf = gpd.read_file(f)
-            # Extract image name from .gpkg filename and add the image extension
-            image_name = f.stem + self.image_file_extension
+        # Check that each has a matching geospatial file
+        for impath in self.image_paths:
+            geopath = self.geomatch(impath)
+            if not geopath.is_file():
+                raise ValueError(
+                    f"Image {impath} found no matching geospatial file {geopath}"
+                )
 
-            # Add image name column to the geodataframe
-            gdf["image_name"] = image_name
-            gdfs.append(gdf)
+    def geomatch(self, impath):
+        """Helper function to find a matching geospatial file for an image."""
+        # Find image path relative to the root
+        subpath = impath.relative_to(self.base_folder)
+        # Construct a geospatial file with the same subpath
+        return self.lookup_folder / subpath.with_suffix(self.geo_file_extension)
 
-        # Concatenate the geodataframes into one
-        if len(gdfs) > 0:
-            labels_gdf = pd.concat(gdfs, ignore_index=True)
-        else:
-            # Empty dataframe
-            labels_gdf = gpd.GeoDataFrame(
-                columns=["image_name", "geometry"], geometry="geometry"
-            )
-
-        return labels_gdf
-
-    def get_detection_centers(self, filename: str) -> np.ndarray:
-        """Get the centers of all detections for a given image filename.
+    def get_detection_centers(self, im_path: PATH_TYPE) -> np.ndarray:
+        """Get the centers of all detections for a given image filepath.
 
         Args:
-            filename: The image filename to get detection centers for.
+            im_path: The image filepath to get detection centers for.
 
         Returns:
             np.ndarray: (n,2) array for (i,j) centers for each detection
         """
-        if filename not in self.image_names:
+        if im_path not in self.image_paths:
             # Empty array of detection centers
             return np.zeros((0, 2))
 
         # Extract the corresponding geodataframe
-        gdf = self.grouped_labels_gdf.get_group(filename)
+        gdf = gpd.read_file(self.geomatch(im_path))
 
         # Calculate (N, 2) centers from geometry centroids
         return np.vstack([gdf.centroid.x, gdf.centroid.y]).T
 
     def segment_image(
-        self, image: None, filename: str, image_shape: tuple
+        self, image: None, im_path: PATH_TYPE, image_shape: tuple
     ) -> np.ndarray:
         """
         Produce a segmentation mask for an image using region (polygon) detections.
@@ -406,7 +399,7 @@ class RegionDetectionSegmentor(Segmentor):
         Args:
             image: The input image array (not used for region lookup, but kept for
                 API compatibility).
-            filename: The image filename to look up regions for.
+            im_path: The image filepath to look up regions for.
             image_shape: (2,) tuple of the (height, width) of the output mask we want
 
         Returns:
@@ -416,10 +409,11 @@ class RegionDetectionSegmentor(Segmentor):
                 present, return a (H, W, 0) mask.
         """
 
-        if filename not in self.image_names:
+        im_path = Path(im_path)
+        if im_path not in self.image_paths:
             return np.full(image_shape + (0,), fill_value=False, dtype=bool)
 
-        gdf = self.grouped_labels_gdf.get_group(filename)
+        gdf = gpd.read_file(self.geomatch(im_path))
 
         # Store the polygon masks in a (H, W, N indices) array
         num_polygons = gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).sum()
