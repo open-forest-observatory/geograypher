@@ -181,15 +181,23 @@ class TexturedPhotogrammetryMesh:
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
 
-    def reproject_CRS(self, target_CRS: pyproj.CRS, inplace: bool = True):
-        """_summary_
+    def reproject_CRS(
+        self, target_CRS: pyproj.CRS, inplace: bool = True
+    ) -> typing.Optional[pv.PolyData]:
+        """
+        Convert the mesh into a new coordinate reference system. This is done by updating the
+        location of each vertex using the mappings between the current coordinate reference system
+        and the requested one, as implemented in pyproj.
 
         Args:
-            target_CRS (_type_): _description_
-            inplace (bool, optional): _description_. Defaults to True.
+            target_CRS (pyproj.CRS): The coordinate reference system to transform the mesh to.
+            inplace (bool, optional): Should the self.pyvista_mesh and self.CRS attributes be
+            updated. Otherwise, an updated copy of the mesh is returned and the original is left
+            unchanged. Defaults to True.
+
+        Returns:
+            (pv.PolyData, optional): If `inplace==False`, a transformed pyvista mesh will be returned
         """
-        # Deal with potential malformed CRS objects, like those from rasterio
-        target_CRS = pyproj.CRS.from_epsg(target_CRS.to_epsg())
         # Build a pyproj transfrormer from the current to the desired CRS
         transformer = pyproj.Transformer.from_crs(self.CRS, target_CRS)
 
@@ -1917,7 +1925,6 @@ class TexturedPhotogrammetryMesh:
             if IDs_to_labels is not None:
                 # Compute the largest ID
                 max_ID = max(IDs_to_labels.keys())
-                print(max_ID)
                 if max_ID < 20:
                     colors = [
                         matplotlib.colors.to_hex(c)
@@ -1968,7 +1975,7 @@ class TexturedPhotogrammetryMesh:
         # If camera set is provided, transform the mesh into those coordinates
         if camera_set is not None:
             epsg_4978_to_camera = np.linalg.inv(
-                camera_set.cameras[0].local_to_epsg_4978_transform
+                camera_set.get_local_to_epsg_4978_transform()
             )
             vis_mesh.transform(epsg_4978_to_camera, inplace=True)
 

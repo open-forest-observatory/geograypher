@@ -54,6 +54,10 @@ def render_labels(
             See TexturedPhotogrammetryMesh.load_texture
         render_savefolder (PATH_TYPE):
             Where to save the rendered labels
+        input_CRS: (pyproj.CRS):
+            The coordinate reference system to interpret the mesh data in. Since meshes are not
+            commonly used for geospatial tasks, there isn't a common standard for encoding this
+            information in the mesh.
         original_image_folder (typing.Union[PATH_TYPE, None], optional):
             Where the images were when photogrammetry was run. Metashape saves imagenames with an
             absolute path which can cause issues. If this argument is provided, this path is removed

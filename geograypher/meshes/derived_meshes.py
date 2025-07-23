@@ -575,14 +575,20 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         mesh: pv.PolyData,
         vert_texture: np.ndarray = None,
         batch_size: int = 1,
-    ):
+    ) -> "pytorch3d.stuctures.Meshes":
         """Create the pytorch_3d_mesh
 
         Args:
+            mesh: (pv.PolyData):
+                The pyvista mesh to convert to pytorch3d
             vert_texture (np.ndarray, optional):
                 Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
             batch_size (int):
                 Number of copies of the mesh to create in a batch. Defaults to 1.
+
+        Returns:
+            pytorch3d.structures.Meshes:
+                A batch of identical pytorch3d meshes, with length specified by `batch_size`
         """
 
         # Create the texture object if provided
@@ -599,10 +605,12 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         else:
             texture = None
 
+        # See here for format: https://github.com/pyvista/pyvista-support/issues/96
+        mesh_faces = mesh.faces.reshape((-1, 4))[:, 1:4].copy()
         # Create the pytorch mesh
         pytorch3d_mesh = self.Meshes(
             verts=[self.torch.Tensor(mesh.points).to(self.device)],
-            faces=[self.torch.Tensor(self.faces).to(self.device)],
+            faces=[self.torch.Tensor(mesh_faces).to(self.device)],
             textures=texture,
         ).to(self.device)
 

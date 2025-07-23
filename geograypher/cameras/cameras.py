@@ -80,7 +80,7 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
         self.distortion_params = distortion_params
-        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
+        self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         if lon_lat is None:
             self.lon_lat = (None, None)
@@ -233,7 +233,7 @@ class PhotogrammetryCamera:
         # Transform the points first into the world frame and then into the earth-centered,
         # earth-fixed frame
         points_in_ECEF = (
-            self.local_to_epsg_4978_transform
+            self._local_to_epsg_4978_transform
             @ self.cam_to_world_transform
             @ points_in_camera_frame
         )
@@ -282,8 +282,22 @@ class PhotogrammetryCamera:
         # Return in radians
         return (pitch_angle, yaw_angle)
 
-    def get_local_to_epsg_4978_transform(self):
-        return self.local_to_epsg_4978_transform
+    def get_local_to_epsg_4978_transform(self) -> np.ndarray:
+        """
+        Return the 4x4 homogenous transform mapping from the local coordinates used for
+        photogrammetry to the earth-centered, earth-fixed coordinate reference system defined by
+        EPSG:4978 (https://epsg.io/4978).
+
+        Returns:
+            np.ndarray:
+                The transform in the form:
+                   [R | t]
+                   [0 | 1]
+                When a homogenous vector is multiplied on the right of this matrix, it is
+                transformed from the local coordinate frame to EPSG:4978. Conversely, the inverse
+                of this matrix can be used to map from EPSG:4879 to local coordinates.
+        """
+        return self._local_to_epsg_4978_transform
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -640,7 +654,7 @@ class PhotogrammetryCameraSet:
         self.lon_lats = lon_lats
         self.sensor_IDs = sensor_IDs
         self.image_folder = image_folder
-        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
+        self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         # Create an object using the supplied cameras
         if cameras is not None:
@@ -841,7 +855,21 @@ class PhotogrammetryCameraSet:
             return Path(filename).relative_to(self.get_image_folder())
 
     def get_local_to_epsg_4978_transform(self):
-        return self.local_to_epsg_4978_transform
+        """
+        Return the 4x4 homogenous transform mapping from the local coordinates used for
+        photogrammetry to the earth-centered, earth-fixed coordinate reference system defined by
+        EPSG:4978 (https://epsg.io/4978).
+
+        Returns:
+            np.ndarray:
+                The transform in the form:
+                   [R | t]
+                   [0 | 1]
+                When a homogenous vector is multiplied on the right of this matrix, it is
+                transformed from the local coordinate frame to EPSG:4978. Conversely, the inverse
+                of this matrix can be used to map from EPSG:4879 to local coordinates.
+        """
+        return self._local_to_epsg_4978_transform
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
