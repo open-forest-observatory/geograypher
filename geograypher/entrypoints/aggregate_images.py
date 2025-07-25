@@ -52,8 +52,8 @@ def aggregate_images(
         label_folder (PATH_TYPE):
             Path to the folder of labels to be aggregated onto the mesh. Must be in the same
             structure as the images
-        original_images_folder (typing.Union[PATH_TYPE, None], optional):
-            Where the images where when photogrammetry was run. Metashape saves imagenames with an
+        original_image_folder (typing.Union[PATH_TYPE, None], optional):
+            Where the images were when photogrammetry was run. Metashape saves imagenames with an
             absolute path which can cause issues. If this argument is provided, this path is removed
             from the start of each image file name, which allows the camera set to be used with a
             moved folder of images specified by `image_folder`. Defaults to None.
