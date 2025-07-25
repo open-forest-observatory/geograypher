@@ -2,11 +2,13 @@ import os
 import typing
 from pathlib import Path
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from imageio import imread
 from PIL import Image
+from skimage import draw
 from skimage.transform import resize
 
 from geograypher.constants import PATH_TYPE
@@ -302,3 +304,145 @@ class TabularRectangleSegmentor(Segmentor):
         # Average the left-right, top-bottom pairs
         centers = np.vstack([(imin + imax) / 2, (jmin + jmax) / 2]).T
         return centers
+
+
+class RegionDetectionSegmentor(Segmentor):
+    def __init__(
+        self,
+        base_folder: PATH_TYPE,
+        lookup_folder: PATH_TYPE,
+        image_file_extension: str = ".JPG",
+        geo_file_extension: str = ".gpkg",
+    ):
+        """Lookup region detections from geospatial vector files (such as .gpkg,
+        .geojson, or .shp) files using geopandas. The lookup process will start with
+        an image name, which will then be used to search for the proper detection file.
+
+        Assumes that each geospatial filepath matches the corresponding image path
+        (with different extension, and relative to a different root directory).
+
+        Args:
+            base_folder (PATH_TYPE):
+                Path to the root directory for the images. There may be images in this
+                directory, or a nested set of folders with images inside.
+            lookup_folder (PATH_TYPE):
+                Path to the root directory for the geospatial files with detections. The
+                nested geospatial folder/file structure should match that of the images in
+                the base folder.
+            image_file_extension (str, optional):
+                The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
+            geo_file_extension (str, optional):
+                The file extension for the image files (e.g., ".gpkg", "geojson", ".shp").
+                Defaults to ".gpkg".
+        """
+        self.base_folder = Path(base_folder)
+        self.lookup_folder = Path(lookup_folder)
+        self.image_file_extension = image_file_extension
+        self.geo_file_extension = geo_file_extension
+
+        # Do some input checking
+        for folder in [self.base_folder, self.lookup_folder]:
+            if not folder.is_dir():
+                raise ValueError(f"Folder {folder} not found")
+
+        # List the image paths
+        self.image_paths = sorted(self.base_folder.glob(f"**/*{image_file_extension}"))
+        if len(self.image_paths) == 0:
+            raise ValueError(
+                f"No images found in {self.base_folder}/**/*{image_file_extension}"
+            )
+
+        # Check that each has a matching geospatial file
+        for impath in self.image_paths:
+            geopath = self.geomatch(impath)
+            if not geopath.is_file():
+                raise ValueError(
+                    f"Image {impath} found no matching geospatial file {geopath}"
+                )
+
+    def geomatch(self, impath):
+        """Helper function to find a matching geospatial file for an image."""
+        # Find image path relative to the root
+        subpath = impath.relative_to(self.base_folder)
+        # Construct a geospatial file with the same subpath
+        return self.lookup_folder / subpath.with_suffix(self.geo_file_extension)
+
+    def get_detection_centers(self, im_path: PATH_TYPE) -> np.ndarray:
+        """Get the centers of all detections for a given image filepath.
+
+        Args:
+            im_path: The image filepath to get detection centers for.
+
+        Returns:
+            np.ndarray: (n,2) array for (i,j) centers for each detection
+        """
+        if im_path not in self.image_paths:
+            # Empty array of detection centers
+            return np.zeros((0, 2))
+
+        # Extract the corresponding geodataframe
+        gdf = gpd.read_file(self.geomatch(im_path))
+
+        # Calculate (N, 2) centers from geometry centroids
+        return np.vstack([gdf.centroid.x, gdf.centroid.y]).T
+
+    def segment_image(
+        self, image: None, im_path: PATH_TYPE, image_shape: tuple
+    ) -> np.ndarray:
+        """
+        Produce a segmentation mask for an image using region (polygon) detections.
+        Note that since region detections can overlap but segmentation masks cannot,
+        the order of the regions will be respected and so later regions will be placed
+        on top of conflicting earlier regions. Each region will be assigned a unique
+        integer label corresponding to its order in the file (0, 1, 2, ...).
+
+        Args:
+            image: The input image array (not used for region lookup, but kept for
+                API compatibility).
+            im_path: The image filepath to look up regions for.
+            image_shape: (2,) tuple of the (height, width) of the output mask we want
+
+        Returns:
+            one_hot_labels: A 3D one-hot numpy array of shape (H, W, N indices). For a
+                given polygon index, the [:, :, index] slice will be True where the
+                mask is present and False otherwise. dtype=bool. If no image match is
+                present, return a (H, W, 0) mask.
+        """
+
+        im_path = Path(im_path)
+        if im_path not in self.image_paths:
+            return np.full(image_shape + (0,), fill_value=False, dtype=bool)
+
+        gdf = gpd.read_file(self.geomatch(im_path))
+
+        # Store the polygon masks in a (H, W, N indices) array
+        num_polygons = gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).sum()
+        label_image = np.full(
+            image_shape + (num_polygons,), fill_value=False, dtype=bool
+        )
+
+        # Bookkeep which polygon we are currently drawing, in case the GDF has non
+        # polygonal rows that get skipped.
+        index = 0
+        for _, row in gdf.iterrows():
+
+            # Collect all polygons (whether single or multi) into a list
+            if row.geometry.geom_type == "Polygon":
+                polygons = [row.geometry]
+            elif row.geometry.geom_type == "MultiPolygon":
+                polygons = list(row.geometry.geoms)
+            else:
+                continue
+
+            for poly in polygons:
+                # Note: (y, x) because draw.polygon uses row, col
+                y, x = poly.exterior.xy
+                rows, cols = draw.polygon(
+                    np.array(y), np.array(x), shape=label_image.shape
+                )
+                label_image[rows, cols, index] = True
+
+            # Note that we have finished drawing an index
+            index += 1
+
+        return label_image
