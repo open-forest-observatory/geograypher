@@ -58,19 +58,42 @@ class TexturedPhotogrammetryMesh:
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
-        ROI=None,
+        ROI: typing.Union[
+            gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
+        ] = None,
         ROI_buffer_meters: float = 0,
         log_level: str = "INFO",
     ):
-        """_summary_
+        """
+        An object that represents a geospatial mesh with associated textures and supports various
+        rendering options.
 
-        TODO update this
+
         Args:
-            mesh (typing.Union[PATH_TYPE, pv.PolyData]): Path to the mesh, in a format pyvista can read, or pyvista mesh
-            downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
-            texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
-            texture_column_name: The name of the column to use for a vectorfile input
-            IDs_to_labels (typing.Union[PATH_TYPE, dict, None]): dictionary or JSON file containing the mapping from integer IDs to string class names
+            mesh (typing.Union[PATH_TYPE, pv.PolyData]):
+                Path to the mesh in a filetype readable by pyvista or a pyvista mesh object.
+            input_CRS (pyproj.CRS):
+                The vertex coordinates of the input mesh should be interpreteted in this coordinate
+                references system to georeference them.
+            downsample_target (float, optional):
+                Downsample so this fraction of vertices remain. Defaults to 1.0.
+            texture (typing.Union[PATH_TYPE, np.ndarray, None], optional):
+                Texture or path to one. See more details in `load_texture` documentation. Defaults
+                to None.
+            texture_column_name (typing.Union[PATH_TYPE, None], optional):
+                The column to use as the label for a vector data input. Passed to `load_texture`.
+                Defaults to None.
+            IDs_to_labels (typing.Union[PATH_TYPE, dict, None], optional):
+                dictionary or path to JSON file containing the mapping from integer IDs to string
+                class names. Defaults to None.
+            ROI (typing.Union[ gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None ], optional):
+                Crop the mesh to this region. For more information see `select_mesh_ROI`. Defaults
+                to None.
+            ROI_buffer_meters (float, optional):
+                Buffer the cropped region by this distance. For more information see
+                `select_mesh_ROI`. Defaults to 0.
+            log_level (str, optional):
+                Controls what severity of messages are logged. Defaults to "INFO".
         """
         self.downsample_target = downsample_target
 
@@ -1969,14 +1992,17 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs["annotations"] = IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
-        # TODO consider if there's a better CRS to use
         vis_mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
 
         # If camera set is provided, transform the mesh into those coordinates
         if camera_set is not None:
+            # Compute the transform mapping from the earth centered, earth fixed coordinate frame
+            # (EPSG:4978) to the coordinate of the camera
             epsg_4978_to_camera = np.linalg.inv(
                 camera_set.get_local_to_epsg_4978_transform()
             )
+            # Apply the 4x4 transform using the pyvista transform method to get the mesh into the
+            # same coordinate frame as the cameras.
             vis_mesh.transform(epsg_4978_to_camera, inplace=True)
 
         # Add the mesh

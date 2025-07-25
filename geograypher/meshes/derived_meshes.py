@@ -636,15 +636,17 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
                 A single camera or set of cameras. For each camera, the correspondences between
                 pixels and the face IDs of the mesh will be computed. The images of all cameras
                 are assumed to be the same size.
+            mesh (pv.PolyData, optional):
+                The pyvista mesh to use for rendering, which must be in the same coordinate frame as
+                the cameras. If not provided it will computed from self.pyvista_mesh and the camera
+                set transform. Defaults to None.
             render_img_scale (float, optional):
                 Create a pix2face map that is this fraction of the original image scale. Defaults
                 to 1.
             save_to_cache (bool, optional):
-                Should newly-computed values be saved to the cache. This may speed up future operations
-                but can take up 100s of GBs of space. Defaults to False.
+                Unused. Retained for API compatability.
             cache_folder ((PATH_TYPE, None), optional):
-                Where to check for and save to cached data. Only applicable if use_cache=True.
-                Defaults to CACHE_FOLDER
+                Unused. Retained for API compatability.
             cull_to_frustum (bool, optional):
                 If True, enables frustum culling to exclude mesh faces outside the camera's view,
                 Defaults to False.
