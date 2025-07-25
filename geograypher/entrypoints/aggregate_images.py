@@ -102,7 +102,7 @@ def aggregate_images(
     camera_set = MetashapeCameraSet(
         cameras_file,
         image_folder,
-        original_image_folder=photogrammetry_image_folder,
+        original_image_folder=original_image_folder,
         validate_images=True,
     )
 
