@@ -21,6 +21,7 @@ def render_labels(
     image_folder: PATH_TYPE,
     texture: typing.Union[PATH_TYPE, np.ndarray, None],
     render_savefolder: PATH_TYPE,
+    original_image_folder: typing.Union[PATH_TYPE, None] = None,
     transform_file: typing.Union[PATH_TYPE, None] = None,
     subset_images_savefolder: typing.Union[PATH_TYPE, None] = None,
     texture_column_name: typing.Union[str, None] = None,
@@ -52,6 +53,11 @@ def render_labels(
             See TexturedPhotogrammetryMesh.load_texture
         render_savefolder (PATH_TYPE):
             Where to save the rendered labels
+        original_image_folder (typing.Union[PATH_TYPE, None], optional):
+            Where the images were when photogrammetry was run. Metashape saves imagenames with an
+            absolute path which can cause issues. If this argument is provided, this path is removed
+            from the start of each image file name, which allows the camera set to be used with a
+            moved folder of images specified by `image_folder`. Defaults to None.
         transform_file (typing.Union[PATH_TYPE, None], optional):
             File containing the transform from local coordinates to EPSG:4978. Defaults to None.
         subset_images_savefolder (typing.Union[PATH_TYPE, None], optional):
@@ -104,7 +110,9 @@ def render_labels(
     ## Create the camera set
     # This is done first because it's often faster than mesh operations which
     # makes it a good place to check for failures
-    camera_set = MetashapeCameraSet(cameras_file, image_folder)
+    camera_set = MetashapeCameraSet(
+        cameras_file, image_folder, original_image_folder=original_image_folder
+    )
 
     if ROI is not None:
         # Extract cameras near the training data
@@ -206,15 +214,16 @@ def parse_args():
     parser.add_argument("--image-folder", type=Path, required=True)
     parser.add_argument("--texture", type=Path, required=True)
     parser.add_argument("--render-savefolder", type=Path, required=True)
-    parser.add_argument("--subset-images-savefolder", type=Path, required=True)
+    parser.add_argument("--original-image-folder", type=Path)
+    parser.add_argument("--subset-images-savefolder", type=Path)
     parser.add_argument("--texture-column-name")
     parser.add_argument("--DTM-file")
     parser.add_argument("--ground-height-threshold", type=float, default=2.0)
     parser.add_argument("--render-ground-class", action="store_true")
     parser.add_argument("--textured-mesh-savefile")
     parser.add_argument("--ROI")
-    parser.add_argument("--mesh-ROI_buffer_radius_meters", default=50, type=float)
-    parser.add_argument("--cameras-ROI_buffer_radius_meters", default=100, type=float)
+    parser.add_argument("--mesh-ROI-buffer-radius-meters", default=50, type=float)
+    parser.add_argument("--cameras-ROI-buffer-radius-meters", default=100, type=float)
     parser.add_argument("--render-image-scale", type=float, default=1)
     parser.add_argument("--mesh-downsample", type=float, default=1)
     parser.add_argument("--vis", action="store_true")
