@@ -737,7 +737,7 @@ class PhotogrammetryCameraSet:
         # else, wrap the list of cameras in a CameraSet
         return PhotogrammetryCameraSet(
             subset_cameras,
-            local_to_epsg_4978_transform=self.local_to_epsg_4978_transform,
+            local_to_epsg_4978_transform=self._local_to_epsg_4978_transform,
         )
 
     def get_image_folder(self):
