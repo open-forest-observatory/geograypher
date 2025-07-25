@@ -5,6 +5,7 @@ from pathlib import Path
 import fiona
 import geopandas as gpd
 import numpy as np
+import pyproj
 import shapely
 
 from geograypher.cameras import MetashapeCameraSet
@@ -21,8 +22,8 @@ def render_labels(
     image_folder: PATH_TYPE,
     texture: typing.Union[PATH_TYPE, np.ndarray, None],
     render_savefolder: PATH_TYPE,
+    input_CRS: pyproj.CRS,
     original_image_folder: typing.Union[PATH_TYPE, None] = None,
-    transform_file: typing.Union[PATH_TYPE, None] = None,
     subset_images_savefolder: typing.Union[PATH_TYPE, None] = None,
     texture_column_name: typing.Union[str, None] = None,
     DTM_file: typing.Union[PATH_TYPE, None] = None,
@@ -53,13 +54,15 @@ def render_labels(
             See TexturedPhotogrammetryMesh.load_texture
         render_savefolder (PATH_TYPE):
             Where to save the rendered labels
+        input_CRS: (pyproj.CRS):
+            The vertex coordinates of the input mesh should be interpreteted in this coordinate
+            references system to georeference them. Since meshes are not commonly used for
+            geospatial tasks, there isn't a common standard for encoding this information in the mesh.
         original_image_folder (typing.Union[PATH_TYPE, None], optional):
             Where the images were when photogrammetry was run. Metashape saves imagenames with an
             absolute path which can cause issues. If this argument is provided, this path is removed
             from the start of each image file name, which allows the camera set to be used with a
             moved folder of images specified by `image_folder`. Defaults to None.
-        transform_file (typing.Union[PATH_TYPE, None], optional):
-            File containing the transform from local coordinates to EPSG:4978. Defaults to None.
         subset_images_savefolder (typing.Union[PATH_TYPE, None], optional):
             Where to save the subset of images for which labels are generated. Defaults to None.
         texture_column_name (typing.Union[str, None], optional):
@@ -102,11 +105,6 @@ def render_labels(
         except fiona.errors.DriverError:
             pass
 
-    # If the transform filename is None, use the cameras filename instead
-    # since this contains the transform information
-    if transform_file is None:
-        transform_file = cameras_file
-
     ## Create the camera set
     # This is done first because it's often faster than mesh operations which
     # makes it a good place to check for failures
@@ -134,10 +132,10 @@ def render_labels(
     ## Create the textured mesh
     mesh = MeshClass(
         mesh_file,
+        input_CRS=input_CRS,
         downsample_target=mesh_downsample,
         texture=texture,
         texture_column_name=texture_column_name,
-        transform_filename=transform_file,
         ROI=ROI,
         ROI_buffer_meters=mesh_ROI_buffer_radius_meters,
         IDs_to_labels=IDs_to_labels,
