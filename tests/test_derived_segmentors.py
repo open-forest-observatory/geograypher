@@ -20,12 +20,7 @@ def create_vector_data_with_polygons(path, polygons, multi_polygons=None):
             "score": np.random.random(len(geometry)),
         }
     )
-    driver_options = {
-        ".gpkg": "GPKG",
-        ".geojson": "GeoJSON",
-        ".shp": "ESRI Shapefile",
-    }
-    gdf.to_file(path, driver=driver_options[path.suffix])
+    gdf.to_file(path)
 
 
 class TestRegionDetectionSegmentor:
