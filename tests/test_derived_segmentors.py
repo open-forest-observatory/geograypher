@@ -6,17 +6,21 @@ from shapely.geometry import MultiPolygon, Polygon
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
 
 
-def create_vector_data_with_polygons(path, polygons, multi_polygons=None):
+def create_vector_data_with_polygons(path, polygons, multi_polygons=None, labels=None):
 
     geometry = [Polygon(poly) for poly in polygons]
     if multi_polygons is not None:
         geometry.append(MultiPolygon([Polygon(poly) for poly in multi_polygons]))
 
+    # If labels are not given, create a filler version
+    if labels is None:
+        labels = [0] * len(geometry)
+
     gdf = gpd.GeoDataFrame(
         {
             "geometry": geometry,
             "unique_ID": [f"{i:05}" for i in range(len(geometry))],
-            "labels": [0] * len(geometry),
+            "labels": labels,
             "score": np.random.random(len(geometry)),
         }
     )
@@ -25,35 +29,10 @@ def create_vector_data_with_polygons(path, polygons, multi_polygons=None):
 
 class TestRegionDetectionSegmentor:
 
-    def test_assertions(self, tmp_path):
-        """
-        The class checks for image existense and matching geo files, test
-        those checks.
-        """
-
-        # If there are no images, raise an error
-        with pytest.raises(ValueError) as ve:
-            RegionDetectionSegmentor(
-                base_folder=tmp_path,
-                lookup_folder=tmp_path,
-            )
-        assert "No images found" in str(ve.value)
-
-        # If the geo files don't match the images, raise an error
-        im_path = tmp_path / f"test.JPG"
-        im_path.touch()
-        with pytest.raises(ValueError) as ve:
-            RegionDetectionSegmentor(
-                base_folder=tmp_path,
-                lookup_folder=tmp_path,
-                image_file_extension=".JPG",
-            )
-        assert "no matching geospatial file" in str(ve.value)
-
     @pytest.mark.parametrize("flat", (True, False))
     @pytest.mark.parametrize("geo_extension", (".gpkg", ".geojson", ".shp"))
     @pytest.mark.parametrize("im_extension", (".jpg", ".JPG", ".png", ".tif"))
-    def test_segmentor(self, tmp_path, flat, geo_extension, im_extension):
+    def test_detection_centers(self, tmp_path, flat, geo_extension, im_extension):
 
         polygons = [
             [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)],
@@ -76,13 +55,10 @@ class TestRegionDetectionSegmentor:
             lookup_folder = tmp_path / "geospatial"
             im_nested = base_folder / "mission" / "00"
             geo_nested = lookup_folder / "mission" / "00"
-            im_nested.mkdir(parents=True)
             geo_nested.mkdir(parents=True)
 
         for i in range(5):
-            im_path = im_nested / f"test_{i}{im_extension}"
-            im_path.touch()
-            im_paths.append(im_path)
+            im_paths.append(im_nested / f"test_{i}{im_extension}")
             create_vector_data_with_polygons(
                 geo_nested / f"test_{i}{geo_extension}", polygons
             )
@@ -90,13 +66,12 @@ class TestRegionDetectionSegmentor:
         segmentor = RegionDetectionSegmentor(
             base_folder=base_folder,
             lookup_folder=lookup_folder,
-            image_file_extension=im_extension,
+            label_key=None,
+            class_map=None,
             geo_file_extension=geo_extension,
         )
 
         for im_path in im_paths:
-            # Each image is recorded
-            assert im_path in segmentor.image_paths
 
             # We can get the centers for each polygon
             centers = segmentor.get_detection_centers(im_path)
@@ -110,26 +85,19 @@ class TestRegionDetectionSegmentor:
                 )
 
     def test_empty(self, tmp_path):
-
-        geo_path = tmp_path / f"test.gpkg"
-        geo_path.touch()
-        im_path = tmp_path / f"test.JPG"
-        im_path.touch()
-
         segmentor = RegionDetectionSegmentor(
             base_folder=tmp_path,
             lookup_folder=tmp_path,
-            image_file_extension=".JPG",
+            label_key=None,
+            class_map=None,
             geo_file_extension=".gpkg",
         )
-
-        centers = segmentor.get_detection_centers("nonexistent.JPG")
+        centers = segmentor.get_detection_centers(str(tmp_path / "nonexistent.JPG"))
         assert centers.shape == (0, 2)
 
     @pytest.mark.parametrize("imshape", [(40, 40), (60, 40), (100, 120)])
     @pytest.mark.parametrize("geo_extension", (".gpkg", ".geojson", ".shp"))
-    @pytest.mark.parametrize("im_extension", (".jpg", ".JPG", ".png", ".tif"))
-    def test_segment_image(self, tmp_path, geo_extension, im_extension, imshape):
+    def test_segment_image(self, tmp_path, geo_extension, imshape):
 
         # Create polygons, the third of which is overlapping the second
         polygons = [
@@ -141,38 +109,70 @@ class TestRegionDetectionSegmentor:
             [(0, 20), (0, 30), (10, 30), (10, 20), (0, 20)],
             [(0, 26), (0, 36), (10, 36), (10, 26), (0, 26)],
         ]
-        geo_path = tmp_path / f"test{geo_extension}"
-        create_vector_data_with_polygons(geo_path, polygons, multi_polygons)
-        im_path = tmp_path / f"test{im_extension}"
-        im_path.touch()
+        create_vector_data_with_polygons(
+            tmp_path / f"test{geo_extension}",
+            polygons,
+            multi_polygons,
+            labels=["APPLE", "APPLE", "PEAR", "FIG"],
+        )
 
         segmentor = RegionDetectionSegmentor(
             base_folder=tmp_path,
             lookup_folder=tmp_path,
-            image_file_extension=im_extension,
+            label_key="labels",
+            class_map={"FIG": 0, "PEAR": 1, "APPLE": 2},
             geo_file_extension=geo_extension,
         )
 
         mask = segmentor.segment_image(
             image=None,
-            im_path=im_path,
+            im_path=tmp_path / f"test.JPG",
             image_shape=imshape,
         )
-        # Check the shape is (H, W, N indices) where each mask has its own
+        # Check the shape is (H, W, N indices) where each label class has its own
         # one-hot slice
-        assert mask.shape == imshape + (4,)
+        assert mask.shape == imshape + (3,)
         assert mask.dtype == bool
 
         # Check that the areas are correct. Because segment_image returns a
         # one_hot array, overlapping masks (like #3 overlapping #2) don't
         # affect the mask area
-        assert (mask[..., 0]).sum() == 121
+        assert (mask[..., 0]).sum() == 187
         assert (mask[..., 1]).sum() == 121
-        assert (mask[..., 2]).sum() == 121
-        assert (mask[..., 3]).sum() == 187
+        assert (mask[..., 2]).sum() == 121 + 121
 
         # Check that the location is correct
-        assert np.allclose(np.average(np.where(mask[..., 0]), axis=1), [5, 5])
-        assert np.allclose(np.average(np.where(mask[..., 1]), axis=1), [25, 25])
-        assert np.allclose(np.average(np.where(mask[..., 2]), axis=1), [30, 25])
-        assert np.allclose(np.average(np.where(mask[..., 3]), axis=1), [5, 28])
+        assert np.allclose(np.average(np.where(mask[..., 0]), axis=1), [5, 28])
+        assert np.allclose(np.average(np.where(mask[..., 1]), axis=1), [30, 25])
+        assert np.allclose(np.average(np.where(mask[..., 2]), axis=1), [15, 15])
+
+    @pytest.mark.parametrize(
+        "label_key,class_map,expected_str",
+        (
+            ["nonexistent", None, "not found in GDF columns"],
+            ["labels", {"BETA": 0}, "keys in a GDF which were not in the class map"],
+            ["labels", {"ALPHA": 1.5}, "not integer indices"],
+            ["labels", {"ALPHA": "BETA"}, "not integer indices"],
+        ),
+    )
+    def test_segment_image_errors(self, tmp_path, label_key, class_map, expected_str):
+        """Test a few scenarios that we expect to error out."""
+
+        create_vector_data_with_polygons(
+            tmp_path / "test.gpkg",
+            [[(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)]],
+            labels=["ALPHA"],
+        )
+        segmentor = RegionDetectionSegmentor(
+            base_folder=tmp_path,
+            lookup_folder=tmp_path,
+            label_key=label_key,
+            class_map=class_map,
+        )
+        with pytest.raises(ValueError) as ve:
+            segmentor.segment_image(
+                image=None,
+                im_path=tmp_path / f"test.JPG",
+                image_shape=(100, 100),
+            )
+        assert expected_str in str(ve.value)

@@ -311,7 +311,8 @@ class RegionDetectionSegmentor(Segmentor):
         self,
         base_folder: PATH_TYPE,
         lookup_folder: PATH_TYPE,
-        image_file_extension: str = ".JPG",
+        label_key: str,
+        class_map: dict,
         geo_file_extension: str = ".gpkg",
     ):
         """Lookup region detections from geospatial vector files (such as .gpkg,
@@ -329,41 +330,40 @@ class RegionDetectionSegmentor(Segmentor):
                 Path to the root directory for the geospatial files with detections. The
                 nested geospatial folder/file structure should match that of the images in
                 the base folder.
-            image_file_extension (str, optional):
-                The file extension for the image files (e.g., ".JPG", ".png"). Defaults to ".JPG".
-            geo_file_extension (str, optional):
+            label_key (str):
+                The column in the geospatial dataframe (from the files in lookup_folder)
+                that corresponds to the class. For example, if half of the detections are
+                from tree species A and half are from tree species B, then the gdf[label_key]
+                should store that information. This is used in segment_image so that different
+                channels are created for each defined class. If you want a class per detection,
+                then this could be the "index" column.
+            class_map (dict):
+                Maps from labels (see argument above) to integer indices that can be used to
+                index into a (H, W, N classes) array. For example, if half of the detections are
+                from tree species A, then the mapping should include something like {"A": 0},
+                where segmented_image[:, :, 0] contains all the detections for that label. If you
+                want a class per detection, then this could be {0:0, 1:1, 2:2, ...} for the
+                index column.
+            geo_file_extension (str):
                 The file extension for the image files (e.g., ".gpkg", "geojson", ".shp").
                 Defaults to ".gpkg".
         """
         self.base_folder = Path(base_folder)
         self.lookup_folder = Path(lookup_folder)
-        self.image_file_extension = image_file_extension
         self.geo_file_extension = geo_file_extension
 
+        # Save these for segment_image
+        self.label_key = label_key
+        self.class_map = class_map
+
         # Do some input checking
-        for folder in [self.base_folder, self.lookup_folder]:
-            if not folder.is_dir():
-                raise ValueError(f"Folder {folder} not found")
-
-        # List the image paths
-        self.image_paths = sorted(self.base_folder.glob(f"**/*{image_file_extension}"))
-        if len(self.image_paths) == 0:
-            raise ValueError(
-                f"No images found in {self.base_folder}/**/*{image_file_extension}"
-            )
-
-        # Check that each has a matching geospatial file
-        for impath in self.image_paths:
-            geopath = self.geomatch(impath)
-            if not geopath.is_file():
-                raise ValueError(
-                    f"Image {impath} found no matching geospatial file {geopath}"
-                )
+        if not self.lookup_folder.is_dir():
+            raise ValueError(f"Folder {self.lookup_folder} not found")
 
     def geomatch(self, impath):
         """Helper function to find a matching geospatial file for an image."""
         # Find image path relative to the root
-        subpath = impath.relative_to(self.base_folder)
+        subpath = Path(impath).relative_to(self.base_folder)
         # Construct a geospatial file with the same subpath
         return self.lookup_folder / subpath.with_suffix(self.geo_file_extension)
 
@@ -376,12 +376,13 @@ class RegionDetectionSegmentor(Segmentor):
         Returns:
             np.ndarray: (n,2) array for (i,j) centers for each detection
         """
-        if im_path not in self.image_paths:
+        geo_path = self.geomatch(im_path)
+        if not geo_path.is_file():
             # Empty array of detection centers
             return np.zeros((0, 2))
 
         # Extract the corresponding geodataframe
-        gdf = gpd.read_file(self.geomatch(im_path))
+        gdf = gpd.read_file(geo_path)
 
         # Calculate (N, 2) centers from geometry centroids
         return np.vstack([gdf.centroid.x, gdf.centroid.y]).T
@@ -391,10 +392,9 @@ class RegionDetectionSegmentor(Segmentor):
     ) -> np.ndarray:
         """
         Produce a segmentation mask for an image using region (polygon) detections.
-        Note that since region detections can overlap but segmentation masks cannot,
-        the order of the regions will be respected and so later regions will be placed
-        on top of conflicting earlier regions. Each region will be assigned a unique
-        integer label corresponding to its order in the file (0, 1, 2, ...).
+        Each region will be checked for it's class label (e.g. tree species or some other
+        label) using the [self.labels_key] column in the geospatial file. Then the
+        integer index will be calculated from self.class_map[label]
 
         Args:
             image: The input image array (not used for region lookup, but kept for
@@ -403,27 +403,41 @@ class RegionDetectionSegmentor(Segmentor):
             image_shape: (2,) tuple of the (height, width) of the output mask we want
 
         Returns:
-            one_hot_labels: A 3D one-hot numpy array of shape (H, W, N indices). For a
+            one_hot_labels: A 3D one-hot numpy array of shape (H, W, N classes). For a
                 given polygon index, the [:, :, index] slice will be True where the
                 mask is present and False otherwise. dtype=bool. If no image match is
                 present, return a (H, W, 0) mask.
         """
 
-        im_path = Path(im_path)
-        if im_path not in self.image_paths:
+        geo_path = self.geomatch(im_path)
+        if not geo_path.is_file():
             return np.full(image_shape + (0,), fill_value=False, dtype=bool)
+        gdf = gpd.read_file(geo_path)
 
-        gdf = gpd.read_file(self.geomatch(im_path))
+        # Do some input checking
+        if self.label_key not in gdf.columns:
+            raise ValueError(
+                f"label key ({self.label_key}) not found in GDF columns:\n{gdf.columns}"
+            )
+        if len(difference := set(gdf[self.label_key]) - set(self.class_map.keys())) > 0:
+            raise ValueError(
+                "Found the following label keys in a GDF which were not in the class"
+                f" map: {difference}"
+            )
+        if any([not isinstance(value, int) for value in self.class_map.values()]):
+            raise ValueError(
+                "Found class map values which were not integer indices:\n"
+                f"{self.class_map.values()}"
+            )
 
-        # Store the polygon masks in a (H, W, N indices) array
-        num_polygons = gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).sum()
+        # Store the polygon masks in a (H, W, N classes) array
+        num_classes = max(self.class_map.values()) + 1
         label_image = np.full(
-            image_shape + (num_polygons,), fill_value=False, dtype=bool
+            image_shape + (num_classes,), fill_value=False, dtype=bool
         )
 
         # Bookkeep which polygon we are currently drawing, in case the GDF has non
         # polygonal rows that get skipped.
-        index = 0
         for _, row in gdf.iterrows():
 
             # Collect all polygons (whether single or multi) into a list
@@ -434,6 +448,9 @@ class RegionDetectionSegmentor(Segmentor):
             else:
                 continue
 
+            # Get the index by checking the label column against the class map
+            index = self.class_map[getattr(row, self.label_key)]
+
             for poly in polygons:
                 # Note: (y, x) because draw.polygon uses row, col
                 y, x = poly.exterior.xy
@@ -441,8 +458,5 @@ class RegionDetectionSegmentor(Segmentor):
                     np.array(y), np.array(x), shape=label_image.shape
                 )
                 label_image[rows, cols, index] = True
-
-            # Note that we have finished drawing an index
-            index += 1
 
         return label_image
