@@ -1,11 +1,13 @@
 import pyproj
 import pytest
+import numpy as np
 
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.example_data import (
     create_non_overlapping_points,
     create_scene_mesh,
 )
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 
 
 @pytest.fixture
@@ -44,3 +46,21 @@ def test_reprojection(
 ):
     textured_mesh, labels_gdf = basic_scene
     textured_mesh.reproject_CRS(target_CRS=crs, inplace=inplace)
+
+
+def test_internal_coordinates(basic_scene):
+    assert basic_scene[0].CRS == EARTH_CENTERED_EARTH_FIXED_CRS
+
+
+# def test_roundtrip(basic_scene):
+#    textured_mesh = basic_scene[0]
+#
+#    vertices_initial = np.array(textured_mesh.pyvista_mesh.verts)
+#    textured_mesh.reproject_CRS(4236, inplace=True)
+#
+#    vertices_4236 = np.array(textured_mesh.pyvista_mesh.verts)
+#    assert not np.allclose(vertices_initial, vertices_4236)
+#
+#    textured_mesh.reproject_CRS(26910, inplace=True)
+#
+#    textured_mesh.reproject_CRS
