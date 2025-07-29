@@ -1,5 +1,5 @@
-import pytest
 import pyproj
+import pytest
 
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 from geograypher.meshes import TexturedPhotogrammetryMesh
