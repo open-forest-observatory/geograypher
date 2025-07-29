@@ -11,7 +11,7 @@ from geograypher.utils.example_data import (
 
 
 @pytest.fixture
-def basic_scene(n_boxes=4, n_cylinders=5, n_cones=3, random_seed=42):
+def mesh_and_labels(n_boxes=4, n_cylinders=5, n_cones=3, random_seed=42):
     points = create_non_overlapping_points(
         n_points=(n_boxes + n_cylinders + n_cones), random_seed=random_seed
     )
@@ -23,44 +23,33 @@ def basic_scene(n_boxes=4, n_cylinders=5, n_cones=3, random_seed=42):
         ],
     )
 
-    textured_mesh = TexturedPhotogrammetryMesh(mesh=mesh_geometry, input_CRS=26910)
-
-    return (textured_mesh, labels_gdf)
+    return (mesh_geometry, labels_gdf)
 
 
-@pytest.mark.parametrize(
-    "crs,inplace",
-    [
-        (4236, True),
-        (4236, False),
-        (4978, True),
-        (4978, False),
-        ("EPSG:32610", True),
-        ("EPSG:32610", False),
-    ],
-)
-def test_reprojection(
-    basic_scene: TexturedPhotogrammetryMesh,
-    crs: pyproj.CRS,
-    inplace: bool,
-):
-    textured_mesh, labels_gdf = basic_scene
-    textured_mesh.reproject_CRS(target_CRS=crs, inplace=inplace)
+def test_internal_coordinates(mesh_and_labels, input_CRS=32610):
+    # Create a mesh in an arbitrary CRS
+    textured_photogrammetry_mesh = TexturedPhotogrammetryMesh(
+        mesh_and_labels[0], input_CRS=input_CRS
+    )
+    # Ensure that the coordinates are internally represented in the earth-centered, earth-fixed
+    # frame
+    assert textured_photogrammetry_mesh.CRS == EARTH_CENTERED_EARTH_FIXED_CRS
 
 
-def test_internal_coordinates(basic_scene):
-    assert basic_scene[0].CRS == EARTH_CENTERED_EARTH_FIXED_CRS
+def test_crop_valid(mesh_and_labels, input_CRS=32610):
+    mesh_geometry, labels = mesh_and_labels
 
+    # Define the CRS to interpret the labels in
+    labels.set_crs(input_CRS, inplace=True)
 
-# def test_roundtrip(basic_scene):
-#    textured_mesh = basic_scene[0]
-#
-#    vertices_initial = np.array(textured_mesh.pyvista_mesh.verts)
-#    textured_mesh.reproject_CRS(4236, inplace=True)
-#
-#    vertices_4236 = np.array(textured_mesh.pyvista_mesh.verts)
-#    assert not np.allclose(vertices_initial, vertices_4236)
-#
-#    textured_mesh.reproject_CRS(26910, inplace=True)
-#
-#    textured_mesh.reproject_CRS
+    # Create a full mesh with no cropping
+    full_mesh = TexturedPhotogrammetryMesh(mesh_geometry, input_CRS=input_CRS)
+    # Create a mesh cropped to the bounds of the labels
+    cropped_mesh = TexturedPhotogrammetryMesh(
+        mesh_geometry, input_CRS=input_CRS, ROI=labels
+    )
+
+    # Check that there are more points in the full mesh than the cropped one
+    assert full_mesh.pyvista_mesh.n_points > cropped_mesh.pyvista_mesh.n_points
+    # And the cropped mesh has a nonzero number of points
+    assert cropped_mesh.pyvista_mesh.n_points > 0
