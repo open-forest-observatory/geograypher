@@ -1,13 +1,13 @@
+import numpy as np
 import pyproj
 import pytest
-import numpy as np
 
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.example_data import (
     create_non_overlapping_points,
     create_scene_mesh,
 )
-from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 
 
 @pytest.fixture
