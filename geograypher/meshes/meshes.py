@@ -101,7 +101,6 @@ class TexturedPhotogrammetryMesh:
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
-        self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
         # Create the plotter that will later be used to compute correspondences between pixels
         # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
@@ -119,8 +118,6 @@ class TexturedPhotogrammetryMesh:
         if not self.logger.hasHandlers():
             self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
-        # Load the transform to the metashape coordinate system
-        self.logger.info("Loading transform to internal coordinate system")
         # Load the mesh with the pyvista loader
         self.logger.info("Loading mesh")
         self.load_mesh(
@@ -732,12 +729,11 @@ class TexturedPhotogrammetryMesh:
         # true for doing clustered polygon labeling
         if cache_data:
             mesh_hash = self.get_mesh_hash()
-            transform_hash = self.get_transform_hash()
             faces_mask_hash = hash(
                 faces_mask.tobytes() if faces_mask is not None else 0
             )
             # Create a key that uniquely identifies the relavant inputs
-            cache_key = (mesh_hash, transform_hash, faces_mask_hash, crs)
+            cache_key = (mesh_hash, faces_mask_hash, crs)
 
             # See if the face polygons were in the cache. If not, None will be returned
             cached_values = self.face_polygons_cache.get(cache_key)
@@ -1488,19 +1484,6 @@ class TexturedPhotogrammetryMesh:
             self.set_texture(labels, use_derived_IDs_to_labels=False)
 
         return labels
-
-    def get_transform_hash(self):
-        """Generates a hash value for the transform to geospatial coordinates
-        Returns:
-            int: A hash value representing transformation.
-        """
-        hasher = hashlib.sha256()
-        hasher.update(
-            self.local_to_epgs_4978_transform.tobytes()
-            if self.local_to_epgs_4978_transform is not None
-            else 0
-        )
-        return hasher.hexdigest()
 
     def get_mesh_hash(self):
         """Generates a hash value for the mesh based on its points and faces
