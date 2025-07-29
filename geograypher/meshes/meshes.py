@@ -169,7 +169,8 @@ class TexturedPhotogrammetryMesh:
         self.CRS = input_CRS
 
         if isinstance(mesh, pv.PolyData):
-            self.pyvista_mesh = mesh
+            # If a mesh is provided directly, copy it so input mesh isn't modified
+            self.pyvista_mesh = mesh.copy()
         else:
             # Load the mesh using pyvista
             # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
