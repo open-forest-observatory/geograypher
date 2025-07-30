@@ -1,6 +1,12 @@
+import json
 import typing
+from itertools import product
+from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
+
+from geograypher.constants import PATH_TYPE
 
 
 def create_ramped_weighting(
@@ -337,3 +343,161 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     )
     mask = ~np.eye(starts.shape[0], dtype=bool)
     return np.mean(np.vstack([pA[mask], pB[mask]]), axis=0)
+
+
+def chunk_slices(
+    N: int, step: int
+) -> typing.Iterator[typing.Tuple[slice, slice, bool]]:
+    """
+    Yield slices for (step, step) chunks of an (N, N) square matrix.
+
+    For example, if N=5 and step=2, the slices would grab:
+        1 1 2 2 3
+        1 1 2 2 3
+        4 4 5 5 6
+        4 4 5 5 6
+        7 7 8 8 9
+    And in the (1, 5, 9) cases, is_diag would be True
+
+    Yields:
+        Each yielded value is (islice, jslice, is_diag), where:
+        - islice: slice along the first axis
+        - jslice: slice along the second axis
+        - is_diag: True if the chunk is on the diagonal (i == j)
+    """
+    ranges = range(0, N, step)
+    for i, j in product(ranges, repeat=2):
+        if j >= i:  # upper triangle including diagonal
+            islice = slice(i, min(i + step, N))
+            jslice = slice(j, min(j + step, N))
+            yield islice, jslice, i == j
+
+
+def make_indices(
+    i_inds: np.ndarray,
+    j_inds: np.ndarray,
+    islice: slice,
+    jslice: slice,
+    dist: np.ndarray,
+    ray_IDs: np.ndarray,
+) -> typing.List[typing.Tuple[int, int, typing.Dict[str, float]]]:
+    """
+    This function generates edge definitions for a graph where nodes represent rays and
+    edges represent valid intersections between rays. It applies two filtering criteria:
+    1. Only uses edges where i < j (keeps it upper triangular)
+    2. Only uses edges between rays from different images (different ray_IDs)
+
+    Args:
+        i_inds (np.ndarray): (N,) array of row indices from the distance matrix where valid
+            intersections were found
+        j_inds (np.ndarray): (N,) array of column indices from the distance matrix where valid
+            intersections were found
+        islice (slice): Slice indicating the block of rows being processed in the
+            chunked computation
+        jslice (slice): Slice indicating the block of columns being processed in
+            the chunked computation
+        dist (np.ndarray): Distance matrix containing distances between rays (chunked)
+        ray_IDs (np.ndarray): Array of identifiers indicating which image each ray comes
+            from (not chunked)
+
+    Returns:
+        List[Tuple[int, int, Dict[str, float]]]: List of edge definitions, where each edge
+        is a tuple of
+        - i index in the adjacency matrix
+        - j index in the adjacency matrix
+        - weight_dict of the form {"weight": value}
+    """
+    return [
+        (
+            int(i) + islice.start,
+            int(j) + jslice.start,
+            {"weight": float(1 / dist[i, j])},
+        )
+        for i, j in zip(i_inds, j_inds)
+        if (i + islice.start < j + jslice.start)
+        and (ray_IDs[i + islice.start] != ray_IDs[j + jslice.start])
+    ]
+
+
+def calc_graph_weights(
+    starts: np.ndarray,
+    ends: np.ndarray,
+    ray_IDs: np.ndarray,
+    similarity_threshold: float,
+    out_dir: typing.Optional[PATH_TYPE] = None,
+    min_dist: float = 1e-6,
+    step: int = 5000,
+    transform: typing.Optional[typing.Callable[[np.ndarray], np.ndarray]] = None,
+) -> typing.Union[Path, typing.List[typing.Tuple]]:
+    """
+    This function processes sets of ray segments to build a graph where edges represent
+    ray intersections. The weight of each edge is inversely proportional to the
+    intersection distance between rays. For memory efficiency with large numbers of
+    segments, the computation is done in chunks.
+
+    Args:
+        starts (np.ndarray): (N, 3) array of ray start points
+        ends (np.ndarray): (N, 3) array of ray end points
+        ray_IDs (np.ndarray): (N,) array of integers identifying which image
+            each ray comes from
+        similarity_threshold (float): Maximum intersection distance to consider when
+            creating graph edges. Greater distances will be dropped.
+        out_dir (PATH_TYPE, optional): Directory to save the output JSON file containing
+            edge information. If None, no file is saved and a list of edge weights
+            is returned instead.
+        min_dist (float, optional): Minimum intersection distance to allow, used to
+            avoid division by zero when calculating weights. Defaults to 1e-6
+        step (int, optional): Number of rays to process in each chunk to manage memory
+            usage. Defaults to 5000
+        transform (callable, optional): Function to apply to distances before inversion
+            for weight calculation. For example, if you want graph weights to be
+            distance^3, use lambda x: x**3. Defaults to None
+
+    Returns:
+        Union[Path, List[Tuple]]: If out_dir is provided, returns the path to the JSON
+        file containing the edge information. Otherwise returns a list of tuples, each
+        containing (start_idx, end_idx, weight_dict) where weight_dict contains the
+        edge weight information
+    """
+
+    # Calculate and filter intersection distances
+    # For memory reasons, we need to iterate over blocks. When the number of segments starts
+    # getting very large, the matrices for calculating ray intersections take a great
+    # deal of RAM
+    positive_edges = []
+    num_steps = len(starts) // step + 1
+    total = int(num_steps * (num_steps + 1) / 2)
+    for islice, jslice, diagonal in tqdm(
+        chunk_slices(N=len(starts), step=step),
+        total=total,
+        desc="Calculating graph weights",
+    ):
+        _, _, dist = compute_approximate_ray_intersections(
+            a0=starts[islice],
+            a1=ends[islice],
+            b0=starts[jslice],
+            b1=ends[jslice],
+            clamp=True,
+        )
+        if diagonal:
+            np.fill_diagonal(dist, np.nan)
+        dist[dist > similarity_threshold] = np.nan
+        dist[dist < min_dist] = min_dist
+
+        # Apply transform if provided
+        if transform is not None:
+            dist = transform(dist)
+
+        # Determine which intersections are valid, represented by finite values
+        i_inds, j_inds = np.where(np.isfinite(dist))
+        positive_edges.extend(
+            make_indices(i_inds, j_inds, islice, jslice, dist, ray_IDs)
+        )
+
+    if out_dir is None:
+        return positive_edges
+    else:
+        path = Path(out_dir) / "positive_edges.json"
+        with path.open("w") as file:
+            json.dump(positive_edges, file)
+        return path
