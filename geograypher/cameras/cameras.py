@@ -6,7 +6,7 @@ import re
 import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import geopandas as gpd
 import networkx
@@ -27,10 +27,14 @@ from geograypher.constants import (
     LAT_LON_CRS,
     PATH_TYPE,
 )
-from geograypher.predictors.derived_segmentors import TabularRectangleSegmentor
+from geograypher.predictors.derived_segmentors import (
+    RegionDetectionSegmentor,
+    TabularRectangleSegmentor,
+)
 from geograypher.utils.files import ensure_containing_folder
 from geograypher.utils.geometric import (
     angle_between,
+    clip_line_segments,
     get_scale_from_transform,
     orthogonal_projection,
     projection_onto_plane,
@@ -541,16 +545,21 @@ class PhotogrammetryCamera:
         if n_points == 0:
             return
 
+        def scale_vector(point, line_length):
+            """
+            Helper function to normalize the direction vector and scale it so
+            the final vector magnitude is line_length.
+            """
+            # Expand the (x, y) homogenous coordinates to (x, y, 1) and normalize
+            homogeneous = np.hstack([point, 1])
+            norm = np.linalg.norm(homogeneous)
+            return (homogeneous / norm) * line_length
+
         line_verts = [
             np.array(
                 [
                     [0, 0, 0, 1],
-                    [
-                        point[0] * line_length,
-                        point[1] * line_length,
-                        line_length,
-                        1,
-                    ],
+                    np.hstack([scale_vector(point, line_length), 1]),
                 ]
             )
             for point in scaled_pixel_coords
@@ -602,16 +611,16 @@ class PhotogrammetryCameraSet:
     def __init__(
         self,
         cameras: Union[None, PhotogrammetryCamera, List[PhotogrammetryCamera]] = None,
-        cam_to_world_transforms: Union[None, List[np.ndarray]] = None,
+        cam_to_world_transforms: Optional[List[np.ndarray]] = None,
         intrinsic_params_per_sensor_type: Dict[int, Dict[str, float]] = {
             0: EXAMPLE_INTRINSICS
         },
-        image_filenames: Union[List[PATH_TYPE], None] = None,
-        lon_lats: Union[None, List[Union[None, Tuple[float, float]]]] = None,
-        image_folder: PATH_TYPE = None,
-        sensor_IDs: List[int] = None,
+        image_filenames: Optional[List[PATH_TYPE]] = None,
+        lon_lats: Optional[List[Union[None, Tuple[float, float]]]] = None,
+        image_folder: Optional[PATH_TYPE] = None,
+        sensor_IDs: Optional[List[int]] = None,
         validate_images: bool = False,
-        local_to_epsg_4978_transform: Union[np.array, None] = None,
+        local_to_epsg_4978_transform: Optional[np.ndarray] = None,
     ):
         """_summary_
 
@@ -632,7 +641,12 @@ class PhotogrammetryCameraSet:
         # Create an object using the supplied cameras
         if cameras is not None:
             if isinstance(cameras, PhotogrammetryCamera):
+                self.image_folder = Path(cameras.image_filename).parent
                 cameras = [cameras]
+            else:
+                self.image_folder = Path(os.path.commonpath(
+                    [str(cam.image_filename) for cam in cameras]
+                ))
             self.cameras = cameras
             return
 
@@ -1195,3 +1209,124 @@ class PhotogrammetryCameraSet:
             if force_xvfb:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
+
+    def calc_line_segments(
+        self,
+        detector: Union[RegionDetectionSegmentor, TabularRectangleSegmentor],
+        boundaries: Optional[Tuple[pv.PolyData, pv.PolyData]] = None,
+        ray_length_local: float = 1e3,
+        out_dir: Optional[PATH_TYPE] = None,
+        limit_ray_length_local: Optional[float] = None,
+        limit_angle_from_vert: Optional[float] = None,
+    ) -> Union[Dict[str, np.ndarray], Path]:
+        """
+        For each camera in the set, this method:
+        1. Gets detection centers from the provided detector
+        2. Projects rays from the camera through these detection points
+        3. Optionally filters rays by angle from vertical
+        4. Optionally clips rays to intersection with boundary surfaces
+        5. Returns resulting line segments or saves them to file
+
+        Args:
+            detector: Detector that provides detection centers for each image
+            boundaries: Optional tuple of (upper, lower) boundary surfaces as PyVista PolyData.
+                If provided, rays will be clipped to these surfaces.
+            ray_length_local: Length of the initial rays in local coordinate units. Default 1e3.
+            out_dir: Directory to save the output NPZ file containing ray data. If this is None,
+                the data will be returned as a dict. If this is a path, "line_segments.npz"
+                will be saved in that directory. Default is None.
+            limit_ray_length_local: Optional max ray length from origin to second boundary.
+                This is to mimic measuring from a camera (hypothetical ray source) to
+                the ground (assuming the boundaries are given as [ceiling, floor]).
+                Default is None, meaning no limit.
+            limit_angle_from_vert: Optional max angle (in radians) from vertical.
+                Default is None, meaning no limit.
+
+        Returns:
+            If out_dir is None, returns a dictionary with:
+                - "ray_starts": (N, 3) array of ray start points
+                - "segment_ends": (N, 3) array of ray end points
+                - "ray_IDs": (N,) array of camera indices that generated each ray
+            If out_dir is provided, saves this data to "line_segments.npz" in that directory
+        """
+
+        # Record the lines corresponding to each detection and the associated image ID
+        all_line_segments = []
+        all_image_IDs = []
+
+        # Iterate over the cameras
+        for camera_ind in tqdm(
+            range(len(self.cameras)), desc="Building line segments per camera"
+        ):
+            # Get the image filename
+            image_filename = str(self.get_image_filename(camera_ind, absolute=False))
+            # Get the centers of associated detection from the detector
+            # TODO, this only works with "detectors" that can look up the detections based on the
+            # filename alone. In the future we might want to support real detectors that actually
+            # use the image.
+            detection_centers_pixels = detector.get_detection_centers(image_filename)
+            # Project rays given the locations of the detections in pixel coordinates
+            if len(detection_centers_pixels) > 0:
+                # Record the line segments, which will be ordered as alternating (start, end) rows
+                line_segments = self.cameras[camera_ind].cast_rays(
+                    pixel_coords_ij=detection_centers_pixels,
+                    line_length=ray_length_local,
+                )
+                all_line_segments.append(line_segments)
+                # Record which image ID generated each line
+                all_image_IDs.append(
+                    np.full(
+                        int(line_segments.shape[0] / 2),
+                        fill_value=camera_ind,
+                    )
+                )
+
+        if len(all_line_segments) > 0:
+            # Concatenate the lists of arrays into a single array
+            all_line_segments = np.concatenate(all_line_segments, axis=0)
+            all_image_IDs = np.concatenate(all_image_IDs, axis=0)
+
+            # Get the starts and ends, which are alternating rows
+            ray_starts = all_line_segments[0::2]
+            segment_ends = all_line_segments[1::2]
+            # Determine the direction
+            ray_directions = segment_ends - ray_starts
+            # Make the ray directions unit length
+            ray_directions = ray_directions / np.linalg.norm(
+                ray_directions, axis=1, keepdims=True
+            )
+
+            # Filter by angle from vertical if requested
+            if limit_angle_from_vert is not None:
+                # Angle from vertical (z-axis): arccos(|z component of unit vector|)
+                z_axis = ray_directions[:, 2]
+                angles = np.arccos(np.abs(z_axis))
+                keep_mask = angles <= limit_angle_from_vert
+                ray_starts = ray_starts[keep_mask]
+                segment_ends = segment_ends[keep_mask]
+                ray_directions = ray_directions[keep_mask]
+                all_image_IDs = all_image_IDs[keep_mask]
+
+            if boundaries is not None:
+                print("Clipping all line segments to boundary surfaces")
+                ray_starts, segment_ends, ray_directions, all_image_IDs = clip_line_segments(
+                    boundaries=boundaries,
+                    origins=ray_starts,
+                    directions=ray_directions,
+                    image_indices=all_image_IDs,
+                    ray_limit=limit_ray_length_local,
+                )
+
+        else:
+            ray_starts = np.empty((0, 3))
+            segment_ends = np.empty((0, 3))
+            all_image_IDs = np.empty((0,), dtype=int)
+
+        # Return or save to file
+        data = {"ray_starts": ray_starts, "segment_ends": segment_ends, "ray_IDs": all_image_IDs,}
+        if out_dir is None:
+            return data
+        else:
+            path = Path(out_dir) / "line_segments.npz"
+            np.savez(path, **data)
+            return path
