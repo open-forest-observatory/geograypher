@@ -351,14 +351,15 @@ def chunk_slices(
     N: int, step: int
 ) -> typing.Iterator[typing.Tuple[slice, slice, bool]]:
     """
-    Yield slices for (step, step) chunks of an (N, N) square matrix.
+    Yield slices for (step, step) chunks of the upper triangular area
+    of an (N, N) square matrix.
 
     For example, if N=5 and step=2, the slices would grab:
         1 1 2 2 3
         1 1 2 2 3
-        4 4 5 5 6
-        4 4 5 5 6
-        7 7 8 8 9
+        - - 4 4 5
+        - - 4 4 5
+        - - - - 6
     And in the (1, 5, 9) cases, is_diag would be True
 
     Yields:
@@ -375,7 +376,7 @@ def chunk_slices(
             yield islice, jslice, i == j
 
 
-def make_indices(
+def format_graph_edges(
     i_inds: np.ndarray,
     j_inds: np.ndarray,
     islice: slice,
@@ -493,7 +494,7 @@ def calc_graph_weights(
         # Determine which intersections are valid, represented by finite values
         i_inds, j_inds = np.where(np.isfinite(dist))
         positive_edges.extend(
-            make_indices(i_inds, j_inds, islice, jslice, dist, ray_IDs)
+            format_graph_edges(i_inds, j_inds, islice, jslice, dist, ray_IDs)
         )
 
     if out_dir is None:

@@ -11,7 +11,7 @@ from geograypher.utils.numeric import (
     chunk_slices,
     compute_approximate_ray_intersections,
     intersection_average,
-    make_indices,
+    format_graph_edges,
 )
 
 
@@ -277,7 +277,7 @@ def test_chunk_slices():
         ),
     ],
 )
-def test_make_indices(distance, alter_kwargs, expected_indices):
+def test_format_graph_edges(distance, alter_kwargs, expected_indices):
 
     def check_types(edges):
         assert isinstance(edges, list)
@@ -303,7 +303,7 @@ def test_make_indices(distance, alter_kwargs, expected_indices):
     for key, value in alter_kwargs.items():
         kwargs[key] = value
 
-    edges = make_indices(**kwargs)
+    edges = format_graph_edges(**kwargs)
     check_types(edges)
 
     assert np.allclose(

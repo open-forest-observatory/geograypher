@@ -37,7 +37,7 @@ from geograypher.constants import (
     VIS_FOLDER,
 )
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
-from geograypher.utils.geometric import batched_unary_union, get_scale_from_transform
+from geograypher.utils.geometric import batched_unary_union
 from geograypher.utils.geospatial import (
     coerce_to_geoframe,
     ensure_non_overlapping_polygons,
@@ -2168,7 +2168,7 @@ class TexturedPhotogrammetryMesh:
     def export_covering_meshes(
         self,
         N: int,
-        z_buffer_m: tuple = (0, 0),
+        z_buffer: tuple = (0, 0),
         subsample: typing.Union[int, None] = None,
     ) -> typing.Tuple[pv.PolyData, pv.PolyData]:
         """
@@ -2176,13 +2176,14 @@ class TexturedPhotogrammetryMesh:
         boundaries of that mesh, then create an (N, N) grid of (x, y) points over that area.
         At each (x, y) square in the grid, the pyvista mesh will be sampled for the highest and
         lowest value. This will be used to set the Z heights for that grid point (plus the
-        z_buffer_m). Then upper and lower bound surfaces will be made from these grid points
+        z_buffer). Then upper and lower bound surfaces will be made from these grid points
         using delaunay_2d and returned.
 
         Args:
             N (int): Number of sample points to take as a grid
-            z_buffer_m (tuple): Offset in Z (meters) to give the sampled points.
-                [0] is for the upper mesh, [1] is for the lower.
+            z_buffer (tuple): Offset in Z to give the sampled points. Note that this needs to be
+                in mesh units, so if you want a buffer in meters that will need to be converted
+                separately. [0] is for the upper mesh, [1] is for the lower.
             subsample (int / None): If not None, we will naively subsample self.pyvista_mesh.points
                 to speed up runtime by [::subsample]. A larger number will subsample more.
 
@@ -2192,11 +2193,7 @@ class TexturedPhotogrammetryMesh:
         """
 
         assert self.pyvista_mesh is not None, "Requires a populated mesh"
-        assert len(z_buffer_m) == 2, "2 buffers (top, bottom) are required"
-
-        # Convert z_buffer in meters to the arbitrary units of the photogrammetry model
-        scale = get_scale_from_transform(self.local_to_epgs_4978_transform)
-        z_buffer = (z_buffer_m[0] / scale, z_buffer_m[1] / scale)
+        assert len(z_buffer) == 2, "2 buffers (top, bottom) are required"
 
         # Get mesh points
         points = self.pyvista_mesh.points
