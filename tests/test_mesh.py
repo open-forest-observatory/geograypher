@@ -110,14 +110,15 @@ class TestExportCoveringMeshes:
         # Create a simple mesh for testing, with a range from (0-1) in
         # all three dimensions. XY should form a grid, Z will be random.
         xy = np.stack(
-            np.meshgrid(np.linspace(0, 1, 10), np.linspace(0, 1, 10)),
-            axis=-1
+            np.meshgrid(np.linspace(0, 1, 10), np.linspace(0, 1, 10)), axis=-1
         ).reshape(-1, 2)
         points = np.hstack([xy, np.random.random((xy.shape[0], 1))])
         mesh = pv.PolyData(points).delaunay_2d()
 
         assert isinstance(mesh, pv.PolyData)
-        textured_mesh =  TexturedPhotogrammetryMesh(mesh, input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS)
+        textured_mesh = TexturedPhotogrammetryMesh(
+            mesh, input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS
+        )
         return textured_mesh
 
     def test_basic_covering_mesh_creation(self, sample_mesh):
