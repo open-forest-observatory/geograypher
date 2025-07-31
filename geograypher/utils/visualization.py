@@ -273,3 +273,52 @@ def show_segmentation_labels(
             # Save the composite to the output folder
             output_file = Path(savefolder, f"rendered_label_{i:03}.png")
             imwrite(output_file, composite)
+
+
+def visualize_intersections_in_pyvista(
+    plotter: pv.Plotter,
+    ray_starts: np.ndarray,
+    ray_ends: np.ndarray,
+    community_IDs: np.ndarray,
+    community_points: np.ndarray,
+):
+    """
+
+    Arguments:
+        plotter (pv.Plotter):
+            Existing pyvista plotter to add intersection lines/points to
+        ray_starts ((N, 3) np.ndarray):
+            The 3D locations of the starting points of N rays
+        ray_ends ((N, 3) np.ndarray):
+            The 3D locations of the ending points of N rays
+        community_IDs ((N,) np.ndarray):
+            The IDs for groups of rays. For example, if there are 10 rays with 5 in group 0
+            and 5 in group 1, this would be [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        community_points ((M, 3) np.ndarray):
+            One 3D point per community, indicating the center of the grouped rays. In the
+            example above, this would be an (2, 3) array with 2 points.
+    """
+
+    # Interweave the points as line_segments_from_points desires
+    interwoven = np.empty((2 * len(ray_starts), 3), dtype=ray_starts.dtype)
+    interwoven[0::2] = ray_starts
+    interwoven[1::2] = ray_ends
+
+    # Show the line segments
+    lines_mesh = pv.line_segments_from_points(interwoven)
+    plotter.add_mesh(
+        lines_mesh,
+        scalars=community_IDs,
+        label="Rays, colored by community ID",
+    )
+
+    # Show the triangulated communtities as red spheres
+    detected_points = pv.PolyData(community_points)
+    plotter.add_points(
+        detected_points,
+        color="r",
+        render_points_as_spheres=True,
+        point_size=10,
+        label="Triangulated locations",
+    )
+    plotter.add_legend()
