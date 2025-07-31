@@ -86,11 +86,11 @@ class TestPhotogrammetryCameraSet:
 
         # Check shapes and basic properties
         assert "ray_starts" in result
-        assert "segment_ends" in result
+        assert "ray_ends" in result
         assert "ray_IDs" in result
         N = n_cameras * n_detections
         assert result["ray_starts"].shape == (N, 3)
-        assert result["segment_ends"].shape == (N, 3)
+        assert result["ray_ends"].shape == (N, 3)
         assert result["ray_IDs"].shape == (N,)
 
         # Check that rays start at camera position
@@ -99,11 +99,11 @@ class TestPhotogrammetryCameraSet:
         # Check the endpoint that should be pointed straight down is
         # pointing straight down
         for i in range(3, N, n_detections):
-            assert np.allclose(result["segment_ends"][i], [0, 0, 10 - ray_length_local])
+            assert np.allclose(result["ray_ends"][i], [0, 0, 10 - ray_length_local])
         # Don't check specifics, but check that the maximumally tilted ray
         # has an angle over some threshold
         for i in range(0, N, n_detections):
-            xyz = result["segment_ends"][i]
+            xyz = result["ray_ends"][i]
             hypotenuse = np.linalg.norm(xyz - np.array([0, 0, 10]))
             x_angle = np.arcsin(xyz[0] / hypotenuse)
             y_angle = np.arcsin(xyz[1] / hypotenuse)
@@ -111,7 +111,7 @@ class TestPhotogrammetryCameraSet:
             assert y_angle > np.deg2rad(15)
 
         # Check that ray lengths are scaled as expected
-        ray_dirs = result["segment_ends"] - result["ray_starts"]
+        ray_dirs = result["ray_ends"] - result["ray_starts"]
         assert np.allclose(np.linalg.norm(ray_dirs, axis=1), ray_length_local)
 
         # Check that ray_IDs are correct
@@ -134,7 +134,7 @@ class TestPhotogrammetryCameraSet:
         assert len(result["ray_starts"]) == N
 
         # Check that rays are clipped between boundaries
-        z_coords = result["segment_ends"][:, 2]
+        z_coords = result["ray_ends"][:, 2]
         assert np.all(z_coords >= 0)  # Lower boundary
         assert np.all(z_coords <= 5)  # Upper boundary
 
@@ -155,7 +155,7 @@ class TestPhotogrammetryCameraSet:
         n_detections = 2
         N = n_cameras * n_detections
         assert result["ray_starts"].shape == (N, 3)
-        assert result["segment_ends"].shape == (N, 3)
+        assert result["ray_ends"].shape == (N, 3)
         assert result["ray_IDs"].shape == (N,)
 
         # Check that ray_IDs are correct
@@ -166,7 +166,7 @@ class TestPhotogrammetryCameraSet:
         assert np.allclose(result["ray_IDs"], expected_IDs)
 
         # Calculate angles from vertical for resulting rays
-        ray_vectors = result["segment_ends"] - result["ray_starts"]
+        ray_vectors = result["ray_ends"] - result["ray_starts"]
         ray_dirs = ray_vectors / np.linalg.norm(ray_vectors, axis=1)[:, None]
         angles = np.arccos(np.abs(ray_dirs[:, 2]))
 
@@ -181,6 +181,6 @@ class TestPhotogrammetryCameraSet:
         result = sample_camera_set.calc_line_segments(detector=detector)
 
         assert result["ray_starts"].shape == (0, 3)
-        assert result["segment_ends"].shape == (0, 3)
+        assert result["ray_ends"].shape == (0, 3)
         assert result["ray_IDs"].shape == (0,)
 
