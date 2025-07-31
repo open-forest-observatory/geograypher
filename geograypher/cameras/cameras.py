@@ -646,9 +646,9 @@ class PhotogrammetryCameraSet:
                 self.image_folder = Path(cameras.image_filename).parent
                 cameras = [cameras]
             else:
-                self.image_folder = Path(os.path.commonpath(
-                    [str(cam.image_filename) for cam in cameras]
-                ))
+                self.image_folder = Path(
+                    os.path.commonpath([str(cam.image_filename) for cam in cameras])
+                )
             self.cameras = cameras
             return
 
@@ -1022,6 +1022,10 @@ class PhotogrammetryCameraSet:
         meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
         ray_length_local = ray_length_meters * meters_to_local_scale
         similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale
+        if limit_ray_length_meters is None:
+            limit_ray_length_local = None
+        else:
+            limit_ray_length_local = limit_ray_length_meters * meters_to_local_scale
 
         # Create line segments emanating from the cameras
         if check_exists("line_segments.npz"):
@@ -1249,12 +1253,14 @@ class PhotogrammetryCameraSet:
 
             if boundaries is not None:
                 print("Clipping all line segments to boundary surfaces")
-                ray_starts, ray_ends, ray_directions, all_image_IDs = clip_line_segments(
-                    boundaries=boundaries,
-                    origins=ray_starts,
-                    directions=ray_directions,
-                    image_indices=all_image_IDs,
-                    ray_limit=limit_ray_length_local,
+                ray_starts, ray_ends, ray_directions, all_image_IDs = (
+                    clip_line_segments(
+                        boundaries=boundaries,
+                        origins=ray_starts,
+                        directions=ray_directions,
+                        image_indices=all_image_IDs,
+                        ray_limit=limit_ray_length_local,
+                    )
                 )
 
         else:
@@ -1263,7 +1269,11 @@ class PhotogrammetryCameraSet:
             all_image_IDs = np.empty((0,), dtype=int)
 
         # Return or save to file
-        data = {"ray_starts": ray_starts, "ray_ends": ray_ends, "ray_IDs": all_image_IDs}
+        data = {
+            "ray_starts": ray_starts,
+            "ray_ends": ray_ends,
+            "ray_IDs": all_image_IDs,
+        }
         if out_dir is None:
             return data
         else:

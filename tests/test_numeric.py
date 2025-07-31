@@ -487,3 +487,25 @@ class TestCalcCommunities:
             np.array([[0, 0, 1], [3, 0, 7.5], [5, 5, 0]]),
             atol=1,
         )
+
+    @pytest.mark.parametrize("give_transform", [True, False])
+    def test_empty(self, give_transform, sample_graph_inputs):
+        """Test that when no graph edges are given we get empty arrays back."""
+
+        result = calc_communities(
+            starts=np.array([]),
+            ends=np.array([]),
+            positive_edges=[],
+            transform_to_epsg_4978=np.eye(4) if give_transform else None,
+        )
+
+        assert isinstance(result, dict)
+        assert "ray_IDs" in result
+        assert "community_points" in result
+
+        assert result["ray_IDs"].shape == (0,)
+        assert result["community_points"].shape == (0, 3)
+
+        if give_transform:
+            assert "community_points_latlon" in result
+            assert result["community_points_latlon"].shape == (0, 3)

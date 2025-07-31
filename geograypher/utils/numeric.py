@@ -543,59 +543,72 @@ def calc_communities(
     # Build up the basic graph from edge weights
     graph = networkx.Graph(positive_edges)
 
-    # Determine Louvain communities which are sets of nodes. Ideally, each
-    # community represents a set of detections that correspond to one 3D object
-    communities = networkx.community.louvain_communities(
-        graph, weight="weight", resolution=louvain_resolution
-    )
-    # Sort the communities by size
-    communities = sorted(communities, key=len, reverse=True)
+    # Check that the graph is non empty
+    if len(graph) > 0:
 
-    # Triangulate the rays for each community to identify the 3D location
-    community_points = []
-    # Record the community IDs per ray
-    num_rays = starts.shape[0]
-    ray_IDs = np.full(num_rays, fill_value=np.nan)
-    # Iterate over communities
-    for community_ID, community in enumerate(
-        tqdm(communities, desc="Build community points")
-    ):
-        # Get the ray indices that belong to that community
-        community_indices = np.array(list(community))
-        # Record the community ID for the corresponding rays
-        ray_IDs[community_indices] = community_ID
-        # Use the average of the closest points between rays as the
-        # representative point for the community
-        community_points.append(
-            intersection_average(
-                starts=starts[community_indices],
-                ends=ends[community_indices],
+        # Determine Louvain communities which are sets of nodes. Ideally, each
+        # community represents a set of detections that correspond to one 3D object
+        communities = networkx.community.louvain_communities(
+            graph, weight="weight", resolution=louvain_resolution
+        )
+        # Sort the communities by size
+        communities = sorted(communities, key=len, reverse=True)
+
+        # Triangulate the rays for each community to identify the 3D location
+        community_points = []
+        # Record the community IDs per ray
+        num_rays = starts.shape[0]
+        ray_IDs = np.full(num_rays, fill_value=np.nan)
+        # Iterate over communities
+        for community_ID, community in enumerate(
+            tqdm(communities, desc="Build community points")
+        ):
+            # Get the ray indices that belong to that community
+            community_indices = np.array(list(community))
+            # Record the community ID for the corresponding rays
+            ray_IDs[community_indices] = community_ID
+            # Use the average of the closest points between rays as the
+            # representative point for the community
+            community_points.append(
+                intersection_average(
+                    starts=starts[community_indices],
+                    ends=ends[community_indices],
+                )
             )
-        )
 
-    # Stack all of the points into one vector
-    community_points = np.vstack(community_points)
-    result = {
-        "ray_IDs": ray_IDs,
-        "community_points": community_points,
-    }
+        # Stack all of the points into one vector
+        community_points = np.vstack(community_points)
 
-    if transform_to_epsg_4978 is not None:
-        # Append a column of all ones to make the homogenous coordinates
-        homogenous = np.concatenate(
-            [community_points, np.ones_like(community_points[:, 0:1])],
-            axis=1,
-        )
-        # Use the transform matrix to transform the points into the earth
-        # centered, earth fixed frame (EPSG:4978)
-        community_points_epsg_4978 = (transform_to_epsg_4978 @ homogenous.T).T
-        # Convert the points from earth centered, earth fixed frame to lat lon
-        community_points_lat_lon = convert_CRS_3D_points(
-            community_points_epsg_4978,
-            input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
-            output_CRS=LAT_LON_CRS,
-        )
-        result["community_points_latlon"] = community_points_lat_lon
+        result = {
+            "ray_IDs": ray_IDs,
+            "community_points": community_points,
+        }
+
+        if transform_to_epsg_4978 is not None:
+            # Append a column of all ones to make the homogenous coordinates
+            homogenous = np.concatenate(
+                [community_points, np.ones_like(community_points[:, 0:1])],
+                axis=1,
+            )
+            # Use the transform matrix to transform the points into the earth
+            # centered, earth fixed frame (EPSG:4978)
+            community_points_epsg_4978 = (transform_to_epsg_4978 @ homogenous.T).T
+            # Convert the points from earth centered, earth fixed frame to lat lon
+            community_points_lat_lon = convert_CRS_3D_points(
+                community_points_epsg_4978,
+                input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+                output_CRS=LAT_LON_CRS,
+            )
+            result["community_points_latlon"] = community_points_lat_lon
+
+    else:
+        # Handle the empty case
+        result = {
+            "ray_IDs": np.zeros((0,), dtype=int),
+            "community_points": np.zeros((0, 3)),
+        }
+        if transform_to_epsg_4978 is not None:
+            result["community_points_latlon"] = np.zeros((0, 3))
 
     if out_dir is not None:
         path = Path(out_dir) / "communities.npz"

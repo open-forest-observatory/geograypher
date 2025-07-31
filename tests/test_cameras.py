@@ -1,9 +1,11 @@
-import pytest
-import numpy as np
-import pyvista as pv
 from pathlib import Path
 from unittest.mock import MagicMock
-from geograypher.cameras.cameras import PhotogrammetryCameraSet, PhotogrammetryCamera
+
+import numpy as np
+import pytest
+import pyvista as pv
+
+from geograypher.cameras.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 
 
 class MockDetector:
@@ -29,9 +31,7 @@ def make_sample_camera(idx):
 @pytest.fixture
 def sample_camera_set():
     # Test a set of multiple cameras, albeit copies of each other
-    return PhotogrammetryCameraSet(
-        cameras=[make_sample_camera(i) for i in range(5)]
-    )
+    return PhotogrammetryCameraSet(cameras=[make_sample_camera(i) for i in range(5)])
 
 
 @pytest.fixture
@@ -58,11 +58,13 @@ def sample_boundaries():
     )
 
 
-class TestPhotogrammetryCameraSet:
+class TestCalcLineSegments:
 
     @pytest.mark.parametrize("to_file", [True, False])
     @pytest.mark.parametrize("ray_length_local", [100, 200, 300])
-    def test_basic_line_segments(self, tmp_path, sample_camera_set, ray_length_local, to_file):
+    def test_basic_line_segments(
+        self, tmp_path, sample_camera_set, ray_length_local, to_file
+    ):
         """Test basic line segment generation without boundaries"""
 
         detector = MockDetector()
@@ -143,9 +145,8 @@ class TestPhotogrammetryCameraSet:
         Test filtering rays by angle from vertical. Based on the hardcoded
         camera positions, this should filter out the first two rays of each camera.
         """
-        detector = MockDetector()
         result = sample_camera_set.calc_line_segments(
-            detector=detector,
+            detector=MockDetector(),
             limit_angle_from_vert=np.deg2rad(15),
         )
 
@@ -184,3 +185,56 @@ class TestPhotogrammetryCameraSet:
         assert result["ray_ends"].shape == (0, 3)
         assert result["ray_IDs"].shape == (0,)
 
+
+class TestTriangulateDetections:
+
+    @pytest.mark.parametrize("to_epsg_4978", [np.eye(4), None])
+    @pytest.mark.parametrize("ray_length", [100, 1000])
+    @pytest.mark.parametrize("similarity_threshold", [0.1, 1.0])
+    @pytest.mark.parametrize("limit_ray_length", [2, 100, None])
+    @pytest.mark.parametrize("limit_angle", [np.deg2rad(20), None])
+    @pytest.mark.parametrize("use_boundaries", [True, False])
+    @pytest.mark.parametrize("transform", [lambda x: x**2, None])
+    @pytest.mark.parametrize("louvain_resolution", [1, 10])
+    @pytest.mark.parametrize("to_file", [True, False])
+    def test_runs(
+        self,
+        sample_camera_set,
+        sample_boundaries,
+        to_epsg_4978,
+        ray_length,
+        similarity_threshold,
+        limit_ray_length,
+        limit_angle,
+        use_boundaries,
+        transform,
+        louvain_resolution,
+        to_file,
+        tmp_path,
+    ):
+        """
+        Since triangulate_detections is an amalgam of tested components, just check
+        that it runs on a variety of inputs and produces something of the right type.
+        """
+
+        points = sample_camera_set.triangulate_detections(
+            detector=MockDetector(),
+            transform_to_epsg_4978=to_epsg_4978,
+            ray_length_meters=ray_length,
+            boundaries=sample_boundaries if use_boundaries else None,
+            limit_ray_length_meters=limit_ray_length,
+            limit_angle_from_vert=limit_angle,
+            similarity_threshold_meters=similarity_threshold,
+            transform=transform,
+            louvain_resolution=louvain_resolution,
+            out_dir=tmp_path if to_file else None,
+        )
+
+        # Check that we get some sort of (N, 3) array out
+        assert isinstance(points, np.ndarray)
+        assert points.shape[1] == 3
+
+        if to_file:
+            assert (tmp_path / "line_segments.npz").is_file()
+            assert (tmp_path / "positive_edges.json").is_file()
+            assert (tmp_path / "communities.npz").is_file()
