@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 from imageio import imread, imwrite
+from matplotlib import colormaps
+from matplotlib.colors import ListedColormap, Normalize
 from tqdm import tqdm
 
 from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE
@@ -270,3 +272,207 @@ def show_segmentation_labels(
             # Save the composite to the output folder
             output_file = Path(savefolder, f"rendered_label_{i:03}.png")
             imwrite(output_file, composite)
+
+
+def visualize_intersections_in_pyvista(
+    plotter: pv.Plotter,
+    ray_starts: np.ndarray,
+    ray_ends: np.ndarray,
+    community_IDs: np.ndarray,
+    community_points: np.ndarray,
+) -> None:
+    """
+    Visualize the given grouped rays and detected points in a pyvista plotter.
+
+    Arguments:
+        plotter (pv.Plotter):
+            Existing pyvista plotter to add intersection lines/points to
+        ray_starts ((N, 3) np.ndarray):
+            The 3D locations of the starting points of N rays
+        ray_ends ((N, 3) np.ndarray):
+            The 3D locations of the ending points of N rays
+        community_IDs ((N,) np.ndarray):
+            The IDs for groups of rays. For example, if there are 10 rays with 5 in group 0
+            and 5 in group 1, this would be [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        community_points ((M, 3) np.ndarray):
+            One 3D point per community, indicating the center of the grouped rays. In the
+            example above, this would be an (2, 3) array with 2 points.
+    """
+
+    # Interweave the points as line_segments_from_points desires
+    interwoven = np.empty((2 * len(ray_starts), 3), dtype=ray_starts.dtype)
+    interwoven[0::2] = ray_starts
+    interwoven[1::2] = ray_ends
+
+    # Show the line segments
+    lines_mesh = pv.line_segments_from_points(interwoven)
+    plotter.add_mesh(
+        lines_mesh,
+        scalars=community_IDs,
+        label="Rays, colored by community ID",
+    )
+
+    # Show the triangulated communtities as red spheres
+    detected_points = pv.PolyData(community_points)
+    plotter.add_points(
+        detected_points,
+        color="r",
+        render_points_as_spheres=True,
+        point_size=10,
+        label="Triangulated locations",
+    )
+    plotter.add_legend()
+
+
+def visualize_intersections_as_mesh(
+    ray_starts: np.ndarray,
+    ray_ends: np.ndarray,
+    community_IDs: np.ndarray,
+    community_points: np.ndarray,
+    out_dir: PATH_TYPE,
+    batch: int = 250,
+    cube_side_len: float = 0.2,
+) -> None:
+    """
+    Arguments:
+        ray_starts ((N, 3) np.ndarray):
+            The 3D locations of the starting points of N rays
+        ray_ends ((N, 3) np.ndarray):
+            The 3D locations of the ending points of N rays
+        community_IDs ((N,) np.ndarray):
+            The IDs for groups of rays. For example, if there are 10 rays with 5 in group 0
+            and 5 in group 1, this would be [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        community_points ((M, 3) np.ndarray):
+            One 3D point per community, indicating the center of the grouped rays. In the
+            example above, this would be an (2, 3) array with 2 points.
+        out_dir (PATH_TYPE):
+        batch (int):
+            Defaults to 250.
+        cube_side_len (float):
+            Defaults to 0.2
+
+    Saves:
+        out_dir / rays.ply
+        out_dir / points.ply
+    """
+
+    # Short-circuit on empty
+    if len(ray_starts) == 0:
+        return
+
+    # Enforce Path type
+    out_dir = Path(out_dir)
+
+    # Split the communities into an (unforunately limited) color set
+    norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
+    cmap = colormaps["tab20"]
+
+    # Build up cylinders in batches
+    n_batches = int(np.ceil(len(community_IDs) / batch))
+    cylinder_polydata = None
+    for i in tqdm(range(n_batches), desc="Building cylinders"):
+        islice = slice(i * batch, min((i + 1) * batch, len(community_IDs)))
+        batched = merge_cylinders(
+            starts=ray_starts[islice],
+            ends=ray_ends[islice],
+            community_IDs=community_IDs[islice],
+            cmap=cmap,
+            norm=norm,
+        )
+        # Merge with previous cylinders
+        if cylinder_polydata is None:
+            cylinder_polydata = batched
+        else:
+            cylinder_polydata = cylinder_polydata.merge(batched)
+
+    if cylinder_polydata is not None:
+        path = out_dir / "rays.ply"
+        print(f"Saving visualized cylinders to {path}")
+        cylinder_polydata.save(path, texture="RGB")
+
+    # The cube merging is much less costly than the cylinders, and thus far hasn't
+    # required batching
+    cube_polydata = None
+    for community_ID, point in enumerate(
+        tqdm(community_points, desc="Building points")
+    ):
+        # Build a cube and set the color
+        cube = pv.Cube(
+            center=point,
+            x_length=cube_side_len,
+            y_length=cube_side_len,
+            z_length=cube_side_len,
+        )
+        color = (np.array(cmap(norm(community_ID)))[:3] * 255).astype(np.uint8)
+        cube.point_data["RGB"] = np.tile(color, (cube.n_points, 1))
+        # Merge with previous cubes
+        if cube_polydata is None:
+            cube_polydata = cube
+        else:
+            cube_polydata = cube_polydata.merge(cube)
+
+    if cube_polydata is not None:
+        path = out_dir / "points.ply"
+        print(f"Saving visualized cubes to {path}")
+        cube_polydata.save(path, texture="RGB")
+
+
+def merge_cylinders(
+    starts: np.ndarray,
+    ends: np.ndarray,
+    community_IDs: np.ndarray,
+    cmap: ListedColormap,
+    norm: Normalize,
+) -> pv.PolyData:
+    """
+    Create and merge a set of cylinders one by one.
+
+    Arguments:
+        ray_starts ((N, 3) np.ndarray):
+            The 3D locations of the starting points of N rays
+        ray_ends ((N, 3) np.ndarray):
+            The 3D locations of the ending points of N rays
+        community_IDs ((N,) np.ndarray):
+            The IDs for groups of rays. For example, if there are 10 rays with 5 in group 0
+            and 5 in group 1, this would be [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        cmap (matplotlib.colors.ListedColormap):
+            Colormap to use on the normalized community IDs
+        norm (matplotlib.colors.Normalize):
+            Normalization function that spans from min to max of the community IDs
+
+    Returns: pv.Polydata mesh representing the given rays with cylinders.
+    """
+
+    polydata = None
+    for start, end, community_ID in zip(starts, ends, community_IDs):
+
+        # Build a cylinder
+        center = (start + end) / 2
+        direction = end - start
+        height = np.linalg.norm(direction)
+        if height == 0:
+            continue
+        direction = direction / height
+        # Some of the chosen parameters (low resolution, no capping) are to reduce
+        # polygon faces when dealing with large numbers of cylinders
+        cyl = pv.Cylinder(
+            center=center,
+            direction=direction,
+            radius=0.05,
+            height=height,
+            resolution=3,
+            capping=False,
+        )
+
+        # Color the cylinder
+        color = (np.array(cmap(norm(community_ID)))[:3] * 255).astype(np.uint8)
+        cyl["scalars"] = np.full(cyl.n_points, community_ID)
+        cyl.point_data["RGB"] = np.tile(color, (cyl.n_points, 1))
+
+        # And merge it into the scene
+        if polydata is None:
+            polydata = cyl
+        else:
+            polydata = polydata.merge(cyl)
+
+    return polydata
