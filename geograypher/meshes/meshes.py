@@ -46,7 +46,6 @@ from geograypher.utils.geospatial import (
 )
 from geograypher.utils.indexing import ensure_float_labels
 from geograypher.utils.numeric import compute_3D_triangle_area
-from geograypher.utils.parsing import parse_transform_metashape
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
 
@@ -54,24 +53,47 @@ class TexturedPhotogrammetryMesh:
     def __init__(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
+        input_CRS: pyproj.CRS,
         downsample_target: float = 1.0,
-        transform_filename: typing.Union[PATH_TYPE, None] = None,
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
-        ROI=None,
+        ROI: typing.Union[
+            gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
+        ] = None,
         ROI_buffer_meters: float = 0,
-        require_transform: bool = False,
         log_level: str = "INFO",
     ):
-        """_summary_
+        """
+        An object that represents a geospatial mesh with associated textures and supports various
+        rendering options.
+
 
         Args:
-            mesh (typing.Union[PATH_TYPE, pv.PolyData]): Path to the mesh, in a format pyvista can read, or pyvista mesh
-            downsample_target (float, optional): Downsample to this fraction of vertices. Defaults to 1.0.
-            texture (typing.Union[PATH_TYPE, np.ndarray, None]): Texture or path to one. See more details in `load_texture` documentation
-            texture_column_name: The name of the column to use for a vectorfile input
-            IDs_to_labels (typing.Union[PATH_TYPE, dict, None]): dictionary or JSON file containing the mapping from integer IDs to string class names
+            mesh (typing.Union[PATH_TYPE, pv.PolyData]):
+                Path to the mesh in a filetype readable by pyvista or a pyvista mesh object.
+            input_CRS (pyproj.CRS):
+                The vertex coordinates of the input mesh should be interpreteted in this coordinate
+                references system to georeference them.
+            downsample_target (float, optional):
+                Downsample so this fraction of vertices remain. Defaults to 1.0.
+            texture (typing.Union[PATH_TYPE, np.ndarray, None], optional):
+                Texture or path to one. See more details in `load_texture` documentation. Defaults
+                to None.
+            texture_column_name (typing.Union[PATH_TYPE, None], optional):
+                The column to use as the label for a vector data input. Passed to `load_texture`.
+                Defaults to None.
+            IDs_to_labels (typing.Union[PATH_TYPE, dict, None], optional):
+                dictionary or path to JSON file containing the mapping from integer IDs to string
+                class names. Defaults to None.
+            ROI (typing.Union[ gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None ], optional):
+                Crop the mesh to this region. For more information see `select_mesh_ROI`. Defaults
+                to None.
+            ROI_buffer_meters (float, optional):
+                Buffer the cropped region by this distance. For more information see
+                `select_mesh_ROI`. Defaults to 0.
+            log_level (str, optional):
+                Controls what severity of messages are logged. Defaults to "INFO".
         """
         self.downsample_target = downsample_target
 
@@ -79,7 +101,6 @@ class TexturedPhotogrammetryMesh:
         self.texture = None
         self.vertex_texture = None
         self.face_texture = None
-        self.local_to_epgs_4978_transform = None
         self.IDs_to_labels = None
         # Create the plotter that will later be used to compute correspondences between pixels
         # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
@@ -97,15 +118,11 @@ class TexturedPhotogrammetryMesh:
         if not self.logger.hasHandlers():
             self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
 
-        # Load the transform
-        self.logger.info("Loading transform to EPSG:4326")
-        self.load_transform_to_epsg_4326(
-            transform_filename, require_transform=require_transform
-        )
         # Load the mesh with the pyvista loader
         self.logger.info("Loading mesh")
         self.load_mesh(
             mesh=mesh,
+            input_CRS=input_CRS,
             downsample_target=downsample_target,
             ROI=ROI,
             ROI_buffer_meters=ROI_buffer_meters,
@@ -129,6 +146,7 @@ class TexturedPhotogrammetryMesh:
     def load_mesh(
         self,
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
+        input_CRS: pyproj.CRS,
         downsample_target: float = 1.0,
         ROI=None,
         ROI_buffer_meters=0,
@@ -148,8 +166,11 @@ class TexturedPhotogrammetryMesh:
             ROI_simplify_tol_meters:
                 See select_mesh_ROI. Defaults to 2.
         """
+        self.CRS = input_CRS
+
         if isinstance(mesh, pv.PolyData):
-            self.pyvista_mesh = mesh
+            # If a mesh is provided directly, copy it so input mesh isn't modified
+            self.pyvista_mesh = mesh.copy()
         else:
             # Load the mesh using pyvista
             # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
@@ -164,10 +185,12 @@ class TexturedPhotogrammetryMesh:
             simplify_tol_meters=ROI_simplify_tol_meters,
         )
 
+        # Reproject to a meters-based CRS. TODO consider if there's a better option than ECEF.
+        self.reproject_CRS(target_CRS=EARTH_CENTERED_EARTH_FIXED_CRS, inplace=True)
+
         # Downsample mesh and transfer active scalars from original mesh to downsampled mesh
         if downsample_target != 1.0:
             # TODO try decimate_pro and compare quality and runtime
-            # TODO see if there's a way to preserve the mesh colors
             # TODO also see this decimation algorithm: https://pyvista.github.io/fast-simplification/
             self.logger.info("Downsampling the mesh")
             # Have a temporary mesh so we can use the original mesh to transfer the active scalars to the downsampled one
@@ -178,6 +201,54 @@ class TexturedPhotogrammetryMesh:
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96
         self.faces = self.pyvista_mesh.faces.reshape((-1, 4))[:, 1:4].copy()
+
+    def reproject_CRS(
+        self, target_CRS: pyproj.CRS, inplace: bool = True
+    ) -> typing.Optional[pv.PolyData]:
+        """
+        Convert the mesh into a new coordinate reference system. This is done by updating the
+        location of each vertex using the mappings between the current coordinate reference system
+        and the requested one, as implemented in pyproj.
+
+        Args:
+            target_CRS (pyproj.CRS): The coordinate reference system to transform the mesh to.
+            inplace (bool, optional): Should the self.pyvista_mesh and self.CRS attributes be
+            updated. Otherwise, an updated copy of the mesh is returned and the original is left
+            unchanged. Defaults to True.
+
+        Returns:
+            (pv.PolyData, optional): If `inplace==False`, a transformed pyvista mesh will be returned
+        """
+        # Build a pyproj transfrormer from the current to the desired CRS
+        transformer = pyproj.Transformer.from_crs(self.CRS, target_CRS)
+
+        # Convert the mesh vertices to a numpy array
+        mesh_verts = np.array(self.pyvista_mesh.points)
+
+        # Transform the coordinates
+        verts_in_output_CRS = transformer.transform(
+            xx=mesh_verts[:, 0],
+            yy=mesh_verts[:, 1],
+            zz=mesh_verts[:, 2],
+        )
+        # Stack and transpose
+        verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+
+        # TODO figure out how to deal with the fact that this may no longer be a right-handed coordinate system
+        # See comment in `get_vertices_in_CRS`
+
+        if inplace:
+            # Update the CRS
+            self.CRS = target_CRS
+            # Update the mesh points
+            self.pyvista_mesh.points = pv.pyvista_ndarray(verts_in_output_CRS)
+        else:
+            # Create a copy of the mesh
+            copied_mesh = self.pyvista_mesh.copy(deep=True)
+            # Update its points
+            copied_mesh.points = pv.pyvista_ndarray(verts_in_output_CRS)
+            # Return the updated copy
+            return copied_mesh
 
     def transfer_texture(self, downsampled_mesh):
         """Transfer texture from original mesh to a downsampled version using KDTree for nearest neighbor point searches
@@ -215,47 +286,6 @@ class TexturedPhotogrammetryMesh:
                 "Textures not transferred, active scalars data is assoicated with cell data not point data"
             )
         return downsampled_mesh
-
-    def load_transform_to_epsg_4326(
-        self, transform_filename: PATH_TYPE, require_transform: bool = False
-    ):
-        """
-        Load the 4x4 transform projects points from their local coordnate system into EPSG:4326,
-        the earth-centered, earth-fixed coordinate frame. This can either be from a CSV file specifying
-        it directly or extracted from a Metashape camera output
-
-        Args
-            transform_filename (PATH_TYPE):
-            require_transform (bool): Does a local-to-global transform file need to be available"
-        Raises:
-            FileNotFoundError: Cannot find texture file
-            ValueError: Transform file doesn't have 4x4 matrix
-        """
-        if transform_filename is None:
-            if require_transform:
-                raise ValueError("Transform is required but not provided")
-            # If not required, do nothing. TODO consider adding a warning
-            return
-
-        elif Path(transform_filename).suffix == ".xml":
-            self.local_to_epgs_4978_transform = parse_transform_metashape(
-                transform_filename
-            )
-        elif Path(transform_filename).suffix == ".csv":
-            self.local_to_epgs_4978_transform = np.loadtxt(
-                transform_filename, delimiter=","
-            )
-            if self.local_to_epgs_4978_transform.shape != (4, 4):
-                raise ValueError(
-                    f"Transform should be (4,4) but is {self.local_to_epgs_4978_transform.shape}"
-                )
-        else:
-            if require_transform:
-                raise ValueError(
-                    f"Transform could not be loaded from {transform_filename}"
-                )
-            # Not set
-            return
 
     def standardize_texture(self, texture_array: np.ndarray):
         # TODO consider coercing into a numpy array
@@ -600,7 +630,10 @@ class TexturedPhotogrammetryMesh:
             self.IDs_to_labels[label_ID] = label_name
 
     def get_IDs_to_labels(self):
-        return self.IDs_to_labels
+        # Convert to int type to avoid json serialization issues
+        if self.IDs_to_labels is None:
+            return None
+        return {int(k): v for k, v in self.IDs_to_labels.items()}
 
     def get_label_names(self):
         self.logger.warning(
@@ -611,25 +644,6 @@ class TexturedPhotogrammetryMesh:
         return list(self.IDs_to_labels.values())
 
     # Vertex methods
-
-    def transform_vertices(self, transform_4x4: np.ndarray, in_place: bool = False):
-        """Apply a transform to the vertex coordinates
-
-        Args:
-            transform_4x4 (np.ndarray): Transform to be applied
-            in_place (bool): Should the vertices be updated for all member objects
-        """
-        homogenous_local_points = np.vstack(
-            (self.pyvista_mesh.points.T, np.ones(self.pyvista_mesh.points.shape[0]))
-        )
-        transformed_local_points = transform_4x4 @ homogenous_local_points
-        transformed_local_points = transformed_local_points[:3].T
-
-        # Overwrite existing vertices in both pytorch3d and pyvista mesh
-        if in_place:
-            self.pyvista_mesh.points = transformed_local_points.copy()
-        return transformed_local_points
-
     def get_vertices_in_CRS(
         self, output_CRS: pyproj.CRS, force_easting_northing: bool = True
     ):
@@ -642,29 +656,9 @@ class TexturedPhotogrammetryMesh:
         Returns:
             np.ndarray: (n_points, 3)
         """
-        # If no CRS is requested, just return the points
-        if output_CRS is None:
-            return self.pyvista_mesh.points
-
-        # The mesh points are defined in an arbitrary local coordinate system but we can transform them to EPGS:4978,
-        # the earth-centered, earth-fixed coordinate system, using an included transform
-        epgs4978_verts = self.transform_vertices(self.local_to_epgs_4978_transform)
-
-        # TODO figure out why this conversion was required. I think it was some typing issue
-        output_CRS = pyproj.CRS.from_epsg(output_CRS.to_epsg())
-        # Build a pyproj transfrormer from EPGS:4978 to the desired CRS
-        transformer = pyproj.Transformer.from_crs(
-            EARTH_CENTERED_EARTH_FIXED_CRS, output_CRS
-        )
-
-        # Transform the coordinates
-        verts_in_output_CRS = transformer.transform(
-            xx=epgs4978_verts[:, 0],
-            yy=epgs4978_verts[:, 1],
-            zz=epgs4978_verts[:, 2],
-        )
-        # Stack and transpose
-        verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+        # Reproject the mesh
+        reprojected_mesh = self.reproject_CRS(output_CRS, inplace=False)
+        verts_in_output_CRS = np.array(reprojected_mesh.points)
 
         # Pyproj respects the CRS axis ordering, which is northing/easting for most projected coordinate systems
         # This causes headaches because it's assumed by rasterio and geopandas to be easting/northing
@@ -736,12 +730,11 @@ class TexturedPhotogrammetryMesh:
         # true for doing clustered polygon labeling
         if cache_data:
             mesh_hash = self.get_mesh_hash()
-            transform_hash = self.get_transform_hash()
             faces_mask_hash = hash(
                 faces_mask.tobytes() if faces_mask is not None else 0
             )
             # Create a key that uniquely identifies the relavant inputs
-            cache_key = (mesh_hash, transform_hash, faces_mask_hash, crs)
+            cache_key = (mesh_hash, faces_mask_hash, crs)
 
             # See if the face polygons were in the cache. If not, None will be returned
             cached_values = self.face_polygons_cache.get(cache_key)
@@ -1493,19 +1486,6 @@ class TexturedPhotogrammetryMesh:
 
         return labels
 
-    def get_transform_hash(self):
-        """Generates a hash value for the transform to geospatial coordinates
-        Returns:
-            int: A hash value representing transformation.
-        """
-        hasher = hashlib.sha256()
-        hasher.update(
-            self.local_to_epgs_4978_transform.tobytes()
-            if self.local_to_epgs_4978_transform is not None
-            else 0
-        )
-        return hasher.hexdigest()
-
     def get_mesh_hash(self):
         """Generates a hash value for the mesh based on its points and faces
         Returns:
@@ -1516,9 +1496,21 @@ class TexturedPhotogrammetryMesh:
         hasher.update(self.pyvista_mesh.faces.tobytes())
         return hasher.hexdigest()
 
+    def get_mesh_in_cameras_coords(self, cameras):
+        mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
+
+        # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
+        # to the coordinates that the cameras are in
+        local_to_epsg_4978_transform = cameras.get_local_to_epsg_4978_transform()
+        epsg_4978_to_camera = np.linalg.inv(local_to_epsg_4978_transform)
+        # Transform the mesh using this transform
+        mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
+        return mesh
+
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        mesh: typing.Optional[pv.PolyData] = None,
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
@@ -1547,12 +1539,16 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
+        # Create a local mesh if it hasn't been created yet
+        if mesh is None:
+            mesh = self.get_mesh_in_cameras_coords(cameras)
+
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders and once, but pyvista
         # cannot as far as I can tell
         if isinstance(cameras, PhotogrammetryCameraSet):
             pix2face_list = [
-                self.pix2face(camera, render_img_scale=render_img_scale)
+                self.pix2face(camera, mesh=mesh, render_img_scale=render_img_scale)
                 for camera in cameras
             ]
             pix2face = np.stack(pix2face_list, axis=0)
@@ -1619,7 +1615,7 @@ class TexturedPhotogrammetryMesh:
             ).astype(np.uint8)
             # Add the mesh with the associated scalars
             self.pix2face_plotter.add_mesh(
-                self.pyvista_mesh,
+                mesh,
                 scalars=chunk_scalars.copy(),
                 rgb=True,
                 diffuse=0.0,
@@ -1683,6 +1679,9 @@ class TexturedPhotogrammetryMesh:
                The pix2face array for the next camera. The shape is
                (int(img_h*render_img_scale), int(img_w*render_img_scale)).
         """
+        # Create a local mesh
+        mesh = self.get_mesh_in_cameras_coords(cameras)
+
         if isinstance(cameras, PhotogrammetryCamera):
             # Construct a camera set of length one
             cameras = PhotogrammetryCameraSet([cameras])
@@ -1705,6 +1704,7 @@ class TexturedPhotogrammetryMesh:
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
                 cameras=batch_cameras,
+                mesh=mesh,
                 render_img_scale=render_img_scale,
                 **pix2face_kwargs,
             )
@@ -1759,6 +1759,9 @@ class TexturedPhotogrammetryMesh:
         Yields:
             np.ndarray: The per-face projection of an image in the camera set
         """
+        # Create a local mesh
+        mesh = self.get_mesh_in_cameras_coords(cameras)
+
         n_faces = self.faces.shape[0]
 
         # Iterate over batch of the cameras
@@ -1769,6 +1772,7 @@ class TexturedPhotogrammetryMesh:
             # Compute a batch of pix2face correspondences. This is likely the slowest step
             batch_pix2face = self.pix2face(
                 cameras=batch_cameras,
+                mesh=mesh,
                 render_img_scale=aggregate_img_scale,
                 **pix2face_kwargs,
             )
@@ -1912,6 +1916,7 @@ class TexturedPhotogrammetryMesh:
                 Mapping from IDs to human readable labels for discrete classes. Defaults to the mesh
                 IDs_to_labels if unset.
         """
+        # TODO conside reprojecting to ensure axes are both meters-based
         off_screen = (not interactive) or (screenshot_filename is not None)
 
         # If the IDs to labels is not set, use the default ones for this mesh
@@ -1971,9 +1976,22 @@ class TexturedPhotogrammetryMesh:
             mesh_kwargs["annotations"] = IDs_to_labels
             scalar_bar_args["n_labels"] = 0
 
+        vis_mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
+
+        # If camera set is provided, transform the mesh into those coordinates
+        if camera_set is not None:
+            # Compute the transform mapping from the earth centered, earth fixed coordinate frame
+            # (EPSG:4978) to the coordinate of the camera
+            epsg_4978_to_camera = np.linalg.inv(
+                camera_set.get_local_to_epsg_4978_transform()
+            )
+            # Apply the 4x4 transform using the pyvista transform method to get the mesh into the
+            # same coordinate frame as the cameras.
+            vis_mesh.transform(epsg_4978_to_camera, inplace=True)
+
         # Add the mesh
         plotter.add_mesh(
-            self.pyvista_mesh,
+            vis_mesh,
             scalars=vis_scalars,
             rgb=is_rgb,
             scalar_bar_args=scalar_bar_args,

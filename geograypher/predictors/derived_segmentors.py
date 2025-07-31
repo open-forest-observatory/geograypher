@@ -336,14 +336,12 @@ class RegionDetectionSegmentor(Segmentor):
                 from tree species A and half are from tree species B, then the gdf[label_key]
                 should store that information. This is used in segment_image so that different
                 channels are created for each defined class. If you want a class per detection,
-                then this could be the "index" column.
+                then make a column with a unique value per row and use that as the labels.
             class_map (dict):
                 Maps from labels (see argument above) to integer indices that can be used to
                 index into a (H, W, N classes) array. For example, if half of the detections are
                 from tree species A, then the mapping should include something like {"A": 0},
-                where segmented_image[:, :, 0] contains all the detections for that label. If you
-                want a class per detection, then this could be {0:0, 1:1, 2:2, ...} for the
-                index column.
+                where segmented_image[:, :, 0] contains all the detections for that label.
             geo_file_extension (str):
                 The file extension for the image files (e.g., ".gpkg", "geojson", ".shp").
                 Defaults to ".gpkg".
@@ -449,8 +447,10 @@ class RegionDetectionSegmentor(Segmentor):
                 continue
 
             # Get the index by checking the label column against the class map
-            index = self.class_map[getattr(row, self.label_key)]
+            index = self.class_map[row[self.label_key]]
 
+            # Draw the polygons. Note that this closes internal holes because we are
+            # using poly.exterior.
             for poly in polygons:
                 # Note: (y, x) because draw.polygon uses row, col
                 y, x = poly.exterior.xy

@@ -4,6 +4,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
+import pyvista as pv
 from scipy.sparse import csr_array
 from shapely import Point
 from sklearn.cluster import KMeans
@@ -571,16 +572,23 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
     def create_pytorch3d_mesh(
         self,
+        mesh: pv.PolyData,
         vert_texture: np.ndarray = None,
         batch_size: int = 1,
-    ):
+    ) -> "pytorch3d.stuctures.Meshes":
         """Create the pytorch_3d_mesh
 
         Args:
+            mesh: (pv.PolyData):
+                The pyvista mesh to convert to pytorch3d
             vert_texture (np.ndarray, optional):
                 Optional texture, (n_verts, n_channels). In the range [0, 1]. Defaults to None.
             batch_size (int):
                 Number of copies of the mesh to create in a batch. Defaults to 1.
+
+        Returns:
+            pytorch3d.structures.Meshes:
+                A batch of identical pytorch3d meshes, with length specified by `batch_size`
         """
 
         # Create the texture object if provided
@@ -597,10 +605,12 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         else:
             texture = None
 
+        # See here for format: https://github.com/pyvista/pyvista-support/issues/96
+        mesh_faces = mesh.faces.reshape((-1, 4))[:, 1:4].copy()
         # Create the pytorch mesh
         pytorch3d_mesh = self.Meshes(
-            verts=[self.torch.Tensor(self.pyvista_mesh.points).to(self.device)],
-            faces=[self.torch.Tensor(self.faces).to(self.device)],
+            verts=[self.torch.Tensor(mesh.points).to(self.device)],
+            faces=[self.torch.Tensor(mesh_faces).to(self.device)],
             textures=texture,
         ).to(self.device)
 
@@ -613,6 +623,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
     def pix2face(
         self,
         cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        mesh: typing.Optional[pv.PolyData] = None,
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
@@ -625,15 +636,17 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
                 A single camera or set of cameras. For each camera, the correspondences between
                 pixels and the face IDs of the mesh will be computed. The images of all cameras
                 are assumed to be the same size.
+            mesh (pv.PolyData, optional):
+                The pyvista mesh to use for rendering, which must be in the same coordinate frame as
+                the cameras. If not provided it will computed from self.pyvista_mesh and the camera
+                set transform. Defaults to None.
             render_img_scale (float, optional):
                 Create a pix2face map that is this fraction of the original image scale. Defaults
                 to 1.
             save_to_cache (bool, optional):
-                Should newly-computed values be saved to the cache. This may speed up future operations
-                but can take up 100s of GBs of space. Defaults to False.
+                Unused. Retained for API compatability.
             cache_folder ((PATH_TYPE, None), optional):
-                Where to check for and save to cached data. Only applicable if use_cache=True.
-                Defaults to CACHE_FOLDER
+                Unused. Retained for API compatability.
             cull_to_frustum (bool, optional):
                 If True, enables frustum culling to exclude mesh faces outside the camera's view,
                 Defaults to False.
@@ -644,6 +657,9 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             found. If the input is a single PhotogrammetryCamera, the shape is (h, w). If it's a camera
             set, then it is (n_cameras, h, w).
         """
+        # Create a local mesh if it hasn't been created yet
+        if mesh is None:
+            mesh = self.get_mesh_in_cameras_coords(cameras)
 
         # Create a camera from the metashape parameters
         if isinstance(cameras, PhotogrammetryCamera):
@@ -666,7 +682,9 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         ).to(self.device)
 
         # Create a pytorch3d mesh
-        pytorch3d_mesh = self.create_pytorch3d_mesh(batch_size=len(p3d_cameras))
+        pytorch3d_mesh = self.create_pytorch3d_mesh(
+            mesh=mesh, batch_size=len(p3d_cameras)
+        )
 
         # Perform the expensive pytorch3d operation
         fragments = rasterizer(pytorch3d_mesh)
@@ -684,8 +702,8 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         # Track batch index offset to account for mesh extension
         offset_array = np.arange(
             0,
-            self.pyvista_mesh.n_faces * pix_to_face.shape[0],
-            self.pyvista_mesh.n_faces,
+            mesh.n_faces * pix_to_face.shape[0],
+            mesh.n_faces,
         )
 
         # Convert dimensions of offset_array from (batch_size,) to (batch_size, 1, 1) in order to match pix_to_face dimensions

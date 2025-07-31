@@ -170,9 +170,6 @@ def create_composite(
                 max_value = np.max(valid_pixels)
                 # Scale
                 label_image = label_image / max_value
-        else:
-            # Convert it to an int so it's used to directly index the colormap
-            label_image = label_image.astype(np.uint8)
 
         # Perform the colormapping
         label_image = cmap(label_image)[..., :3]
