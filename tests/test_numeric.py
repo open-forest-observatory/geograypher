@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from geograypher.utils.numeric import (
+    calc_communities,
     calc_graph_weights,
     chunk_slices,
     compute_approximate_ray_intersections,
@@ -399,3 +400,90 @@ class TestCalcGraphWeights:
             assert np.isclose(
                 edge_dict[indices], expected[indices]
             ), f"{indices} mismatched"
+
+
+@pytest.fixture
+def sample_graph_inputs():
+    """Sample inputs for a simple graph, has several obvious communities."""
+    return {
+        "starts": np.array(
+            [
+                # Group 1
+                [0, 0, 0],
+                [1, 1, 0],
+                [-1, 0, 0],
+                # Group 2
+                [3.1, 0, 10],
+                [3.1, 0, 10],
+                [3.05, 0.1, 10],
+                # Group 3
+                [4, 4, 0],
+                [4.5, 4, 0],
+            ]
+        ),
+        "ends": np.array(
+            [
+                # Group 1
+                [0, 0, 2],
+                [-1, -1, 2],
+                [1, 0, 2],
+                # Group 2
+                [3, 0.05, 5],
+                [3.05, 0.05, 5],
+                [3.05, 0.1, 5],
+                # Group 3
+                [6, 6, 0],
+                [4, 6.5, 0],
+            ]
+        ),
+        # Weights are arbitrary, just need to be positive
+        "positive_edges": [
+            (0, 1, {"weight": 1.0}),
+            (0, 2, {"weight": 1.0}),
+            (3, 4, {"weight": 1.0}),
+            (3, 5, {"weight": 1.0}),
+            (6, 7, {"weight": 1.0}),
+        ],
+    }
+
+
+class TestCalcCommunities:
+
+    @pytest.mark.parametrize("to_file", [True, False])
+    @pytest.mark.parametrize("give_transform", [True, False])
+    def test_basic(self, tmp_path, to_file, give_transform, sample_graph_inputs):
+
+        # If requested, give a filler transform, just to see if it gets used
+        output = calc_communities(
+            **sample_graph_inputs,
+            out_dir=tmp_path if to_file else None,
+            transform_to_epsg_4978=np.eye(4) if give_transform else None,
+        )
+
+        if to_file:
+            assert isinstance(output, Path)
+            assert output.suffix == ".npz"
+            assert output.is_file()
+            result = dict(np.load(output))
+        else:
+            result = output
+
+        assert isinstance(result, dict)
+        assert "ray_IDs" in result
+        assert "community_points" in result
+
+        # If we gave a transform, it should result in lat/lon points.
+        # Don't check them for correctness
+        assert ("community_points_latlon" in result) == give_transform
+
+        # Check that the ray IDs break down into the expected communities
+        assert result["ray_IDs"].shape == (8,)
+        assert np.all(result["ray_IDs"] == np.array([0, 0, 0, 1, 1, 1, 2, 2]))
+
+        # Check that the community points are approximately correct
+        assert result["community_points"].shape == (3, 3)
+        assert np.allclose(
+            result["community_points"],
+            np.array([[0, 0, 1], [3, 0, 7.5], [5, 5, 0]]),
+            atol=1,
+        )

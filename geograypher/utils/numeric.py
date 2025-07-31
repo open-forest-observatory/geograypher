@@ -3,10 +3,12 @@ import typing
 from itertools import product
 from pathlib import Path
 
+import networkx
 import numpy as np
 from tqdm import tqdm
 
-from geograypher.constants import PATH_TYPE
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
+from geograypher.utils.geospatial import convert_CRS_3D_points
 
 
 def create_ramped_weighting(
@@ -501,3 +503,103 @@ def calc_graph_weights(
         with path.open("w") as file:
             json.dump(positive_edges, file)
         return path
+
+
+def calc_communities(
+    starts: np.ndarray,
+    ends: np.ndarray,
+    positive_edges: typing.List[typing.Tuple[int, int, typing.Dict[str, float]]],
+    louvain_resolution: float = 1.0,
+    out_dir: typing.Optional[PATH_TYPE] = None,
+    transform_to_epsg_4978: typing.Optional[np.ndarray] = None,
+) -> typing.Union[Path, typing.Dict[str, np.ndarray]]:
+    """
+    Build a networkx graph from adjacency information. Each node represents
+    a detection while the edges represent the quality of the matches between detections.
+
+    Args:
+        starts (np.ndarray): (N, 3) array of ray start points
+        ends (np.ndarray): (N, 3) array of ray end points
+        positive_edges (List[Tuple[int, int, Dict[str, float]]]): List of edges defining
+            the graph connectivity. Each edge is (start_idx, end_idx, weight_dict) where
+            weight_dict contains the edge weight information
+        louvain_resolution (float): Resolution hyperparameter for the Louvain community
+            detection algorithm. Higher values lead to more communities
+        out_dir (PATH_TYPE, optional): Directory to save the output NPZ file containing
+            community information. If None, results are returned as a dictionary
+        transform_to_epsg_4978 (np.ndarray, optional): 4x4 transformation matrix to
+            convert points from local coordinates to EPSG:4978 (Earth-centered Earth-fixed)
+
+    Returns:
+        Union[Path, Dict[str, np.ndarray]]: If out_dir is provided, returns the path to
+            the NPZ file containing the community information. Otherwise returns a
+            dictionary with keys:
+            - 'ray_IDs': (N,) array mapping each ray to its community ID
+            - 'community_points': (M, 3) array of 3D points representing each community
+            - 'community_points_latlon': (M, 3) array of lat/lon points (only if
+               transform_to_epsg_4978 is provided)
+    """
+
+    # Build up the basic graph from edge weights
+    graph = networkx.Graph(positive_edges)
+
+    # Determine Louvain communities which are sets of nodes. Ideally, each
+    # community represents a set of detections that correspond to one 3D object
+    communities = networkx.community.louvain_communities(
+        graph, weight="weight", resolution=louvain_resolution
+    )
+    # Sort the communities by size
+    communities = sorted(communities, key=len, reverse=True)
+
+    # Triangulate the rays for each community to identify the 3D location
+    community_points = []
+    # Record the community IDs per ray
+    num_rays = starts.shape[0]
+    ray_IDs = np.full(num_rays, fill_value=np.nan)
+    # Iterate over communities
+    for community_ID, community in enumerate(
+        tqdm(communities, desc="Build community points")
+    ):
+        # Get the ray indices that belong to that community
+        community_indices = np.array(list(community))
+        # Record the community ID for the corresponding rays
+        ray_IDs[community_indices] = community_ID
+        # Use the average of the closest points between rays as the
+        # representative point for the community
+        community_points.append(
+            intersection_average(
+                starts=starts[community_indices],
+                ends=ends[community_indices],
+            )
+        )
+
+    # Stack all of the points into one vector
+    community_points = np.vstack(community_points)
+    result = {
+        "ray_IDs": ray_IDs,
+        "community_points": community_points,
+    }
+
+    if transform_to_epsg_4978 is not None:
+        # Append a column of all ones to make the homogenous coordinates
+        homogenous = np.concatenate(
+            [community_points, np.ones_like(community_points[:, 0:1])],
+            axis=1,
+        )
+        # Use the transform matrix to transform the points into the earth
+        # centered, earth fixed frame (EPSG:4978)
+        community_points_epsg_4978 = (transform_to_epsg_4978 @ homogenous.T).T
+        # Convert the points from earth centered, earth fixed frame to lat lon
+        community_points_lat_lon = convert_CRS_3D_points(
+            community_points_epsg_4978,
+            input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+            output_CRS=LAT_LON_CRS,
+        )
+        result["community_points_latlon"] = community_points_lat_lon
+
+    if out_dir is not None:
+        path = Path(out_dir) / "communities.npz"
+        np.savez(path, **result)
+        return path
+    else:
+        return result
