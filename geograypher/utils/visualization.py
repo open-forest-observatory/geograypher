@@ -9,7 +9,7 @@ import numpy as np
 import pyvista as pv
 from imageio import imread, imwrite
 from matplotlib import colormaps
-from matplotlib.colors import Normalize, ListedColormap
+from matplotlib.colors import ListedColormap, Normalize
 from tqdm import tqdm
 
 from geograypher.constants import NULL_TEXTURE_INT_VALUE, PATH_TYPE

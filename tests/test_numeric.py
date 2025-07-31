@@ -10,8 +10,8 @@ from geograypher.utils.numeric import (
     calc_graph_weights,
     chunk_slices,
     compute_approximate_ray_intersections,
-    intersection_average,
     format_graph_edges,
+    intersection_average,
 )
 
 
