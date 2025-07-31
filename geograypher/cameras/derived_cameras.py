@@ -58,10 +58,12 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             image_folder (PATH_TYPE):
                 Path to image folder root
             original_image_folder (PATH_TYPE, optional):
-                Path to where the original images for photogrammetry were. This is removed from the
-                absolute path recorded in the file. Defaults to None.
-            validate_images (bool, optional):
-                Should you ensure that the images are present on disk. Defaults to False.
+                Path to where the original images for photogrammetry were, which was not included
+                in the stored image zip files. This is removed from the absolute path recorded in
+                the camera file. Defaults to None.
+            validate_images (bool, optional): Should the existance of the images be checked.
+                Any image_filenames found in the camera_file that do not exist on disk will be
+                dropped, leaving a CameraSet only containing existing images. Defaults to False.
             default_sensor_params (dict, optional):
                 Default parameters for the intrinsic parameters if not present. Defaults to zeros
                 "cx" and "cy".
@@ -111,23 +113,23 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         # reflect the EXIF values, not the optimized ones
 
         # Get the transform from the chunk to the earth-centered, earth-fixed (ECEF) frame
-        chunk_to_epsg4327 = parse_transform_metashape(camera_file=camera_file)
+        chunk_to_epsg4978 = parse_transform_metashape(camera_file=camera_file)
 
-        if chunk_to_epsg4327 is not None:
+        if chunk_to_epsg4978 is not None:
             # Compute the location of each camera in ECEF
-            cam_locs_in_epsg4327 = []
+            cam_locs_in_epsg4978 = []
             for cam_to_world_transform in cam_to_world_transforms:
                 cam_loc_in_chunk = cam_to_world_transform[:, 3:]
-                cam_locs_in_epsg4327.append(chunk_to_epsg4327 @ cam_loc_in_chunk)
-            cam_locs_in_epsg4327 = np.concatenate(cam_locs_in_epsg4327, axis=1)[:3].T
+                cam_locs_in_epsg4978.append(chunk_to_epsg4978 @ cam_loc_in_chunk)
+            cam_locs_in_epsg4978 = np.concatenate(cam_locs_in_epsg4978, axis=1)[:3].T
             # Transform these points into lat-lon-alt
             transformer = pyproj.Transformer.from_crs(
                 EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS
             )
             lat, lon, _ = transformer.transform(
-                xx=cam_locs_in_epsg4327[:, 0],
-                yy=cam_locs_in_epsg4327[:, 1],
-                zz=cam_locs_in_epsg4327[:, 2],
+                xx=cam_locs_in_epsg4978[:, 0],
+                yy=cam_locs_in_epsg4978[:, 1],
+                zz=cam_locs_in_epsg4978[:, 2],
             )
             lon_lats = list(zip(lon, lat))
         else:
@@ -143,7 +145,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             image_folder=image_folder,
             sensor_IDs=sensor_IDs,
             validate_images=validate_images,
-            local_to_epsg_4978_transform=chunk_to_epsg4327,
+            local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
 
 

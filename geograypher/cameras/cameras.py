@@ -38,7 +38,7 @@ from geograypher.utils.geometric import (
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
 from geograypher.utils.numeric import (
-    compute_approximate_ray_intersection,
+    compute_approximate_ray_intersections,
     triangulate_rays_lstsq,
 )
 from geograypher.utils.visualization import safe_start_xvfb
@@ -80,7 +80,7 @@ class PhotogrammetryCamera:
         self.image_width = image_width
         self.image_height = image_height
         self.distortion_params = distortion_params
-        self.local_to_epsg_4978_transform = local_to_epsg_4978_transform
+        self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         if lon_lat is None:
             self.lon_lat = (None, None)
@@ -233,7 +233,7 @@ class PhotogrammetryCamera:
         # Transform the points first into the world frame and then into the earth-centered,
         # earth-fixed frame
         points_in_ECEF = (
-            self.local_to_epsg_4978_transform
+            self._local_to_epsg_4978_transform
             @ self.cam_to_world_transform
             @ points_in_camera_frame
         )
@@ -281,6 +281,23 @@ class PhotogrammetryCamera:
             return (np.rad2deg(pitch_angle), np.rad2deg(yaw_angle))
         # Return in radians
         return (pitch_angle, yaw_angle)
+
+    def get_local_to_epsg_4978_transform(self) -> np.ndarray:
+        """
+        Return the 4x4 homogenous transform mapping from the local coordinates used for
+        photogrammetry to the earth-centered, earth-fixed coordinate reference system defined by
+        EPSG:4978 (https://epsg.io/4978).
+
+        Returns:
+            np.ndarray:
+                The transform in the form:
+                   [R | t]
+                   [0 | 1]
+                When a homogenous vector is multiplied on the right of this matrix, it is
+                transformed from the local coordinate frame to EPSG:4978. Conversely, the inverse
+                of this matrix can be used to map from EPSG:4879 to local coordinates.
+        """
+        return self._local_to_epsg_4978_transform
 
     def check_projected_in_image(
         self, homogenous_image_coords: np.ndarray, image_size: Tuple[int, int]
@@ -622,11 +639,23 @@ class PhotogrammetryCameraSet:
             lon_lats (Union[None, List[Union[None, Tuple[float, float]]]]): A list of lon,lat tuples, or list of Nones, or None
             image_folder (PATH_TYPE): The top level folder of the images
             sensor_IDs (List[int]): The list of sensor IDs, that index into the sensors_params_dict
-            validate_images (bool, optional): Should the existance of the images be checked. Defaults to False.
+            validate_images (bool, optional): Should the existance of the images be checked.
+                Any image_filenames that do not exist will be dropped, leaving a CameraSet only
+                containing existing images. Defaults to False.
 
         Raises:
             ValueError: _description_
         """
+        # Record the values
+        # TODO see if we ever use these
+        self.cam_to_world_transforms = cam_to_world_transforms
+        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
+        self.image_filenames = image_filenames
+        self.lon_lats = lon_lats
+        self.sensor_IDs = sensor_IDs
+        self.image_folder = image_folder
+        self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
+
         # Create an object using the supplied cameras
         if cameras is not None:
             if isinstance(cameras, PhotogrammetryCamera):
@@ -659,17 +688,8 @@ class PhotogrammetryCameraSet:
             # TODO set it to the least common ancestor of all filenames
             pass
 
-        # Record the values
-        # TODO see if we ever use these
-        self.cam_to_world_transforms = cam_to_world_transforms
-        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
-        self.image_filenames = image_filenames
-        self.lon_lats = lon_lats
-        self.sensor_IDs = sensor_IDs
-        self.image_folder = image_folder
-
         if validate_images:
-            missing_images, invalid_images = self.find_mising_images()
+            missing_images, invalid_images = self.find_missing_images()
             if len(missing_images) > 0:
                 print(f"Deleting {len(missing_images)} missing images")
                 valid_images = np.where(np.logical_not(invalid_images))[0]
@@ -715,12 +735,15 @@ class PhotogrammetryCameraSet:
             # this is just one item indexed
             return subset_cameras
         # else, wrap the list of cameras in a CameraSet
-        return PhotogrammetryCameraSet(subset_cameras)
+        return PhotogrammetryCameraSet(
+            subset_cameras,
+            local_to_epsg_4978_transform=self._local_to_epsg_4978_transform,
+        )
 
     def get_image_folder(self):
         return self.image_folder
 
-    def find_mising_images(self):
+    def find_missing_images(self):
         invalid_mask = []
         for image_file in self.image_filenames:
             if not image_file.is_file():
@@ -830,6 +853,23 @@ class PhotogrammetryCameraSet:
             return Path(filename)
         else:
             return Path(filename).relative_to(self.get_image_folder())
+
+    def get_local_to_epsg_4978_transform(self):
+        """
+        Return the 4x4 homogenous transform mapping from the local coordinates used for
+        photogrammetry to the earth-centered, earth-fixed coordinate reference system defined by
+        EPSG:4978 (https://epsg.io/4978).
+
+        Returns:
+            np.ndarray:
+                The transform in the form:
+                   [R | t]
+                   [0 | 1]
+                When a homogenous vector is multiplied on the right of this matrix, it is
+                transformed from the local coordinate frame to EPSG:4978. Conversely, the inverse
+                of this matrix can be used to map from EPSG:4879 to local coordinates.
+        """
+        return self._local_to_epsg_4978_transform
 
     def save_images(self, output_folder, copy=False, remove_folder: bool = True):
         if remove_folder:
@@ -1026,32 +1066,25 @@ class PhotogrammetryCameraSet:
 
         # Compute the distance matrix of ray-ray intersections
         num_dets = ray_starts.shape[0]
-        interesection_dists = np.full((num_dets, num_dets), fill_value=np.nan)
+        _, _, intersection_dists = compute_approximate_ray_intersections(
+            a0=ray_starts, a1=segment_ends, b0=ray_starts, b1=segment_ends
+        )
 
-        # Calculate the upper triangular matrix of ray-ray interesections
-        for i in tqdm(range(num_dets), desc="Calculating quality of ray intersections"):
-            for j in range(i, num_dets):
-                # Extract starts and directions
-                a0 = ray_starts[i]
-                a1 = segment_ends[i]
-                b0 = ray_starts[j]
-                b1 = segment_ends[j]
-                # TODO explore whether this could be vectorized
-                _, _, dist = compute_approximate_ray_intersection(a0, a1, b0, b1)
-
-                interesection_dists[i, j] = dist
+        # Invalidate the lower triangle and the diagonal to avoid self intersections
+        # and duplicated distances
+        intersection_dists[np.tril_indices(num_dets)] = np.nan
 
         # Filter out intersections that are above the threshold distance
-        interesection_dists[interesection_dists > similarity_threshold_local] = np.nan
+        intersection_dists[intersection_dists > similarity_threshold_local] = np.nan
 
-        # Determine which intersections are valid, represented by finite values
-        i_inds, j_inds = np.where(np.isfinite(interesection_dists))
+        # Avoid div by 0 by setting some arbitrarily small value
+        intersection_dists[intersection_dists < 1e-6] = 1e-6
 
-        # Build a list of (i, j, info_dict) tuples encoding the valid edges and their intersection
-        # distance
+        # Build a list of (i, j, info_dict) tuples encoding the valid edges
+        # (represented by finite values) and their intersection distance
         positive_edges = [
-            (i, j, {"weight": 1 / interesection_dists[i, j]})
-            for i, j in zip(i_inds, j_inds)
+            (i, j, {"weight": 1 / intersection_dists[i, j]})
+            for i, j in zip(*np.where(np.isfinite(intersection_dists)))
         ]
 
         # Build a networkx graph. The nodes represent an individual detection while the edges
