@@ -2064,9 +2064,9 @@ class TexturedPhotogrammetryMesh:
                 raw label
             cast_to_uint8: (bool, optional):
                 cast the float valued data to unit8 for saving efficiency. May dramatically increase
-                efficiency due to png compression. Saves as png unless save_as_npy is specified as True.
+                efficiency due to tif compression. Saves as tif unless save_as_npy is specified as True.
             save_as_npy (bool, optional):
-                Save the rendered images as numpy arrays rather than images. Defaults to False.
+                Save the rendered images as numpy arrays rather than TIF images. Defaults to False.
             uint8_value_for_null_texture (np.uint8, optional):
                 What value to assign for values that can't be represented as unsigned 8-bit data.
                 Defaults to NULL_TEXTURE_INT_VALUE
@@ -2163,20 +2163,18 @@ class TexturedPhotogrammetryMesh:
                 output_filename = str(output_filename.with_suffix(".npy"))
                 # Save the image
                 np.save(output_filename, rendered)
-            elif rendered.dtype == np.uint8:
-                output_filename = str(output_filename.with_suffix(".png"))
-
-                # Save the image
-                skimage.io.imsave(output_filename, rendered, check_contrast=False)
             else:
+                # Save image as TIF
                 output_filename = str(output_filename.with_suffix(".tif"))
                 rendered = np.squeeze(rendered)
-                # Check if max value in the rendered image is within the range of uint16
-                if np.nanmax(rendered) <= np.iinfo(np.uint16).max:
-                    # Cast from float to uint16
-                    rendered = rendered.astype(np.uint16)
-                else:
-                    rendered = rendered.astype(np.uint32)
+                # If cast_to_uint8 is True, rendered is already in uint8
+                if cast_to_uint8 is False:
+                    # Check if max value in the rendered image is within the range of uint16
+                    if np.nanmax(rendered) <= np.iinfo(np.uint16).max:
+                        # Cast from float to uint16
+                        rendered = rendered.astype(np.uint16)
+                    else:
+                        rendered = rendered.astype(np.uint32)
 
                 # Save the image
-                skimage.io.imsave(output_filename, rendered, compression="deflate")
+                skimage.io.imsave(output_filename, rendered, compression="deflate", check_contrast=False)
