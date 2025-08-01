@@ -2045,6 +2045,7 @@ class TexturedPhotogrammetryMesh:
         make_composites: bool = False,
         save_native_resolution: bool = False,
         cast_to_uint8: bool = True,
+        save_as_npy: bool = False,
         uint8_value_for_null_texture: np.uint8 = NULL_TEXTURE_INT_VALUE,
         **render_kwargs,
     ):
@@ -2064,6 +2065,8 @@ class TexturedPhotogrammetryMesh:
             cast_to_uint8: (bool, optional):
                 cast the float valued data to unit8 for saving efficiency. May dramatically increase
                 efficiency due to png compression
+            sava_as_npy (bool, optional):
+                Save the rendered images as numpy arrays rather than images. Defaults to False.
             uint8_value_for_null_texture (np.uint8, optional):
                 What value to assign for values that can't be represented as unsigned 8-bit data.
                 Defaults to NULL_TEXTURE_INT_VALUE
@@ -2160,7 +2163,20 @@ class TexturedPhotogrammetryMesh:
 
                 # Save the image
                 skimage.io.imsave(output_filename, rendered, check_contrast=False)
-            else:
+            elif save_as_npy is True:
                 output_filename = str(output_filename.with_suffix(".npy"))
                 # Save the image
                 np.save(output_filename, rendered)
+            else:
+                output_filename = str(output_filename.with_suffix(".tif"))
+                rendered = np.squeeze(rendered)
+                # Check if max value in the rendered image is within the range of uint16
+                if np.nanmax(rendered) <= np.iinfo(np.uint16).max:
+                    # Cast from float to uint16
+                    rendered = rendered.astype(np.uint16)
+                else:
+                    rendered = rendered.astype(np.uint32)
+
+                # Save the image
+                skimage.io.imsave(output_filename, rendered, compression="deflate")
+
