@@ -2177,4 +2177,9 @@ class TexturedPhotogrammetryMesh:
                         rendered = rendered.astype(np.uint32)
 
                 # Save the image
-                skimage.io.imsave(output_filename, rendered, compression="deflate", check_contrast=False)
+                skimage.io.imsave(
+                    output_filename,
+                    rendered,
+                    compression="deflate",
+                    check_contrast=False,
+                )
