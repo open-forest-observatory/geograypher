@@ -547,6 +547,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             from pytorch3d.renderer import (
                 MeshRasterizer,
                 PerspectiveCameras,
+                FishEyeCameras,
                 RasterizationSettings,
                 TexturesVertex,
             )
@@ -557,6 +558,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             self.TexturesVertex = TexturesVertex
             self.RasterizationSettings = RasterizationSettings
             self.PerspectiveCameras = PerspectiveCameras
+            self.FishEyeCameras = FishEyeCameras
             self.MeshRasterizer = MeshRasterizer
             self.Meshes = Meshes
         except ImportError:
@@ -717,6 +719,55 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         return pix_to_face
 
+    def compute_distortion_multiplier(self, x, k1, k2, k3, k4):
+        return (
+            1
+            + k1 * np.power(x, 2)
+            + k2 * np.power(x, 4)
+            + k3 * np.power(x, 6)
+            + k4 * np.power(x, 8)
+        )
+
+    def compute_angular_coeficients(self, k1, k2, k3, k4, width, height, f):
+        # Compute the maximum ratio between distance from principle axis and the distance along it
+        # by using the image corner. Note, this assumes the principle point is at the center of the image.
+        max_radius_ratio = np.sqrt((width / 2) ** 2 + (height / 2) * 2) / f
+        # Compute the corresponding angle between the principle axis and the ray through the corner of
+        # the image
+        max_radius_angle = np.arctan(max_radius_ratio)
+
+        # We're going to optimize the parameters of a function for distortion using angular inputs. To
+        # do so we need to sample the original function defined in ratio units. Take 100 samples from
+        # within the region of ratios we need to model
+        ratio_samples = np.linspace(0, max_radius_ratio, 100)
+
+        # Compute the modeled distortion using the ratio samples and provided distortion values.
+        # This corresponds to the original, intended use of these modeling parameters.
+        distortion_multiplier = compute_distortion_multiplier(
+            ratio_samples, k1, k2, k3, k4
+        )
+
+        # Determine the corresponding angular values
+        angle_samples = np.arctan(ratio_samples)
+        # Since only even polynomials are used, we square the input values to enforce this
+        squared_angles = np.power(angle_samples, 2)
+
+        # Fit the polynomial to model distortion in the angular space. The x values are the angles
+        # corresponding to the sampled ratios. The y values are the distortion parameters computed
+        # from the ratio values using the provided distortion parameters.
+        coefs = np.polyfit(squared_angles, distortion_multiplier, deg=4)
+
+        intercept_ang = coefs[4]
+
+        if np.abs(intercept_ang - 1) > 1e-5:
+            # We cannot enforce that this parameter is
+            raise ValueError(
+                f"The intercept value should be 1, but is substantially different: {intercept_ang}"
+            )
+
+        # Return the parameters in the reverse order from how they are estimated, k1...k4
+        return np.array(coefs[3::-1])
+
     def get_single_pytorch3d_camera(self, camera: PhotogrammetryCamera):
         """Return a pytorch3d camera based on the parameters from metashape
 
@@ -763,14 +814,24 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         # Create camera
         # TODO use the pytorch3d FishEyeCamera model that uses distortion
         # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
-        cameras = self.PerspectiveCameras(
+        cameras = self.FishEyeCameras(
             R=R,
             T=T,
             focal_length=fcl_screen,
             principal_point=prc_points_screen,
+            radial_params=self.torch.Tensor(
+                [
+                    -0.10011868,
+                    -0.12065104,
+                    0.03698557,
+                    -0.12819724,
+                ]
+            ),
             device=self.device,
             in_ndc=False,  # screen coords
             image_size=image_size,
+            use_tangential=False,
+            use_thin_prism=False,
         )
         return cameras
 
