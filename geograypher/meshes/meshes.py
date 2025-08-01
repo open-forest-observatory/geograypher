@@ -2166,6 +2166,7 @@ class TexturedPhotogrammetryMesh:
             else:
                 # Save image as TIF
                 output_filename = str(output_filename.with_suffix(".tif"))
+                # Remove singleton channel dimension (1, H, W) -> (H, W) to save single-channel TIF
                 rendered = np.squeeze(rendered)
                 # If cast_to_uint8 is True, rendered is already in uint8
                 if cast_to_uint8 is False:

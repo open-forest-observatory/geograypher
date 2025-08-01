@@ -93,7 +93,8 @@ def render_labels(
             If set, break the camera set and mesh into this many clusters before rendering. This is
             useful for large meshes that are otherwise very slow. Defaults to None.
         cast_to_uint8 (bool, optional):
-            If True, cast the rendered labels to uint8 & save as PNG. If False, it is saved as TIF files. Defaults to True.
+            If True, cast the rendered labels to uint8. If False, it is cast to uint16 or uint32, if not saved as .npy.
+            Defaults to True.
         save_as_npy (bool, optional):
             If True, save the rendered labels are float64 and saved as numpy arrays. Defaults to False.
         mesh_vis (typing.Union[PATH_TYPE, None])
