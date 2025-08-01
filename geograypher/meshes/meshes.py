@@ -2179,4 +2179,3 @@ class TexturedPhotogrammetryMesh:
 
                 # Save the image
                 skimage.io.imsave(output_filename, rendered, compression="deflate")
-
