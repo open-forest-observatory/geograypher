@@ -2064,7 +2064,7 @@ class TexturedPhotogrammetryMesh:
                 raw label
             cast_to_uint8: (bool, optional):
                 cast the float valued data to unit8 for saving efficiency. May dramatically increase
-                efficiency due to png compression. Saves as png unless save_as_npy is specifued as True.
+                efficiency due to png compression. Saves as png unless save_as_npy is specified as True.
             save_as_npy (bool, optional):
                 Save the rendered images as numpy arrays rather than images. Defaults to False.
             uint8_value_for_null_texture (np.uint8, optional):
