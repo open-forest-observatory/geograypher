@@ -595,6 +595,54 @@ class PhotogrammetryCamera:
 
         return projected_vertices
 
+    def decast_rays(self, world_points: np.ndarray):
+        """Compute the pixel value of global points in the camera
+
+        Args:
+            world_points (np.ndarray): (N, 3) array of (x, y, z) world frame coordinates
+
+        Returns:
+            np.array: (N, 2) array of pixel values
+        """
+
+        # Extrinsic camera matrix
+        transform_3x4_world_to_cam = self.world_to_cam_transform[:3, :]
+
+        # Intrinsic camera matrix
+        K = np.array(
+            [
+                [self.f, 0, self.image_width / 2.0 + self.cx],
+                [0, self.f, self.image_height / 2.0 + self.cy],
+                [0, 0, 1],
+            ],
+        )
+
+        # K[R|t], (3,4). Premultiplying these two matrices avoids doing two
+        # steps of projections with all points
+        camera_matrix = transform_3x4_world_to_cam
+
+        # Add the extra dimension of ones for matrix multiplication, making this
+        # (N, 4), then transpose so it is (4, N)
+        homogenous_world_points = np.hstack(
+            (
+                world_points,
+                np.ones((world_points.shape[0], 1)),
+            ),
+        ).T
+
+        # Transform the ray into the camera frame, and re-normalize it to be (x, y, 1).
+        # Note that the shape is still (3, N) to allow matrix multiplication
+        homogenous_camera_points = (transform_3x4_world_to_cam @ homogenous_world_points)
+        homogenous_camera_points /= homogenous_camera_points[2, :]
+
+        # Compute (x, y) pixel coordinates and flip to (N, 2)
+        pixel_coords_xy = (K @ homogenous_camera_points)[:2].T
+
+        # Transform from x, y to i, j
+        pixel_coords_ij = np.flip(pixel_coords_xy, axis=1)
+
+        return pixel_coords_ij
+
     def vis_rays(
         self, pixel_coords_ij: np.ndarray, plotter: pv.Plotter, line_length: float = 10
     ):
