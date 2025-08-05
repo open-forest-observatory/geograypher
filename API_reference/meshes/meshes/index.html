@@ -4255,7 +4255,29 @@
 <span class="normal"><a href="#__codelineno-0-2163">2163</a></span>
 <span class="normal"><a href="#__codelineno-0-2164">2164</a></span>
 <span class="normal"><a href="#__codelineno-0-2165">2165</a></span>
-<span class="normal"><a href="#__codelineno-0-2166">2166</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-2166">2166</a></span>
+<span class="normal"><a href="#__codelineno-0-2167">2167</a></span>
+<span class="normal"><a href="#__codelineno-0-2168">2168</a></span>
+<span class="normal"><a href="#__codelineno-0-2169">2169</a></span>
+<span class="normal"><a href="#__codelineno-0-2170">2170</a></span>
+<span class="normal"><a href="#__codelineno-0-2171">2171</a></span>
+<span class="normal"><a href="#__codelineno-0-2172">2172</a></span>
+<span class="normal"><a href="#__codelineno-0-2173">2173</a></span>
+<span class="normal"><a href="#__codelineno-0-2174">2174</a></span>
+<span class="normal"><a href="#__codelineno-0-2175">2175</a></span>
+<span class="normal"><a href="#__codelineno-0-2176">2176</a></span>
+<span class="normal"><a href="#__codelineno-0-2177">2177</a></span>
+<span class="normal"><a href="#__codelineno-0-2178">2178</a></span>
+<span class="normal"><a href="#__codelineno-0-2179">2179</a></span>
+<span class="normal"><a href="#__codelineno-0-2180">2180</a></span>
+<span class="normal"><a href="#__codelineno-0-2181">2181</a></span>
+<span class="normal"><a href="#__codelineno-0-2182">2182</a></span>
+<span class="normal"><a href="#__codelineno-0-2183">2183</a></span>
+<span class="normal"><a href="#__codelineno-0-2184">2184</a></span>
+<span class="normal"><a href="#__codelineno-0-2185">2185</a></span>
+<span class="normal"><a href="#__codelineno-0-2186">2186</a></span>
+<span class="normal"><a href="#__codelineno-0-2187">2187</a></span>
+<span class="normal"><a href="#__codelineno-0-2188">2188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="n">mesh</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">],</span>
@@ -6251,125 +6273,147 @@
 <a id="__codelineno-0-2045" name="__codelineno-0-2045"></a>        <span class="n">make_composites</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-2046" name="__codelineno-0-2046"></a>        <span class="n">save_native_resolution</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-2047" name="__codelineno-0-2047"></a>        <span class="n">cast_to_uint8</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-2048" name="__codelineno-0-2048"></a>        <span class="n">uint8_value_for_null_texture</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="o">=</span> <span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span>
-<a id="__codelineno-0-2049" name="__codelineno-0-2049"></a>        <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
-<a id="__codelineno-0-2050" name="__codelineno-0-2050"></a>    <span class="p">):</span>
-<a id="__codelineno-0-2051" name="__codelineno-0-2051"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Render an image from the viewpoint of each specified camera and save a composite</span>
-<a id="__codelineno-0-2052" name="__codelineno-0-2052"></a>
-<a id="__codelineno-0-2053" name="__codelineno-0-2053"></a><span class="sd">        Args:</span>
-<a id="__codelineno-0-2054" name="__codelineno-0-2054"></a><span class="sd">            camera_set (PhotogrammetryCameraSet):</span>
-<a id="__codelineno-0-2055" name="__codelineno-0-2055"></a><span class="sd">                Camera set to use for rendering</span>
-<a id="__codelineno-0-2056" name="__codelineno-0-2056"></a><span class="sd">            render_image_scale (float, optional):</span>
-<a id="__codelineno-0-2057" name="__codelineno-0-2057"></a><span class="sd">                Multiplier on the real image scale to obtain size for rendering. Lower values</span>
-<a id="__codelineno-0-2058" name="__codelineno-0-2058"></a><span class="sd">                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.</span>
-<a id="__codelineno-0-2059" name="__codelineno-0-2059"></a><span class="sd">            render_folder (PATH_TYPE, optional):</span>
-<a id="__codelineno-0-2060" name="__codelineno-0-2060"></a><span class="sd">                Save images to this folder. Defaults to Path(VIS_FOLDER, &quot;renders&quot;)</span>
-<a id="__codelineno-0-2061" name="__codelineno-0-2061"></a><span class="sd">            make_composites (bool, optional):</span>
-<a id="__codelineno-0-2062" name="__codelineno-0-2062"></a><span class="sd">                Should a triple pane composite with the original image be saved rather than the</span>
-<a id="__codelineno-0-2063" name="__codelineno-0-2063"></a><span class="sd">                raw label</span>
-<a id="__codelineno-0-2064" name="__codelineno-0-2064"></a><span class="sd">            cast_to_uint8: (bool, optional):</span>
-<a id="__codelineno-0-2065" name="__codelineno-0-2065"></a><span class="sd">                cast the float valued data to unit8 for saving efficiency. May dramatically increase</span>
-<a id="__codelineno-0-2066" name="__codelineno-0-2066"></a><span class="sd">                efficiency due to png compression</span>
-<a id="__codelineno-0-2067" name="__codelineno-0-2067"></a><span class="sd">            uint8_value_for_null_texture (np.uint8, optional):</span>
-<a id="__codelineno-0-2068" name="__codelineno-0-2068"></a><span class="sd">                What value to assign for values that can&#39;t be represented as unsigned 8-bit data.</span>
-<a id="__codelineno-0-2069" name="__codelineno-0-2069"></a><span class="sd">                Defaults to NULL_TEXTURE_INT_VALUE</span>
-<a id="__codelineno-0-2070" name="__codelineno-0-2070"></a><span class="sd">            render_kwargs:</span>
-<a id="__codelineno-0-2071" name="__codelineno-0-2071"></a><span class="sd">                keyword arguments passed to the render.</span>
-<a id="__codelineno-0-2072" name="__codelineno-0-2072"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-2073" name="__codelineno-0-2073"></a>
-<a id="__codelineno-0-2074" name="__codelineno-0-2074"></a>        <span class="n">ensure_folder</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
-<a id="__codelineno-0-2075" name="__codelineno-0-2075"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving renders to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2048" name="__codelineno-0-2048"></a>        <span class="n">save_as_npy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-2049" name="__codelineno-0-2049"></a>        <span class="n">uint8_value_for_null_texture</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="o">=</span> <span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span>
+<a id="__codelineno-0-2050" name="__codelineno-0-2050"></a>        <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
+<a id="__codelineno-0-2051" name="__codelineno-0-2051"></a>    <span class="p">):</span>
+<a id="__codelineno-0-2052" name="__codelineno-0-2052"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Render an image from the viewpoint of each specified camera and save a composite</span>
+<a id="__codelineno-0-2053" name="__codelineno-0-2053"></a>
+<a id="__codelineno-0-2054" name="__codelineno-0-2054"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-2055" name="__codelineno-0-2055"></a><span class="sd">            camera_set (PhotogrammetryCameraSet):</span>
+<a id="__codelineno-0-2056" name="__codelineno-0-2056"></a><span class="sd">                Camera set to use for rendering</span>
+<a id="__codelineno-0-2057" name="__codelineno-0-2057"></a><span class="sd">            render_image_scale (float, optional):</span>
+<a id="__codelineno-0-2058" name="__codelineno-0-2058"></a><span class="sd">                Multiplier on the real image scale to obtain size for rendering. Lower values</span>
+<a id="__codelineno-0-2059" name="__codelineno-0-2059"></a><span class="sd">                yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.</span>
+<a id="__codelineno-0-2060" name="__codelineno-0-2060"></a><span class="sd">            render_folder (PATH_TYPE, optional):</span>
+<a id="__codelineno-0-2061" name="__codelineno-0-2061"></a><span class="sd">                Save images to this folder. Defaults to Path(VIS_FOLDER, &quot;renders&quot;)</span>
+<a id="__codelineno-0-2062" name="__codelineno-0-2062"></a><span class="sd">            make_composites (bool, optional):</span>
+<a id="__codelineno-0-2063" name="__codelineno-0-2063"></a><span class="sd">                Should a triple pane composite with the original image be saved rather than the</span>
+<a id="__codelineno-0-2064" name="__codelineno-0-2064"></a><span class="sd">                raw label</span>
+<a id="__codelineno-0-2065" name="__codelineno-0-2065"></a><span class="sd">            cast_to_uint8: (bool, optional):</span>
+<a id="__codelineno-0-2066" name="__codelineno-0-2066"></a><span class="sd">                cast the float valued data to unit8 for saving efficiency. May dramatically increase</span>
+<a id="__codelineno-0-2067" name="__codelineno-0-2067"></a><span class="sd">                efficiency due to tif compression. Saves as tif unless save_as_npy is specified as True.</span>
+<a id="__codelineno-0-2068" name="__codelineno-0-2068"></a><span class="sd">            save_as_npy (bool, optional):</span>
+<a id="__codelineno-0-2069" name="__codelineno-0-2069"></a><span class="sd">                Save the rendered images as numpy arrays rather than TIF images. Defaults to False.</span>
+<a id="__codelineno-0-2070" name="__codelineno-0-2070"></a><span class="sd">            uint8_value_for_null_texture (np.uint8, optional):</span>
+<a id="__codelineno-0-2071" name="__codelineno-0-2071"></a><span class="sd">                What value to assign for values that can&#39;t be represented as unsigned 8-bit data.</span>
+<a id="__codelineno-0-2072" name="__codelineno-0-2072"></a><span class="sd">                Defaults to NULL_TEXTURE_INT_VALUE</span>
+<a id="__codelineno-0-2073" name="__codelineno-0-2073"></a><span class="sd">            render_kwargs:</span>
+<a id="__codelineno-0-2074" name="__codelineno-0-2074"></a><span class="sd">                keyword arguments passed to the render.</span>
+<a id="__codelineno-0-2075" name="__codelineno-0-2075"></a><span class="sd">        &quot;&quot;&quot;</span>
 <a id="__codelineno-0-2076" name="__codelineno-0-2076"></a>
-<a id="__codelineno-0-2077" name="__codelineno-0-2077"></a>        <span class="c1"># Save the classes filename</span>
-<a id="__codelineno-0-2078" name="__codelineno-0-2078"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">save_IDs_to_labels</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;IDs_to_labels.json&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2077" name="__codelineno-0-2077"></a>        <span class="n">ensure_folder</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
+<a id="__codelineno-0-2078" name="__codelineno-0-2078"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving renders to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-2079" name="__codelineno-0-2079"></a>
-<a id="__codelineno-0-2080" name="__codelineno-0-2080"></a>        <span class="c1"># Create the generator object to render the images</span>
-<a id="__codelineno-0-2081" name="__codelineno-0-2081"></a>        <span class="c1"># Since this is a generator, this will be fast</span>
-<a id="__codelineno-0-2082" name="__codelineno-0-2082"></a>        <span class="n">render_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_flat</span><span class="p">(</span>
-<a id="__codelineno-0-2083" name="__codelineno-0-2083"></a>            <span class="n">camera_set</span><span class="p">,</span>
-<a id="__codelineno-0-2084" name="__codelineno-0-2084"></a>            <span class="n">render_img_scale</span><span class="o">=</span><span class="n">render_image_scale</span><span class="p">,</span>
-<a id="__codelineno-0-2085" name="__codelineno-0-2085"></a>            <span class="n">return_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-2086" name="__codelineno-0-2086"></a>            <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
-<a id="__codelineno-0-2087" name="__codelineno-0-2087"></a>        <span class="p">)</span>
-<a id="__codelineno-0-2088" name="__codelineno-0-2088"></a>
-<a id="__codelineno-0-2089" name="__codelineno-0-2089"></a>        <span class="c1"># The computation only happens when items are requested from the generator</span>
-<a id="__codelineno-0-2090" name="__codelineno-0-2090"></a>        <span class="k">for</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
-<a id="__codelineno-0-2091" name="__codelineno-0-2091"></a>            <span class="n">render_gen</span><span class="p">,</span>
-<a id="__codelineno-0-2092" name="__codelineno-0-2092"></a>            <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">camera_set</span><span class="p">),</span>
-<a id="__codelineno-0-2093" name="__codelineno-0-2093"></a>            <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Computing and saving renders&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-2094" name="__codelineno-0-2094"></a>        <span class="p">):</span>
-<a id="__codelineno-0-2095" name="__codelineno-0-2095"></a>            <span class="c1">## All this is post-processing to visualize the rendered label.</span>
-<a id="__codelineno-0-2096" name="__codelineno-0-2096"></a>            <span class="c1"># rendered could either be a one channel image of integer IDs,</span>
-<a id="__codelineno-0-2097" name="__codelineno-0-2097"></a>            <span class="c1"># a one-channel image of scalars, or a three-channel image of</span>
-<a id="__codelineno-0-2098" name="__codelineno-0-2098"></a>            <span class="c1"># RGB. It could also be multi-channel image corresponding to anything,</span>
-<a id="__codelineno-0-2099" name="__codelineno-0-2099"></a>            <span class="c1"># but we don&#39;t expect that yet</span>
-<a id="__codelineno-0-2100" name="__codelineno-0-2100"></a>            <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="ow">and</span> <span class="n">render_image_scale</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-<a id="__codelineno-0-2101" name="__codelineno-0-2101"></a>                <span class="n">native_size</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()</span>
-<a id="__codelineno-0-2102" name="__codelineno-0-2102"></a>                <span class="c1"># Upsample using nearest neighbor interpolation for discrete labels and</span>
-<a id="__codelineno-0-2103" name="__codelineno-0-2103"></a>                <span class="c1"># bilinear for non-discrete</span>
-<a id="__codelineno-0-2104" name="__codelineno-0-2104"></a>                <span class="c1"># TODO this will need to be fixed for multi-channel images since I don&#39;t think resize works</span>
-<a id="__codelineno-0-2105" name="__codelineno-0-2105"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span>
-<a id="__codelineno-0-2106" name="__codelineno-0-2106"></a>                    <span class="n">rendered</span><span class="p">,</span>
-<a id="__codelineno-0-2107" name="__codelineno-0-2107"></a>                    <span class="n">native_size</span><span class="p">,</span>
-<a id="__codelineno-0-2108" name="__codelineno-0-2108"></a>                    <span class="n">order</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_discrete_texture</span><span class="p">()</span> <span class="k">else</span> <span class="mi">1</span><span class="p">),</span>
-<a id="__codelineno-0-2109" name="__codelineno-0-2109"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2110" name="__codelineno-0-2110"></a>
-<a id="__codelineno-0-2111" name="__codelineno-0-2111"></a>            <span class="k">if</span> <span class="n">cast_to_uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2112" name="__codelineno-0-2112"></a>                <span class="c1"># Deterimine values that cannot be represented as uint8</span>
-<a id="__codelineno-0-2113" name="__codelineno-0-2113"></a>                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span>
-<a id="__codelineno-0-2114" name="__codelineno-0-2114"></a>                    <span class="p">[</span>
-<a id="__codelineno-0-2115" name="__codelineno-0-2115"></a>                        <span class="n">rendered</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-0-2116" name="__codelineno-0-2116"></a>                        <span class="n">rendered</span> <span class="o">&gt;</span> <span class="mi">255</span><span class="p">,</span>
-<a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>                        <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">rendered</span><span class="p">)),</span>
-<a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                    <span class="p">]</span>
-<a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>                <span class="n">rendered</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">uint8_value_for_null_texture</span>
-<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>                <span class="c1"># Cast and squeeze since you can&#39;t save a one-channel image</span>
-<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
-<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>
-<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>            <span class="k">if</span> <span class="n">make_composites</span><span class="p">:</span>
-<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>                <span class="n">RGB_image</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image</span><span class="p">(</span>
-<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>                    <span class="n">image_scale</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="k">else</span> <span class="n">render_image_scale</span><span class="p">)</span>
-<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">create_composite</span><span class="p">(</span>
-<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                    <span class="n">RGB_image</span><span class="o">=</span><span class="n">RGB_image</span><span class="p">,</span>
-<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                    <span class="n">label_image</span><span class="o">=</span><span class="n">rendered</span><span class="p">,</span>
-<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                    <span class="n">IDs_to_labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_IDs_to_labels</span><span class="p">(),</span>
-<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                <span class="c1"># Clip channels if needed</span>
-<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>                <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>                    <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
-<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>
-<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>                <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
-<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>                <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
-<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>                <span class="c1"># the output data.</span>
-<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>                <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
-<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>                    <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
-<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>                    <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
-<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>                    <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
-<a id="__codelineno-0-2149" name="__codelineno-0-2149"></a>                    <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
-<a id="__codelineno-0-2150" name="__codelineno-0-2150"></a>                    <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
-<a id="__codelineno-0-2151" name="__codelineno-0-2151"></a>                    <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
-<a id="__codelineno-0-2152" name="__codelineno-0-2152"></a>                    <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
-<a id="__codelineno-0-2153" name="__codelineno-0-2153"></a>                <span class="p">)</span>
-<a id="__codelineno-0-2154" name="__codelineno-0-2154"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2155" name="__codelineno-0-2155"></a>
-<a id="__codelineno-0-2156" name="__codelineno-0-2156"></a>            <span class="c1"># This may create nested folders in the output dir</span>
-<a id="__codelineno-0-2157" name="__codelineno-0-2157"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2158" name="__codelineno-0-2158"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2159" name="__codelineno-0-2159"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2160" name="__codelineno-0-2160"></a>
-<a id="__codelineno-0-2161" name="__codelineno-0-2161"></a>                <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2162" name="__codelineno-0-2162"></a>                <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-2163" name="__codelineno-0-2163"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2164" name="__codelineno-0-2164"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2165" name="__codelineno-0-2165"></a>                <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2166" name="__codelineno-0-2166"></a>                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2080" name="__codelineno-0-2080"></a>        <span class="c1"># Save the classes filename</span>
+<a id="__codelineno-0-2081" name="__codelineno-0-2081"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">save_IDs_to_labels</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;IDs_to_labels.json&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2082" name="__codelineno-0-2082"></a>
+<a id="__codelineno-0-2083" name="__codelineno-0-2083"></a>        <span class="c1"># Create the generator object to render the images</span>
+<a id="__codelineno-0-2084" name="__codelineno-0-2084"></a>        <span class="c1"># Since this is a generator, this will be fast</span>
+<a id="__codelineno-0-2085" name="__codelineno-0-2085"></a>        <span class="n">render_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_flat</span><span class="p">(</span>
+<a id="__codelineno-0-2086" name="__codelineno-0-2086"></a>            <span class="n">camera_set</span><span class="p">,</span>
+<a id="__codelineno-0-2087" name="__codelineno-0-2087"></a>            <span class="n">render_img_scale</span><span class="o">=</span><span class="n">render_image_scale</span><span class="p">,</span>
+<a id="__codelineno-0-2088" name="__codelineno-0-2088"></a>            <span class="n">return_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-2089" name="__codelineno-0-2089"></a>            <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
+<a id="__codelineno-0-2090" name="__codelineno-0-2090"></a>        <span class="p">)</span>
+<a id="__codelineno-0-2091" name="__codelineno-0-2091"></a>
+<a id="__codelineno-0-2092" name="__codelineno-0-2092"></a>        <span class="c1"># The computation only happens when items are requested from the generator</span>
+<a id="__codelineno-0-2093" name="__codelineno-0-2093"></a>        <span class="k">for</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+<a id="__codelineno-0-2094" name="__codelineno-0-2094"></a>            <span class="n">render_gen</span><span class="p">,</span>
+<a id="__codelineno-0-2095" name="__codelineno-0-2095"></a>            <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">camera_set</span><span class="p">),</span>
+<a id="__codelineno-0-2096" name="__codelineno-0-2096"></a>            <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Computing and saving renders&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-2097" name="__codelineno-0-2097"></a>        <span class="p">):</span>
+<a id="__codelineno-0-2098" name="__codelineno-0-2098"></a>            <span class="c1">## All this is post-processing to visualize the rendered label.</span>
+<a id="__codelineno-0-2099" name="__codelineno-0-2099"></a>            <span class="c1"># rendered could either be a one channel image of integer IDs,</span>
+<a id="__codelineno-0-2100" name="__codelineno-0-2100"></a>            <span class="c1"># a one-channel image of scalars, or a three-channel image of</span>
+<a id="__codelineno-0-2101" name="__codelineno-0-2101"></a>            <span class="c1"># RGB. It could also be multi-channel image corresponding to anything,</span>
+<a id="__codelineno-0-2102" name="__codelineno-0-2102"></a>            <span class="c1"># but we don&#39;t expect that yet</span>
+<a id="__codelineno-0-2103" name="__codelineno-0-2103"></a>            <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="ow">and</span> <span class="n">render_image_scale</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-2104" name="__codelineno-0-2104"></a>                <span class="n">native_size</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()</span>
+<a id="__codelineno-0-2105" name="__codelineno-0-2105"></a>                <span class="c1"># Upsample using nearest neighbor interpolation for discrete labels and</span>
+<a id="__codelineno-0-2106" name="__codelineno-0-2106"></a>                <span class="c1"># bilinear for non-discrete</span>
+<a id="__codelineno-0-2107" name="__codelineno-0-2107"></a>                <span class="c1"># TODO this will need to be fixed for multi-channel images since I don&#39;t think resize works</span>
+<a id="__codelineno-0-2108" name="__codelineno-0-2108"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span>
+<a id="__codelineno-0-2109" name="__codelineno-0-2109"></a>                    <span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2110" name="__codelineno-0-2110"></a>                    <span class="n">native_size</span><span class="p">,</span>
+<a id="__codelineno-0-2111" name="__codelineno-0-2111"></a>                    <span class="n">order</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_discrete_texture</span><span class="p">()</span> <span class="k">else</span> <span class="mi">1</span><span class="p">),</span>
+<a id="__codelineno-0-2112" name="__codelineno-0-2112"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2113" name="__codelineno-0-2113"></a>
+<a id="__codelineno-0-2114" name="__codelineno-0-2114"></a>            <span class="k">if</span> <span class="n">cast_to_uint8</span><span class="p">:</span>
+<a id="__codelineno-0-2115" name="__codelineno-0-2115"></a>                <span class="c1"># Deterimine values that cannot be represented as uint8</span>
+<a id="__codelineno-0-2116" name="__codelineno-0-2116"></a>                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span>
+<a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>                    <span class="p">[</span>
+<a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                        <span class="n">rendered</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>                        <span class="n">rendered</span> <span class="o">&gt;</span> <span class="mi">255</span><span class="p">,</span>
+<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>                        <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">rendered</span><span class="p">)),</span>
+<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>                    <span class="p">]</span>
+<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>                <span class="n">rendered</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">uint8_value_for_null_texture</span>
+<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>                <span class="c1"># Cast and squeeze since you can&#39;t save a one-channel image</span>
+<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
+<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>
+<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>            <span class="k">if</span> <span class="n">make_composites</span><span class="p">:</span>
+<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>                <span class="n">RGB_image</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image</span><span class="p">(</span>
+<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                    <span class="n">image_scale</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="k">else</span> <span class="n">render_image_scale</span><span class="p">)</span>
+<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">create_composite</span><span class="p">(</span>
+<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>                    <span class="n">RGB_image</span><span class="o">=</span><span class="n">RGB_image</span><span class="p">,</span>
+<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>                    <span class="n">label_image</span><span class="o">=</span><span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                    <span class="n">IDs_to_labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_IDs_to_labels</span><span class="p">(),</span>
+<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>                <span class="c1"># Clip channels if needed</span>
+<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>                <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>                    <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>
+<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>                <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
+<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>                <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
+<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>                <span class="c1"># the output data.</span>
+<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>                <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
+<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>                    <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
+<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="__codelineno-0-2149" name="__codelineno-0-2149"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-2150" name="__codelineno-0-2150"></a>                    <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
+<a id="__codelineno-0-2151" name="__codelineno-0-2151"></a>                    <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
+<a id="__codelineno-0-2152" name="__codelineno-0-2152"></a>                    <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
+<a id="__codelineno-0-2153" name="__codelineno-0-2153"></a>                    <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
+<a id="__codelineno-0-2154" name="__codelineno-0-2154"></a>                    <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
+<a id="__codelineno-0-2155" name="__codelineno-0-2155"></a>                    <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
+<a id="__codelineno-0-2156" name="__codelineno-0-2156"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2157" name="__codelineno-0-2157"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2158" name="__codelineno-0-2158"></a>
+<a id="__codelineno-0-2159" name="__codelineno-0-2159"></a>            <span class="c1"># This may create nested folders in the output dir</span>
+<a id="__codelineno-0-2160" name="__codelineno-0-2160"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2161" name="__codelineno-0-2161"></a>
+<a id="__codelineno-0-2162" name="__codelineno-0-2162"></a>            <span class="k">if</span> <span class="n">save_as_npy</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+<a id="__codelineno-0-2163" name="__codelineno-0-2163"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2164" name="__codelineno-0-2164"></a>                <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2165" name="__codelineno-0-2165"></a>                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2166" name="__codelineno-0-2166"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2167" name="__codelineno-0-2167"></a>                <span class="c1"># Save image as TIF</span>
+<a id="__codelineno-0-2168" name="__codelineno-0-2168"></a>                <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.tif&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2169" name="__codelineno-0-2169"></a>                <span class="c1"># Remove singleton channel dimension (1, H, W) -&gt; (H, W) to save single-channel TIF</span>
+<a id="__codelineno-0-2170" name="__codelineno-0-2170"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2171" name="__codelineno-0-2171"></a>                <span class="c1"># TODO: Consider supporting TIF files with float data (like CHM renders) by adding a separate flag.</span>
+<a id="__codelineno-0-2172" name="__codelineno-0-2172"></a>                <span class="c1"># Evaluate whether this offers more space savings than npy files.</span>
+<a id="__codelineno-0-2173" name="__codelineno-0-2173"></a>                <span class="c1"># If cast_to_uint8 is True, rendered is already in uint8</span>
+<a id="__codelineno-0-2174" name="__codelineno-0-2174"></a>                <span class="k">if</span> <span class="n">cast_to_uint8</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+<a id="__codelineno-0-2175" name="__codelineno-0-2175"></a>                    <span class="c1"># Check if max value in the rendered image is within the range of uint16</span>
+<a id="__codelineno-0-2176" name="__codelineno-0-2176"></a>                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">iinfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+<a id="__codelineno-0-2177" name="__codelineno-0-2177"></a>                        <span class="c1"># Cast from float to uint16</span>
+<a id="__codelineno-0-2178" name="__codelineno-0-2178"></a>                        <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+<a id="__codelineno-0-2179" name="__codelineno-0-2179"></a>                    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2180" name="__codelineno-0-2180"></a>                        <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+<a id="__codelineno-0-2181" name="__codelineno-0-2181"></a>
+<a id="__codelineno-0-2182" name="__codelineno-0-2182"></a>                <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2183" name="__codelineno-0-2183"></a>                <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span>
+<a id="__codelineno-0-2184" name="__codelineno-0-2184"></a>                    <span class="n">output_filename</span><span class="p">,</span>
+<a id="__codelineno-0-2185" name="__codelineno-0-2185"></a>                    <span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2186" name="__codelineno-0-2186"></a>                    <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;deflate&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-2187" name="__codelineno-0-2187"></a>                    <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-2188" name="__codelineno-0-2188"></a>                <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -11650,7 +11694,7 @@ and the requested one, as implemented in pyproj.</p>
 
 
 <h4 id="geograypher.meshes.TexturedPhotogrammetryMesh.save_renders" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">save_renders</span><span class="p">(</span><span class="n">camera_set</span><span class="p">,</span> <span class="n">render_image_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">output_folder</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">VIS_FOLDER</span><span class="p">,</span> <span class="s1">&#39;renders&#39;</span><span class="p">),</span> <span class="n">make_composites</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_native_resolution</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cast_to_uint8</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">uint8_value_for_null_texture</span><span class="o">=</span><span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span> <span class="o">**</span><span class="n">render_kwargs</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">save_renders</span><span class="p">(</span><span class="n">camera_set</span><span class="p">,</span> <span class="n">render_image_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">output_folder</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">VIS_FOLDER</span><span class="p">,</span> <span class="s1">&#39;renders&#39;</span><span class="p">),</span> <span class="n">make_composites</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_native_resolution</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cast_to_uint8</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">save_as_npy</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">uint8_value_for_null_texture</span><span class="o">=</span><span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span> <span class="o">**</span><span class="n">render_kwargs</span><span class="p">)</span></code>
 
 <a href="#geograypher.meshes.TexturedPhotogrammetryMesh.save_renders" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -11748,11 +11792,27 @@ raw label</p>
               <div class="doc-md-description">
                 <p>(bool, optional):
 cast the float valued data to unit8 for saving efficiency. May dramatically increase
-efficiency due to png compression</p>
+efficiency due to tif compression. Saves as tif unless save_as_npy is specified as True.</p>
               </div>
             </td>
             <td>
                   <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>save_as_npy</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Save the rendered images as numpy arrays rather than TIF images. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -11919,7 +11979,29 @@ Defaults to NULL_TEXTURE_INT_VALUE</p>
 <span class="normal"><a href="#__codelineno-0-2163">2163</a></span>
 <span class="normal"><a href="#__codelineno-0-2164">2164</a></span>
 <span class="normal"><a href="#__codelineno-0-2165">2165</a></span>
-<span class="normal"><a href="#__codelineno-0-2166">2166</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2040" name="__codelineno-0-2040"></a><span class="k">def</span><span class="w"> </span><span class="nf">save_renders</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-2166">2166</a></span>
+<span class="normal"><a href="#__codelineno-0-2167">2167</a></span>
+<span class="normal"><a href="#__codelineno-0-2168">2168</a></span>
+<span class="normal"><a href="#__codelineno-0-2169">2169</a></span>
+<span class="normal"><a href="#__codelineno-0-2170">2170</a></span>
+<span class="normal"><a href="#__codelineno-0-2171">2171</a></span>
+<span class="normal"><a href="#__codelineno-0-2172">2172</a></span>
+<span class="normal"><a href="#__codelineno-0-2173">2173</a></span>
+<span class="normal"><a href="#__codelineno-0-2174">2174</a></span>
+<span class="normal"><a href="#__codelineno-0-2175">2175</a></span>
+<span class="normal"><a href="#__codelineno-0-2176">2176</a></span>
+<span class="normal"><a href="#__codelineno-0-2177">2177</a></span>
+<span class="normal"><a href="#__codelineno-0-2178">2178</a></span>
+<span class="normal"><a href="#__codelineno-0-2179">2179</a></span>
+<span class="normal"><a href="#__codelineno-0-2180">2180</a></span>
+<span class="normal"><a href="#__codelineno-0-2181">2181</a></span>
+<span class="normal"><a href="#__codelineno-0-2182">2182</a></span>
+<span class="normal"><a href="#__codelineno-0-2183">2183</a></span>
+<span class="normal"><a href="#__codelineno-0-2184">2184</a></span>
+<span class="normal"><a href="#__codelineno-0-2185">2185</a></span>
+<span class="normal"><a href="#__codelineno-0-2186">2186</a></span>
+<span class="normal"><a href="#__codelineno-0-2187">2187</a></span>
+<span class="normal"><a href="#__codelineno-0-2188">2188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2040" name="__codelineno-0-2040"></a><span class="k">def</span><span class="w"> </span><span class="nf">save_renders</span><span class="p">(</span>
 <a id="__codelineno-0-2041" name="__codelineno-0-2041"></a>    <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-2042" name="__codelineno-0-2042"></a>    <span class="n">camera_set</span><span class="p">:</span> <span class="n">PhotogrammetryCameraSet</span><span class="p">,</span>
 <a id="__codelineno-0-2043" name="__codelineno-0-2043"></a>    <span class="n">render_image_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
@@ -11927,125 +12009,147 @@ Defaults to NULL_TEXTURE_INT_VALUE</p>
 <a id="__codelineno-0-2045" name="__codelineno-0-2045"></a>    <span class="n">make_composites</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-2046" name="__codelineno-0-2046"></a>    <span class="n">save_native_resolution</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-2047" name="__codelineno-0-2047"></a>    <span class="n">cast_to_uint8</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-2048" name="__codelineno-0-2048"></a>    <span class="n">uint8_value_for_null_texture</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="o">=</span> <span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span>
-<a id="__codelineno-0-2049" name="__codelineno-0-2049"></a>    <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
-<a id="__codelineno-0-2050" name="__codelineno-0-2050"></a><span class="p">):</span>
-<a id="__codelineno-0-2051" name="__codelineno-0-2051"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Render an image from the viewpoint of each specified camera and save a composite</span>
-<a id="__codelineno-0-2052" name="__codelineno-0-2052"></a>
-<a id="__codelineno-0-2053" name="__codelineno-0-2053"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-2054" name="__codelineno-0-2054"></a><span class="sd">        camera_set (PhotogrammetryCameraSet):</span>
-<a id="__codelineno-0-2055" name="__codelineno-0-2055"></a><span class="sd">            Camera set to use for rendering</span>
-<a id="__codelineno-0-2056" name="__codelineno-0-2056"></a><span class="sd">        render_image_scale (float, optional):</span>
-<a id="__codelineno-0-2057" name="__codelineno-0-2057"></a><span class="sd">            Multiplier on the real image scale to obtain size for rendering. Lower values</span>
-<a id="__codelineno-0-2058" name="__codelineno-0-2058"></a><span class="sd">            yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.</span>
-<a id="__codelineno-0-2059" name="__codelineno-0-2059"></a><span class="sd">        render_folder (PATH_TYPE, optional):</span>
-<a id="__codelineno-0-2060" name="__codelineno-0-2060"></a><span class="sd">            Save images to this folder. Defaults to Path(VIS_FOLDER, &quot;renders&quot;)</span>
-<a id="__codelineno-0-2061" name="__codelineno-0-2061"></a><span class="sd">        make_composites (bool, optional):</span>
-<a id="__codelineno-0-2062" name="__codelineno-0-2062"></a><span class="sd">            Should a triple pane composite with the original image be saved rather than the</span>
-<a id="__codelineno-0-2063" name="__codelineno-0-2063"></a><span class="sd">            raw label</span>
-<a id="__codelineno-0-2064" name="__codelineno-0-2064"></a><span class="sd">        cast_to_uint8: (bool, optional):</span>
-<a id="__codelineno-0-2065" name="__codelineno-0-2065"></a><span class="sd">            cast the float valued data to unit8 for saving efficiency. May dramatically increase</span>
-<a id="__codelineno-0-2066" name="__codelineno-0-2066"></a><span class="sd">            efficiency due to png compression</span>
-<a id="__codelineno-0-2067" name="__codelineno-0-2067"></a><span class="sd">        uint8_value_for_null_texture (np.uint8, optional):</span>
-<a id="__codelineno-0-2068" name="__codelineno-0-2068"></a><span class="sd">            What value to assign for values that can&#39;t be represented as unsigned 8-bit data.</span>
-<a id="__codelineno-0-2069" name="__codelineno-0-2069"></a><span class="sd">            Defaults to NULL_TEXTURE_INT_VALUE</span>
-<a id="__codelineno-0-2070" name="__codelineno-0-2070"></a><span class="sd">        render_kwargs:</span>
-<a id="__codelineno-0-2071" name="__codelineno-0-2071"></a><span class="sd">            keyword arguments passed to the render.</span>
-<a id="__codelineno-0-2072" name="__codelineno-0-2072"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-2073" name="__codelineno-0-2073"></a>
-<a id="__codelineno-0-2074" name="__codelineno-0-2074"></a>    <span class="n">ensure_folder</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
-<a id="__codelineno-0-2075" name="__codelineno-0-2075"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving renders to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2048" name="__codelineno-0-2048"></a>    <span class="n">save_as_npy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-2049" name="__codelineno-0-2049"></a>    <span class="n">uint8_value_for_null_texture</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span> <span class="o">=</span> <span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span>
+<a id="__codelineno-0-2050" name="__codelineno-0-2050"></a>    <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
+<a id="__codelineno-0-2051" name="__codelineno-0-2051"></a><span class="p">):</span>
+<a id="__codelineno-0-2052" name="__codelineno-0-2052"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Render an image from the viewpoint of each specified camera and save a composite</span>
+<a id="__codelineno-0-2053" name="__codelineno-0-2053"></a>
+<a id="__codelineno-0-2054" name="__codelineno-0-2054"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-2055" name="__codelineno-0-2055"></a><span class="sd">        camera_set (PhotogrammetryCameraSet):</span>
+<a id="__codelineno-0-2056" name="__codelineno-0-2056"></a><span class="sd">            Camera set to use for rendering</span>
+<a id="__codelineno-0-2057" name="__codelineno-0-2057"></a><span class="sd">        render_image_scale (float, optional):</span>
+<a id="__codelineno-0-2058" name="__codelineno-0-2058"></a><span class="sd">            Multiplier on the real image scale to obtain size for rendering. Lower values</span>
+<a id="__codelineno-0-2059" name="__codelineno-0-2059"></a><span class="sd">            yield a lower-resolution render but the runtime is quiker. Defaults to 1.0.</span>
+<a id="__codelineno-0-2060" name="__codelineno-0-2060"></a><span class="sd">        render_folder (PATH_TYPE, optional):</span>
+<a id="__codelineno-0-2061" name="__codelineno-0-2061"></a><span class="sd">            Save images to this folder. Defaults to Path(VIS_FOLDER, &quot;renders&quot;)</span>
+<a id="__codelineno-0-2062" name="__codelineno-0-2062"></a><span class="sd">        make_composites (bool, optional):</span>
+<a id="__codelineno-0-2063" name="__codelineno-0-2063"></a><span class="sd">            Should a triple pane composite with the original image be saved rather than the</span>
+<a id="__codelineno-0-2064" name="__codelineno-0-2064"></a><span class="sd">            raw label</span>
+<a id="__codelineno-0-2065" name="__codelineno-0-2065"></a><span class="sd">        cast_to_uint8: (bool, optional):</span>
+<a id="__codelineno-0-2066" name="__codelineno-0-2066"></a><span class="sd">            cast the float valued data to unit8 for saving efficiency. May dramatically increase</span>
+<a id="__codelineno-0-2067" name="__codelineno-0-2067"></a><span class="sd">            efficiency due to tif compression. Saves as tif unless save_as_npy is specified as True.</span>
+<a id="__codelineno-0-2068" name="__codelineno-0-2068"></a><span class="sd">        save_as_npy (bool, optional):</span>
+<a id="__codelineno-0-2069" name="__codelineno-0-2069"></a><span class="sd">            Save the rendered images as numpy arrays rather than TIF images. Defaults to False.</span>
+<a id="__codelineno-0-2070" name="__codelineno-0-2070"></a><span class="sd">        uint8_value_for_null_texture (np.uint8, optional):</span>
+<a id="__codelineno-0-2071" name="__codelineno-0-2071"></a><span class="sd">            What value to assign for values that can&#39;t be represented as unsigned 8-bit data.</span>
+<a id="__codelineno-0-2072" name="__codelineno-0-2072"></a><span class="sd">            Defaults to NULL_TEXTURE_INT_VALUE</span>
+<a id="__codelineno-0-2073" name="__codelineno-0-2073"></a><span class="sd">        render_kwargs:</span>
+<a id="__codelineno-0-2074" name="__codelineno-0-2074"></a><span class="sd">            keyword arguments passed to the render.</span>
+<a id="__codelineno-0-2075" name="__codelineno-0-2075"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-2076" name="__codelineno-0-2076"></a>
-<a id="__codelineno-0-2077" name="__codelineno-0-2077"></a>    <span class="c1"># Save the classes filename</span>
-<a id="__codelineno-0-2078" name="__codelineno-0-2078"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">save_IDs_to_labels</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;IDs_to_labels.json&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2077" name="__codelineno-0-2077"></a>    <span class="n">ensure_folder</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
+<a id="__codelineno-0-2078" name="__codelineno-0-2078"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving renders to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-2079" name="__codelineno-0-2079"></a>
-<a id="__codelineno-0-2080" name="__codelineno-0-2080"></a>    <span class="c1"># Create the generator object to render the images</span>
-<a id="__codelineno-0-2081" name="__codelineno-0-2081"></a>    <span class="c1"># Since this is a generator, this will be fast</span>
-<a id="__codelineno-0-2082" name="__codelineno-0-2082"></a>    <span class="n">render_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_flat</span><span class="p">(</span>
-<a id="__codelineno-0-2083" name="__codelineno-0-2083"></a>        <span class="n">camera_set</span><span class="p">,</span>
-<a id="__codelineno-0-2084" name="__codelineno-0-2084"></a>        <span class="n">render_img_scale</span><span class="o">=</span><span class="n">render_image_scale</span><span class="p">,</span>
-<a id="__codelineno-0-2085" name="__codelineno-0-2085"></a>        <span class="n">return_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-2086" name="__codelineno-0-2086"></a>        <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
-<a id="__codelineno-0-2087" name="__codelineno-0-2087"></a>    <span class="p">)</span>
-<a id="__codelineno-0-2088" name="__codelineno-0-2088"></a>
-<a id="__codelineno-0-2089" name="__codelineno-0-2089"></a>    <span class="c1"># The computation only happens when items are requested from the generator</span>
-<a id="__codelineno-0-2090" name="__codelineno-0-2090"></a>    <span class="k">for</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
-<a id="__codelineno-0-2091" name="__codelineno-0-2091"></a>        <span class="n">render_gen</span><span class="p">,</span>
-<a id="__codelineno-0-2092" name="__codelineno-0-2092"></a>        <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">camera_set</span><span class="p">),</span>
-<a id="__codelineno-0-2093" name="__codelineno-0-2093"></a>        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Computing and saving renders&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-2094" name="__codelineno-0-2094"></a>    <span class="p">):</span>
-<a id="__codelineno-0-2095" name="__codelineno-0-2095"></a>        <span class="c1">## All this is post-processing to visualize the rendered label.</span>
-<a id="__codelineno-0-2096" name="__codelineno-0-2096"></a>        <span class="c1"># rendered could either be a one channel image of integer IDs,</span>
-<a id="__codelineno-0-2097" name="__codelineno-0-2097"></a>        <span class="c1"># a one-channel image of scalars, or a three-channel image of</span>
-<a id="__codelineno-0-2098" name="__codelineno-0-2098"></a>        <span class="c1"># RGB. It could also be multi-channel image corresponding to anything,</span>
-<a id="__codelineno-0-2099" name="__codelineno-0-2099"></a>        <span class="c1"># but we don&#39;t expect that yet</span>
-<a id="__codelineno-0-2100" name="__codelineno-0-2100"></a>        <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="ow">and</span> <span class="n">render_image_scale</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-<a id="__codelineno-0-2101" name="__codelineno-0-2101"></a>            <span class="n">native_size</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()</span>
-<a id="__codelineno-0-2102" name="__codelineno-0-2102"></a>            <span class="c1"># Upsample using nearest neighbor interpolation for discrete labels and</span>
-<a id="__codelineno-0-2103" name="__codelineno-0-2103"></a>            <span class="c1"># bilinear for non-discrete</span>
-<a id="__codelineno-0-2104" name="__codelineno-0-2104"></a>            <span class="c1"># TODO this will need to be fixed for multi-channel images since I don&#39;t think resize works</span>
-<a id="__codelineno-0-2105" name="__codelineno-0-2105"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span>
-<a id="__codelineno-0-2106" name="__codelineno-0-2106"></a>                <span class="n">rendered</span><span class="p">,</span>
-<a id="__codelineno-0-2107" name="__codelineno-0-2107"></a>                <span class="n">native_size</span><span class="p">,</span>
-<a id="__codelineno-0-2108" name="__codelineno-0-2108"></a>                <span class="n">order</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_discrete_texture</span><span class="p">()</span> <span class="k">else</span> <span class="mi">1</span><span class="p">),</span>
-<a id="__codelineno-0-2109" name="__codelineno-0-2109"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2110" name="__codelineno-0-2110"></a>
-<a id="__codelineno-0-2111" name="__codelineno-0-2111"></a>        <span class="k">if</span> <span class="n">cast_to_uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2112" name="__codelineno-0-2112"></a>            <span class="c1"># Deterimine values that cannot be represented as uint8</span>
-<a id="__codelineno-0-2113" name="__codelineno-0-2113"></a>            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span>
-<a id="__codelineno-0-2114" name="__codelineno-0-2114"></a>                <span class="p">[</span>
-<a id="__codelineno-0-2115" name="__codelineno-0-2115"></a>                    <span class="n">rendered</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-0-2116" name="__codelineno-0-2116"></a>                    <span class="n">rendered</span> <span class="o">&gt;</span> <span class="mi">255</span><span class="p">,</span>
-<a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>                    <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">rendered</span><span class="p">)),</span>
-<a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                <span class="p">]</span>
-<a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>            <span class="n">rendered</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">uint8_value_for_null_texture</span>
-<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>            <span class="c1"># Cast and squeeze since you can&#39;t save a one-channel image</span>
-<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
-<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>
-<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>        <span class="k">if</span> <span class="n">make_composites</span><span class="p">:</span>
-<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>            <span class="n">RGB_image</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image</span><span class="p">(</span>
-<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>                <span class="n">image_scale</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="k">else</span> <span class="n">render_image_scale</span><span class="p">)</span>
-<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">create_composite</span><span class="p">(</span>
-<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                <span class="n">RGB_image</span><span class="o">=</span><span class="n">RGB_image</span><span class="p">,</span>
-<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>                <span class="n">label_image</span><span class="o">=</span><span class="n">rendered</span><span class="p">,</span>
-<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>                <span class="n">IDs_to_labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_IDs_to_labels</span><span class="p">(),</span>
-<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>            <span class="c1"># Clip channels if needed</span>
-<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
-<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>
-<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>            <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
-<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>            <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
-<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>            <span class="c1"># the output data.</span>
-<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>            <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
-<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>                <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
-<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>                <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
-<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>                <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
-<a id="__codelineno-0-2149" name="__codelineno-0-2149"></a>                <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
-<a id="__codelineno-0-2150" name="__codelineno-0-2150"></a>                <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
-<a id="__codelineno-0-2151" name="__codelineno-0-2151"></a>                <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
-<a id="__codelineno-0-2152" name="__codelineno-0-2152"></a>                <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
-<a id="__codelineno-0-2153" name="__codelineno-0-2153"></a>            <span class="p">)</span>
-<a id="__codelineno-0-2154" name="__codelineno-0-2154"></a>        <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2155" name="__codelineno-0-2155"></a>
-<a id="__codelineno-0-2156" name="__codelineno-0-2156"></a>        <span class="c1"># This may create nested folders in the output dir</span>
-<a id="__codelineno-0-2157" name="__codelineno-0-2157"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
-<a id="__codelineno-0-2158" name="__codelineno-0-2158"></a>        <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">:</span>
-<a id="__codelineno-0-2159" name="__codelineno-0-2159"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.png&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2160" name="__codelineno-0-2160"></a>
-<a id="__codelineno-0-2161" name="__codelineno-0-2161"></a>            <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2162" name="__codelineno-0-2162"></a>            <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-2163" name="__codelineno-0-2163"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-2164" name="__codelineno-0-2164"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
-<a id="__codelineno-0-2165" name="__codelineno-0-2165"></a>            <span class="c1"># Save the image</span>
-<a id="__codelineno-0-2166" name="__codelineno-0-2166"></a>            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2080" name="__codelineno-0-2080"></a>    <span class="c1"># Save the classes filename</span>
+<a id="__codelineno-0-2081" name="__codelineno-0-2081"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">save_IDs_to_labels</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;IDs_to_labels.json&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2082" name="__codelineno-0-2082"></a>
+<a id="__codelineno-0-2083" name="__codelineno-0-2083"></a>    <span class="c1"># Create the generator object to render the images</span>
+<a id="__codelineno-0-2084" name="__codelineno-0-2084"></a>    <span class="c1"># Since this is a generator, this will be fast</span>
+<a id="__codelineno-0-2085" name="__codelineno-0-2085"></a>    <span class="n">render_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">render_flat</span><span class="p">(</span>
+<a id="__codelineno-0-2086" name="__codelineno-0-2086"></a>        <span class="n">camera_set</span><span class="p">,</span>
+<a id="__codelineno-0-2087" name="__codelineno-0-2087"></a>        <span class="n">render_img_scale</span><span class="o">=</span><span class="n">render_image_scale</span><span class="p">,</span>
+<a id="__codelineno-0-2088" name="__codelineno-0-2088"></a>        <span class="n">return_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-2089" name="__codelineno-0-2089"></a>        <span class="o">**</span><span class="n">render_kwargs</span><span class="p">,</span>
+<a id="__codelineno-0-2090" name="__codelineno-0-2090"></a>    <span class="p">)</span>
+<a id="__codelineno-0-2091" name="__codelineno-0-2091"></a>
+<a id="__codelineno-0-2092" name="__codelineno-0-2092"></a>    <span class="c1"># The computation only happens when items are requested from the generator</span>
+<a id="__codelineno-0-2093" name="__codelineno-0-2093"></a>    <span class="k">for</span> <span class="n">rendered</span><span class="p">,</span> <span class="n">camera</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
+<a id="__codelineno-0-2094" name="__codelineno-0-2094"></a>        <span class="n">render_gen</span><span class="p">,</span>
+<a id="__codelineno-0-2095" name="__codelineno-0-2095"></a>        <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">camera_set</span><span class="p">),</span>
+<a id="__codelineno-0-2096" name="__codelineno-0-2096"></a>        <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Computing and saving renders&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-2097" name="__codelineno-0-2097"></a>    <span class="p">):</span>
+<a id="__codelineno-0-2098" name="__codelineno-0-2098"></a>        <span class="c1">## All this is post-processing to visualize the rendered label.</span>
+<a id="__codelineno-0-2099" name="__codelineno-0-2099"></a>        <span class="c1"># rendered could either be a one channel image of integer IDs,</span>
+<a id="__codelineno-0-2100" name="__codelineno-0-2100"></a>        <span class="c1"># a one-channel image of scalars, or a three-channel image of</span>
+<a id="__codelineno-0-2101" name="__codelineno-0-2101"></a>        <span class="c1"># RGB. It could also be multi-channel image corresponding to anything,</span>
+<a id="__codelineno-0-2102" name="__codelineno-0-2102"></a>        <span class="c1"># but we don&#39;t expect that yet</span>
+<a id="__codelineno-0-2103" name="__codelineno-0-2103"></a>        <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="ow">and</span> <span class="n">render_image_scale</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-2104" name="__codelineno-0-2104"></a>            <span class="n">native_size</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_size</span><span class="p">()</span>
+<a id="__codelineno-0-2105" name="__codelineno-0-2105"></a>            <span class="c1"># Upsample using nearest neighbor interpolation for discrete labels and</span>
+<a id="__codelineno-0-2106" name="__codelineno-0-2106"></a>            <span class="c1"># bilinear for non-discrete</span>
+<a id="__codelineno-0-2107" name="__codelineno-0-2107"></a>            <span class="c1"># TODO this will need to be fixed for multi-channel images since I don&#39;t think resize works</span>
+<a id="__codelineno-0-2108" name="__codelineno-0-2108"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span>
+<a id="__codelineno-0-2109" name="__codelineno-0-2109"></a>                <span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2110" name="__codelineno-0-2110"></a>                <span class="n">native_size</span><span class="p">,</span>
+<a id="__codelineno-0-2111" name="__codelineno-0-2111"></a>                <span class="n">order</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_discrete_texture</span><span class="p">()</span> <span class="k">else</span> <span class="mi">1</span><span class="p">),</span>
+<a id="__codelineno-0-2112" name="__codelineno-0-2112"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2113" name="__codelineno-0-2113"></a>
+<a id="__codelineno-0-2114" name="__codelineno-0-2114"></a>        <span class="k">if</span> <span class="n">cast_to_uint8</span><span class="p">:</span>
+<a id="__codelineno-0-2115" name="__codelineno-0-2115"></a>            <span class="c1"># Deterimine values that cannot be represented as uint8</span>
+<a id="__codelineno-0-2116" name="__codelineno-0-2116"></a>            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span>
+<a id="__codelineno-0-2117" name="__codelineno-0-2117"></a>                <span class="p">[</span>
+<a id="__codelineno-0-2118" name="__codelineno-0-2118"></a>                    <span class="n">rendered</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-0-2119" name="__codelineno-0-2119"></a>                    <span class="n">rendered</span> <span class="o">&gt;</span> <span class="mi">255</span><span class="p">,</span>
+<a id="__codelineno-0-2120" name="__codelineno-0-2120"></a>                    <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">rendered</span><span class="p">)),</span>
+<a id="__codelineno-0-2121" name="__codelineno-0-2121"></a>                <span class="p">]</span>
+<a id="__codelineno-0-2122" name="__codelineno-0-2122"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2123" name="__codelineno-0-2123"></a>            <span class="n">rendered</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">uint8_value_for_null_texture</span>
+<a id="__codelineno-0-2124" name="__codelineno-0-2124"></a>            <span class="c1"># Cast and squeeze since you can&#39;t save a one-channel image</span>
+<a id="__codelineno-0-2125" name="__codelineno-0-2125"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span>
+<a id="__codelineno-0-2126" name="__codelineno-0-2126"></a>
+<a id="__codelineno-0-2127" name="__codelineno-0-2127"></a>        <span class="k">if</span> <span class="n">make_composites</span><span class="p">:</span>
+<a id="__codelineno-0-2128" name="__codelineno-0-2128"></a>            <span class="n">RGB_image</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image</span><span class="p">(</span>
+<a id="__codelineno-0-2129" name="__codelineno-0-2129"></a>                <span class="n">image_scale</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span> <span class="k">if</span> <span class="n">save_native_resolution</span> <span class="k">else</span> <span class="n">render_image_scale</span><span class="p">)</span>
+<a id="__codelineno-0-2130" name="__codelineno-0-2130"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2131" name="__codelineno-0-2131"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">create_composite</span><span class="p">(</span>
+<a id="__codelineno-0-2132" name="__codelineno-0-2132"></a>                <span class="n">RGB_image</span><span class="o">=</span><span class="n">RGB_image</span><span class="p">,</span>
+<a id="__codelineno-0-2133" name="__codelineno-0-2133"></a>                <span class="n">label_image</span><span class="o">=</span><span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2134" name="__codelineno-0-2134"></a>                <span class="n">IDs_to_labels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_IDs_to_labels</span><span class="p">(),</span>
+<a id="__codelineno-0-2135" name="__codelineno-0-2135"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2136" name="__codelineno-0-2136"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2137" name="__codelineno-0-2137"></a>            <span class="c1"># Clip channels if needed</span>
+<a id="__codelineno-0-2138" name="__codelineno-0-2138"></a>            <span class="k">if</span> <span class="n">rendered</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+<a id="__codelineno-0-2139" name="__codelineno-0-2139"></a>                <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+<a id="__codelineno-0-2140" name="__codelineno-0-2140"></a>
+<a id="__codelineno-0-2141" name="__codelineno-0-2141"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2142" name="__codelineno-0-2142"></a>            <span class="c1"># If the filename stored with the camera data [camera.get_image_filename]</span>
+<a id="__codelineno-0-2143" name="__codelineno-0-2143"></a>            <span class="c1"># is a subpath of your camera set image folder, use the same subpath for</span>
+<a id="__codelineno-0-2144" name="__codelineno-0-2144"></a>            <span class="c1"># the output data.</span>
+<a id="__codelineno-0-2145" name="__codelineno-0-2145"></a>            <span class="n">camera_filename</span> <span class="o">=</span> <span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span>
+<a id="__codelineno-0-2146" name="__codelineno-0-2146"></a>                <span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span>
+<a id="__codelineno-0-2147" name="__codelineno-0-2147"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2148" name="__codelineno-0-2148"></a>        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="__codelineno-0-2149" name="__codelineno-0-2149"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-2150" name="__codelineno-0-2150"></a>                <span class="s2">&quot;Tried to find the relative path of the camera path&quot;</span>
+<a id="__codelineno-0-2151" name="__codelineno-0-2151"></a>                <span class="sa">f</span><span class="s2">&quot; (</span><span class="si">{</span><span class="n">camera</span><span class="o">.</span><span class="n">get_image_filename</span><span class="p">()</span><span class="si">}</span><span class="s2">) inside of the camera set image&quot;</span>
+<a id="__codelineno-0-2152" name="__codelineno-0-2152"></a>                <span class="sa">f</span><span class="s2">&quot; folder (</span><span class="si">{</span><span class="n">camera_set</span><span class="o">.</span><span class="n">image_folder</span><span class="si">}</span><span class="s2">), but failed. The tool being called&quot;</span>
+<a id="__codelineno-0-2153" name="__codelineno-0-2153"></a>                <span class="s2">&quot; may have an &#39;original_image_folder&#39; argument, which could be used to&quot;</span>
+<a id="__codelineno-0-2154" name="__codelineno-0-2154"></a>                <span class="s2">&quot; delete the initial, mismatched portion of the camera path. See more here:&quot;</span>
+<a id="__codelineno-0-2155" name="__codelineno-0-2155"></a>                <span class="s2">&quot; https://github.com/open-forest-observatory/automate-metashape/issues/90.&quot;</span>
+<a id="__codelineno-0-2156" name="__codelineno-0-2156"></a>            <span class="p">)</span>
+<a id="__codelineno-0-2157" name="__codelineno-0-2157"></a>        <span class="n">output_filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="n">camera_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2158" name="__codelineno-0-2158"></a>
+<a id="__codelineno-0-2159" name="__codelineno-0-2159"></a>        <span class="c1"># This may create nested folders in the output dir</span>
+<a id="__codelineno-0-2160" name="__codelineno-0-2160"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">output_filename</span><span class="p">)</span>
+<a id="__codelineno-0-2161" name="__codelineno-0-2161"></a>
+<a id="__codelineno-0-2162" name="__codelineno-0-2162"></a>        <span class="k">if</span> <span class="n">save_as_npy</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+<a id="__codelineno-0-2163" name="__codelineno-0-2163"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.npy&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2164" name="__codelineno-0-2164"></a>            <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2165" name="__codelineno-0-2165"></a>            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2166" name="__codelineno-0-2166"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2167" name="__codelineno-0-2167"></a>            <span class="c1"># Save image as TIF</span>
+<a id="__codelineno-0-2168" name="__codelineno-0-2168"></a>            <span class="n">output_filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">output_filename</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">&quot;.tif&quot;</span><span class="p">))</span>
+<a id="__codelineno-0-2169" name="__codelineno-0-2169"></a>            <span class="c1"># Remove singleton channel dimension (1, H, W) -&gt; (H, W) to save single-channel TIF</span>
+<a id="__codelineno-0-2170" name="__codelineno-0-2170"></a>            <span class="n">rendered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span>
+<a id="__codelineno-0-2171" name="__codelineno-0-2171"></a>            <span class="c1"># TODO: Consider supporting TIF files with float data (like CHM renders) by adding a separate flag.</span>
+<a id="__codelineno-0-2172" name="__codelineno-0-2172"></a>            <span class="c1"># Evaluate whether this offers more space savings than npy files.</span>
+<a id="__codelineno-0-2173" name="__codelineno-0-2173"></a>            <span class="c1"># If cast_to_uint8 is True, rendered is already in uint8</span>
+<a id="__codelineno-0-2174" name="__codelineno-0-2174"></a>            <span class="k">if</span> <span class="n">cast_to_uint8</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+<a id="__codelineno-0-2175" name="__codelineno-0-2175"></a>                <span class="c1"># Check if max value in the rendered image is within the range of uint16</span>
+<a id="__codelineno-0-2176" name="__codelineno-0-2176"></a>                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">iinfo</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+<a id="__codelineno-0-2177" name="__codelineno-0-2177"></a>                    <span class="c1"># Cast from float to uint16</span>
+<a id="__codelineno-0-2178" name="__codelineno-0-2178"></a>                    <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+<a id="__codelineno-0-2179" name="__codelineno-0-2179"></a>                <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2180" name="__codelineno-0-2180"></a>                    <span class="n">rendered</span> <span class="o">=</span> <span class="n">rendered</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+<a id="__codelineno-0-2181" name="__codelineno-0-2181"></a>
+<a id="__codelineno-0-2182" name="__codelineno-0-2182"></a>            <span class="c1"># Save the image</span>
+<a id="__codelineno-0-2183" name="__codelineno-0-2183"></a>            <span class="n">skimage</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span>
+<a id="__codelineno-0-2184" name="__codelineno-0-2184"></a>                <span class="n">output_filename</span><span class="p">,</span>
+<a id="__codelineno-0-2185" name="__codelineno-0-2185"></a>                <span class="n">rendered</span><span class="p">,</span>
+<a id="__codelineno-0-2186" name="__codelineno-0-2186"></a>                <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;deflate&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-2187" name="__codelineno-0-2187"></a>                <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-2188" name="__codelineno-0-2188"></a>            <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
