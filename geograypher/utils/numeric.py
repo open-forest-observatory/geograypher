@@ -410,11 +410,14 @@ def format_graph_edges(
     # The places where the array is finite are the valid graph distances
     i_inds, j_inds = np.where(np.isfinite(dist))
 
+    # Pre-calculate the inverse distance
+    weights = 1 / dist
+
     return [
         (
             int(i) + islice.start,
             int(j) + jslice.start,
-            {"weight": float(1 / dist[i, j])},
+            {"weight": float(weights[i, j])},
         )
         for i, j in zip(i_inds, j_inds)
         if (i + islice.start < j + jslice.start)
