@@ -290,14 +290,17 @@ def test_format_graph_edges(distance, alter_kwargs, expected_indices):
             assert len(edge[2]) == 1
             assert "weight" in edge[2]
 
+    # Build up a distance array where certain indices are non-nan
+    dist = np.ones((6, 6)) * np.nan
+    for i, j in zip([1, 3, 5], [1, 4, 4]):
+        dist[i, j] = distance
+
     # With no modifications this is a diagonal set of chunks, most
     # indices should be pruned
     kwargs = {
-        "i_inds": np.array([1, 3, 5]),
-        "j_inds": np.array([1, 4, 4]),
         "islice": slice(6, 12, None),
         "jslice": slice(6, 12, None),
-        "dist": np.ones((6, 6)) * distance,
+        "dist": dist,
         "ray_IDs": np.array(range(12)),
     }
     for key, value in alter_kwargs.items():

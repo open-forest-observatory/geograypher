@@ -377,8 +377,6 @@ def chunk_slices(
 
 
 def format_graph_edges(
-    i_inds: np.ndarray,
-    j_inds: np.ndarray,
     islice: slice,
     jslice: slice,
     dist: np.ndarray,
@@ -386,15 +384,12 @@ def format_graph_edges(
 ) -> typing.List[typing.Tuple[int, int, typing.Dict[str, float]]]:
     """
     This function generates edge definitions for a graph where nodes represent rays and
-    edges represent valid intersections between rays. It applies two filtering criteria:
-    1. Only uses edges where i < j (keeps it upper triangular)
-    2. Only uses edges between rays from different images (different ray_IDs)
+    edges represent valid intersections between rays. It applies three filtering criteria:
+    1. Only uses edges where (i, j) is finite (not NaN)
+    2. Only uses edges where i < j (keeps it upper triangular)
+    3. Only uses edges between rays from different images (different ray_IDs)
 
     Args:
-        i_inds (np.ndarray): (N,) array of row indices from the distance matrix where valid
-            intersections were found
-        j_inds (np.ndarray): (N,) array of column indices from the distance matrix where valid
-            intersections were found
         islice (slice): Slice indicating the block of rows being processed in the
             chunked computation
         jslice (slice): Slice indicating the block of columns being processed in
@@ -411,6 +406,10 @@ def format_graph_edges(
         - j index in the adjacency matrix
         - weight_dict of the form {"weight": value}
     """
+
+    # The places where the array is finite are the valid graph distances
+    i_inds, j_inds = np.where(np.isfinite(dist))
+
     return [
         (
             int(i) + islice.start,
@@ -469,7 +468,7 @@ def calc_graph_weights(
     # getting very large, the matrices for calculating ray intersections take a great
     # deal of RAM
     edge_weights = []
-    num_steps = len(starts) // step + 1
+    num_steps = np.ceil(len(starts) / step)
     total = int(num_steps * (num_steps + 1) / 2)
     for islice, jslice, diagonal in tqdm(
         chunk_slices(N=len(starts), step=step),
@@ -492,10 +491,9 @@ def calc_graph_weights(
         if transform is not None:
             dist = transform(dist)
 
-        # Determine which intersections are valid, represented by finite values
-        i_inds, j_inds = np.where(np.isfinite(dist))
+        # Create edge weights for valid intersections
         edge_weights.extend(
-            format_graph_edges(i_inds, j_inds, islice, jslice, dist, ray_IDs)
+            format_graph_edges(islice, jslice, dist, ray_IDs)
         )
 
     if out_dir is None:
