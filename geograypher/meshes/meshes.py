@@ -2181,9 +2181,8 @@ class TexturedPhotogrammetryMesh:
 
         Args:
             N (int): Number of sample points to take as a grid
-            z_buffer (tuple): Offset in Z to give the sampled points. Note that this needs to be
-                in mesh units, so if you want a buffer in meters that will need to be converted
-                separately. [0] is for the upper mesh, [1] is for the lower.
+            z_buffer (tuple): Offset in Z to give the sampled points, in the units of the mesh.
+                [0] is for the upper mesh, [1] is for the lower.
             subsample (int / None): If not None, we will naively subsample self.pyvista_mesh.points
                 to speed up runtime by [::subsample]. A larger number will subsample more.
 
