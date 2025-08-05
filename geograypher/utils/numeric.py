@@ -492,9 +492,7 @@ def calc_graph_weights(
             dist = transform(dist)
 
         # Create edge weights for valid intersections
-        edge_weights.extend(
-            format_graph_edges(islice, jslice, dist, ray_IDs)
-        )
+        edge_weights.extend(format_graph_edges(islice, jslice, dist, ray_IDs))
 
     if out_dir is None:
         return edge_weights
