@@ -437,7 +437,7 @@ def sample_graph_inputs():
             ]
         ),
         # Weights are arbitrary, just need to be positive
-        "positive_edges": [
+        "edge_weights": [
             (0, 1, {"weight": 1.0}),
             (0, 2, {"weight": 1.0}),
             (3, 4, {"weight": 1.0}),
@@ -495,7 +495,7 @@ class TestCalcCommunities:
         result = calc_communities(
             starts=np.array([]),
             ends=np.array([]),
-            positive_edges=[],
+            edge_weights=[],
             transform_to_epsg_4978=np.eye(4) if give_transform else None,
         )
 

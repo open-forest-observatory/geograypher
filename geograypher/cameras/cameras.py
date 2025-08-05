@@ -1083,8 +1083,8 @@ class PhotogrammetryCameraSet:
 
         # Turn line segments into graph distances, where "close enough"
         # lines are connected nodes in the graph.
-        if check_exists("positive_edges.json"):
-            weight_results = out_dir / "positive_edges.json"
+        if check_exists("edge_weights.json"):
+            weight_results = out_dir / "edge_weights.json"
         else:
             weight_results = calc_graph_weights(
                 starts=line_results["ray_starts"],
@@ -1108,7 +1108,7 @@ class PhotogrammetryCameraSet:
             community_results = calc_communities(
                 starts=line_results["ray_starts"],
                 ends=line_results["ray_ends"],
-                positive_edges=weight_results,
+                edge_weights=weight_results,
                 louvain_resolution=louvain_resolution,
                 out_dir=out_dir,
                 transform_to_epsg_4978=transform_to_epsg_4978,

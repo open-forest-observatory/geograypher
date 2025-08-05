@@ -163,10 +163,10 @@ def clip_line_segments(
             List of indices associated with each ray, used for identification.
             Tracks which image each ray corresponded to.
         ray_limit (Optional[float], optional):
-            If provided, segments longer than this value are excluded. Note that the
-            filtered distance is from the **original ray start to the second boundary**.
-            This is to mimic measuring from a camera (hypothetical ray source) to
-            the ground (assuming the boundaries are given as [ceiling, floor]).
+            If provided, segments longer than this value are dropped as invalid. Note
+            that the filtered distance is from the **original ray start to the second
+            boundary**. This is to mimic measuring from a camera (hypothetical ray
+            source) to the ground (assuming the boundaries are given as [ceiling, floor]).
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

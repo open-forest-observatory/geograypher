@@ -360,7 +360,7 @@ def chunk_slices(
         - - 4 4 5
         - - 4 4 5
         - - - - 6
-    And in the (1, 5, 9) cases, is_diag would be True
+    And in the (1, 4, 6) cases, is_diag would be True
 
     Yields:
         Each yielded value is (islice, jslice, is_diag), where:
@@ -400,6 +400,7 @@ def format_graph_edges(
         jslice (slice): Slice indicating the block of columns being processed in
             the chunked computation
         dist (np.ndarray): Distance matrix containing distances between rays (chunked)
+            This is the [islice, jslice] section of a larger distance matrix.
         ray_IDs (np.ndarray): Array of identifiers indicating which image each ray comes
             from (not chunked)
 
@@ -467,7 +468,7 @@ def calc_graph_weights(
     # For memory reasons, we need to iterate over blocks. When the number of segments starts
     # getting very large, the matrices for calculating ray intersections take a great
     # deal of RAM
-    positive_edges = []
+    edge_weights = []
     num_steps = len(starts) // step + 1
     total = int(num_steps * (num_steps + 1) / 2)
     for islice, jslice, diagonal in tqdm(
@@ -493,23 +494,23 @@ def calc_graph_weights(
 
         # Determine which intersections are valid, represented by finite values
         i_inds, j_inds = np.where(np.isfinite(dist))
-        positive_edges.extend(
+        edge_weights.extend(
             format_graph_edges(i_inds, j_inds, islice, jslice, dist, ray_IDs)
         )
 
     if out_dir is None:
-        return positive_edges
+        return edge_weights
     else:
-        path = Path(out_dir) / "positive_edges.json"
+        path = Path(out_dir) / "edge_weights.json"
         with path.open("w") as file:
-            json.dump(positive_edges, file)
+            json.dump(edge_weights, file)
         return path
 
 
 def calc_communities(
     starts: np.ndarray,
     ends: np.ndarray,
-    positive_edges: typing.List[typing.Tuple[int, int, typing.Dict[str, float]]],
+    edge_weights: typing.List[typing.Tuple[int, int, typing.Dict[str, float]]],
     louvain_resolution: float = 1.0,
     out_dir: typing.Optional[PATH_TYPE] = None,
     transform_to_epsg_4978: typing.Optional[np.ndarray] = None,
@@ -521,7 +522,7 @@ def calc_communities(
     Args:
         starts (np.ndarray): (N, 3) array of ray start points
         ends (np.ndarray): (N, 3) array of ray end points
-        positive_edges (List[Tuple[int, int, Dict[str, float]]]): List of edges defining
+        edge_weights (List[Tuple[int, int, Dict[str, float]]]): List of edges defining
             the graph connectivity. Each edge is (start_idx, end_idx, weight_dict) where
             weight_dict contains the edge weight information
         louvain_resolution (float): Resolution hyperparameter for the Louvain community
@@ -542,7 +543,7 @@ def calc_communities(
     """
 
     # Build up the basic graph from edge weights
-    graph = networkx.Graph(positive_edges)
+    graph = networkx.Graph(edge_weights)
 
     # Check that the graph is non empty
     if len(graph) > 0:

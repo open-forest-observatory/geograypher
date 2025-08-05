@@ -236,5 +236,5 @@ class TestTriangulateDetections:
 
         if to_file:
             assert (tmp_path / "line_segments.npz").is_file()
-            assert (tmp_path / "positive_edges.json").is_file()
+            assert (tmp_path / "edge_weights.json").is_file()
             assert (tmp_path / "communities.npz").is_file()
