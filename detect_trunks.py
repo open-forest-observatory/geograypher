@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -74,5 +76,16 @@ vis_cast = cam.cast_rays(vis_grid)[1::2]
 vis_perspective = cam.decast_rays(vis_cast + Z)
 plot_pixel_arrows(start_pts=vis_grid, end_pts=vis_perspective, height=cam.image_height, width=cam.image_width, image_path=cam.get_image_filename())
 
+# import ipdb; ipdb.set_trace()
 
-import ipdb; ipdb.set_trace()
+cache = {}
+for cam in tqdm(cameras):
+    save_grid = generate_pixel_grid_ij(cam.image_height, cam.image_width, step=20)
+    save_cast = cam.cast_rays(save_grid)[1::2]
+    save_perspective = cam.decast_rays(save_cast + Z)
+    cache[str(cam.get_image_filename())] = {
+        "src": save_grid.tolist(),
+        "dest": save_perspective.tolist(),
+    }
+cache_path = image_dir / "grid20.json"
+json.dump(cache, cache_path.open("w"))
