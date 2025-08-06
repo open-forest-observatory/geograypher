@@ -210,6 +210,9 @@ class TexturedPhotogrammetryMesh:
         location of each vertex using the mappings between the current coordinate reference system
         and the requested one, as implemented in pyproj.
 
+        Note that if the CRS of the mesh is None, this operation will do nothing and the original
+        vertex values will be returned un-transformed.
+
         Args:
             target_CRS (pyproj.CRS): The coordinate reference system to transform the mesh to.
             inplace (bool, optional): Should the self.pyvista_mesh and self.CRS attributes be
@@ -219,23 +222,29 @@ class TexturedPhotogrammetryMesh:
         Returns:
             (pv.PolyData, optional): If `inplace==False`, a transformed pyvista mesh will be returned
         """
-        # Build a pyproj transfrormer from the current to the desired CRS
-        transformer = pyproj.Transformer.from_crs(self.CRS, target_CRS)
+        # Check if the mesh has a valid CRS
+        if self.CRS is None:
+            self.logger.warning("mesh CRS is None, reproject_CRS is doing nothing")
+            # If not, just return the original coordinates as if they had been transformed
+            verts_in_output_CRS = np.array(self.pyvista_mesh.points)
+        else:
+            # Build a pyproj transfrormer from the current to the desired CRS
+            transformer = pyproj.Transformer.from_crs(self.CRS, target_CRS)
 
-        # Convert the mesh vertices to a numpy array
-        mesh_verts = np.array(self.pyvista_mesh.points)
+            # Convert the mesh vertices to a numpy array
+            mesh_verts = np.array(self.pyvista_mesh.points)
 
-        # Transform the coordinates
-        verts_in_output_CRS = transformer.transform(
-            xx=mesh_verts[:, 0],
-            yy=mesh_verts[:, 1],
-            zz=mesh_verts[:, 2],
-        )
-        # Stack and transpose
-        verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
+            # Transform the coordinates
+            verts_in_output_CRS = transformer.transform(
+                xx=mesh_verts[:, 0],
+                yy=mesh_verts[:, 1],
+                zz=mesh_verts[:, 2],
+            )
+            # Stack and transpose
+            verts_in_output_CRS = np.vstack(verts_in_output_CRS).T
 
-        # TODO figure out how to deal with the fact that this may no longer be a right-handed coordinate system
-        # See comment in `get_vertices_in_CRS`
+            # TODO figure out how to deal with the fact that this may no longer be a right-handed coordinate system
+            # See comment in `get_vertices_in_CRS`
 
         if inplace:
             # Update the CRS
