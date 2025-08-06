@@ -2002,11 +2002,11 @@ class TexturedPhotogrammetryMesh:
             # Adjust the frustum scale if the mesh came from metashape
             # Find the cube root of the determinant of the upper-left 3x3 submatrix to find the scaling factor
             if (
-                self.local_to_epgs_4978_transform is not None
+                camera_set.get_local_to_epsg_4978_transform() is not None
                 and frustum_scale is not None
             ):
                 transform_determinant = np.linalg.det(
-                    self.local_to_epgs_4978_transform[:3, :3]
+                    camera_set.get_local_to_epsg_4978_transform()[:3, :3]
                 )
                 scale_factor = np.cbrt(transform_determinant)
                 frustum_scale = frustum_scale / scale_factor
