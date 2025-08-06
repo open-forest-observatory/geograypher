@@ -13,6 +13,7 @@ import argparse
 import typing
 from pathlib import Path
 
+import pyproj
 import numpy as np
 import pyproj
 import pyvista as pv
@@ -130,6 +131,7 @@ def render_height_masks(
     mesh_file: PATH_TYPE,
     mesh_CRS: pyproj.CRS,
     dtm_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     original_image_folder: typing.Optional[PATH_TYPE],
     output_folder: PATH_TYPE,
     output_mode: str,

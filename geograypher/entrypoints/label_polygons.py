@@ -1,9 +1,9 @@
 import argparse
 import typing
-from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pyproj
 
 from geograypher.constants import PATH_TYPE, PRED_CLASS_ID_KEY
 from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
@@ -12,7 +12,7 @@ from geograypher.utils.files import ensure_containing_folder
 
 def label_polygons(
     mesh_file: PATH_TYPE,
-    mesh_transform_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     aggregated_face_values_file: PATH_TYPE,
     geospatial_polygons_to_label: typing.Union[PATH_TYPE, None],
     geospatial_polygons_labeled_savefile: typing.Union[PATH_TYPE, None],
@@ -33,9 +33,8 @@ def label_polygons(
     Args:
         mesh_file (PATH_TYPE):
             Path to the Metashape-exported mesh file
-        mesh_transform_file (PATH_TYPE):
-            Transform from the mesh coordinates to the earth-centered, earth-fixed frame. Can be a
-            4x4 matrix represented as a .csv, or a Metashape cameras file containing the information.
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in.
         aggregated_face_values_file (PATH_TYPE):
             Path to a (n_faces, n_classes) numpy array containing the frequency of each class
             prediction for each face
@@ -74,7 +73,7 @@ def label_polygons(
     ## Create the mesh
     mesh = TexturedPhotogrammetryMeshChunked(
         mesh_file,
-        transform_filename=mesh_transform_file,
+        mesh_CRS=mesh_CRS,
         ROI=ROI,
         ROI_buffer_meters=ROI_buffer_radius_meters,
         IDs_to_labels=IDs_to_labels,
@@ -129,7 +128,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
     parser.add_argument("--mesh-file", required=True)
-    parser.add_argument("--mesh-transform-file", required=True)
+    parser.add_argument("--mesh-CRS", required=True)
     parser.add_argument("--aggregate-face-values-file")
     parser.add_argument("--geospatial-polygons-to-label")
     parser.add_argument("--geospatial-polygons-labeled-savefile")

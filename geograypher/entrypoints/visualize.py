@@ -9,6 +9,7 @@ from geograypher.meshes import TexturedPhotogrammetryMesh
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mesh-file")
+    parser.add_argument("--mesh-CRS")
     parser.add_argument("--camera-file")
     parser.add_argument("--texture")
     parser.add_argument("--downsample-target", type=float, default=1.0)
@@ -22,6 +23,7 @@ def parse_args():
 
 def visualize(
     mesh_file,
+    mesh_CRS,
     camera_file,
     texture,
     downsample_target,
@@ -48,6 +50,7 @@ def visualize(
 
     mesh = TexturedPhotogrammetryMesh(
         mesh_file,
+        input_CRS=mesh_CRS,
         ROI=ROI,
         ROI_buffer_meters=ROI_buffer_meters,
         downsample_target=downsample_target,
