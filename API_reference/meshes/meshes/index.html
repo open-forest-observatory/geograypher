@@ -942,6 +942,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#geograypher.meshes.TexturedPhotogrammetryMesh.export_covering_meshes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;export_covering_meshes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#geograypher.meshes.TexturedPhotogrammetryMesh.export_face_labels_vector" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;export_face_labels_vector
@@ -1871,6 +1880,15 @@
   <a href="#geograypher.meshes.TexturedPhotogrammetryMesh.aggregate_projected_images" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;aggregate_projected_images
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geograypher.meshes.TexturedPhotogrammetryMesh.export_covering_meshes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;export_covering_meshes
     </span>
   </a>
   
@@ -4277,7 +4295,92 @@
 <span class="normal"><a href="#__codelineno-0-2185">2185</a></span>
 <span class="normal"><a href="#__codelineno-0-2186">2186</a></span>
 <span class="normal"><a href="#__codelineno-0-2187">2187</a></span>
-<span class="normal"><a href="#__codelineno-0-2188">2188</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-2188">2188</a></span>
+<span class="normal"><a href="#__codelineno-0-2189">2189</a></span>
+<span class="normal"><a href="#__codelineno-0-2190">2190</a></span>
+<span class="normal"><a href="#__codelineno-0-2191">2191</a></span>
+<span class="normal"><a href="#__codelineno-0-2192">2192</a></span>
+<span class="normal"><a href="#__codelineno-0-2193">2193</a></span>
+<span class="normal"><a href="#__codelineno-0-2194">2194</a></span>
+<span class="normal"><a href="#__codelineno-0-2195">2195</a></span>
+<span class="normal"><a href="#__codelineno-0-2196">2196</a></span>
+<span class="normal"><a href="#__codelineno-0-2197">2197</a></span>
+<span class="normal"><a href="#__codelineno-0-2198">2198</a></span>
+<span class="normal"><a href="#__codelineno-0-2199">2199</a></span>
+<span class="normal"><a href="#__codelineno-0-2200">2200</a></span>
+<span class="normal"><a href="#__codelineno-0-2201">2201</a></span>
+<span class="normal"><a href="#__codelineno-0-2202">2202</a></span>
+<span class="normal"><a href="#__codelineno-0-2203">2203</a></span>
+<span class="normal"><a href="#__codelineno-0-2204">2204</a></span>
+<span class="normal"><a href="#__codelineno-0-2205">2205</a></span>
+<span class="normal"><a href="#__codelineno-0-2206">2206</a></span>
+<span class="normal"><a href="#__codelineno-0-2207">2207</a></span>
+<span class="normal"><a href="#__codelineno-0-2208">2208</a></span>
+<span class="normal"><a href="#__codelineno-0-2209">2209</a></span>
+<span class="normal"><a href="#__codelineno-0-2210">2210</a></span>
+<span class="normal"><a href="#__codelineno-0-2211">2211</a></span>
+<span class="normal"><a href="#__codelineno-0-2212">2212</a></span>
+<span class="normal"><a href="#__codelineno-0-2213">2213</a></span>
+<span class="normal"><a href="#__codelineno-0-2214">2214</a></span>
+<span class="normal"><a href="#__codelineno-0-2215">2215</a></span>
+<span class="normal"><a href="#__codelineno-0-2216">2216</a></span>
+<span class="normal"><a href="#__codelineno-0-2217">2217</a></span>
+<span class="normal"><a href="#__codelineno-0-2218">2218</a></span>
+<span class="normal"><a href="#__codelineno-0-2219">2219</a></span>
+<span class="normal"><a href="#__codelineno-0-2220">2220</a></span>
+<span class="normal"><a href="#__codelineno-0-2221">2221</a></span>
+<span class="normal"><a href="#__codelineno-0-2222">2222</a></span>
+<span class="normal"><a href="#__codelineno-0-2223">2223</a></span>
+<span class="normal"><a href="#__codelineno-0-2224">2224</a></span>
+<span class="normal"><a href="#__codelineno-0-2225">2225</a></span>
+<span class="normal"><a href="#__codelineno-0-2226">2226</a></span>
+<span class="normal"><a href="#__codelineno-0-2227">2227</a></span>
+<span class="normal"><a href="#__codelineno-0-2228">2228</a></span>
+<span class="normal"><a href="#__codelineno-0-2229">2229</a></span>
+<span class="normal"><a href="#__codelineno-0-2230">2230</a></span>
+<span class="normal"><a href="#__codelineno-0-2231">2231</a></span>
+<span class="normal"><a href="#__codelineno-0-2232">2232</a></span>
+<span class="normal"><a href="#__codelineno-0-2233">2233</a></span>
+<span class="normal"><a href="#__codelineno-0-2234">2234</a></span>
+<span class="normal"><a href="#__codelineno-0-2235">2235</a></span>
+<span class="normal"><a href="#__codelineno-0-2236">2236</a></span>
+<span class="normal"><a href="#__codelineno-0-2237">2237</a></span>
+<span class="normal"><a href="#__codelineno-0-2238">2238</a></span>
+<span class="normal"><a href="#__codelineno-0-2239">2239</a></span>
+<span class="normal"><a href="#__codelineno-0-2240">2240</a></span>
+<span class="normal"><a href="#__codelineno-0-2241">2241</a></span>
+<span class="normal"><a href="#__codelineno-0-2242">2242</a></span>
+<span class="normal"><a href="#__codelineno-0-2243">2243</a></span>
+<span class="normal"><a href="#__codelineno-0-2244">2244</a></span>
+<span class="normal"><a href="#__codelineno-0-2245">2245</a></span>
+<span class="normal"><a href="#__codelineno-0-2246">2246</a></span>
+<span class="normal"><a href="#__codelineno-0-2247">2247</a></span>
+<span class="normal"><a href="#__codelineno-0-2248">2248</a></span>
+<span class="normal"><a href="#__codelineno-0-2249">2249</a></span>
+<span class="normal"><a href="#__codelineno-0-2250">2250</a></span>
+<span class="normal"><a href="#__codelineno-0-2251">2251</a></span>
+<span class="normal"><a href="#__codelineno-0-2252">2252</a></span>
+<span class="normal"><a href="#__codelineno-0-2253">2253</a></span>
+<span class="normal"><a href="#__codelineno-0-2254">2254</a></span>
+<span class="normal"><a href="#__codelineno-0-2255">2255</a></span>
+<span class="normal"><a href="#__codelineno-0-2256">2256</a></span>
+<span class="normal"><a href="#__codelineno-0-2257">2257</a></span>
+<span class="normal"><a href="#__codelineno-0-2258">2258</a></span>
+<span class="normal"><a href="#__codelineno-0-2259">2259</a></span>
+<span class="normal"><a href="#__codelineno-0-2260">2260</a></span>
+<span class="normal"><a href="#__codelineno-0-2261">2261</a></span>
+<span class="normal"><a href="#__codelineno-0-2262">2262</a></span>
+<span class="normal"><a href="#__codelineno-0-2263">2263</a></span>
+<span class="normal"><a href="#__codelineno-0-2264">2264</a></span>
+<span class="normal"><a href="#__codelineno-0-2265">2265</a></span>
+<span class="normal"><a href="#__codelineno-0-2266">2266</a></span>
+<span class="normal"><a href="#__codelineno-0-2267">2267</a></span>
+<span class="normal"><a href="#__codelineno-0-2268">2268</a></span>
+<span class="normal"><a href="#__codelineno-0-2269">2269</a></span>
+<span class="normal"><a href="#__codelineno-0-2270">2270</a></span>
+<span class="normal"><a href="#__codelineno-0-2271">2271</a></span>
+<span class="normal"><a href="#__codelineno-0-2272">2272</a></span>
+<span class="normal"><a href="#__codelineno-0-2273">2273</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">class</span><span class="w"> </span><span class="nc">TexturedPhotogrammetryMesh</span><span class="p">:</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="bp">self</span><span class="p">,</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="n">mesh</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">],</span>
@@ -6414,6 +6517,91 @@
 <a id="__codelineno-0-2186" name="__codelineno-0-2186"></a>                    <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;deflate&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-2187" name="__codelineno-0-2187"></a>                    <span class="n">check_contrast</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-2188" name="__codelineno-0-2188"></a>                <span class="p">)</span>
+<a id="__codelineno-0-2189" name="__codelineno-0-2189"></a>
+<a id="__codelineno-0-2190" name="__codelineno-0-2190"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">export_covering_meshes</span><span class="p">(</span>
+<a id="__codelineno-0-2191" name="__codelineno-0-2191"></a>        <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-2192" name="__codelineno-0-2192"></a>        <span class="n">N</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-0-2193" name="__codelineno-0-2193"></a>        <span class="n">z_buffer</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+<a id="__codelineno-0-2194" name="__codelineno-0-2194"></a>        <span class="n">subsample</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-2195" name="__codelineno-0-2195"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">]:</span>
+<a id="__codelineno-0-2196" name="__codelineno-0-2196"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-2197" name="__codelineno-0-2197"></a><span class="sd">        This function will process self.pyvista_mesh. It will start by identifying the (x, y)</span>
+<a id="__codelineno-0-2198" name="__codelineno-0-2198"></a><span class="sd">        boundaries of that mesh, then create an (N, N) grid of (x, y) points over that area.</span>
+<a id="__codelineno-0-2199" name="__codelineno-0-2199"></a><span class="sd">        At each (x, y) square in the grid, the pyvista mesh will be sampled for the highest and</span>
+<a id="__codelineno-0-2200" name="__codelineno-0-2200"></a><span class="sd">        lowest value. This will be used to set the Z heights for that grid point (plus the</span>
+<a id="__codelineno-0-2201" name="__codelineno-0-2201"></a><span class="sd">        z_buffer). Then upper and lower bound surfaces will be made from these grid points</span>
+<a id="__codelineno-0-2202" name="__codelineno-0-2202"></a><span class="sd">        using delaunay_2d and returned.</span>
+<a id="__codelineno-0-2203" name="__codelineno-0-2203"></a>
+<a id="__codelineno-0-2204" name="__codelineno-0-2204"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-2205" name="__codelineno-0-2205"></a><span class="sd">            N (int): Number of sample points to take as a grid</span>
+<a id="__codelineno-0-2206" name="__codelineno-0-2206"></a><span class="sd">            z_buffer (tuple): Offset in Z to give the sampled points, in the units of the mesh.</span>
+<a id="__codelineno-0-2207" name="__codelineno-0-2207"></a><span class="sd">                [0] is for the upper mesh, [1] is for the lower.</span>
+<a id="__codelineno-0-2208" name="__codelineno-0-2208"></a><span class="sd">            subsample (int / None): If not None, we will naively subsample self.pyvista_mesh.points</span>
+<a id="__codelineno-0-2209" name="__codelineno-0-2209"></a><span class="sd">                to speed up runtime by [::subsample]. A larger number will subsample more.</span>
+<a id="__codelineno-0-2210" name="__codelineno-0-2210"></a>
+<a id="__codelineno-0-2211" name="__codelineno-0-2211"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-2212" name="__codelineno-0-2212"></a><span class="sd">            tuple: A tuple of two pyvista.PolyData objects, the first is the upper</span>
+<a id="__codelineno-0-2213" name="__codelineno-0-2213"></a><span class="sd">            covering mesh, the second the lower covering mesh.</span>
+<a id="__codelineno-0-2214" name="__codelineno-0-2214"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-2215" name="__codelineno-0-2215"></a>
+<a id="__codelineno-0-2216" name="__codelineno-0-2216"></a>        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Requires a populated mesh&quot;</span>
+<a id="__codelineno-0-2217" name="__codelineno-0-2217"></a>        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">z_buffer</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;2 buffers (top, bottom) are required&quot;</span>
+<a id="__codelineno-0-2218" name="__codelineno-0-2218"></a>
+<a id="__codelineno-0-2219" name="__codelineno-0-2219"></a>        <span class="c1"># Get mesh points</span>
+<a id="__codelineno-0-2220" name="__codelineno-0-2220"></a>        <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">points</span>
+<a id="__codelineno-0-2221" name="__codelineno-0-2221"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-2222" name="__codelineno-0-2222"></a>            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+<a id="__codelineno-0-2223" name="__codelineno-0-2223"></a>
+<a id="__codelineno-0-2224" name="__codelineno-0-2224"></a>        <span class="k">if</span> <span class="n">subsample</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-2225" name="__codelineno-0-2225"></a>            <span class="n">points</span> <span class="o">=</span> <span class="n">points</span><span class="p">[::</span><span class="n">subsample</span><span class="p">]</span>
+<a id="__codelineno-0-2226" name="__codelineno-0-2226"></a>        <span class="n">x_min</span><span class="p">,</span> <span class="n">y_min</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+<a id="__codelineno-0-2227" name="__codelineno-0-2227"></a>        <span class="n">x_max</span><span class="p">,</span> <span class="n">y_max</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<a id="__codelineno-0-2228" name="__codelineno-0-2228"></a>
+<a id="__codelineno-0-2229" name="__codelineno-0-2229"></a>        <span class="c1"># Create grid</span>
+<a id="__codelineno-0-2230" name="__codelineno-0-2230"></a>        <span class="n">grid_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">indices</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<a id="__codelineno-0-2231" name="__codelineno-0-2231"></a>        <span class="n">x_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">x_min</span><span class="p">,</span> <span class="n">x_max</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2232" name="__codelineno-0-2232"></a>        <span class="n">y_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">y_min</span><span class="p">,</span> <span class="n">y_max</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2233" name="__codelineno-0-2233"></a>        <span class="n">grid_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">x_grid</span><span class="p">[</span><span class="n">grid_ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">grid_ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]])</span>
+<a id="__codelineno-0-2234" name="__codelineno-0-2234"></a>
+<a id="__codelineno-0-2235" name="__codelineno-0-2235"></a>        <span class="c1"># For each grid point, find mesh points within the cell and get z value</span>
+<a id="__codelineno-0-2236" name="__codelineno-0-2236"></a>        <span class="n">cell_w_half</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_max</span> <span class="o">-</span> <span class="n">x_min</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+<a id="__codelineno-0-2237" name="__codelineno-0-2237"></a>        <span class="n">cell_h_half</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_max</span> <span class="o">-</span> <span class="n">y_min</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+<a id="__codelineno-0-2238" name="__codelineno-0-2238"></a>        <span class="c1"># Positive</span>
+<a id="__codelineno-0-2239" name="__codelineno-0-2239"></a>        <span class="n">z_p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-0-2240" name="__codelineno-0-2240"></a>        <span class="c1"># Negative</span>
+<a id="__codelineno-0-2241" name="__codelineno-0-2241"></a>        <span class="n">z_n_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-0-2242" name="__codelineno-0-2242"></a>
+<a id="__codelineno-0-2243" name="__codelineno-0-2243"></a>        <span class="c1"># Precompute mask stripes to save time</span>
+<a id="__codelineno-0-2244" name="__codelineno-0-2244"></a>        <span class="n">x_masks</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-2245" name="__codelineno-0-2245"></a>            <span class="n">index</span><span class="p">:</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">x_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">cell_w_half</span><span class="p">)</span>
+<a id="__codelineno-0-2246" name="__codelineno-0-2246"></a>            <span class="o">&amp;</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">x_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="n">cell_w_half</span><span class="p">)</span>
+<a id="__codelineno-0-2247" name="__codelineno-0-2247"></a>            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2248" name="__codelineno-0-2248"></a>        <span class="p">}</span>
+<a id="__codelineno-0-2249" name="__codelineno-0-2249"></a>        <span class="n">y_masks</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-2250" name="__codelineno-0-2250"></a>            <span class="n">index</span><span class="p">:</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">cell_h_half</span><span class="p">)</span>
+<a id="__codelineno-0-2251" name="__codelineno-0-2251"></a>            <span class="o">&amp;</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="n">cell_h_half</span><span class="p">)</span>
+<a id="__codelineno-0-2252" name="__codelineno-0-2252"></a>            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2253" name="__codelineno-0-2253"></a>        <span class="p">}</span>
+<a id="__codelineno-0-2254" name="__codelineno-0-2254"></a>        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">grid_ind</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Building covering meshes&quot;</span><span class="p">)):</span>
+<a id="__codelineno-0-2255" name="__codelineno-0-2255"></a>            <span class="c1"># Find mesh points within the cell</span>
+<a id="__codelineno-0-2256" name="__codelineno-0-2256"></a>            <span class="n">mask</span> <span class="o">=</span> <span class="n">x_masks</span><span class="p">[</span><span class="n">xi</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">y_masks</span><span class="p">[</span><span class="n">yi</span><span class="p">]</span>
+<a id="__codelineno-0-2257" name="__codelineno-0-2257"></a>            <span class="n">z_candidates</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<a id="__codelineno-0-2258" name="__codelineno-0-2258"></a>            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-2259" name="__codelineno-0-2259"></a>                <span class="n">z_p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">+</span> <span class="n">z_buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-2260" name="__codelineno-0-2260"></a>                <span class="n">z_n_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">+</span> <span class="n">z_buffer</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<a id="__codelineno-0-2261" name="__codelineno-0-2261"></a>
+<a id="__codelineno-0-2262" name="__codelineno-0-2262"></a>        <span class="c1"># Create 3D points for the grid</span>
+<a id="__codelineno-0-2263" name="__codelineno-0-2263"></a>        <span class="n">grid_p_3d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">grid_points</span><span class="p">,</span> <span class="n">z_p_values</span><span class="p">])</span>
+<a id="__codelineno-0-2264" name="__codelineno-0-2264"></a>        <span class="n">grid_n_3d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">grid_points</span><span class="p">,</span> <span class="n">z_n_values</span><span class="p">])</span>
+<a id="__codelineno-0-2265" name="__codelineno-0-2265"></a>        <span class="c1"># Remove points with no Z values</span>
+<a id="__codelineno-0-2266" name="__codelineno-0-2266"></a>        <span class="n">grid_p_3d</span> <span class="o">=</span> <span class="n">grid_p_3d</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z_p_values</span><span class="p">)]</span>
+<a id="__codelineno-0-2267" name="__codelineno-0-2267"></a>        <span class="n">grid_n_3d</span> <span class="o">=</span> <span class="n">grid_n_3d</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z_n_values</span><span class="p">)]</span>
+<a id="__codelineno-0-2268" name="__codelineno-0-2268"></a>
+<a id="__codelineno-0-2269" name="__codelineno-0-2269"></a>        <span class="c1"># Create pyvista point cloud and surface</span>
+<a id="__codelineno-0-2270" name="__codelineno-0-2270"></a>        <span class="k">return</span> <span class="p">(</span>
+<a id="__codelineno-0-2271" name="__codelineno-0-2271"></a>            <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">(</span><span class="n">grid_p_3d</span><span class="p">)</span><span class="o">.</span><span class="n">delaunay_2d</span><span class="p">(),</span>
+<a id="__codelineno-0-2272" name="__codelineno-0-2272"></a>            <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">(</span><span class="n">grid_n_3d</span><span class="p">)</span><span class="o">.</span><span class="n">delaunay_2d</span><span class="p">(),</span>
+<a id="__codelineno-0-2273" name="__codelineno-0-2273"></a>        <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -7090,6 +7278,298 @@ Defaults to False.</p>
 <a id="__codelineno-0-1874" name="__codelineno-0-1874"></a>    <span class="p">)</span>
 <a id="__codelineno-0-1875" name="__codelineno-0-1875"></a>
 <a id="__codelineno-0-1876" name="__codelineno-0-1876"></a>    <span class="k">return</span> <span class="n">average_projections</span><span class="p">,</span> <span class="n">additional_information</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="geograypher.meshes.TexturedPhotogrammetryMesh.export_covering_meshes" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">export_covering_meshes</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">z_buffer</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">subsample</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#geograypher.meshes.TexturedPhotogrammetryMesh.export_covering_meshes" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>This function will process self.pyvista_mesh. It will start by identifying the (x, y)
+boundaries of that mesh, then create an (N, N) grid of (x, y) points over that area.
+At each (x, y) square in the grid, the pyvista mesh will be sampled for the highest and
+lowest value. This will be used to set the Z heights for that grid point (plus the
+z_buffer). Then upper and lower bound surfaces will be made from these grid points
+using delaunay_2d and returned.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>N</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of sample points to take as a grid</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>z_buffer</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Offset in Z to give the sampled points, in the units of the mesh.
+[0] is for the upper mesh, [1] is for the lower.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>subsample</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> / None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If not None, we will naively subsample self.pyvista_mesh.points
+to speed up runtime by [::subsample]. A larger number will subsample more.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>tuple</code></td>            <td>
+                  <code><span title="pyvista.PolyData">PolyData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A tuple of two pyvista.PolyData objects, the first is the upper</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pyvista.PolyData">PolyData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>covering mesh, the second the lower covering mesh.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="quote">
+              <summary>Source code in <code>geograypher/meshes/meshes.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-2190">2190</a></span>
+<span class="normal"><a href="#__codelineno-0-2191">2191</a></span>
+<span class="normal"><a href="#__codelineno-0-2192">2192</a></span>
+<span class="normal"><a href="#__codelineno-0-2193">2193</a></span>
+<span class="normal"><a href="#__codelineno-0-2194">2194</a></span>
+<span class="normal"><a href="#__codelineno-0-2195">2195</a></span>
+<span class="normal"><a href="#__codelineno-0-2196">2196</a></span>
+<span class="normal"><a href="#__codelineno-0-2197">2197</a></span>
+<span class="normal"><a href="#__codelineno-0-2198">2198</a></span>
+<span class="normal"><a href="#__codelineno-0-2199">2199</a></span>
+<span class="normal"><a href="#__codelineno-0-2200">2200</a></span>
+<span class="normal"><a href="#__codelineno-0-2201">2201</a></span>
+<span class="normal"><a href="#__codelineno-0-2202">2202</a></span>
+<span class="normal"><a href="#__codelineno-0-2203">2203</a></span>
+<span class="normal"><a href="#__codelineno-0-2204">2204</a></span>
+<span class="normal"><a href="#__codelineno-0-2205">2205</a></span>
+<span class="normal"><a href="#__codelineno-0-2206">2206</a></span>
+<span class="normal"><a href="#__codelineno-0-2207">2207</a></span>
+<span class="normal"><a href="#__codelineno-0-2208">2208</a></span>
+<span class="normal"><a href="#__codelineno-0-2209">2209</a></span>
+<span class="normal"><a href="#__codelineno-0-2210">2210</a></span>
+<span class="normal"><a href="#__codelineno-0-2211">2211</a></span>
+<span class="normal"><a href="#__codelineno-0-2212">2212</a></span>
+<span class="normal"><a href="#__codelineno-0-2213">2213</a></span>
+<span class="normal"><a href="#__codelineno-0-2214">2214</a></span>
+<span class="normal"><a href="#__codelineno-0-2215">2215</a></span>
+<span class="normal"><a href="#__codelineno-0-2216">2216</a></span>
+<span class="normal"><a href="#__codelineno-0-2217">2217</a></span>
+<span class="normal"><a href="#__codelineno-0-2218">2218</a></span>
+<span class="normal"><a href="#__codelineno-0-2219">2219</a></span>
+<span class="normal"><a href="#__codelineno-0-2220">2220</a></span>
+<span class="normal"><a href="#__codelineno-0-2221">2221</a></span>
+<span class="normal"><a href="#__codelineno-0-2222">2222</a></span>
+<span class="normal"><a href="#__codelineno-0-2223">2223</a></span>
+<span class="normal"><a href="#__codelineno-0-2224">2224</a></span>
+<span class="normal"><a href="#__codelineno-0-2225">2225</a></span>
+<span class="normal"><a href="#__codelineno-0-2226">2226</a></span>
+<span class="normal"><a href="#__codelineno-0-2227">2227</a></span>
+<span class="normal"><a href="#__codelineno-0-2228">2228</a></span>
+<span class="normal"><a href="#__codelineno-0-2229">2229</a></span>
+<span class="normal"><a href="#__codelineno-0-2230">2230</a></span>
+<span class="normal"><a href="#__codelineno-0-2231">2231</a></span>
+<span class="normal"><a href="#__codelineno-0-2232">2232</a></span>
+<span class="normal"><a href="#__codelineno-0-2233">2233</a></span>
+<span class="normal"><a href="#__codelineno-0-2234">2234</a></span>
+<span class="normal"><a href="#__codelineno-0-2235">2235</a></span>
+<span class="normal"><a href="#__codelineno-0-2236">2236</a></span>
+<span class="normal"><a href="#__codelineno-0-2237">2237</a></span>
+<span class="normal"><a href="#__codelineno-0-2238">2238</a></span>
+<span class="normal"><a href="#__codelineno-0-2239">2239</a></span>
+<span class="normal"><a href="#__codelineno-0-2240">2240</a></span>
+<span class="normal"><a href="#__codelineno-0-2241">2241</a></span>
+<span class="normal"><a href="#__codelineno-0-2242">2242</a></span>
+<span class="normal"><a href="#__codelineno-0-2243">2243</a></span>
+<span class="normal"><a href="#__codelineno-0-2244">2244</a></span>
+<span class="normal"><a href="#__codelineno-0-2245">2245</a></span>
+<span class="normal"><a href="#__codelineno-0-2246">2246</a></span>
+<span class="normal"><a href="#__codelineno-0-2247">2247</a></span>
+<span class="normal"><a href="#__codelineno-0-2248">2248</a></span>
+<span class="normal"><a href="#__codelineno-0-2249">2249</a></span>
+<span class="normal"><a href="#__codelineno-0-2250">2250</a></span>
+<span class="normal"><a href="#__codelineno-0-2251">2251</a></span>
+<span class="normal"><a href="#__codelineno-0-2252">2252</a></span>
+<span class="normal"><a href="#__codelineno-0-2253">2253</a></span>
+<span class="normal"><a href="#__codelineno-0-2254">2254</a></span>
+<span class="normal"><a href="#__codelineno-0-2255">2255</a></span>
+<span class="normal"><a href="#__codelineno-0-2256">2256</a></span>
+<span class="normal"><a href="#__codelineno-0-2257">2257</a></span>
+<span class="normal"><a href="#__codelineno-0-2258">2258</a></span>
+<span class="normal"><a href="#__codelineno-0-2259">2259</a></span>
+<span class="normal"><a href="#__codelineno-0-2260">2260</a></span>
+<span class="normal"><a href="#__codelineno-0-2261">2261</a></span>
+<span class="normal"><a href="#__codelineno-0-2262">2262</a></span>
+<span class="normal"><a href="#__codelineno-0-2263">2263</a></span>
+<span class="normal"><a href="#__codelineno-0-2264">2264</a></span>
+<span class="normal"><a href="#__codelineno-0-2265">2265</a></span>
+<span class="normal"><a href="#__codelineno-0-2266">2266</a></span>
+<span class="normal"><a href="#__codelineno-0-2267">2267</a></span>
+<span class="normal"><a href="#__codelineno-0-2268">2268</a></span>
+<span class="normal"><a href="#__codelineno-0-2269">2269</a></span>
+<span class="normal"><a href="#__codelineno-0-2270">2270</a></span>
+<span class="normal"><a href="#__codelineno-0-2271">2271</a></span>
+<span class="normal"><a href="#__codelineno-0-2272">2272</a></span>
+<span class="normal"><a href="#__codelineno-0-2273">2273</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2190" name="__codelineno-0-2190"></a><span class="k">def</span><span class="w"> </span><span class="nf">export_covering_meshes</span><span class="p">(</span>
+<a id="__codelineno-0-2191" name="__codelineno-0-2191"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-2192" name="__codelineno-0-2192"></a>    <span class="n">N</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-0-2193" name="__codelineno-0-2193"></a>    <span class="n">z_buffer</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+<a id="__codelineno-0-2194" name="__codelineno-0-2194"></a>    <span class="n">subsample</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-2195" name="__codelineno-0-2195"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">typing</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">,</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">]:</span>
+<a id="__codelineno-0-2196" name="__codelineno-0-2196"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-2197" name="__codelineno-0-2197"></a><span class="sd">    This function will process self.pyvista_mesh. It will start by identifying the (x, y)</span>
+<a id="__codelineno-0-2198" name="__codelineno-0-2198"></a><span class="sd">    boundaries of that mesh, then create an (N, N) grid of (x, y) points over that area.</span>
+<a id="__codelineno-0-2199" name="__codelineno-0-2199"></a><span class="sd">    At each (x, y) square in the grid, the pyvista mesh will be sampled for the highest and</span>
+<a id="__codelineno-0-2200" name="__codelineno-0-2200"></a><span class="sd">    lowest value. This will be used to set the Z heights for that grid point (plus the</span>
+<a id="__codelineno-0-2201" name="__codelineno-0-2201"></a><span class="sd">    z_buffer). Then upper and lower bound surfaces will be made from these grid points</span>
+<a id="__codelineno-0-2202" name="__codelineno-0-2202"></a><span class="sd">    using delaunay_2d and returned.</span>
+<a id="__codelineno-0-2203" name="__codelineno-0-2203"></a>
+<a id="__codelineno-0-2204" name="__codelineno-0-2204"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-2205" name="__codelineno-0-2205"></a><span class="sd">        N (int): Number of sample points to take as a grid</span>
+<a id="__codelineno-0-2206" name="__codelineno-0-2206"></a><span class="sd">        z_buffer (tuple): Offset in Z to give the sampled points, in the units of the mesh.</span>
+<a id="__codelineno-0-2207" name="__codelineno-0-2207"></a><span class="sd">            [0] is for the upper mesh, [1] is for the lower.</span>
+<a id="__codelineno-0-2208" name="__codelineno-0-2208"></a><span class="sd">        subsample (int / None): If not None, we will naively subsample self.pyvista_mesh.points</span>
+<a id="__codelineno-0-2209" name="__codelineno-0-2209"></a><span class="sd">            to speed up runtime by [::subsample]. A larger number will subsample more.</span>
+<a id="__codelineno-0-2210" name="__codelineno-0-2210"></a>
+<a id="__codelineno-0-2211" name="__codelineno-0-2211"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-2212" name="__codelineno-0-2212"></a><span class="sd">        tuple: A tuple of two pyvista.PolyData objects, the first is the upper</span>
+<a id="__codelineno-0-2213" name="__codelineno-0-2213"></a><span class="sd">        covering mesh, the second the lower covering mesh.</span>
+<a id="__codelineno-0-2214" name="__codelineno-0-2214"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-2215" name="__codelineno-0-2215"></a>
+<a id="__codelineno-0-2216" name="__codelineno-0-2216"></a>    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Requires a populated mesh&quot;</span>
+<a id="__codelineno-0-2217" name="__codelineno-0-2217"></a>    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">z_buffer</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;2 buffers (top, bottom) are required&quot;</span>
+<a id="__codelineno-0-2218" name="__codelineno-0-2218"></a>
+<a id="__codelineno-0-2219" name="__codelineno-0-2219"></a>    <span class="c1"># Get mesh points</span>
+<a id="__codelineno-0-2220" name="__codelineno-0-2220"></a>    <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">points</span>
+<a id="__codelineno-0-2221" name="__codelineno-0-2221"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-2222" name="__codelineno-0-2222"></a>        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyvista_mesh</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+<a id="__codelineno-0-2223" name="__codelineno-0-2223"></a>
+<a id="__codelineno-0-2224" name="__codelineno-0-2224"></a>    <span class="k">if</span> <span class="n">subsample</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-2225" name="__codelineno-0-2225"></a>        <span class="n">points</span> <span class="o">=</span> <span class="n">points</span><span class="p">[::</span><span class="n">subsample</span><span class="p">]</span>
+<a id="__codelineno-0-2226" name="__codelineno-0-2226"></a>    <span class="n">x_min</span><span class="p">,</span> <span class="n">y_min</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+<a id="__codelineno-0-2227" name="__codelineno-0-2227"></a>    <span class="n">x_max</span><span class="p">,</span> <span class="n">y_max</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<a id="__codelineno-0-2228" name="__codelineno-0-2228"></a>
+<a id="__codelineno-0-2229" name="__codelineno-0-2229"></a>    <span class="c1"># Create grid</span>
+<a id="__codelineno-0-2230" name="__codelineno-0-2230"></a>    <span class="n">grid_ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">indices</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<a id="__codelineno-0-2231" name="__codelineno-0-2231"></a>    <span class="n">x_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">x_min</span><span class="p">,</span> <span class="n">x_max</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2232" name="__codelineno-0-2232"></a>    <span class="n">y_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">y_min</span><span class="p">,</span> <span class="n">y_max</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2233" name="__codelineno-0-2233"></a>    <span class="n">grid_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">x_grid</span><span class="p">[</span><span class="n">grid_ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">grid_ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]])</span>
+<a id="__codelineno-0-2234" name="__codelineno-0-2234"></a>
+<a id="__codelineno-0-2235" name="__codelineno-0-2235"></a>    <span class="c1"># For each grid point, find mesh points within the cell and get z value</span>
+<a id="__codelineno-0-2236" name="__codelineno-0-2236"></a>    <span class="n">cell_w_half</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_max</span> <span class="o">-</span> <span class="n">x_min</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+<a id="__codelineno-0-2237" name="__codelineno-0-2237"></a>    <span class="n">cell_h_half</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_max</span> <span class="o">-</span> <span class="n">y_min</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">N</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+<a id="__codelineno-0-2238" name="__codelineno-0-2238"></a>    <span class="c1"># Positive</span>
+<a id="__codelineno-0-2239" name="__codelineno-0-2239"></a>    <span class="n">z_p_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-0-2240" name="__codelineno-0-2240"></a>    <span class="c1"># Negative</span>
+<a id="__codelineno-0-2241" name="__codelineno-0-2241"></a>    <span class="n">z_n_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-0-2242" name="__codelineno-0-2242"></a>
+<a id="__codelineno-0-2243" name="__codelineno-0-2243"></a>    <span class="c1"># Precompute mask stripes to save time</span>
+<a id="__codelineno-0-2244" name="__codelineno-0-2244"></a>    <span class="n">x_masks</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-2245" name="__codelineno-0-2245"></a>        <span class="n">index</span><span class="p">:</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">x_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">cell_w_half</span><span class="p">)</span>
+<a id="__codelineno-0-2246" name="__codelineno-0-2246"></a>        <span class="o">&amp;</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">x_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="n">cell_w_half</span><span class="p">)</span>
+<a id="__codelineno-0-2247" name="__codelineno-0-2247"></a>        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2248" name="__codelineno-0-2248"></a>    <span class="p">}</span>
+<a id="__codelineno-0-2249" name="__codelineno-0-2249"></a>    <span class="n">y_masks</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-2250" name="__codelineno-0-2250"></a>        <span class="n">index</span><span class="p">:</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-</span> <span class="n">cell_h_half</span><span class="p">)</span>
+<a id="__codelineno-0-2251" name="__codelineno-0-2251"></a>        <span class="o">&amp;</span> <span class="p">(</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">y_grid</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">+</span> <span class="n">cell_h_half</span><span class="p">)</span>
+<a id="__codelineno-0-2252" name="__codelineno-0-2252"></a>        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-0-2253" name="__codelineno-0-2253"></a>    <span class="p">}</span>
+<a id="__codelineno-0-2254" name="__codelineno-0-2254"></a>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">xi</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">grid_ind</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Building covering meshes&quot;</span><span class="p">)):</span>
+<a id="__codelineno-0-2255" name="__codelineno-0-2255"></a>        <span class="c1"># Find mesh points within the cell</span>
+<a id="__codelineno-0-2256" name="__codelineno-0-2256"></a>        <span class="n">mask</span> <span class="o">=</span> <span class="n">x_masks</span><span class="p">[</span><span class="n">xi</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">y_masks</span><span class="p">[</span><span class="n">yi</span><span class="p">]</span>
+<a id="__codelineno-0-2257" name="__codelineno-0-2257"></a>        <span class="n">z_candidates</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<a id="__codelineno-0-2258" name="__codelineno-0-2258"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-2259" name="__codelineno-0-2259"></a>            <span class="n">z_p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">+</span> <span class="n">z_buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-2260" name="__codelineno-0-2260"></a>            <span class="n">z_n_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">z_candidates</span><span class="p">)</span> <span class="o">+</span> <span class="n">z_buffer</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<a id="__codelineno-0-2261" name="__codelineno-0-2261"></a>
+<a id="__codelineno-0-2262" name="__codelineno-0-2262"></a>    <span class="c1"># Create 3D points for the grid</span>
+<a id="__codelineno-0-2263" name="__codelineno-0-2263"></a>    <span class="n">grid_p_3d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">grid_points</span><span class="p">,</span> <span class="n">z_p_values</span><span class="p">])</span>
+<a id="__codelineno-0-2264" name="__codelineno-0-2264"></a>    <span class="n">grid_n_3d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">grid_points</span><span class="p">,</span> <span class="n">z_n_values</span><span class="p">])</span>
+<a id="__codelineno-0-2265" name="__codelineno-0-2265"></a>    <span class="c1"># Remove points with no Z values</span>
+<a id="__codelineno-0-2266" name="__codelineno-0-2266"></a>    <span class="n">grid_p_3d</span> <span class="o">=</span> <span class="n">grid_p_3d</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z_p_values</span><span class="p">)]</span>
+<a id="__codelineno-0-2267" name="__codelineno-0-2267"></a>    <span class="n">grid_n_3d</span> <span class="o">=</span> <span class="n">grid_n_3d</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z_n_values</span><span class="p">)]</span>
+<a id="__codelineno-0-2268" name="__codelineno-0-2268"></a>
+<a id="__codelineno-0-2269" name="__codelineno-0-2269"></a>    <span class="c1"># Create pyvista point cloud and surface</span>
+<a id="__codelineno-0-2270" name="__codelineno-0-2270"></a>    <span class="k">return</span> <span class="p">(</span>
+<a id="__codelineno-0-2271" name="__codelineno-0-2271"></a>        <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">(</span><span class="n">grid_p_3d</span><span class="p">)</span><span class="o">.</span><span class="n">delaunay_2d</span><span class="p">(),</span>
+<a id="__codelineno-0-2272" name="__codelineno-0-2272"></a>        <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">(</span><span class="n">grid_n_3d</span><span class="p">)</span><span class="o">.</span><span class="n">delaunay_2d</span><span class="p">(),</span>
+<a id="__codelineno-0-2273" name="__codelineno-0-2273"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
