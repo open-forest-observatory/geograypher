@@ -26,7 +26,9 @@ class SegmentorPhotogrammetryCameraSet(PhotogrammetryCameraSet):
 
         # This should allow all un-overridden methods to work as expected
         self.cameras = self.base_camera_set.cameras
-        self._local_to_epsg_4978_transform = self.base_camera_set._local_to_epsg_4978_transform
+        self._local_to_epsg_4978_transform = (
+            self.base_camera_set._local_to_epsg_4978_transform
+        )
 
     def get_image_by_index(self, index: int, image_scale: float = 1) -> np.ndarray:
         if self.dont_load_base_image:
