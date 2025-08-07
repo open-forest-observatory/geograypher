@@ -5,6 +5,7 @@ import numpy as np
 import pyvista as pv
 from scipy.sparse import load_npz, save_npz
 from SetCoverPy.setcover import SetCover
+import pyproj
 
 from geograypher.cameras import MetashapeCameraSet, SegmentorPhotogrammetryCameraSet
 from geograypher.constants import PATH_TYPE
@@ -16,6 +17,7 @@ from geograypher.utils.files import ensure_containing_folder
 def determine_minimum_overlapping_images(
     mesh_file: PATH_TYPE,
     cameras_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     image_folder: PATH_TYPE = "",
     compute_projection: bool = False,
     compute_minimal_set: bool = False,
@@ -34,6 +36,8 @@ def determine_minimum_overlapping_images(
             Path to the mesh file exported by Metashape
         cameras_file (PATH_TYPE):
             Path to the cameras file exported by Metashape
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in.
         image_folder (PATH_TYPE, optional):
             Path to the image folder used to generate the project. Only required if
             save_selected_images=True. Defaults to "".
@@ -68,8 +72,8 @@ def determine_minimum_overlapping_images(
         # Load the mesh and optionally downsample it
         mesh = TexturedPhotogrammetryMeshIndexPredictions(
             mesh=mesh_file,
+            input_CRS=mesh_CRS,
             downsample_target=downsample_target,
-            transform_filename=cameras_file,
         )
         # Load the camera set
         camera_set = MetashapeCameraSet(
@@ -194,6 +198,7 @@ def parse_args():
     )
     parser.add_argument("--mesh-file")
     parser.add_argument("--cameras-file")
+    parser.add_argument("--mesh-CRS")
     parser.add_argument("--image-folder")
     parser.add_argument("--compute-projection", action="store_true")
     parser.add_argument("--compute-minimal-set", action="store_true")

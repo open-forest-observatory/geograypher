@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from imageio import imread
 from scipy.sparse import load_npz, save_npz
+import pyproj
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
@@ -18,6 +19,7 @@ from geograypher.utils.files import ensure_containing_folder
 
 def project_detections(
     mesh_filename: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     cameras_filename: PATH_TYPE,
     project_to_mesh: bool = False,
     convert_to_geospatial: bool = False,
@@ -36,6 +38,8 @@ def project_detections(
     Args:
         mesh_filename (PATH_TYPE):
             Path to mesh file, in local coordinates from Metashape
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in
         cameras_filename (PATH_TYPE):
             Path to cameras file. This also contains local-to-global coordinate transform to convert
             the mesh to geospatial units.
@@ -70,7 +74,7 @@ def project_detections(
     """
     # Create the mesh object, which will be used for either workflow
     mesh = TexturedPhotogrammetryMeshIndexPredictions(
-        mesh_filename, transform_filename=cameras_filename
+        mesh_filename, input_CRS=mesh_CRS
     )
 
     # Project per-image detections to the mesh

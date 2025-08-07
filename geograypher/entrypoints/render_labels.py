@@ -22,7 +22,7 @@ def render_labels(
     image_folder: PATH_TYPE,
     texture: typing.Union[PATH_TYPE, np.ndarray, None],
     render_savefolder: PATH_TYPE,
-    input_CRS: pyproj.CRS,
+    mesh_CRS: pyproj.CRS,
     original_image_folder: typing.Union[PATH_TYPE, None] = None,
     subset_images_savefolder: typing.Union[PATH_TYPE, None] = None,
     texture_column_name: typing.Union[str, None] = None,
@@ -56,7 +56,7 @@ def render_labels(
             See TexturedPhotogrammetryMesh.load_texture
         render_savefolder (PATH_TYPE):
             Where to save the rendered labels
-        input_CRS: (pyproj.CRS):
+        mesh_CRS: (pyproj.CRS):
             The vertex coordinates of the input mesh should be interpreteted in this coordinate
             references system to georeference them. Since meshes are not commonly used for
             geospatial tasks, there isn't a common standard for encoding this information in the mesh.
@@ -139,7 +139,7 @@ def render_labels(
     ## Create the textured mesh
     mesh = MeshClass(
         mesh_file,
-        input_CRS=input_CRS,
+        input_CRS=mesh_CRS,
         downsample_target=mesh_downsample,
         texture=texture,
         texture_column_name=texture_column_name,
@@ -217,6 +217,7 @@ def parse_args():
 
     # Add arguments
     parser.add_argument("--mesh-file", type=Path, required=True)
+    parser.add_argument("--mesh-CRS", required=True)
     parser.add_argument("--cameras-file", type=Path, required=True)
     parser.add_argument("--image-folder", type=Path, required=True)
     parser.add_argument("--texture", type=Path, required=True)
