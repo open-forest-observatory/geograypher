@@ -5,9 +5,9 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 from imageio import imread
 from scipy.sparse import load_npz, save_npz
-import pyproj
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet

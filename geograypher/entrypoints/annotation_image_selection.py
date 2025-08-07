@@ -2,10 +2,10 @@ import argparse
 from typing import Union
 
 import numpy as np
+import pyproj
 import pyvista as pv
 from scipy.sparse import load_npz, save_npz
 from SetCoverPy.setcover import SetCover
-import pyproj
 
 from geograypher.cameras import MetashapeCameraSet, SegmentorPhotogrammetryCameraSet
 from geograypher.constants import PATH_TYPE
