@@ -73,9 +73,7 @@ def project_detections(
         FileNotFoundError: If the projections_to_mesh_filename is set and needed but not present
     """
     # Create the mesh object, which will be used for either workflow
-    mesh = TexturedPhotogrammetryMeshIndexPredictions(
-        mesh_filename, input_CRS=mesh_CRS
-    )
+    mesh = TexturedPhotogrammetryMeshIndexPredictions(mesh_filename, input_CRS=mesh_CRS)
 
     # Project per-image detections to the mesh
     if project_to_mesh:
