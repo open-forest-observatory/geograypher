@@ -2045,6 +2045,7 @@ class TexturedPhotogrammetryMesh:
         make_composites: bool = False,
         save_native_resolution: bool = False,
         cast_to_uint8: bool = True,
+        save_as_npy: bool = False,
         uint8_value_for_null_texture: np.uint8 = NULL_TEXTURE_INT_VALUE,
         **render_kwargs,
     ):
@@ -2063,7 +2064,9 @@ class TexturedPhotogrammetryMesh:
                 raw label
             cast_to_uint8: (bool, optional):
                 cast the float valued data to unit8 for saving efficiency. May dramatically increase
-                efficiency due to png compression
+                efficiency due to tif compression. Saves as tif unless save_as_npy is specified as True.
+            save_as_npy (bool, optional):
+                Save the rendered images as numpy arrays rather than TIF images. Defaults to False.
             uint8_value_for_null_texture (np.uint8, optional):
                 What value to assign for values that can't be represented as unsigned 8-bit data.
                 Defaults to NULL_TEXTURE_INT_VALUE
@@ -2155,12 +2158,116 @@ class TexturedPhotogrammetryMesh:
 
             # This may create nested folders in the output dir
             ensure_containing_folder(output_filename)
-            if rendered.dtype == np.uint8:
-                output_filename = str(output_filename.with_suffix(".png"))
 
-                # Save the image
-                skimage.io.imsave(output_filename, rendered, check_contrast=False)
-            else:
+            if save_as_npy is True:
                 output_filename = str(output_filename.with_suffix(".npy"))
                 # Save the image
                 np.save(output_filename, rendered)
+            else:
+                # Save image as TIF
+                output_filename = str(output_filename.with_suffix(".tif"))
+                # Remove singleton channel dimension (1, H, W) -> (H, W) to save single-channel TIF
+                rendered = np.squeeze(rendered)
+                # TODO: Consider supporting TIF files with float data (like CHM renders) by adding a separate flag.
+                # Evaluate whether this offers more space savings than npy files.
+                # If cast_to_uint8 is True, rendered is already in uint8
+                if cast_to_uint8 is False:
+                    # Check if max value in the rendered image is within the range of uint16
+                    if np.nanmax(rendered) <= np.iinfo(np.uint16).max:
+                        # Cast from float to uint16
+                        rendered = rendered.astype(np.uint16)
+                    else:
+                        rendered = rendered.astype(np.uint32)
+
+                # Save the image
+                skimage.io.imsave(
+                    output_filename,
+                    rendered,
+                    compression="deflate",
+                    check_contrast=False,
+                )
+
+    def export_covering_meshes(
+        self,
+        N: int,
+        z_buffer: tuple = (0, 0),
+        subsample: typing.Union[int, None] = None,
+    ) -> typing.Tuple[pv.PolyData, pv.PolyData]:
+        """
+        This function will process self.pyvista_mesh. It will start by identifying the (x, y)
+        boundaries of that mesh, then create an (N, N) grid of (x, y) points over that area.
+        At each (x, y) square in the grid, the pyvista mesh will be sampled for the highest and
+        lowest value. This will be used to set the Z heights for that grid point (plus the
+        z_buffer). Then upper and lower bound surfaces will be made from these grid points
+        using delaunay_2d and returned.
+
+        Args:
+            N (int): Number of sample points to take as a grid
+            z_buffer (tuple): Offset in Z to give the sampled points, in the units of the mesh.
+                [0] is for the upper mesh, [1] is for the lower.
+            subsample (int / None): If not None, we will naively subsample self.pyvista_mesh.points
+                to speed up runtime by [::subsample]. A larger number will subsample more.
+
+        Returns:
+            tuple: A tuple of two pyvista.PolyData objects, the first is the upper
+            covering mesh, the second the lower covering mesh.
+        """
+
+        assert self.pyvista_mesh is not None, "Requires a populated mesh"
+        assert len(z_buffer) == 2, "2 buffers (top, bottom) are required"
+
+        # Get mesh points
+        points = self.pyvista_mesh.points
+        if len(points) == 0:
+            return (self.pyvista_mesh.copy(), self.pyvista_mesh.copy())
+
+        if subsample is not None:
+            points = points[::subsample]
+        x_min, y_min = points[:, 0].min(), points[:, 1].min()
+        x_max, y_max = points[:, 0].max(), points[:, 1].max()
+
+        # Create grid
+        grid_ind = np.indices((N, N)).reshape(2, -1).T
+        x_grid = np.linspace(x_min, x_max, N)
+        y_grid = np.linspace(y_min, y_max, N)
+        grid_points = np.column_stack([x_grid[grid_ind[:, 0]], y_grid[grid_ind[:, 1]]])
+
+        # For each grid point, find mesh points within the cell and get z value
+        cell_w_half = (x_max - x_min) / (N - 1) / 2
+        cell_h_half = (y_max - y_min) / (N - 1) / 2
+        # Positive
+        z_p_values = np.full(grid_points.shape[0], np.nan)
+        # Negative
+        z_n_values = np.full(grid_points.shape[0], np.nan)
+
+        # Precompute mask stripes to save time
+        x_masks = {
+            index: (points[:, 0] >= x_grid[index] - cell_w_half)
+            & (points[:, 0] <= x_grid[index] + cell_w_half)
+            for index in range(N)
+        }
+        y_masks = {
+            index: (points[:, 1] >= y_grid[index] - cell_h_half)
+            & (points[:, 1] <= y_grid[index] + cell_h_half)
+            for index in range(N)
+        }
+        for i, (xi, yi) in enumerate(tqdm(grid_ind, desc="Building covering meshes")):
+            # Find mesh points within the cell
+            mask = x_masks[xi] & y_masks[yi]
+            z_candidates = points[mask, 2]
+            if len(z_candidates) > 0:
+                z_p_values[i] = np.max(z_candidates) + z_buffer[0]
+                z_n_values[i] = np.min(z_candidates) + z_buffer[1]
+
+        # Create 3D points for the grid
+        grid_p_3d = np.column_stack([grid_points, z_p_values])
+        grid_n_3d = np.column_stack([grid_points, z_n_values])
+        # Remove points with no Z values
+        grid_p_3d = grid_p_3d[~np.isnan(z_p_values)]
+        grid_n_3d = grid_n_3d[~np.isnan(z_n_values)]
+
+        # Create pyvista point cloud and surface
+        return (
+            pv.PolyData(grid_p_3d).delaunay_2d(),
+            pv.PolyData(grid_n_3d).delaunay_2d(),
+        )

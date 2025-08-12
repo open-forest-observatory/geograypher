@@ -1,6 +1,14 @@
+import json
 import typing
+from itertools import product
+from pathlib import Path
 
+import networkx
 import numpy as np
+from tqdm import tqdm
+
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
+from geograypher.utils.geospatial import convert_CRS_3D_points
 
 
 def create_ramped_weighting(
@@ -337,3 +345,275 @@ def intersection_average(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
     )
     mask = ~np.eye(starts.shape[0], dtype=bool)
     return np.mean(np.vstack([pA[mask], pB[mask]]), axis=0)
+
+
+def chunk_slices(
+    N: int, step: int
+) -> typing.Iterator[typing.Tuple[slice, slice, bool]]:
+    """
+    Yield slices for (step, step) chunks of the upper triangular area
+    of an (N, N) square matrix.
+
+    For example, if N=5 and step=2, the slices would grab:
+        1 1 2 2 3
+        1 1 2 2 3
+        - - 4 4 5
+        - - 4 4 5
+        - - - - 6
+    And in the (1, 4, 6) cases, is_diag would be True
+
+    Yields:
+        Each yielded value is (islice, jslice, is_diag), where:
+        - islice: slice along the first axis
+        - jslice: slice along the second axis
+        - is_diag: True if the chunk is on the diagonal (i == j)
+    """
+    ranges = range(0, N, step)
+    for i, j in product(ranges, repeat=2):
+        if j >= i:  # upper triangle including diagonal
+            islice = slice(i, min(i + step, N))
+            jslice = slice(j, min(j + step, N))
+            yield islice, jslice, i == j
+
+
+def format_graph_edges(
+    islice: slice,
+    jslice: slice,
+    dist: np.ndarray,
+    ray_IDs: np.ndarray,
+) -> typing.List[typing.Tuple[int, int, typing.Dict[str, float]]]:
+    """
+    This function generates edge definitions for a graph where nodes represent rays and
+    edges represent valid intersections between rays. It applies three filtering criteria:
+    1. Only uses edges where (i, j) is finite (not NaN)
+    2. Only uses edges where i < j (keeps it upper triangular)
+    3. Only uses edges between rays from different images (different ray_IDs)
+
+    Args:
+        islice (slice): Slice indicating the block of rows being processed in the
+            chunked computation
+        jslice (slice): Slice indicating the block of columns being processed in
+            the chunked computation
+        dist (np.ndarray): Distance matrix containing distances between rays (chunked)
+            This is the [islice, jslice] section of a larger distance matrix.
+        ray_IDs (np.ndarray): Array of identifiers indicating which image each ray comes
+            from (not chunked)
+
+    Returns:
+        List[Tuple[int, int, Dict[str, float]]]: List of edge definitions, where each edge
+        is a tuple of
+        - i index in the adjacency matrix
+        - j index in the adjacency matrix
+        - weight_dict of the form {"weight": value}
+    """
+
+    # The places where the array is finite are the valid graph distances
+    i_inds, j_inds = np.where(np.isfinite(dist))
+
+    # Pre-calculate the inverse distance
+    weights = 1 / dist
+
+    return [
+        (
+            int(i) + islice.start,
+            int(j) + jslice.start,
+            {"weight": float(weights[i, j])},
+        )
+        for i, j in zip(i_inds, j_inds)
+        if (i + islice.start < j + jslice.start)
+        and (ray_IDs[i + islice.start] != ray_IDs[j + jslice.start])
+    ]
+
+
+def calc_graph_weights(
+    starts: np.ndarray,
+    ends: np.ndarray,
+    ray_IDs: np.ndarray,
+    similarity_threshold: float,
+    out_dir: typing.Optional[PATH_TYPE] = None,
+    min_dist: float = 1e-6,
+    step: int = 5000,
+    transform: typing.Optional[typing.Callable[[np.ndarray], np.ndarray]] = None,
+) -> typing.Union[Path, typing.List[typing.Tuple]]:
+    """
+    This function processes sets of ray segments to build a graph where edges represent
+    ray intersections. The weight of each edge is inversely proportional to the
+    intersection distance between rays. For memory efficiency with large numbers of
+    segments, the computation is done in chunks.
+
+    Args:
+        starts (np.ndarray): (N, 3) array of ray start points
+        ends (np.ndarray): (N, 3) array of ray end points
+        ray_IDs (np.ndarray): (N,) array of integers identifying which image
+            each ray comes from
+        similarity_threshold (float): Maximum intersection distance to consider when
+            creating graph edges. Greater distances will be dropped.
+        out_dir (PATH_TYPE, optional): Directory to save the output JSON file containing
+            edge information. If None, no file is saved and a list of edge weights
+            is returned instead.
+        min_dist (float, optional): Minimum intersection distance to allow, used to
+            avoid division by zero when calculating weights. Defaults to 1e-6
+        step (int, optional): Number of rays to process in each chunk to manage memory
+            usage. Defaults to 5000
+        transform (callable, optional): Function to apply to distances before inversion
+            for weight calculation. For example, if you want graph weights to be
+            distance^3, use lambda x: x**3. Defaults to None
+
+    Returns:
+        Union[Path, List[Tuple]]: If out_dir is provided, returns the path to the JSON
+        file containing the edge information. Otherwise returns a list of tuples, each
+        containing (start_idx, end_idx, weight_dict) where weight_dict contains the
+        edge weight information
+    """
+
+    # Calculate and filter intersection distances
+    # For memory reasons, we need to iterate over blocks. When the number of segments starts
+    # getting very large, the matrices for calculating ray intersections take a great
+    # deal of RAM
+    edge_weights = []
+    num_steps = np.ceil(len(starts) / step)
+    total = int(num_steps * (num_steps + 1) / 2)
+    for islice, jslice, diagonal in tqdm(
+        chunk_slices(N=len(starts), step=step),
+        total=total,
+        desc="Calculating graph weights",
+    ):
+        _, _, dist = compute_approximate_ray_intersections(
+            a0=starts[islice],
+            a1=ends[islice],
+            b0=starts[jslice],
+            b1=ends[jslice],
+            clamp=True,
+        )
+        if diagonal:
+            np.fill_diagonal(dist, np.nan)
+        dist[dist > similarity_threshold] = np.nan
+        dist[dist < min_dist] = min_dist
+
+        # Apply transform if provided
+        if transform is not None:
+            dist = transform(dist)
+
+        # Create edge weights for valid intersections
+        edge_weights.extend(format_graph_edges(islice, jslice, dist, ray_IDs))
+
+    if out_dir is None:
+        return edge_weights
+    else:
+        path = Path(out_dir) / "edge_weights.json"
+        with path.open("w") as file:
+            json.dump(edge_weights, file)
+        return path
+
+
+def calc_communities(
+    starts: np.ndarray,
+    ends: np.ndarray,
+    edge_weights: typing.List[typing.Tuple[int, int, typing.Dict[str, float]]],
+    louvain_resolution: float = 1.0,
+    out_dir: typing.Optional[PATH_TYPE] = None,
+    transform_to_epsg_4978: typing.Optional[np.ndarray] = None,
+) -> typing.Union[Path, typing.Dict[str, np.ndarray]]:
+    """
+    Build a networkx graph from adjacency information. Each node represents
+    a detection while the edges represent the quality of the matches between detections.
+
+    Args:
+        starts (np.ndarray): (N, 3) array of ray start points
+        ends (np.ndarray): (N, 3) array of ray end points
+        edge_weights (List[Tuple[int, int, Dict[str, float]]]): List of edges defining
+            the graph connectivity. Each edge is (start_idx, end_idx, weight_dict) where
+            weight_dict contains the edge weight information
+        louvain_resolution (float): Resolution hyperparameter for the Louvain community
+            detection algorithm. Higher values lead to more communities
+        out_dir (PATH_TYPE, optional): Directory to save the output NPZ file containing
+            community information. If None, results are returned as a dictionary
+        transform_to_epsg_4978 (np.ndarray, optional): 4x4 transformation matrix to
+            convert points from local coordinates to EPSG:4978 (Earth-centered Earth-fixed)
+
+    Returns:
+        Union[Path, Dict[str, np.ndarray]]: If out_dir is provided, returns the path to
+            the NPZ file containing the community information. Otherwise returns a
+            dictionary with keys:
+            - 'ray_IDs': (N,) array mapping each ray to its community ID
+            - 'community_points': (M, 3) array of 3D points representing each community
+            - 'community_points_latlon': (M, 3) array of lat/lon points (only if
+               transform_to_epsg_4978 is provided)
+    """
+
+    # Build up the basic graph from edge weights
+    graph = networkx.Graph(edge_weights)
+
+    # Check that the graph is non empty
+    if len(graph) > 0:
+
+        # Determine Louvain communities which are sets of nodes. Ideally, each
+        # community represents a set of detections that correspond to one 3D object
+        communities = networkx.community.louvain_communities(
+            graph, weight="weight", resolution=louvain_resolution
+        )
+        # Sort the communities by size
+        communities = sorted(communities, key=len, reverse=True)
+
+        # Triangulate the rays for each community to identify the 3D location
+        community_points = []
+        # Record the community IDs per ray
+        num_rays = starts.shape[0]
+        ray_IDs = np.full(num_rays, fill_value=np.nan)
+        # Iterate over communities
+        for community_ID, community in enumerate(
+            tqdm(communities, desc="Build community points")
+        ):
+            # Get the ray indices that belong to that community
+            community_indices = np.array(list(community))
+            # Record the community ID for the corresponding rays
+            ray_IDs[community_indices] = community_ID
+            # Use the average of the closest points between rays as the
+            # representative point for the community
+            community_points.append(
+                intersection_average(
+                    starts=starts[community_indices],
+                    ends=ends[community_indices],
+                )
+            )
+
+        # Stack all of the points into one vector
+        community_points = np.vstack(community_points)
+
+        result = {
+            "ray_IDs": ray_IDs,
+            "community_points": community_points,
+        }
+
+        if transform_to_epsg_4978 is not None:
+            # Append a column of all ones to make the homogenous coordinates
+            homogenous = np.concatenate(
+                [community_points, np.ones_like(community_points[:, 0:1])],
+                axis=1,
+            )
+            # Use the transform matrix to transform the points into the earth
+            # centered, earth fixed frame (EPSG:4978)
+            community_points_epsg_4978 = (transform_to_epsg_4978 @ homogenous.T).T
+            # Convert the points from earth centered, earth fixed frame to lat lon
+            community_points_lat_lon = convert_CRS_3D_points(
+                community_points_epsg_4978,
+                input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+                output_CRS=LAT_LON_CRS,
+            )
+            result["community_points_latlon"] = community_points_lat_lon
+
+    else:
+        # Handle the empty case
+        result = {
+            "ray_IDs": np.zeros((0,), dtype=int),
+            "community_points": np.zeros((0, 3)),
+        }
+        if transform_to_epsg_4978 is not None:
+            result["community_points_latlon"] = np.zeros((0, 3))
+
+    if out_dir is not None:
+        path = Path(out_dir) / "communities.npz"
+        np.savez(path, **result)
+        return path
+    else:
+        return result

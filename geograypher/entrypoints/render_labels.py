@@ -37,6 +37,8 @@ def render_labels(
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
     n_render_clusters: typing.Union[int, None] = None,
+    cast_to_uint8: bool = True,
+    save_as_npy: bool = False,
     vis: bool = False,
     mesh_vis_file: typing.Union[PATH_TYPE, None] = None,
     labels_vis_folder: typing.Union[PATH_TYPE, None] = None,
@@ -90,6 +92,11 @@ def render_labels(
         n_render_clusters (typing.Union[int, None]):
             If set, break the camera set and mesh into this many clusters before rendering. This is
             useful for large meshes that are otherwise very slow. Defaults to None.
+        cast_to_uint8 (bool, optional):
+            If True, cast the rendered labels to uint8. If False, it is cast to uint16 or uint32, if not saved as .npy.
+            Defaults to True.
+        save_as_npy (bool, optional):
+            If True, save the rendered labels are float64 and saved as numpy arrays. Defaults to False.
         mesh_vis (typing.Union[PATH_TYPE, None])
             Path to save the visualized mesh instead of showing it interactively. Only applicable if vis=True. Defaults to None.
         labels_vis (typing.Union[PATH_TYPE, None])
@@ -174,6 +181,8 @@ def render_labels(
         save_native_resolution=True,
         output_folder=render_savefolder,
         make_composites=False,
+        cast_to_uint8=cast_to_uint8,
+        save_as_npy=save_as_npy,
         **render_kwargs,
     )
 
