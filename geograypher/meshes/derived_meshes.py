@@ -547,10 +547,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             from pytorch3d.renderer import (
                 MeshRasterizer,
                 PerspectiveCameras,
-                FishEyeCameras,
                 RasterizationSettings,
                 TexturesVertex,
             )
+            from pytorch3d.renderer.fisheyecameras import FishEyeCameras
             from pytorch3d.structures import Meshes
 
             # Assign imported modules to instance variables for later use
