@@ -194,12 +194,14 @@ def render_height_masks(
         texture[(~np.isnan(height)) & (height <= threshold_cutoff)] = 1
         texture[(~np.isnan(height)) & (height > threshold_cutoff)] = 2
         cast_to_uint8 = True
-        label_suffix = ".png"
+        label_suffix = ".tif"
+        save_as_npy = False
     elif output_mode == "raw":
         # Just use the raw height values to retexture the mesh
         texture = height
         cast_to_uint8 = False
         label_suffix = ".npy"
+        save_as_npy = True
     else:
         raise ValueError(f"Unknown mode: {output_mode}")
 
@@ -233,6 +235,7 @@ def render_height_masks(
         output_folder=output_folder,
         save_native_resolution=True,
         cast_to_uint8=cast_to_uint8,
+        save_as_npy=save_as_npy,
     )
 
     if vis_folder is not None:
