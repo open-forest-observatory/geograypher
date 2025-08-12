@@ -639,7 +639,7 @@ class PhotogrammetryCameraSet:
         image_folder: Optional[PATH_TYPE] = None,
         sensor_IDs: Optional[List[int]] = None,
         validate_images: bool = False,
-        local_to_epsg_4978_transform: Optional[np.ndarray] = None,
+        local_to_epsg_4978_transform: np.ndarray = np.eye(4),
     ):
         """_summary_
 
@@ -658,13 +658,6 @@ class PhotogrammetryCameraSet:
             ValueError: _description_
         """
         # Record the values
-        # TODO see if we ever use these
-        self.cam_to_world_transforms = cam_to_world_transforms
-        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
-        self.image_filenames = image_filenames
-        self.lon_lats = lon_lats
-        self.sensor_IDs = sensor_IDs
-        self.image_folder = image_folder
         self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
 
         # Create an object using the supplied cameras
@@ -704,6 +697,14 @@ class PhotogrammetryCameraSet:
             # TODO set it to the least common ancestor of all filenames
             pass
 
+        # Record values for the future
+        self.cam_to_world_transforms = cam_to_world_transforms
+        self.intrinsic_params_per_sensor_type = intrinsic_params_per_sensor_type
+        self.image_filenames = image_filenames
+        self.lon_lats = lon_lats
+        self.sensor_IDs = sensor_IDs
+        self.image_folder = image_folder
+
         if validate_images:
             missing_images, invalid_images = self.find_missing_images()
             if len(missing_images) > 0:
@@ -721,7 +722,6 @@ class PhotogrammetryCameraSet:
                 self.lon_lats = np.array(self.lon_lats)[valid_images].tolist()
 
         self.cameras = []
-
         for image_filename, cam_to_world_transform, sensor_ID, lon_lat in zip(
             self.image_filenames,
             self.cam_to_world_transforms,

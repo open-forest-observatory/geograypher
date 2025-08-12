@@ -4,6 +4,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+import pyproj
 
 from geograypher.cameras import MetashapeCameraSet, SegmentorPhotogrammetryCameraSet
 from geograypher.constants import EXAMPLE_IDS_TO_LABELS, PATH_TYPE
@@ -19,11 +20,11 @@ def aggregate_images(
     cameras_file: PATH_TYPE,
     image_folder: PATH_TYPE,
     label_folder: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     original_image_folder: typing.Union[PATH_TYPE, None] = None,
     subset_images_folder: typing.Union[PATH_TYPE, None] = None,
     filename_regex: typing.Optional[str] = None,
     take_every_nth_camera: typing.Union[int, None] = 100,
-    mesh_transform_file: typing.Union[PATH_TYPE, None] = None,
     DTM_file: typing.Union[PATH_TYPE, None] = None,
     height_above_ground_threshold: float = 2.0,
     ROI: typing.Union[PATH_TYPE, None] = None,
@@ -52,6 +53,8 @@ def aggregate_images(
         label_folder (PATH_TYPE):
             Path to the folder of labels to be aggregated onto the mesh. Must be in the same
             structure as the images
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in.
         original_image_folder (typing.Union[PATH_TYPE, None], optional):
             Where the images were when photogrammetry was run. Metashape saves imagenames with an
             absolute path which can cause issues. If this argument is provided, this path is removed
@@ -61,10 +64,6 @@ def aggregate_images(
             Use only images from this subset. Defaults to None.
         take_every_nth_camera (typing.Union[int, None], optional):
             Downsample the camera set to only every nth camera if set. Defaults to None.
-        mesh_transform_file (typing.Union[PATH_TYPE, None], optional):
-            Transform from the mesh coordinates to the earth-centered, earth-fixed frame. Can be a
-            4x4 matrix represented as a .csv, or a Metashape cameras file containing the
-            information. Defaults to None.
         DTM_file (typing.Union[PATH_TYPE, None], optional):
             Path to a digital terrain model file to remove ground points. Defaults to None.
         height_above_ground_threshold (float, optional):
@@ -129,9 +128,6 @@ def aggregate_images(
             ROI=ROI, buffer_radius=ROI_buffer_radius_meters
         )
 
-    if mesh_transform_file is None:
-        mesh_transform_file = cameras_file
-
     # If the number of aggregation clusters is not set but the number of cameras per cluster is,
     # then compute it
     if n_aggregation_clusters is None and n_cameras_per_aggregation_cluster is not None:
@@ -148,7 +144,7 @@ def aggregate_images(
     ## Create the mesh
     mesh = MeshClass(
         mesh_file,
-        transform_filename=mesh_transform_file,
+        input_CRS=mesh_CRS,
         ROI=ROI,
         ROI_buffer_meters=ROI_buffer_radius_meters,
         IDs_to_labels=IDs_to_labels,
@@ -246,10 +242,10 @@ def parse_args():
     parser.add_argument("--cameras-file", required=True)
     parser.add_argument("--image-folder", required=True)
     parser.add_argument("--label-folder", required=True)
+    parser.add_argument("--mesh-crs", required=True)
     parser.add_argument("--original-image-folder", type=Path)
     parser.add_argument("--subset-images-folder", type=Path)
     parser.add_argument("--take-every-nth-camera", type=int)
-    parser.add_argument("--mesh-transform-file", type=Path)
     parser.add_argument("--DTM-file", type=Path)
     parser.add_argument("--height-above-ground-threshold", type=float, default=2)
     parser.add_argument("--ROI")
