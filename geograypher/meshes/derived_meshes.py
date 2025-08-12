@@ -817,8 +817,8 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         cameras = self.FishEyeCameras(
             R=R,
             T=T,
-            focal_length=fcl_screen,
-            principal_point=prc_points_screen,
+            focal_length=self.torch.Tensor(fcl_screen),
+            principal_point=self.torch.Tensor(prc_points_screen),
             radial_params=self.torch.Tensor(
                 [
                     -0.10011868,
@@ -828,7 +828,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
                 ]
             ),
             device=self.device,
-            in_ndc=False,  # screen coords
+            # in_ndc=False,  # screen coords
             image_size=image_size,
             use_tangential=False,
             use_thin_prism=False,
@@ -858,10 +858,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
             T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
             focal_length=self.torch.cat(
-                [camera.focal_length for camera in p3d_cameras], 0
+                [camera.focal for camera in p3d_cameras], 0
             ),
             principal_point=self.torch.cat(
-                [camera.get_principal_point() for camera in p3d_cameras], 0
+                [camera.principal_point for camera in p3d_cameras], 0
             ),
             device=self.device,
             in_ndc=False,  # screen coords
