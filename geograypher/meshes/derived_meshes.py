@@ -743,7 +743,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         # Compute the modeled distortion using the ratio samples and provided distortion values.
         # This corresponds to the original, intended use of these modeling parameters.
-        distortion_multiplier = compute_distortion_multiplier(
+        distortion_multiplier = self.compute_distortion_multiplier(
             ratio_samples, k1, k2, k3, k4
         )
 
@@ -814,19 +814,26 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         # Create camera
         # TODO use the pytorch3d FishEyeCamera model that uses distortion
         # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
+        distortion_params = camera.distortion_params
+
+        # Compute angular coefficients to convert from "ratio" to "angular" convention as expected by P3D.
+        # Metashape does not estimate higher-order coefficients if it doesn't have enough data to do so properly.
+        # In those cases, the missing parameters (k3 and k4) should be set to 0.
+        angular_coefficients = self.compute_angular_coeficients(
+            k1=distortion_params["k1"],
+            k2=distortion_params["k2"],
+            k3=distortion_params.get("k3", 0),
+            k4=distortion_params.get("k4", 0),
+            width=camera_properties["image_width"],
+            height=camera_properties["image_height"],
+            f=camera_properties["focal_length"],
+        )
         cameras = self.FishEyeCameras(
             R=R,
             T=T,
             focal_length=self.torch.Tensor(fcl_screen),
             principal_point=self.torch.Tensor(prc_points_screen),
-            radial_params=self.torch.Tensor(
-                [
-                    -0.10011868,
-                    -0.12065104,
-                    0.03698557,
-                    -0.12819724,
-                ]
-            ),
+            radial_params=self.torch.Tensor(angular_coefficients),
             device=self.device,
             # in_ndc=False,  # screen coords
             image_size=image_size,
