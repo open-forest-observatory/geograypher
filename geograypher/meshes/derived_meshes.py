@@ -811,9 +811,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             ),
         )
 
-        # Create camera
-        # TODO use the pytorch3d FishEyeCamera model that uses distortion
-        # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
+        # Get distortion_params from each camera
         distortion_params = camera.distortion_params
 
         # Compute angular coefficients to convert from "ratio" to "angular" convention as expected by P3D.
@@ -828,6 +826,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             height=camera_properties["image_height"],
             f=camera_properties["focal_length"],
         )
+        # Create camera
         cameras = self.FishEyeCameras(
             R=R,
             T=T,
@@ -835,7 +834,6 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             principal_point=self.torch.Tensor(prc_points_screen),
             radial_params=self.torch.Tensor(angular_coefficients),
             device=self.device,
-            # in_ndc=False,  # screen coords
             image_size=image_size,
             use_tangential=False,
             use_thin_prism=False,
