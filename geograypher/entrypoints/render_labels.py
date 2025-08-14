@@ -10,7 +10,10 @@ import shapely
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
-from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked, TexturedPhotogrammetryMeshPyTorch3dRendering
+from geograypher.meshes.derived_meshes import (
+    TexturedPhotogrammetryMeshChunked,
+    TexturedPhotogrammetryMeshPyTorch3dRendering,
+)
 from geograypher.utils.visualization import show_segmentation_labels
 
 
