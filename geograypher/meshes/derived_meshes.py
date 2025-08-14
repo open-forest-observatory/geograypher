@@ -731,7 +731,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
     def compute_angular_coeficients(self, k1, k2, k3, k4, width, height, f):
         # Compute the maximum ratio between distance from principle axis and the distance along it
         # by using the image corner. Note, this assumes the principle point is at the center of the image.
-        max_radius_ratio = np.sqrt((width / 2) ** 2 + (height / 2) * 2) / f
+        max_radius_ratio = np.linalg.norm((width, height)) / (2 * f)
         # Compute the corresponding angle between the principle axis and the ray through the corner of
         # the image
         max_radius_angle = np.arctan(max_radius_ratio)
@@ -775,7 +775,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             camera (PhotogrammetryCamera): The camera to be converted into a pythorch3d camera
 
         Returns:
-            pytorch3d.renderer.PerspectiveCameras:
+            pytorch3d.renderer.fisheyecameras.FishEyeCameras:
         """
 
         # Retrieve intrinsic camera properties
