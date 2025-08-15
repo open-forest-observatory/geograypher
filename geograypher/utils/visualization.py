@@ -458,10 +458,10 @@ def merge_cylinders(
         cyl = pv.Cylinder(
             center=center,
             direction=direction,
-            radius=0.05,
+            radius=1,
             height=height,
             resolution=3,
-            capping=False,
+            capping=True,
         )
 
         # Color the cylinder
