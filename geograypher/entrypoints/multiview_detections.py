@@ -146,11 +146,23 @@ def multiview_detections(
         validate_images=True,
     )
 
-    # Load mesh TODO: Add detail about covering
+    # Load mesh in ECEF (EPSG:4978). This is because the camera locations are defined
+    # in the photogrammetry reference frame (PRF), and we can convert easily between
+    # ECEF and the PRF
     mesh = TexturedPhotogrammetryMesh(mesh_file, input_CRS=mesh_crs)
+    mesh.reproject_CRS(target_CRS=pyproj.crs.CRS.from_epsg(4978), inplace=True)
+
+    # TODO: Add detail about covering
     ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer_m=(0, 1), subsample=2)
-    ceiling.save(output_dir / "boundary_ceiling.ply")
-    floor.save(output_dir / "boundary_floor.ply")
+
+    # Convert to local photogrammetry frame and save
+    epsg_2978_to_local = np.linalg.inv(camera_set.get_local_to_epsg_4978_transform())
+    for bmesh, name in [
+        (ceiling, "boundary_ceiling.ply"),
+        (floor, "boundary_floor.ply"),
+    ]:
+        bmesh.transform(epsg_2978_to_local, inplace=True)
+        bmesh.save(output_dir / name)
     logger.info("Boundary meshes saved")
 
     # Load region detector
