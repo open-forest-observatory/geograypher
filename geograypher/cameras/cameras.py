@@ -1241,7 +1241,7 @@ class PhotogrammetryCameraSet:
             range(len(self.cameras)), desc="Building line segments per camera"
         ):
             # Get the image filename
-            image_filename = str(self.get_image_filename(camera_ind, absolute=False))
+            image_filename = str(self.get_image_filename(camera_ind))
             # Get the centers of associated detection from the detector
             # TODO, this only works with "detectors" that can look up the detections based on the
             # filename alone. In the future we might want to support real detectors that actually
