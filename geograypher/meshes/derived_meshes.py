@@ -757,7 +757,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         intercept_ang = coefs[4]
 
         if np.abs(intercept_ang - 1) > 1e-5:
-            # We cannot enforce that this parameter is exactly 1, so error if the polynomial fitting 
+            # We cannot enforce that this parameter is exactly 1, so error if the polynomial fitting
             # returns a value that is meaningfully different from 1.
             raise ValueError(
                 f"The intercept value should be 1, but is substantially different: {intercept_ang}"

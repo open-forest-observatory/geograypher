@@ -137,8 +137,11 @@ def render_labels(
         MeshClass = TexturedPhotogrammetryMeshPyTorch3dRendering
     else:
         MeshClass = TexturedPhotogrammetryMeshChunked
-        warnings.warn("Chunked option does not include distortion modeling. "
-        "To change this behavior, do not set `n_render_clusters`.", UserWarning)
+        warnings.warn(
+            "Chunked option does not include distortion modeling. "
+            "To change this behavior, do not set `n_render_clusters`.",
+            UserWarning,
+        )
 
     ## Create the textured mesh
     mesh = MeshClass(
