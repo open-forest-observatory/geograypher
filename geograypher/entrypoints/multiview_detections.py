@@ -110,7 +110,7 @@ def parse_args():
     # Check inputs
     assert args.images_dir.is_dir(), f"Images dir {args.images_dir} doesn't exist"
     assert args.gpkg_dir.is_dir(), f"Gpkg dir {args.gpkg_dir} doesn't exist"
-    assert args.camera_xml.is_file(), f"Camera XML {args.camera_xml} doesn't exist"
+    assert args.camera_file.is_file(), f"Camera XML {args.camera_file} doesn't exist"
     assert args.mesh_file.is_file(), f"Mesh {args.mesh_file} doesn't exist"
 
     # Ensure output directory exists
@@ -122,7 +122,7 @@ def parse_args():
 def multiview_detections(
     images_dir: Path,
     gpkg_dir: Path,
-    camera_xml: Path,
+    camera_file: Path,
     mesh_file: Path,
     mesh_crs: pyproj.crs.CRS,
     output_dir: Path,
@@ -140,7 +140,7 @@ def multiview_detections(
 
     # Load camera set
     camera_set = MetashapeCameraSet(
-        camera_file=camera_xml,
+        camera_file=camera_file,
         image_folder=images_dir,
         original_image_folder=original_image_folder,
         validate_images=True,
@@ -153,25 +153,25 @@ def multiview_detections(
     mesh.reproject_CRS(target_CRS=pyproj.crs.CRS.from_epsg(4978), inplace=True)
 
     # TODO: Add detail about covering
-    ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer_m=(0, 1), subsample=2)
+    ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer=(0, 1), subsample=2)
 
     # Convert to local photogrammetry frame and save
-    epsg_2978_to_local = np.linalg.inv(camera_set.get_local_to_epsg_4978_transform())
+    epsg_4978_to_local = np.linalg.inv(camera_set.get_local_to_epsg_4978_transform())
     for bmesh, name in [
         (ceiling, "boundary_ceiling.ply"),
         (floor, "boundary_floor.ply"),
     ]:
-        bmesh.transform(epsg_2978_to_local, inplace=True)
+        bmesh.transform(epsg_4978_to_local, inplace=True)
         bmesh.save(output_dir / name)
     logger.info("Boundary meshes saved")
 
     # Load region detector
     logger.info("Loading region detection segmentor")
     detector = RegionDetectionSegmentor(
-        detection_file_or_folder=gpkg_dir,
-        image_file_extension=image_file_extension,
-        use_absolute_filepaths=True,
-        image_folder=images_dir,
+        base_folder=images_dir,
+        lookup_folder=gpkg_dir,
+        label_key=None,
+        class_map=None,
     )
 
     # Triangulate detections (tree locations) and add lines/points to plotter
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     multiview_detections(
         images_dir=args.images_dir,
         gpkg_dir=args.gpkg_dir,
-        camera_xml=args.camera_xml,
+        camera_file=args.camera_file,
         mesh_file=args.mesh_file,
         mesh_crs=pyproj.crs.CRS.from_epsg(args.mesh_crs),
         output_dir=args.output_dir,
