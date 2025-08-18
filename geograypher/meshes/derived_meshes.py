@@ -732,9 +732,6 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         # Compute the maximum ratio between distance from principle axis and the distance along it
         # by using the image corner. Note, this assumes the principle point is at the center of the image.
         max_radius_ratio = np.linalg.norm((width, height)) / (2 * f)
-        # Compute the corresponding angle between the principle axis and the ray through the corner of
-        # the image
-        max_radius_angle = np.arctan(max_radius_ratio)
 
         # We're going to optimize the parameters of a function for distortion using angular inputs. To
         # do so we need to sample the original function defined in ratio units. Take 100 samples from
@@ -760,13 +757,15 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         intercept_ang = coefs[4]
 
         if np.abs(intercept_ang - 1) > 1e-5:
-            # We cannot enforce that this parameter is
+            # We cannot enforce that this parameter is exactly 1, so error if the polynomial fitting 
+            # returns a value that is meaningfully different from 1.
             raise ValueError(
                 f"The intercept value should be 1, but is substantially different: {intercept_ang}"
             )
 
+        # np.polyfit returns params starting with the highest order term
         # Return the parameters in the reverse order from how they are estimated, k1...k4
-        return np.array(coefs[3::-1])
+        return np.array(coefs[3::-1])  # drop constant term
 
     def get_single_pytorch3d_camera(self, camera: PhotogrammetryCamera):
         """Return a pytorch3d camera based on the parameters from metashape
@@ -816,10 +815,10 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         # Compute angular coefficients to convert from "ratio" to "angular" convention as expected by P3D.
         # Metashape does not estimate higher-order coefficients if it doesn't have enough data to do so properly.
-        # In those cases, the missing parameters (k3 and k4) should be set to 0.
+        # In those cases, the missing parameters should be set to 0.
         angular_coefficients = self.compute_angular_coeficients(
-            k1=distortion_params["k1"],
-            k2=distortion_params["k2"],
+            k1=distortion_params.get("k1", 0),
+            k2=distortion_params.get("k2", 0),
             k3=distortion_params.get("k3", 0),
             k4=distortion_params.get("k4", 0),
             width=camera_properties["image_width"],
@@ -859,7 +858,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
             raise ValueError("Not all cameras have the same image size")
         # Create the new pytorch3d cameras object with the information from each camera
-        cameras = self.PerspectiveCameras(
+        cameras = self.FishEyeCameras(
             R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
             T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
             focal_length=self.torch.cat([camera.focal for camera in p3d_cameras], 0),
