@@ -1,6 +1,7 @@
 import argparse
 import typing
 from pathlib import Path
+import warnings
 
 import fiona
 import geopandas as gpd
@@ -132,11 +133,12 @@ def render_labels(
         camera_set.save_images(subset_images_savefolder)
 
     # Select whether to use a class that renders by chunks or not
-    MeshClass = (
-        TexturedPhotogrammetryMeshPyTorch3dRendering
-        if n_render_clusters is None
-        else TexturedPhotogrammetryMeshChunked
-    )
+    if n_render_clusters is None:
+        MeshClass = TexturedPhotogrammetryMeshPyTorch3dRendering
+    else:
+        MeshClass = TexturedPhotogrammetryMeshChunked
+        warnings.warn("Chunked option does not include distortion modeling. "
+        "To change this behavior, do not set `n_render_clusters`.", UserWarning)
 
     ## Create the textured mesh
     mesh = MeshClass(
