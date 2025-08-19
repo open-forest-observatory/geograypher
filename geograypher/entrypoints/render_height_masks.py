@@ -14,12 +14,15 @@ import typing
 from pathlib import Path
 
 import numpy as np
+import pyproj
 import pyvista as pv
 from matplotlib.pyplot import Normalize, cm
 
 from geograypher.cameras.derived_cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
-from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes.derived_meshes import (
+    TexturedPhotogrammetryMeshPyTorch3dRendering,
+)
 from geograypher.utils.files import ensure_folder
 from geograypher.utils.visualization import show_segmentation_labels
 
@@ -54,6 +57,12 @@ def parse_args():
         type=Path,
         required=True,
         help="Path to the digital terrain model (DTM) raster file (usually a tif).",
+    )
+    parser.add_argument(
+        "--mesh-crs",
+        type=int,
+        required=True,
+        help="The CRS to interpret the mesh in.",
     )
     parser.add_argument(
         "--original-image-folder",
@@ -122,6 +131,7 @@ def render_height_masks(
     camera_file: PATH_TYPE,
     mesh_file: PATH_TYPE,
     dtm_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     original_image_folder: typing.Optional[PATH_TYPE],
     output_folder: PATH_TYPE,
     output_mode: str,
@@ -141,6 +151,7 @@ def render_height_masks(
         mesh_file: PATH_TYPE, Path to the mesh file (e.g., .ply) that we will assess point
             height on.
         dtm_file: PATH_TYPE, Path to the digital terrain model (DTM) raster file (usually a tif).
+        mesh_CRS: pyproj.CRS, the CRS to interpret the mesh in.
         original_image_folder: typing.Optional[PATH_TYPE], If provided, this will be subtracted
             off the beginning of absolute image paths stored in the camera_file. See
             MetashapeCameraSet for details.
@@ -162,10 +173,9 @@ def render_height_masks(
 
     def load_mesh(texture=None):
         """Small helper function for something we repeat."""
-        return TexturedPhotogrammetryMesh(
+        return TexturedPhotogrammetryMeshPyTorch3dRendering(
             mesh_file,
-            transform_filename=camera_file,
-            require_transform=True,
+            input_CRS=mesh_CRS,
             texture=texture,
         )
 
@@ -183,12 +193,14 @@ def render_height_masks(
         texture[(~np.isnan(height)) & (height <= threshold_cutoff)] = 1
         texture[(~np.isnan(height)) & (height > threshold_cutoff)] = 2
         cast_to_uint8 = True
-        label_suffix = ".png"
+        label_suffix = ".tif"
+        save_as_npy = False
     elif output_mode == "raw":
         # Just use the raw height values to retexture the mesh
         texture = height
         cast_to_uint8 = False
         label_suffix = ".npy"
+        save_as_npy = True
     else:
         raise ValueError(f"Unknown mode: {output_mode}")
 
@@ -222,6 +234,7 @@ def render_height_masks(
         output_folder=output_folder,
         save_native_resolution=True,
         cast_to_uint8=cast_to_uint8,
+        save_as_npy=save_as_npy,
     )
 
     if vis_folder is not None:
@@ -243,6 +256,7 @@ if __name__ == "__main__":
         camera_file=args.camera_file,
         mesh_file=args.mesh_file,
         dtm_file=args.dtm_file,
+        mesh_CRS=args.mesh_crs,
         original_image_folder=args.original_image_folder,
         output_folder=args.output_folder,
         output_mode=args.output_mode,

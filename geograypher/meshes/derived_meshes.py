@@ -550,6 +550,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
                 RasterizationSettings,
                 TexturesVertex,
             )
+            from pytorch3d.renderer.fisheyecameras import FishEyeCameras
             from pytorch3d.structures import Meshes
 
             # Assign imported modules to instance variables for later use
@@ -557,6 +558,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             self.TexturesVertex = TexturesVertex
             self.RasterizationSettings = RasterizationSettings
             self.PerspectiveCameras = PerspectiveCameras
+            self.FishEyeCameras = FishEyeCameras
             self.MeshRasterizer = MeshRasterizer
             self.Meshes = Meshes
         except ImportError:
@@ -717,6 +719,54 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
 
         return pix_to_face
 
+    def compute_distortion_multiplier(self, x, k1, k2, k3, k4):
+        return (
+            1
+            + k1 * np.power(x, 2)
+            + k2 * np.power(x, 4)
+            + k3 * np.power(x, 6)
+            + k4 * np.power(x, 8)
+        )
+
+    def compute_angular_coeficients(self, k1, k2, k3, k4, width, height, f):
+        # Compute the maximum ratio between distance from principle axis and the distance along it
+        # by using the image corner. Note, this assumes the principle point is at the center of the image.
+        max_radius_ratio = np.linalg.norm((width, height)) / (2 * f)
+
+        # We're going to optimize the parameters of a function for distortion using angular inputs. To
+        # do so we need to sample the original function defined in ratio units. Take 100 samples from
+        # within the region of ratios we need to model
+        ratio_samples = np.linspace(0, max_radius_ratio, 100)
+
+        # Compute the modeled distortion using the ratio samples and provided distortion values.
+        # This corresponds to the original, intended use of these modeling parameters.
+        distortion_multiplier = self.compute_distortion_multiplier(
+            ratio_samples, k1, k2, k3, k4
+        )
+
+        # Determine the corresponding angular values
+        angle_samples = np.arctan(ratio_samples)
+        # Since only even polynomials are used, we square the input values to enforce this
+        squared_angles = np.power(angle_samples, 2)
+
+        # Fit the polynomial to model distortion in the angular space. The x values are the angles
+        # corresponding to the sampled ratios. The y values are the distortion parameters computed
+        # from the ratio values using the provided distortion parameters.
+        coefs = np.polyfit(squared_angles, distortion_multiplier, deg=4)
+
+        intercept_ang = coefs[4]
+
+        if np.abs(intercept_ang - 1) > 1e-5:
+            # We cannot enforce that this parameter is exactly 1, so error if the polynomial fitting
+            # returns a value that is meaningfully different from 1.
+            raise ValueError(
+                f"The intercept value should be 1, but is substantially different: {intercept_ang}"
+            )
+
+        # np.polyfit returns params starting with the highest order term
+        # Return the parameters in the reverse order from how they are estimated, k1...k4
+        return np.array(coefs[3::-1])  # drop constant term
+
     def get_single_pytorch3d_camera(self, camera: PhotogrammetryCamera):
         """Return a pytorch3d camera based on the parameters from metashape
 
@@ -724,7 +774,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             camera (PhotogrammetryCamera): The camera to be converted into a pythorch3d camera
 
         Returns:
-            pytorch3d.renderer.PerspectiveCameras:
+            pytorch3d.renderer.fisheyecameras.FishEyeCameras:
         """
 
         # Retrieve intrinsic camera properties
@@ -760,17 +810,32 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             ),
         )
 
+        # Get distortion_params from each camera
+        distortion_params = camera.distortion_params
+
+        # Compute angular coefficients to convert from "ratio" to "angular" convention as expected by P3D.
+        # Metashape does not estimate higher-order coefficients if it doesn't have enough data to do so properly.
+        # In those cases, the missing parameters should be set to 0.
+        angular_coefficients = self.compute_angular_coeficients(
+            k1=distortion_params.get("k1", 0),
+            k2=distortion_params.get("k2", 0),
+            k3=distortion_params.get("k3", 0),
+            k4=distortion_params.get("k4", 0),
+            width=camera_properties["image_width"],
+            height=camera_properties["image_height"],
+            f=camera_properties["focal_length"],
+        )
         # Create camera
-        # TODO use the pytorch3d FishEyeCamera model that uses distortion
-        # https://pytorch3d.readthedocs.io/en/latest/modules/renderer/fisheyecameras.html?highlight=distortion
-        cameras = self.PerspectiveCameras(
+        cameras = self.FishEyeCameras(
             R=R,
             T=T,
-            focal_length=fcl_screen,
-            principal_point=prc_points_screen,
+            focal_length=self.torch.Tensor(fcl_screen),
+            principal_point=self.torch.Tensor(prc_points_screen),
+            radial_params=self.torch.Tensor(angular_coefficients),
             device=self.device,
-            in_ndc=False,  # screen coords
             image_size=image_size,
+            use_tangential=False,
+            use_thin_prism=False,
         )
         return cameras
 
@@ -793,14 +858,12 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
             raise ValueError("Not all cameras have the same image size")
         # Create the new pytorch3d cameras object with the information from each camera
-        cameras = self.PerspectiveCameras(
+        cameras = self.FishEyeCameras(
             R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
             T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
-            focal_length=self.torch.cat(
-                [camera.focal_length for camera in p3d_cameras], 0
-            ),
+            focal_length=self.torch.cat([camera.focal for camera in p3d_cameras], 0),
             principal_point=self.torch.cat(
-                [camera.get_principal_point() for camera in p3d_cameras], 0
+                [camera.principal_point for camera in p3d_cameras], 0
             ),
             device=self.device,
             in_ndc=False,  # screen coords
