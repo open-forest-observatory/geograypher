@@ -1,5 +1,5 @@
 """
-TODO
+Multiview tree detection and triangulation from aerial imagery.
 """
 
 import argparse
@@ -8,17 +8,21 @@ from pathlib import Path
 from typing import Optional
 
 import geopandas as gpd
+import matplotlib.cm as cm
 import numpy as np
 import pandas
 import pyproj
+import pyvista as pv
+from matplotlib.colors import Normalize
 from shapely.geometry import Point
+from tqdm import tqdm
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import LAT_LON_CRS
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
 from geograypher.utils.files import ensure_folder
-
+from geograypher.utils.visualization import merge_cylinders
 
 TRANSFORMS = {
     None: None,
@@ -43,43 +47,45 @@ def parse_args():
         "--images-dir",
         type=Path,
         required=True,
-        help="Directory containing raw images TODO: Nested?",
+        help="Directory containing raw images or nested images",
     )
     parser.add_argument(
         "--gpkg-dir",
         type=Path,
         required=True,
-        help="Directory containing .gpkg files (one per image) TODO: Nested?",
+        help="Directory containing .gpkg files (one per image), should"
+        " match the nested structure of --images-dir",
     )
     parser.add_argument(
         "--camera-file",
         type=Path,
         required=True,
-        help="Path to camera XML file containing camera locations from photogrammetry.",
+        help="Path to XML file containing camera calibrations and positions"
+        " from photogrammetry software",
     )
     parser.add_argument(
         "--mesh-file",
         type=Path,
         required=True,
-        help="Path to georeferenced mesh file.",
+        help="Path to georeferenced mesh file",
     )
     parser.add_argument(
         "--mesh-crs",
         type=int,
         required=True,
-        help="The CRS to interpret the mesh in (integer).",
+        help="The CRS to interpret the mesh in (integer)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         required=True,
-        help="Output directory for triangulated tree locations.",
+        help="Output directory for triangulated tree locations",
     )
     parser.add_argument(
         "--original-image-folder",
         type=Path,
         help="If provided, this will be subtracted off the beginning of absolute image paths"
-        " stored in the camera_file. See MetashapeCameraSet for details.",
+        " stored in the camera_file. See MetashapeCameraSet for details",
     )
     parser.add_argument(
         "--image-extension", type=str, default=".JPG", help="Image file extension"
@@ -105,6 +111,11 @@ def parse_args():
         " is the intersection distance, but with --nonlinearity square the"
         " graph weight would instead be 1/x**2.",
     )
+    parser.add_argument(
+        "--vis",
+        action="store_true",
+        help="Generate 3D visualizations for detected trees and rays in --output-dir",
+    )
     args = parser.parse_args()
 
     # Check inputs
@@ -119,6 +130,55 @@ def parse_args():
     return args
 
 
+def vis_lines(logger, line_segments_file, communities_file, out_dir, batch=250):
+
+    data = np.load(line_segments_file)
+    ray_starts = data["ray_starts"]
+    segment_ends = data["segment_ends"]
+
+    data = np.load(communities_file)
+    community_IDs = data["community_IDs"]
+    community_points = data["community_points"]
+
+    norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
+    cmap = cm.get_cmap("tab20")
+    cylinder_polydata = None
+    n_batches = int(np.ceil(len(community_IDs) / batch))
+    for i in tqdm(range(n_batches), desc="Building cylinders"):
+        islice = slice(i * batch, min((i + 1) * batch, len(community_IDs)))
+        batched = merge_cylinders(
+            starts=ray_starts[islice],
+            ends=segment_ends[islice],
+            community_IDs=community_IDs[islice],
+            cmap=cmap,
+            norm=norm,
+        )
+        if cylinder_polydata is None:
+            cylinder_polydata = batched
+        else:
+            cylinder_polydata = cylinder_polydata.merge(batched)
+
+    if cylinder_polydata is not None:
+        path = out_dir / "rays.ply"
+        logger.info(f"Saving visualized cylinders to {path}")
+        cylinder_polydata.save(path, texture="RGB")
+
+    cube_polydata = None
+    for comm_id, pt in enumerate(tqdm(community_points, desc="Building points")):
+        cube = pv.Cube(center=pt, x_length=0.2, y_length=0.2, z_length=0.2)
+        color = (np.array(cmap(norm(comm_id)))[:3] * 255).astype(np.uint8)
+        cube.point_data["RGB"] = np.tile(color, (cube.n_points, 1))
+        if cube_polydata is None:
+            cube_polydata = cube
+        else:
+            cube_polydata = cube_polydata.merge(cube)
+
+    if cube_polydata is not None:
+        path = out_dir / "points.ply"
+        logger.info(f"Saving visualized cubes to {path}")
+        cube_polydata.save(path, texture="RGB")
+
+
 def multiview_detections(
     images_dir: Path,
     gpkg_dir: Path,
@@ -131,9 +191,41 @@ def multiview_detections(
     similarity_threshold_meters: float = 0.1,
     louvain_resolution: float = 2.0,
     transform=None,
+    vis: bool = False,
 ):
     """
-    TODO
+    Triangulate tree locations from multi-view image segmentations.
+
+    Args:
+        images_dir (Path): Directory containing the raw images or nested images
+        gpkg_dir (Path): Directory containing GeoPackage (.gpkg) files with object detection
+            results, one file per corresponding image
+        camera_file (Path): Path to XML file containing camera calibrations and positions
+            from photogrammetry software
+        mesh_file (Path): Path to the georeferenced 3D mesh file
+        mesh_crs (pyproj.crs.CRS): Coordinate reference system for interpreting the mesh
+        output_dir (Path): Directory where results will be saved
+        original_image_folder (Optional[Path]): If provided, this will be subtracted off
+        the beginning of absolute image paths stored in the --camera-file.
+        See MetashapeCameraSet for details
+        image_file_extension (str, optional): File extension for images. Defaults to ".JPG"
+        similarity_threshold_meters (float, optional): Distance threshold in meters for
+            considering ray intersections as similar. Defaults to 0.1
+        louvain_resolution (float, optional): Resolution parameter for Louvain community
+            detection clustering. Larger values create smaller clusters. Defaults to 2.0
+        transform (callable, optional): Nonlinear transformation function to apply to
+            intersection distances before creating graph weights. Defaults to None
+        vis (bool, optional): Whether to generate 3D visualization files
+            for detected trees and ray intersections. Defaults to False
+
+    Returns:
+        None: Results are saved to files in the output_dir:
+            - tree_locations.gpkg: GeoDataFrame with triangulated tree positions in lat/lon
+            - boundary_ceiling.ply and boundary_floor.ply: 3D mesh boundaries
+            - rays.ply and points.ply: 3D visualizations (if vis=True)
+
+    Raises:
+        AssertionError: If input directories or files don't exist
     """
 
     logger = logging.getLogger(__name__)
@@ -146,23 +238,15 @@ def multiview_detections(
         validate_images=True,
     )
 
-    # Load mesh in ECEF (EPSG:4978). This is because the camera locations are defined
-    # in the photogrammetry reference frame (PRF), and we can convert easily between
-    # ECEF and the PRF
+    # Load mesh in the photogrammetry reference frame (PRF). This is because the
+    # camera locations are defined in the PRF
     mesh = TexturedPhotogrammetryMesh(mesh_file, input_CRS=mesh_crs)
-    mesh.reproject_CRS(target_CRS=pyproj.crs.CRS.from_epsg(4978), inplace=True)
+    mesh = mesh.get_mesh_in_cameras_coords(camera_set)
 
     # TODO: Add detail about covering
     ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer=(0, 1), subsample=2)
-
-    # Convert to local photogrammetry frame and save
-    epsg_4978_to_local = np.linalg.inv(camera_set.get_local_to_epsg_4978_transform())
-    for bmesh, name in [
-        (ceiling, "boundary_ceiling.ply"),
-        (floor, "boundary_floor.ply"),
-    ]:
-        bmesh.transform(epsg_4978_to_local, inplace=True)
-        bmesh.save(output_dir / name)
+    ceiling.save(output_dir / "boundary_ceiling.ply")
+    floor.save(output_dir / "boundary_floor.ply")
     logger.info("Boundary meshes saved")
 
     # Load region detector
@@ -186,6 +270,15 @@ def multiview_detections(
         louvain_resolution=louvain_resolution,
         out_dir=output_dir,
     )
+
+    # Visualize the intersections
+    if vis:
+        vis_lines(
+            logger,
+            line_segments_file=out_dir / "line_segments.npz",
+            communities_file=out_dir / "communities.npz",
+            out_dir=out_dir,
+        )
 
     # Save results
     gpkg_path = output_dir / "tree_locations.gpkg"
@@ -214,4 +307,5 @@ if __name__ == "__main__":
         similarity_threshold_meters=args.similarity_threshold_meters,
         louvain_resolution=args.louvain_resolution,
         transform=TRANSFORMS[args.nonlinearity],
+        vis=args.vis,
     )
