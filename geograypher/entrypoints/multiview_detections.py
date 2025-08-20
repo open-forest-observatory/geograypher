@@ -21,6 +21,7 @@ from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import LAT_LON_CRS
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
+from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.files import ensure_folder
 from geograypher.utils.visualization import merge_cylinders
 
@@ -237,14 +238,22 @@ def multiview_detections(
         original_image_folder=original_image_folder,
         validate_images=True,
     )
+    local_to_epsg_4978 = camera_set.get_local_to_epsg_4978_transform()
 
     # Load mesh in the photogrammetry reference frame (PRF). This is because the
     # camera locations are defined in the PRF
     mesh = TexturedPhotogrammetryMesh(mesh_file, input_CRS=mesh_crs)
-    mesh = mesh.get_mesh_in_cameras_coords(camera_set)
+    # We need to instantiate TexturedPhotogrammetryMesh again because
+    # get_mesh_in_cameras_coords() requtrns a pyvista mesh
+    mesh = TexturedPhotogrammetryMesh(
+        mesh.get_mesh_in_cameras_coords(camera_set),
+        input_CRS=None,
+    )
 
-    # TODO: Add detail about covering
-    ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer=(0, 1), subsample=2)
+    # Create boundary layers between the ground and the treetops that we
+    # will check for ray intersections between
+    local_scale = 1 / get_scale_from_transform(local_to_epsg_4978)
+    ceiling, floor = mesh.export_covering_meshes(N=80, z_buffer=(0, 1 * local_scale), subsample=2)
     ceiling.save(output_dir / "boundary_ceiling.ply")
     floor.save(output_dir / "boundary_floor.ply")
     logger.info("Boundary meshes saved")
@@ -261,7 +270,7 @@ def multiview_detections(
     # Triangulate detections (tree locations) and add lines/points to plotter
     tree_points = camera_set.triangulate_detections(
         detector=detector,
-        transform_to_epsg_4978=camera_set.get_local_to_epsg_4978_transform(),
+        transform_to_epsg_4978=local_to_epsg_4978,
         boundaries=(ceiling, floor),
         limit_ray_length_meters=160,
         limit_angle_from_vert=np.deg2rad(50),
