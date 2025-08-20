@@ -135,10 +135,10 @@ def vis_lines(logger, line_segments_file, communities_file, out_dir, batch=250):
 
     data = np.load(line_segments_file)
     ray_starts = data["ray_starts"]
-    segment_ends = data["segment_ends"]
+    ray_ends = data["ray_ends"]
 
     data = np.load(communities_file)
-    community_IDs = data["community_IDs"]
+    community_IDs = data["ray_IDs"]
     community_points = data["community_points"]
 
     norm = Normalize(vmin=np.nanmin(community_IDs), vmax=np.nanmax(community_IDs))
@@ -149,7 +149,7 @@ def vis_lines(logger, line_segments_file, communities_file, out_dir, batch=250):
         islice = slice(i * batch, min((i + 1) * batch, len(community_IDs)))
         batched = merge_cylinders(
             starts=ray_starts[islice],
-            ends=segment_ends[islice],
+            ends=ray_ends[islice],
             community_IDs=community_IDs[islice],
             cmap=cmap,
             norm=norm,
@@ -284,9 +284,9 @@ def multiview_detections(
     if vis:
         vis_lines(
             logger,
-            line_segments_file=out_dir / "line_segments.npz",
-            communities_file=out_dir / "communities.npz",
-            out_dir=out_dir,
+            line_segments_file=output_dir / "line_segments.npz",
+            communities_file=output_dir / "communities.npz",
+            out_dir=output_dir,
         )
 
     # Save results
