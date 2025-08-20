@@ -186,7 +186,8 @@ class TexturedPhotogrammetryMesh:
         )
 
         # Reproject to a meters-based CRS. TODO consider if there's a better option than ECEF.
-        self.reproject_CRS(target_CRS=EARTH_CENTERED_EARTH_FIXED_CRS, inplace=True)
+        if self.CRS is not None:
+            self.reproject_CRS(target_CRS=EARTH_CENTERED_EARTH_FIXED_CRS, inplace=True)
 
         # Downsample mesh and transfer active scalars from original mesh to downsampled mesh
         if downsample_target != 1.0:
