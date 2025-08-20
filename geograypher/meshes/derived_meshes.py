@@ -829,16 +829,16 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         )
 
         # Append k5 and k6 terms (not estimated by Metashape) as 0 to the angular coefficients.
-        # This is because pytorch3d expects 6 coefficients as default for the distortion model. 
-        angular_coefficients = np.append(
-            angular_coefficients, [0, 0]
-        )
-        
+        # This is because pytorch3d expects 6 coefficients as default for the distortion model.
+        angular_coefficients = np.append(angular_coefficients, [0, 0])
+
         # Create camera
         cameras = self.FishEyeCameras(
             R=R,
             T=T,
-            focal_length=self.torch.Tensor(fcl_screen).unsqueeze(0), # unsqueeze to add batch dimension
+            focal_length=self.torch.Tensor(fcl_screen).unsqueeze(
+                0
+            ),  # unsqueeze to add batch dimension
             principal_point=self.torch.Tensor(prc_points_screen),
             radial_params=self.torch.Tensor(angular_coefficients).unsqueeze(0),
             device=self.device,
@@ -874,7 +874,9 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
             principal_point=self.torch.cat(
                 [camera.principal_point for camera in p3d_cameras], 0
             ),
-            radial_params=self.torch.cat([camera.radial_params for camera in p3d_cameras], 0),
+            radial_params=self.torch.cat(
+                [camera.radial_params for camera in p3d_cameras], 0
+            ),
             device=self.device,
             image_size=image_sizes[0],
         )
