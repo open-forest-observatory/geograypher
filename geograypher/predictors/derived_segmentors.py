@@ -383,7 +383,7 @@ class RegionDetectionSegmentor(Segmentor):
         gdf = gpd.read_file(geo_path)
 
         # Calculate (N, 2) centers from geometry centroids
-        return np.vstack([gdf.centroid.x, gdf.centroid.y]).T
+        return np.vstack([gdf.centroid.y, gdf.centroid.x]).T
 
     def segment_image(
         self, image: None, im_path: PATH_TYPE, image_shape: tuple
