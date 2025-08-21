@@ -867,17 +867,17 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         if np.any([image_size != image_sizes[0] for image_size in image_sizes]):
             raise ValueError("Not all cameras have the same image size")
         # Create the new pytorch3d cameras object with the information from each camera
-        cameras = self.FishEyeCameras(
+        cameras = self.PerspectiveCameras(
             R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
             T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
-            focal_length=self.torch.cat([camera.focal for camera in p3d_cameras], 0),
+            focal_length=self.torch.cat(
+                [camera.focal for camera in p3d_cameras], 0
+            ),
             principal_point=self.torch.cat(
                 [camera.principal_point for camera in p3d_cameras], 0
             ),
-            radial_params=self.torch.cat(
-                [camera.radial_params for camera in p3d_cameras], 0
-            ),
             device=self.device,
+            in_ndc=False,  # screen coords
             image_size=image_sizes[0],
         )
         return cameras
