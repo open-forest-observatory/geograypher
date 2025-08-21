@@ -870,9 +870,7 @@ class TexturedPhotogrammetryMeshPyTorch3dRendering(TexturedPhotogrammetryMesh):
         cameras = self.PerspectiveCameras(
             R=self.torch.cat([camera.R for camera in p3d_cameras], 0),
             T=self.torch.cat([camera.T for camera in p3d_cameras], 0),
-            focal_length=self.torch.cat(
-                [camera.focal for camera in p3d_cameras], 0
-            ),
+            focal_length=self.torch.cat([camera.focal for camera in p3d_cameras], 0),
             principal_point=self.torch.cat(
                 [camera.principal_point for camera in p3d_cameras], 0
             ),
