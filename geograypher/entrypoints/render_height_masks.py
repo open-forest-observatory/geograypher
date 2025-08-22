@@ -159,11 +159,11 @@ def render_height_masks(
             0=invalid, 1=below cutoff, 2=above cutoff; 'raw' will render scenes with the
             raw height values from the camera perspective.
         threshold_cutoff: float, Height threshold (same units as DTM → m) for ground/aboveground
-            separation. Only used if --output-mode is 'threshold'.
+            separation. Only used if output_mode is 'threshold'.
         vis_folder: typing.Optional[PATH_TYPE], If provided, a textured mesh and evaluation
             images will be saved in this folder.
         vis_n_images: int, Number of eval images to save in the vis folder (only used if
-            --vis-folder given).
+            vis_folder given).
 
     Raises:
         ValueError: the output mode is an invalid mode
