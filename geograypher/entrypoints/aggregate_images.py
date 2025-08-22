@@ -99,7 +99,9 @@ def aggregate_images(
     """
 
     if isinstance(IDs_to_labels, str):
-        IDs_to_labels = {int(k): v for k, v in json.load(open(IDs_to_labels, "r")).items()}
+        IDs_to_labels = {
+            int(k): v for k, v in json.load(open(IDs_to_labels, "r")).items()
+        }
 
     ## Create the camera set
     # Do the camera operations first because they are fast and good initial error checking
