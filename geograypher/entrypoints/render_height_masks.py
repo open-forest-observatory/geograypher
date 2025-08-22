@@ -128,7 +128,6 @@ def render_height_masks(
     image_folder: PATH_TYPE,
     camera_file: PATH_TYPE,
     mesh_file: PATH_TYPE,
-    mesh_CRS: pyproj.CRS,
     dtm_file: PATH_TYPE,
     mesh_CRS: pyproj.CRS,
     original_image_folder: typing.Optional[PATH_TYPE],

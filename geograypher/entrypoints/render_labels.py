@@ -192,6 +192,7 @@ def render_labels(
             label_folder=render_savefolder,
             image_folder=image_folder,
             savefolder=labels_vis_folder,
+            label_suffix=".tif",
             num_show=10,
         )
 

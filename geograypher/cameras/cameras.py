@@ -641,7 +641,7 @@ class PhotogrammetryCameraSet:
         validate_images: bool = False,
         local_to_epsg_4978_transform: np.ndarray = np.eye(4),
     ):
-        """_summary_
+        """Create a camera set, representing multiple cameras in a common global coordinate frame.
 
         Args:
             cam_to_world_transforms (List[np.ndarray]): The list of 4x4 camera to world transforms
@@ -653,9 +653,12 @@ class PhotogrammetryCameraSet:
             validate_images (bool, optional): Should the existance of the images be checked.
                 Any image_filenames that do not exist will be dropped, leaving a CameraSet only
                 containing existing images. Defaults to False.
+            local_to_epsg_4978_transform (np.ndarray):
+                A 4x4 transform mapping coordinates from the local frame of the camera set into the
+                global earth-centered, earth-fixed coordinate frame EPSG:4978.
 
         Raises:
-            ValueError: _description_
+            ValueError: If the number of sensor IDs is different than the number of transforms.
         """
         # Record the values
         self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
