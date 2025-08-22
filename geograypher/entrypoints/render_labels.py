@@ -1,5 +1,6 @@
 import argparse
 import typing
+import warnings
 from pathlib import Path
 
 import fiona
@@ -10,8 +11,10 @@ import shapely
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
-from geograypher.meshes import TexturedPhotogrammetryMesh
-from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
+from geograypher.meshes.derived_meshes import (
+    TexturedPhotogrammetryMeshChunked,
+    TexturedPhotogrammetryMeshPyTorch3dRendering,
+)
 from geograypher.utils.visualization import show_segmentation_labels
 
 
@@ -130,11 +133,15 @@ def render_labels(
         camera_set.save_images(subset_images_savefolder)
 
     # Select whether to use a class that renders by chunks or not
-    MeshClass = (
-        TexturedPhotogrammetryMesh
-        if n_render_clusters is None
-        else TexturedPhotogrammetryMeshChunked
-    )
+    if n_render_clusters is None:
+        MeshClass = TexturedPhotogrammetryMeshPyTorch3dRendering
+    else:
+        MeshClass = TexturedPhotogrammetryMeshChunked
+        warnings.warn(
+            "Chunked option does not include distortion modeling. "
+            "To change this behavior, do not set `n_render_clusters`.",
+            UserWarning,
+        )
 
     ## Create the textured mesh
     mesh = MeshClass(
