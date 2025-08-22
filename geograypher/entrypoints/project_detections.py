@@ -190,15 +190,14 @@ def project_detections(
         # Save the data back out with the updated information
         merged.to_file(projections_to_geospatial_savefilename)
 
+
 def parse_args():
     """Parse and return arguements
 
     Returns:
         argparse.Namespace: Arguments
     """
-    description = (
-        project_detections.__doc__
-    )
+    description = project_detections.__doc__
     # Ideally we'd include the defaults for each argument, but there is no help text so the
     # ArgumentDefaultsHelpFormatter formatter doesn't show them
     parser = argparse.ArgumentParser(
