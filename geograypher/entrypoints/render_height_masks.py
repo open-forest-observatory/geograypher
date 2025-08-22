@@ -14,6 +14,7 @@ import typing
 from pathlib import Path
 
 import numpy as np
+import pyproj
 import pyvista as pv
 from matplotlib.pyplot import Normalize, cm
 
@@ -54,6 +55,12 @@ def parse_args():
         type=Path,
         required=True,
         help="Path to the digital terrain model (DTM) raster file (usually a tif).",
+    )
+    parser.add_argument(
+        "--mesh-crs",
+        type=int,
+        required=True,
+        help="The CRS to interpret the mesh in.",
     )
     parser.add_argument(
         "--original-image-folder",
@@ -121,6 +128,7 @@ def render_height_masks(
     image_folder: PATH_TYPE,
     camera_file: PATH_TYPE,
     mesh_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     dtm_file: PATH_TYPE,
     original_image_folder: typing.Optional[PATH_TYPE],
     output_folder: PATH_TYPE,
@@ -141,6 +149,7 @@ def render_height_masks(
         mesh_file: PATH_TYPE, Path to the mesh file (e.g., .ply) that we will assess point
             height on.
         dtm_file: PATH_TYPE, Path to the digital terrain model (DTM) raster file (usually a tif).
+        mesh_CRS: pyproj.CRS, the CRS to interpret the mesh in.
         original_image_folder: typing.Optional[PATH_TYPE], If provided, this will be subtracted
             off the beginning of absolute image paths stored in the camera_file. See
             MetashapeCameraSet for details.
@@ -150,11 +159,11 @@ def render_height_masks(
             0=invalid, 1=below cutoff, 2=above cutoff; 'raw' will render scenes with the
             raw height values from the camera perspective.
         threshold_cutoff: float, Height threshold (same units as DTM → m) for ground/aboveground
-            separation. Only used if --output-mode is 'threshold'.
+            separation. Only used if output_mode is 'threshold'.
         vis_folder: typing.Optional[PATH_TYPE], If provided, a textured mesh and evaluation
             images will be saved in this folder.
         vis_n_images: int, Number of eval images to save in the vis folder (only used if
-            --vis-folder given).
+            vis_folder given).
 
     Raises:
         ValueError: the output mode is an invalid mode
@@ -164,8 +173,7 @@ def render_height_masks(
         """Small helper function for something we repeat."""
         return TexturedPhotogrammetryMesh(
             mesh_file,
-            transform_filename=camera_file,
-            require_transform=True,
+            input_CRS=mesh_CRS,
             texture=texture,
         )
 
@@ -183,12 +191,14 @@ def render_height_masks(
         texture[(~np.isnan(height)) & (height <= threshold_cutoff)] = 1
         texture[(~np.isnan(height)) & (height > threshold_cutoff)] = 2
         cast_to_uint8 = True
-        label_suffix = ".png"
+        label_suffix = ".tif"
+        save_as_npy = False
     elif output_mode == "raw":
         # Just use the raw height values to retexture the mesh
         texture = height
         cast_to_uint8 = False
         label_suffix = ".npy"
+        save_as_npy = True
     else:
         raise ValueError(f"Unknown mode: {output_mode}")
 
@@ -222,6 +232,7 @@ def render_height_masks(
         output_folder=output_folder,
         save_native_resolution=True,
         cast_to_uint8=cast_to_uint8,
+        save_as_npy=save_as_npy,
     )
 
     if vis_folder is not None:
@@ -243,6 +254,7 @@ if __name__ == "__main__":
         camera_file=args.camera_file,
         mesh_file=args.mesh_file,
         dtm_file=args.dtm_file,
+        mesh_CRS=args.mesh_crs,
         original_image_folder=args.original_image_folder,
         output_folder=args.output_folder,
         output_mode=args.output_mode,
