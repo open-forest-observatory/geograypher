@@ -1,4 +1,5 @@
 import argparse
+import json
 import math
 import typing
 from pathlib import Path
@@ -29,7 +30,7 @@ def aggregate_images(
     height_above_ground_threshold: float = 2.0,
     ROI: typing.Union[PATH_TYPE, None] = None,
     ROI_buffer_radius_meters: float = 50,
-    IDs_to_labels: typing.Union[dict, None] = None,
+    IDs_to_labels: typing.Union[dict, str, None] = None,
     mesh_downsample: float = 1.0,
     n_aggregation_clusters: typing.Union[int, None] = None,
     n_cameras_per_aggregation_cluster: typing.Union[int, None] = None,
@@ -96,6 +97,10 @@ def aggregate_images(
         vis (bool, optional):
             Show the mesh model and predicted results. Defaults to False.
     """
+
+    if isinstance(IDs_to_labels, str):
+        IDs_to_labels = {int(k): v for k, v in json.load(open(IDs_to_labels, "r")).items()}
+
     ## Create the camera set
     # Do the camera operations first because they are fast and good initial error checking
     camera_set = MetashapeCameraSet(
@@ -242,7 +247,7 @@ def parse_args():
     parser.add_argument("--cameras-file", required=True)
     parser.add_argument("--image-folder", required=True)
     parser.add_argument("--label-folder", required=True)
-    parser.add_argument("--mesh-crs", required=True)
+    parser.add_argument("--mesh-CRS", required=True)
     parser.add_argument("--original-image-folder", type=Path)
     parser.add_argument("--subset-images-folder", type=Path)
     parser.add_argument("--take-every-nth-camera", type=int)
