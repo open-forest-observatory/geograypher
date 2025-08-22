@@ -555,6 +555,45 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Advanced/Developer Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#poetry-hanging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Poetry hanging
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libgl-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      libGL error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1627,6 +1666,45 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Advanced/Developer Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#poetry-hanging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Poetry hanging
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#libgl-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      libGL error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1677,7 +1755,7 @@
 <p>Internal collaborators please navigate <a href="https://docs.openforestobservatory.org/internal-docs/">here</a> for more instructions. </p>
 <h2 id="basic-installation">Basic Installation<a class="headerlink" href="#basic-installation" title="Permanent link">&para;</a></h2>
 <p>Create and activate a conda environment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda create -n geograypher python=3.9 -y
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda create -n geograypher -c conda-forge python=3.9 -y
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda activate geograypher
 </code></pre></div>
 <p>Install Geograypher:
@@ -1685,7 +1763,7 @@
 </code></pre></div></p>
 <h2 id="advanceddeveloper-installation">Advanced/Developer Installation<a class="headerlink" href="#advanceddeveloper-installation" title="Permanent link">&para;</a></h2>
 <p>Create and activate a conda environment:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda create -n geograypher python=3.9 -y
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda create -n geograypher -c conda-forge python=3.9 -y
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>conda activate geograypher
 </code></pre></div>
 <p>Install <a href="https://python-poetry.org/docs/">poetry</a>:</p>
@@ -1695,27 +1773,34 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>poetry install
 </code></pre></div>
 <p>You may get the following error when running <code>pyvista</code> visualization:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30&#39; not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
+<h3 id="common-errors">Common errors<a class="headerlink" href="#common-errors" title="Permanent link">&para;</a></h3>
+<h4 id="poetry-hanging">Poetry hanging<a class="headerlink" href="#poetry-hanging" title="Permanent link">&para;</a></h4>
+<p>If <code>poetry install</code> hangs for a long time with no printouts, you can trying disabling the keyring process. poetry by default is trying to access credentials stored in your system keyring (e.g., for private package repositories) and if that isn't set up it can hang.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+</code></pre></div>
+<p>Then re-run <code>poetry install</code>.</p>
+<h4 id="libgl-error">libGL error<a class="headerlink" href="#libgl-error" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30&#39; not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
 </code></pre></div>
 <p>If this happens, you can fix it by symlinking to the system version. I don't know why this is required.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 &lt;CONDA ENV LOCATION&gt;/lib/libstdc++.so.6
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 &lt;CONDA ENV LOCATION&gt;/lib/libstdc++.so.6
 </code></pre></div>
 <h2 id="working-on-headless-machine">Working on Headless Machine<a class="headerlink" href="#working-on-headless-machine" title="Permanent link">&para;</a></h2>
 <p>If you are working on a headless machine, such as a remote server, you will need the <a href="https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml">XVFB</a> package to provide a virtual frame buffer. This can be installed at the system level using the package manager, for example:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sudo apt install xvfb
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>sudo apt install xvfb
 </code></pre></div>
 If you do not have root access on your machine, it may not be possible to install xvfb.</p>
 <h2 id="optional-install-pytorch3d">Optional: Install <code>pytorch3d</code><a class="headerlink" href="#optional-install-pytorch3d" title="Permanent link">&para;</a></h2>
 <p>If you are working on a headless machine and are unable to install xvfb, <code>pytorch3d</code> can be a viable alternative since installing it does not require admin privileges.</p>
 <p>Install the pytorch3d dependencies:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>conda install -c bottler nvidiacub -y
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>conda install pytorch3d -c pytorch3d -y
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia -y
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>conda install -c fvcore -c iopath -c conda-forge fvcore iopath -y
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>conda install -c bottler nvidiacub -y
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>conda install pytorch3d -c pytorch3d -y
 </code></pre></div>
 <p>Validate the installation</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>python -c &quot;import torch; print(torch.cuda.is_available())&quot;
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>python -c &quot;import pytorch3d; print(pytorch3d.__version__)&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python -c &quot;import torch; print(torch.cuda.is_available())&quot;
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python -c &quot;import pytorch3d; print(pytorch3d.__version__)&quot;
 </code></pre></div>
 
 
@@ -1739,7 +1824,7 @@ If you do not have root access on your machine, it may not be possible to instal
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="July 12, 2024 19:39:08 UTC">July 12, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="August 22, 2025 18:18:47 UTC">August 22, 2025</span>
   </span>
 
     
@@ -1766,6 +1851,11 @@ If you do not have root access on your machine, it may not be possible to instal
 
     
     <nav>
+      
+        <a href="https://github.com/FranzEricSchneider" class="md-author" title="@FranzEricSchneider">
+          
+          <img src="https://avatars.githubusercontent.com/u/3709527?v=4&size=72" alt="FranzEricSchneider">
+        </a>
       
         <a href="https://github.com/asidhu0" class="md-author" title="@asidhu0">
           
