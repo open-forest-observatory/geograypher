@@ -7,7 +7,8 @@ import pyvista as pv
 import pyproj
 
 from geograypher.cameras.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
-from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshPyTorch3dRendering
+from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
+# from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshPyTorch3dRendering
 
 
 def make_simple_camera(position=(0, 0, 10)):
@@ -19,14 +20,19 @@ def make_simple_camera(position=(0, 0, 10)):
         [0, 0, -1, position[2]],
         [0, 0, 0, 1]
     ])
-    return PhotogrammetryCamera(
-        image_filename="/tmp/test_render.jpg",
-        cam_to_world_transform=cam_to_world,
-        f=1000,  # focal length in pixels
-        cx=0,    # principal point offset x
-        cy=0,    # principal point offset y
-        image_width=200,
-        image_height=200,
+    return PhotogrammetryCameraSet(
+        cameras=[
+            PhotogrammetryCamera(
+                image_filename="/tmp/test_render.jpg",
+                cam_to_world_transform=cam_to_world,
+                f=1000,  # focal length in pixels
+                cx=0,    # principal point offset x
+                cy=0,    # principal point offset y
+                image_width=200,
+                image_height=200,
+                local_to_epsg_4978_transform=np.eye(4),
+            )
+        ],
         local_to_epsg_4978_transform=np.eye(4),
     )
 
@@ -55,7 +61,8 @@ def create_flat_mesh_with_colored_points():
         n_points = plane.n_points
     else:
         raise ValueError("Failed to create plane mesh")
-    point_colors = np.full((n_points, 3), fill_value=255, dtype=np.uint8)  # Start with all white
+    point_colors = np.full((n_points, 3), fill_value=50, dtype=np.uint8)
+    point_colors[n_points // 2:] = 200
 
     # Make some points red in a pattern that will be visible
     # Create a checkerboard-like pattern or specific regions
@@ -81,7 +88,8 @@ class TestTexturedPhotogrammetryMeshPyTorch3dRendering:
         # Create the TexturedPhotogrammetryMeshPyTorch3dRendering instance
         mesh_crs = pyproj.CRS.from_epsg(4978)  # ECEF
 
-        textured_mesh = TexturedPhotogrammetryMeshPyTorch3dRendering(
+        # textured_mesh = TexturedPhotogrammetryMeshPyTorch3dRendering(
+        textured_mesh = TexturedPhotogrammetryMesh(
             mesh=mesh,
             input_CRS=mesh_crs,
             texture=point_colors,
@@ -89,12 +97,14 @@ class TestTexturedPhotogrammetryMeshPyTorch3dRendering:
         textured_mesh.save_mesh("/tmp/mesh.ply")
 
         # Create a camera positioned above the mesh
-        camera = make_simple_camera(position=(0, 0, 10))
+        camera = make_simple_camera(position=(0, 0, 35))
+        textured_mesh.vis(camera_set=camera)
 
         # Render the mesh from this camera
         rendered_images = list(textured_mesh.render_flat(cameras=camera, return_camera=False))
         assert len(rendered_images) == 1
         rendered_image = rendered_images[0]
+        print(rendered_image.shape)
 
         # Check the rendered image properties
         assert rendered_image is not None
@@ -103,7 +113,6 @@ class TestTexturedPhotogrammetryMeshPyTorch3dRendering:
         assert rendered_image.ndim == 3  # Should be (height, width, channels)
         assert rendered_image.shape[2] == 3
 
-        print(rendered_image.dtype)
         from PIL import Image
         vis = Image.fromarray(rendered_image.astype(np.uint8))
         vis.save("/tmp/mesh.png")
@@ -117,3 +126,8 @@ class TestTexturedPhotogrammetryMeshPyTorch3dRendering:
         # Remove NaN pixels (areas where no mesh was visible)
         valid_pixels = ~np.isnan(reshaped_image).any(axis=1)
         valid_pixel_colors = reshaped_image[valid_pixels]
+
+
+if __name__ == "__main__":
+    test = TestTexturedPhotogrammetryMeshPyTorch3dRendering()
+    test.test_basic()
