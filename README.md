@@ -13,7 +13,7 @@ Internal Collaborators please navigate [here](https://docs.openforestobservatory
 Create and activate a conda environment:
 
 ```
-conda create -n geograypher python=3.9 -y
+conda create -n geograypher -c conda-forge python=3.9 -y
 conda activate geograypher
 ```
 
