@@ -1,4 +1,5 @@
 import logging
+import argparse
 import os
 from pathlib import Path
 
@@ -188,3 +189,43 @@ def project_detections(
 
         # Save the data back out with the updated information
         merged.to_file(projections_to_geospatial_savefilename)
+
+def parse_args():
+    """Parse and return arguements
+
+    Returns:
+        argparse.Namespace: Arguments
+    """
+    description = (
+        project_detections.__doc__
+    )
+    # Ideally we'd include the defaults for each argument, but there is no help text so the
+    # ArgumentDefaultsHelpFormatter formatter doesn't show them
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    # Add arguments
+    parser.add_argument("--mesh-filename", type=Path, required=True)
+    parser.add_argument("--mesh-CRS", required=True)
+    parser.add_argument("--cameras-filename", type=Path, required=True)
+    parser.add_argument("--project-to-mesh", type=Path)
+    parser.add_argument("--convert-to-geospatial", type=Path)
+    parser.add_argument("--image-folder", type=Path)
+    parser.add_argument("--detections-folder", type=Path)
+    parser.add_argument("--projections-to-mesh-filename", type=Path)
+    parser.add_argument("--projections-to-geospatial-filename", type=Path)
+    parser.add_argument("--default-focal-length", type=Path)
+    parser.add_argument("--image-shape", type=tuple)
+    parser.add_argument("--vis-mesh", action="store_true")
+    parser.add_argument("--vis-geodata", action="store_true")
+
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # Parse command line args
+    args = parse_args()
+    # Pass all the arguments command line options to render_labels
+    project_detections(**args.__dict__)
