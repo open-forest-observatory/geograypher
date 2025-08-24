@@ -10,7 +10,7 @@ Internal collaborators please navigate [here](https://docs.openforestobservatory
 Create and activate a conda environment:
 
 ```
-conda create -n geograypher python=3.9 -y
+conda create -n geograypher -c conda-forge python=3.9 -y
 conda activate geograypher
 ```
 
@@ -23,7 +23,7 @@ pip install geograypher
 Create and activate a conda environment:
 
 ```
-conda create -n geograypher python=3.9 -y
+conda create -n geograypher -c conda-forge python=3.9 -y
 conda activate geograypher
 ```
 
@@ -40,6 +40,19 @@ poetry install
 ```
 
 You may get the following error when running `pyvista` visualization:
+
+### Common errors
+
+#### Poetry hanging
+If `poetry install` hangs for a long time with no printouts, you can trying disabling the keyring process. poetry by default is trying to access credentials stored in your system keyring (e.g., for private package repositories) and if that isn't set up it can hang.
+
+```
+export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+```
+
+Then re-run `poetry install`.
+
+#### libGL error
 
 ```
 libGL error: MESA-LOADER: failed to open swrast: <CONDA ENV LOCATION>/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
