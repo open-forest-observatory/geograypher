@@ -1,3 +1,4 @@
+from itertools import product
 import tempfile
 from pathlib import Path
 
@@ -6,30 +7,53 @@ import pytest
 import pyvista as pv
 import pyproj
 
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 from geograypher.cameras.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
-# from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshPyTorch3dRendering
+from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshPyTorch3dRendering
 
 
-def make_simple_camera(position=(0, 0, 10)):
-    """Create a simple camera looking down at the origin from above"""
-    # Camera looking down the z-axis from position
+def make_simple_camera():
+    """
+    Create a simple camera looking down at the origin from above, spaced to line up
+    perfectly with the simple mesh.
+    """
+
+    # Focal length in pixels
+    focal = 100
+    # Sensor width/height in pixels
+    sensor = 200
+
+    # Known width of the simple mesh in the X/Y plane
+    mesh_width = 4
+
+    # The equation is just a ratio of triangles
+    # Camera distance (m) = Scene width (m) * focal length (px) / sensor width (px)
+    #
+    #    |.
+    #    |   .               .|
+    # ↑  |       .        .   | ↑
+    # sw |  ←cd→   [cam]  ←f→ | sensor w
+    # ↓  |       .        .   | ↓
+    #    |   .               .|
+    #    |.
+    #
     cam_to_world = np.array([
-        [1, 0, 0, position[0]],
-        [0, -1, 0, position[1]],
-        [0, 0, -1, position[2]],
+        [1, 0, 0, 0],
+        [0, -1, 0, 0],
+        [0, 0, -1, mesh_width * focal / sensor],
         [0, 0, 0, 1]
     ])
     return PhotogrammetryCameraSet(
         cameras=[
             PhotogrammetryCamera(
-                image_filename="/tmp/test_render.jpg",
+                image_filename=None,
                 cam_to_world_transform=cam_to_world,
-                f=1000,  # focal length in pixels
-                cx=0,    # principal point offset x
-                cy=0,    # principal point offset y
-                image_width=200,
-                image_height=200,
+                f=focal,
+                cx=0,
+                cy=0,
+                image_width=sensor,
+                image_height=sensor,
                 local_to_epsg_4978_transform=np.eye(4),
             )
         ],
@@ -37,16 +61,38 @@ def make_simple_camera(position=(0, 0, 10)):
     )
 
 
-def create_flat_mesh_with_colored_points():
-    """Create a flat mesh with 200x200 points (one per pixel) with some points colored red"""
-    # Create a plane mesh with 200x200 points (one per pixel)
+def pixel_idx(vector, i, j, stride, color, buffer=0):
+    """
+    Helper to turn unflattened ij pixels into the color vector around
+    that mesh area. Note that we have to invert the i dimension b/c of
+    how plane texturing is applied vs. how images are rendered. This
+    way (i, j) will correspond to (i, j) in the image.
+    """
+
+    # For robustness purposes we may want to color more than 1 pixel
+    spread = range(-buffer, 2 + buffer)
+
+    for di, dj in product(spread, spread):
+        vector[(stride - i - di) * stride + (j + dj)] = color
+
+
+def make_simple_mesh(pixels, color, background = 50, buffer=0):
+    """
+    Create a flat mesh with the given pixels colored. Designed to line up
+    with the simple camera so that 1 interval between points = 1 pixel.
+    """
+
+    # Define the number of pixels we want to support. 200 intervals (pixels) =
+    # 201 points in the mesh.
+    pw = 201
+
     plane = pv.Plane(
         center=(0, 0, 0),
         direction=(0, 0, 1),  # normal pointing up
-        i_size=4,
-        j_size=4,
-        i_resolution=200 - 1,  # 200 points = 399 intervals
-        j_resolution=200 - 1,
+        i_size=4,  # From -2 to 2
+        j_size=4,  # From -2 to 2
+        i_resolution=pw-1,
+        j_resolution=pw-1,
     )
     if plane is None:
         raise ValueError("Failed to create plane mesh")
@@ -56,78 +102,129 @@ def create_flat_mesh_with_colored_points():
     if plane is None:
         raise ValueError("Failed to create plane triangulation")
 
-    # Create point colors: most points white (255, 255, 255), some points red (255, 0, 0)
-    if plane is not None:
-        n_points = plane.n_points
-    else:
-        raise ValueError("Failed to create plane mesh")
-    point_colors = np.full((n_points, 3), fill_value=50, dtype=np.uint8)
-    point_colors[n_points // 2:] = 200
+    # Create point colors
+    n_points = plane.n_points
+    point_colors = np.full((n_points, 3), fill_value=background, dtype=np.uint8)
 
-    # Make some points red in a pattern that will be visible
-    # Create a checkerboard-like pattern or specific regions
-    points = plane.points
+    # Fill them in pixel by pixel
+    for pixel in pixels:
+        pixel_idx(point_colors, *pixel, stride=pw, color=color, buffer=buffer)
 
-    # Find points in specific regions to color red
-    # red_indices = np.array([0, 1, 200, 201, 400, 401, 600, 601, 700, 201 * 25])
-    # point_colors[red_indices] = [255, 0, 0]
-
-    blue_indices = np.array([75, 76, 77, 300, 301, 302, 500, 501, 502])
-    point_colors[blue_indices] = [0, 0, 255]
+    ##########################################################################
+    # For visual debugging purposes, uncomment this code
+    # point_colors[:2*pw] = [255, 0, 0]
+    # point_colors[-2*pw:] = [0, 255, 0]
+    # point_colors[0::pw] = [0, 0, 255]
+    # point_colors[1::pw] = [0, 0, 255]
+    # point_colors[pw-2::pw] = [0, 255, 255]
+    # point_colors[pw-1::pw] = [0, 255, 255]
+    ##########################################################################
 
     return plane, point_colors
 
 
-class TestTexturedPhotogrammetryMeshPyTorch3dRendering:
+@pytest.mark.parametrize(
+    "meshclass",
+    [TexturedPhotogrammetryMesh, TexturedPhotogrammetryMeshPyTorch3dRendering],
+)
+def test_perspective_camera(meshclass):
 
-    def test_basic(self):
+    fill_pixels = np.array([[10, 20], [15, 190], [195, 5], [50, 100], [150, 120]])
+    empty_pixels = np.array([[30, 40], [160, 180], [120, 40], [100, 150], [180, 100]])
 
-        # Create a simple flat mesh
-        mesh, point_colors = create_flat_mesh_with_colored_points()
+    # Create a simple flat mesh
+    mesh, point_colors = make_simple_mesh(
+        pixels=fill_pixels,
+        color=[255, 0, 0],
+        background=40,
+        buffer=1,
+    )
 
-        # Create the TexturedPhotogrammetryMeshPyTorch3dRendering instance
-        mesh_crs = pyproj.CRS.from_epsg(4978)  # ECEF
+    # Create the textured mesh
+    textured_mesh = meshclass(
+        mesh=mesh,
+        input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+        texture=point_colors,
+    )
+    ######################################################################
+    # For visual debugging purposes, uncomment this code
+    textured_mesh.save_mesh("/tmp/mesh.ply")
+    ######################################################################
 
-        # textured_mesh = TexturedPhotogrammetryMeshPyTorch3dRendering(
-        textured_mesh = TexturedPhotogrammetryMesh(
-            mesh=mesh,
-            input_CRS=mesh_crs,
-            texture=point_colors,
-        )
-        textured_mesh.save_mesh("/tmp/mesh.ply")
+    # Create a camera positioned above the mesh
+    camera = make_simple_camera()
 
-        # Create a camera positioned above the mesh
-        camera = make_simple_camera(position=(0, 0, 35))
-        textured_mesh.vis(camera_set=camera)
+    # Render the mesh from this camera
+    renders = list(textured_mesh.render_flat(cameras=camera, return_camera=False))
+    assert len(renders) == 1
+    render = renders[0]
 
-        # Render the mesh from this camera
-        rendered_images = list(textured_mesh.render_flat(cameras=camera, return_camera=False))
-        assert len(rendered_images) == 1
-        rendered_image = rendered_images[0]
-        print(rendered_image.shape)
+    # Check the rendered image properties
+    assert render is not None
+    render = np.asarray(render)
+    # Should be (height, width, channels)
+    assert render.ndim == 3
+    assert render.shape[2] == 3
 
-        # Check the rendered image properties
-        assert rendered_image is not None
-        # Type cast to help type checker understand this is an ndarray
-        rendered_image = np.asarray(rendered_image)
-        assert rendered_image.ndim == 3  # Should be (height, width, channels)
-        assert rendered_image.shape[2] == 3
+    ######################################################################
+    # For visual debugging purposes, uncomment this code
+    from PIL import Image
+    Image.fromarray(render.astype(np.uint8)).save("/tmp/mesh.png")
+    ######################################################################
 
-        from PIL import Image
-        vis = Image.fromarray(rendered_image.astype(np.uint8))
-        vis.save("/tmp/mesh.png")
+    # Check the expected pixel positions
+    assert np.allclose(
+        render[fill_pixels[:, 0], fill_pixels[:, 1]],
+        [255, 0, 0]
+    )
+    assert np.allclose(
+        render[empty_pixels[:, 0], empty_pixels[:, 1]],
+        [40, 40, 40]
+    )
 
-        # Step 6: Check that some pixels are red and some are white
-        # With point-based coloring, the rendered result will be interpolated
-        # across faces based on the vertex colors
-        height, width, channels = rendered_image.shape
-        reshaped_image = rendered_image.reshape(-1, channels)
 
-        # Remove NaN pixels (areas where no mesh was visible)
-        valid_pixels = ~np.isnan(reshaped_image).any(axis=1)
-        valid_pixel_colors = reshaped_image[valid_pixels]
+# def test_fisheye_basic():
+
+#     fill_pixels = np.array([[10, 20], [15, 190], [195, 5], [50, 100], [150, 120]])
+#     empty_pixels = np.array([[30, 40], [160, 180], [120, 40], [100, 150], [180, 100]])
+
+#     # TODO:
+#     fill_pixels_distorted = fill_pixels.copy()
+
+#     # Create a simple flat mesh
+#     mesh, point_colors = make_simple_mesh(
+#         pixels=fill_pixels_distorted,
+#         color=[255, 0, 0],
+#         background=40,
+#         buffer=1,
+#     )
+
+#     # Create the textured mesh
+#     textured_mesh = TexturedPhotogrammetryMeshPyTorch3dRendering(
+#         mesh=mesh,
+#         input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+#         texture=point_colors,
+#     )
+#     ######################################################################
+#     # For visual debugging purposes, uncomment this code
+#     textured_mesh.save_mesh("/tmp/mesh.ply")
+#     ######################################################################
+
+#     # Create a camera positioned above the mesh
+#     camera = make_simple_camera()
+
+#     # Render the mesh from this camera
+#     renders = list(textured_mesh.render_flat(cameras=camera, return_camera=False))
+#     assert len(renders) == 1
+#     render = renders[0]
+
+#     # Check the rendered image properties
+#     assert render is not None
+#     render = np.asarray(render)
+#     # Should be (height, width, channels)
+#     assert render.ndim == 3
+#     assert render.shape[2] == 3
 
 
 if __name__ == "__main__":
-    test = TestTexturedPhotogrammetryMeshPyTorch3dRendering()
-    test.test_basic()
+    test_perspective_camera(TexturedPhotogrammetryMeshPyTorch3dRendering)
