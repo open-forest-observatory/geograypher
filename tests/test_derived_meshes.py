@@ -40,12 +40,14 @@ def make_simple_camera():
     #    |   .               .|
     #    |.
     #
-    cam_to_world = np.array([
-        [1, 0, 0, 0],
-        [0, -1, 0, 0],
-        [0, 0, -1, mesh_width * focal / sensor],
-        [0, 0, 0, 1]
-    ])
+    cam_to_world = np.array(
+        [
+            [1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, -1, mesh_width * focal / sensor],
+            [0, 0, 0, 1],
+        ]
+    )
     return PhotogrammetryCameraSet(
         cameras=[
             PhotogrammetryCamera(
@@ -78,7 +80,7 @@ def pixel_idx(vector, i, j, stride, color, buffer=0):
         vector[(stride - i - di) * stride + (j + dj)] = color
 
 
-def make_simple_mesh(pixels, color, background = 50, buffer=0):
+def make_simple_mesh(pixels, color, background=50, buffer=0):
     """
     Create a flat mesh with the given pixels colored. Designed to line up
     with the simple camera so that 1 interval between points = 1 pixel.
@@ -93,8 +95,8 @@ def make_simple_mesh(pixels, color, background = 50, buffer=0):
         direction=(0, 0, 1),  # normal pointing up
         i_size=4,  # From -2 to 2
         j_size=4,  # From -2 to 2
-        i_resolution=pw-1,
-        j_resolution=pw-1,
+        i_resolution=pw - 1,
+        j_resolution=pw - 1,
     )
     if plane is None:
         raise ValueError("Failed to create plane mesh")
@@ -175,14 +177,8 @@ def test_perspective_camera(meshclass):
     ######################################################################
 
     # Check the expected pixel positions
-    assert np.allclose(
-        render[fill_pixels[:, 0], fill_pixels[:, 1]],
-        [255, 0, 0]
-    )
-    assert np.allclose(
-        render[empty_pixels[:, 0], empty_pixels[:, 1]],
-        [40, 40, 40]
-    )
+    assert np.allclose(render[fill_pixels[:, 0], fill_pixels[:, 1]], [255, 0, 0])
+    assert np.allclose(render[empty_pixels[:, 0], empty_pixels[:, 1]], [40, 40, 40])
 
 
 # def test_fisheye_basic():
