@@ -1,16 +1,18 @@
-from itertools import product
 import tempfile
+from itertools import product
 from pathlib import Path
 
 import numpy as np
+import pyproj
 import pytest
 import pyvista as pv
-import pyproj
 
-from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 from geograypher.cameras.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
+from geograypher.meshes.derived_meshes import (
+    TexturedPhotogrammetryMeshPyTorch3dRendering,
+)
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
-from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshPyTorch3dRendering
 
 
 def make_simple_camera():
