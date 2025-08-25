@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument("--mesh-downsample", type=float, default=1.0)
     parser.add_argument("--DTM-file")
     parser.add_argument("--height-above-ground-threshold", type=float, default=2)
-    parser.add_argument("--ground-voting-weight")
+    parser.add_argument("--ground-voting-weight", type=float, default=0.01)
     parser.add_argument("--ROI")
     parser.add_argument("--ROI-buffer-radius-meters", default=50, type=float)
     parser.add_argument("--IDs-to-labels", type=dict)
