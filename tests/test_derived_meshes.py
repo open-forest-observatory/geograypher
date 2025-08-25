@@ -148,7 +148,7 @@ def test_perspective_camera(meshclass):
     )
     ######################################################################
     # For visual debugging purposes, uncomment this code
-    textured_mesh.save_mesh("/tmp/mesh.ply")
+    # textured_mesh.save_mesh("/tmp/mesh.ply")
     ######################################################################
 
     # Create a camera positioned above the mesh
@@ -168,8 +168,8 @@ def test_perspective_camera(meshclass):
 
     ######################################################################
     # For visual debugging purposes, uncomment this code
-    from PIL import Image
-    Image.fromarray(render.astype(np.uint8)).save("/tmp/mesh.png")
+    # from PIL import Image
+    # Image.fromarray(render.astype(np.uint8)).save("/tmp/mesh.png")
     ######################################################################
 
     # Check the expected pixel positions
@@ -188,7 +188,8 @@ def test_perspective_camera(meshclass):
 #     fill_pixels = np.array([[10, 20], [15, 190], [195, 5], [50, 100], [150, 120]])
 #     empty_pixels = np.array([[30, 40], [160, 180], [120, 40], [100, 150], [180, 100]])
 
-#     # TODO:
+#     # TODO: Use the distortion equations to warp the fill pixels into what
+#     # a distorted camera would give you
 #     fill_pixels_distorted = fill_pixels.copy()
 
 #     # Create a simple flat mesh
@@ -211,6 +212,7 @@ def test_perspective_camera(meshclass):
 #     ######################################################################
 
 #     # Create a camera positioned above the mesh
+#     # TODO: Add distortion parameters to the camera
 #     camera = make_simple_camera()
 
 #     # Render the mesh from this camera
