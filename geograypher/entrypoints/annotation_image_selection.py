@@ -1,5 +1,5 @@
 import argparse
-from typing import Union
+from typing import Union, Optional
 
 import numpy as np
 import pyproj
@@ -19,6 +19,8 @@ def determine_minimum_overlapping_images(
     cameras_file: PATH_TYPE,
     mesh_CRS: pyproj.CRS,
     image_folder: PATH_TYPE = "",
+    ROI: Optional[PATH_TYPE] = None,
+    ROI_buffer_meters: float = 0.0,
     compute_projection: bool = False,
     compute_minimal_set: bool = False,
     save_selected_images: bool = False,
@@ -41,6 +43,12 @@ def determine_minimum_overlapping_images(
         image_folder (PATH_TYPE, optional):
             Path to the image folder used to generate the project. Only required if
             save_selected_images=True. Defaults to "".
+        ROI (PATH, optional):
+            The region of interest to include. Applied to both the mesh and the cameas. Defaults to
+            None.
+        ROI_buffer_meters (typing.Optional[float]):
+            The distance in meters to include around the ROI for the mesh and the cameras. Defaults
+            to 0.0.
         compute_projection (bool, optional):
             Compute which images project to which faces. Defaults to False.
         compute_minimal_set (bool, optional):
@@ -74,11 +82,16 @@ def determine_minimum_overlapping_images(
             mesh=mesh_file,
             input_CRS=mesh_CRS,
             downsample_target=downsample_target,
+            ROI=ROI,
+            ROI_buffer_meters=ROI_buffer_meters,
         )
         # Load the camera set
         camera_set = MetashapeCameraSet(
             camera_file=cameras_file, image_folder=image_folder
         )
+        # If the ROI is provided, subset the cameras to it
+        if ROI is not None:
+            camera_set = camera_set.get_subset_ROI(ROI, buffer_radius=ROI_buffer_meters)
         # Visualize the inputs if requested
         if vis:
             mesh.vis(camera_set=camera_set, frustum_scale=15)
@@ -196,14 +209,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
-    parser.add_argument("--mesh-file")
-    parser.add_argument("--cameras-file")
-    parser.add_argument("--mesh-CRS")
-    parser.add_argument("--image-folder")
+    parser.add_argument("--mesh-file", required=True)
+    parser.add_argument("--cameras-file", required=True)
+    parser.add_argument("--mesh-CRS", required=True, type=int)
+    parser.add_argument("--image-folder", required=True)
+    parser.add_argument("--ROI")
+    parser.add_argument("--ROI-buffer-meters", type=float, default=0.0)
     parser.add_argument("--compute-projection", action="store_true")
     parser.add_argument("--compute-minimal-set", action="store_true")
     parser.add_argument("--save-selected-images", action="store_true")
     parser.add_argument("--projections-filename")
+    parser.add_argument("--selected-images-mask-filename")
     parser.add_argument("--selected-images-save-folder")
     parser.add_argument("--downsample-target", default=1.0, type=float)
     parser.add_argument("--min-observations-to-be-included", default=1, type=float)
