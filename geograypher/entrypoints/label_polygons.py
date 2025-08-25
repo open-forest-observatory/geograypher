@@ -12,7 +12,7 @@ from geograypher.utils.files import ensure_containing_folder
 
 def label_polygons(
     mesh_file: PATH_TYPE,
-    mesh_CRS: pyproj.CRS,
+    input_CRS: pyproj.CRS,
     aggregated_face_values_file: PATH_TYPE,
     geospatial_polygons_to_label: typing.Union[PATH_TYPE, None],
     geospatial_polygons_labeled_savefile: typing.Union[PATH_TYPE, None],
@@ -33,7 +33,7 @@ def label_polygons(
     Args:
         mesh_file (PATH_TYPE):
             Path to the Metashape-exported mesh file
-        mesh_CRS (pyproj.CRS):
+        input_CRS (pyproj.CRS):
             The CRS to interpret the mesh in.
         aggregated_face_values_file (PATH_TYPE):
             Path to a (n_faces, n_classes) numpy array containing the frequency of each class
@@ -73,7 +73,7 @@ def label_polygons(
     ## Create the mesh
     mesh = TexturedPhotogrammetryMeshChunked(
         mesh_file,
-        mesh_CRS=mesh_CRS,
+        input_CRS=input_CRS,
         ROI=ROI,
         ROI_buffer_meters=ROI_buffer_radius_meters,
         IDs_to_labels=IDs_to_labels,
@@ -128,8 +128,8 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
     parser.add_argument("--mesh-file", required=True)
-    parser.add_argument("--mesh-CRS", required=True)
-    parser.add_argument("--aggregate-face-values-file")
+    parser.add_argument("--input-CRS", required=True)
+    parser.add_argument("--aggregated-face-values-file")
     parser.add_argument("--geospatial-polygons-to-label")
     parser.add_argument("--geospatial-polygons-labeled-savefile")
     parser.add_argument("--mesh-downsample", type=float, default=1.0)
@@ -139,6 +139,7 @@ def parse_args():
     parser.add_argument("--ROI")
     parser.add_argument("--ROI-buffer-radius-meters", default=50, type=float)
     parser.add_argument("--IDs-to-labels", type=dict)
+    parser.add_argument("--vis-mesh", action="store_true", default=False)
 
     args = parser.parse_args()
     return args
