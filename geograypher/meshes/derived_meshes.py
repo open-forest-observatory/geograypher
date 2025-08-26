@@ -124,7 +124,7 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
 
             # Wrap this pyvista mesh in a photogrammetry mesh
             sub_mesh_TPM = TexturedPhotogrammetryMesh(
-                sub_mesh_pv, texture=sub_mesh_texture
+                sub_mesh_pv, texture=sub_mesh_texture, input_CRS=self.CRS
             )
 
             # Return the submesh as a Textured Photogrammetry Mesh, the subset of cameras, and the
