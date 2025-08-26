@@ -20,7 +20,9 @@ from matplotlib.pyplot import Normalize, cm
 
 from geograypher.cameras.derived_cameras import MetashapeCameraSet
 from geograypher.constants import PATH_TYPE
-from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes.derived_meshes import (
+    TexturedPhotogrammetryMeshPyTorch3dRendering,
+)
 from geograypher.utils.files import ensure_folder
 from geograypher.utils.visualization import show_segmentation_labels
 
@@ -171,7 +173,7 @@ def render_height_masks(
 
     def load_mesh(texture=None):
         """Small helper function for something we repeat."""
-        return TexturedPhotogrammetryMesh(
+        return TexturedPhotogrammetryMeshPyTorch3dRendering(
             mesh_file,
             input_CRS=mesh_CRS,
             texture=texture,
