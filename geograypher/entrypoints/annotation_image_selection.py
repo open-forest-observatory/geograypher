@@ -1,7 +1,8 @@
 import argparse
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
+import pyproj
 import pyvista as pv
 from scipy.sparse import load_npz, save_npz
 from SetCoverPy.setcover import SetCover
@@ -16,7 +17,10 @@ from geograypher.utils.files import ensure_containing_folder
 def determine_minimum_overlapping_images(
     mesh_file: PATH_TYPE,
     cameras_file: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     image_folder: PATH_TYPE = "",
+    ROI: Optional[PATH_TYPE] = None,
+    ROI_buffer_meters: float = 0.0,
     compute_projection: bool = False,
     compute_minimal_set: bool = False,
     save_selected_images: bool = False,
@@ -27,16 +31,24 @@ def determine_minimum_overlapping_images(
     min_observations_to_be_included: int = 1,
     vis: bool = False,
 ):
-    """Determine a subset of images that together cover (or nearly cover) the entire scene.
+    """Determine a subset of images that together observe (or nearly observe) the entire scene.
 
     Args:
         mesh_file (PATH_TYPE):
             Path to the mesh file exported by Metashape
         cameras_file (PATH_TYPE):
             Path to the cameras file exported by Metashape
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in.
         image_folder (PATH_TYPE, optional):
             Path to the image folder used to generate the project. Only required if
             save_selected_images=True. Defaults to "".
+        ROI (PATH, optional):
+            The region of interest to include. Applied to both the mesh and the cameas. Defaults to
+            None.
+        ROI_buffer_meters (typing.Optional[float]):
+            The distance in meters to include around the ROI for the mesh and the cameras. Defaults
+            to 0.0.
         compute_projection (bool, optional):
             Compute which images project to which faces. Defaults to False.
         compute_minimal_set (bool, optional):
@@ -44,7 +56,7 @@ def determine_minimum_overlapping_images(
             projections_filename points to a valid projections file. Defaults to False.
         save_selected_images (bool, optional):
             Save the selected images out to selected_images_save_folder. Requires that
-            selected_images_mask_filename contain a mask inidicating which images should be
+            selected_images_mask_filename contain a mask indicating which images should be
             included. Defaults to False.
         projections_filename (Union[PATH_TYPE, None], optional):
             Where to save or load from the projections to faces. Will have a .npz extension.
@@ -57,9 +69,9 @@ def determine_minimum_overlapping_images(
         downsample_target (float, optional):
             Downsample the mesh to this fraction of the original faces. Defaults to 1.
         min_observations_to_be_included (int, optional):
-            Ensure that a camera observes all faces that are observed by at least this many cameras.
-            Setting to a higher value allows you to avoid including cameras only because they are
-            the sole camera to observe a few faces. Defaults to 1.
+            Ensure that a selected camera observes all faces that are observed by at least this many
+            cameras in the original scene. Setting to a higher value allows you to avoid including
+            cameras only because they are the sole camera to observe a few faces. Defaults to 1.
         vis (bool, optional):
             Show intermediate results. Note that this will cause the process to hang until the
             visualization is closed. Defaults to False.
@@ -68,13 +80,18 @@ def determine_minimum_overlapping_images(
         # Load the mesh and optionally downsample it
         mesh = TexturedPhotogrammetryMeshIndexPredictions(
             mesh=mesh_file,
+            input_CRS=mesh_CRS,
             downsample_target=downsample_target,
-            transform_filename=cameras_file,
+            ROI=ROI,
+            ROI_buffer_meters=ROI_buffer_meters,
         )
         # Load the camera set
         camera_set = MetashapeCameraSet(
             camera_file=cameras_file, image_folder=image_folder
         )
+        # If the ROI is provided, subset the cameras to it
+        if ROI is not None:
+            camera_set = camera_set.get_subset_ROI(ROI, buffer_radius=ROI_buffer_meters)
         # Visualize the inputs if requested
         if vis:
             mesh.vis(camera_set=camera_set, frustum_scale=15)
@@ -144,7 +161,8 @@ def determine_minimum_overlapping_images(
 
         # Set up the set cover problem
         problem = SetCover(projection_matrix, set_costs)
-        # Solve the problem
+        # Solve the problem, this can be slow
+        print("Solving the set cover problem to determine the minimum set of cameras")
         solution_cost, time_used = problem.SolveSCP()
         print(
             f"The solution cost is {solution_cost} and solving took {time_used} minutes"
@@ -160,6 +178,9 @@ def determine_minimum_overlapping_images(
         camera_set = MetashapeCameraSet(
             camera_file=cameras_file, image_folder=image_folder
         )
+        # If the ROI is provided, subset the cameras to it
+        if ROI is not None:
+            camera_set = camera_set.get_subset_ROI(ROI, buffer_radius=ROI_buffer_meters)
         # Load the mask identifying the selected cameras
         cameras_mask = np.load(selected_images_mask_filename)
         # Convert it from a boolean mask to indices
@@ -192,13 +213,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description=description
     )
-    parser.add_argument("--mesh-file")
-    parser.add_argument("--cameras-file")
-    parser.add_argument("--image-folder")
+    parser.add_argument("--mesh-file", required=True)
+    parser.add_argument("--cameras-file", required=True)
+    parser.add_argument("--mesh-CRS", required=True, type=int)
+    parser.add_argument("--image-folder", required=True)
+    parser.add_argument("--ROI")
+    parser.add_argument("--ROI-buffer-meters", type=float, default=0.0)
     parser.add_argument("--compute-projection", action="store_true")
     parser.add_argument("--compute-minimal-set", action="store_true")
     parser.add_argument("--save-selected-images", action="store_true")
     parser.add_argument("--projections-filename")
+    parser.add_argument("--selected-images-mask-filename")
     parser.add_argument("--selected-images-save-folder")
     parser.add_argument("--downsample-target", default=1.0, type=float)
     parser.add_argument("--min-observations-to-be-included", default=1, type=float)

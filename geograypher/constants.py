@@ -42,12 +42,14 @@ EXAMPLE_IDS_TO_LABELS = {
     4: "PSME",
     5: "SNAG",
 }
+# The coordinate reference frame to interpret the mesh values in
+EXAMPLE_MESH_CRS = 3310
 EXAMPLE_LABELS_FILENAME = Path(
     EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_ground_truth_labels.gpkg"
 )
 # The mesh exported from Metashape
 EXAMPLE_MESH_FILENAME = Path(
-    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_mesh_subset.ply"
+    EXAMPLE_SEGMENTATION_TASK_DATA, "inputs", "chips_mesh_epsg3310_subset.ply"
 )
 # The camera file exported from Metashape
 EXAMPLE_CAMERAS_FILENAME = Path(
