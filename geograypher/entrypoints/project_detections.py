@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 from imageio import imread
 from scipy.sparse import load_npz, save_npz
 
@@ -18,6 +20,7 @@ from geograypher.utils.files import ensure_containing_folder
 
 def project_detections(
     mesh_filename: PATH_TYPE,
+    mesh_CRS: pyproj.CRS,
     cameras_filename: PATH_TYPE,
     project_to_mesh: bool = False,
     convert_to_geospatial: bool = False,
@@ -36,6 +39,8 @@ def project_detections(
     Args:
         mesh_filename (PATH_TYPE):
             Path to mesh file, in local coordinates from Metashape
+        mesh_CRS (pyproj.CRS):
+            The CRS to interpret the mesh in
         cameras_filename (PATH_TYPE):
             Path to cameras file. This also contains local-to-global coordinate transform to convert
             the mesh to geospatial units.
@@ -69,9 +74,7 @@ def project_detections(
         FileNotFoundError: If the projections_to_mesh_filename is set and needed but not present
     """
     # Create the mesh object, which will be used for either workflow
-    mesh = TexturedPhotogrammetryMeshIndexPredictions(
-        mesh_filename, transform_filename=cameras_filename
-    )
+    mesh = TexturedPhotogrammetryMeshIndexPredictions(mesh_filename, input_CRS=mesh_CRS)
 
     # Project per-image detections to the mesh
     if project_to_mesh:
@@ -186,3 +189,42 @@ def project_detections(
 
         # Save the data back out with the updated information
         merged.to_file(projections_to_geospatial_savefilename)
+
+
+def parse_args():
+    """Parse and return arguements
+
+    Returns:
+        argparse.Namespace: Arguments
+    """
+    description = project_detections.__doc__
+    # Ideally we'd include the defaults for each argument, but there is no help text so the
+    # ArgumentDefaultsHelpFormatter formatter doesn't show them
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    # Add arguments
+    parser.add_argument("--mesh-filename", type=Path, required=True)
+    parser.add_argument("--mesh-CRS", required=True)
+    parser.add_argument("--cameras-filename", type=Path, required=True)
+    parser.add_argument("--project-to-mesh", type=Path)
+    parser.add_argument("--convert-to-geospatial", type=Path)
+    parser.add_argument("--image-folder", type=Path)
+    parser.add_argument("--detections-folder", type=Path)
+    parser.add_argument("--projections-to-mesh-filename", type=Path)
+    parser.add_argument("--projections-to-geospatial-filename", type=Path)
+    parser.add_argument("--default-focal-length", type=Path)
+    parser.add_argument("--image-shape", type=tuple)
+    parser.add_argument("--vis-mesh", action="store_true")
+    parser.add_argument("--vis-geodata", action="store_true")
+
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    # Parse command line args
+    args = parse_args()
+    # Pass all the arguments command line options to render_labels
+    project_detections(**args.__dict__)
