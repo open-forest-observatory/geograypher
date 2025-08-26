@@ -1743,7 +1743,9 @@
 
 
 
+
   <div class="doc doc-children">
+
 
 
 
@@ -1871,7 +1873,7 @@ A tempfile will be created and then deleted if not specified. Defaults to None.<
             <td>
               <div class="doc-md-description">
                 <p>(typing.Union[int, None]):
-Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255</p>
+Value for unassigned pixels. If None, will be set to num_classes, the first unused class. Defaults to None.</p>
               </div>
             </td>
             <td>
@@ -2104,7 +2106,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-298" name="__codelineno-0-298"></a><span class="sd">        downweight_edge_frac (float, optional):</span>
 <a id="__codelineno-0-299" name="__codelineno-0-299"></a><span class="sd">            Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.</span>
 <a id="__codelineno-0-300" name="__codelineno-0-300"></a><span class="sd">        nodataval: (typing.Union[int, None]):</span>
-<a id="__codelineno-0-301" name="__codelineno-0-301"></a><span class="sd">            Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255</span>
+<a id="__codelineno-0-301" name="__codelineno-0-301"></a><span class="sd">            Value for unassigned pixels. If None, will be set to num_classes, the first unused class. Defaults to None.</span>
 <a id="__codelineno-0-302" name="__codelineno-0-302"></a><span class="sd">        count_dtype (type, optional):</span>
 <a id="__codelineno-0-303" name="__codelineno-0-303"></a><span class="sd">            What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8</span>
 <a id="__codelineno-0-304" name="__codelineno-0-304"></a><span class="sd">        max_overlapping_tiles (int):</span>
