@@ -197,6 +197,9 @@ class TexturedPhotogrammetryMesh:
             downsampled_mesh_without_textures = self.pyvista_mesh.decimate(
                 target_reduction=(1 - downsample_target)
             )
+            self.logger.info(
+                f"Requested downsampling {downsample_target}, actual downsampling {downsampled_mesh_without_textures.n_points / self.pyvista_mesh.n_points}"
+            )
             self.pyvista_mesh = self.transfer_texture(downsampled_mesh_without_textures)
         self.logger.info("Extracting faces from mesh")
         # See here for format: https://github.com/pyvista/pyvista-support/issues/96

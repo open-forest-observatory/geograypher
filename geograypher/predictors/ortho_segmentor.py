@@ -298,7 +298,7 @@ def assemble_tiled_predictions(
         downweight_edge_frac (float, optional):
             Downweight this fraction of predictions at the edge of each tile using a linear ramp. Defaults to 0.25.
         nodataval: (typing.Union[int, None]):
-            Value for unassigned pixels. If None, will be set to len(class_names), the first unused class. Defaults to 255
+            Value for unassigned pixels. If None, will be set to num_classes, the first unused class. Defaults to None.
         count_dtype (type, optional):
             What type to use for aggregation. Float uses more space but is more accurate. Defaults to np.uint8
         max_overlapping_tiles (int):

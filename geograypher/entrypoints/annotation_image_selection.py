@@ -31,7 +31,7 @@ def determine_minimum_overlapping_images(
     min_observations_to_be_included: int = 1,
     vis: bool = False,
 ):
-    """Determine a subset of images that together cover (or nearly cover) the entire scene.
+    """Determine a subset of images that together observe (or nearly observe) the entire scene.
 
     Args:
         mesh_file (PATH_TYPE):
@@ -56,7 +56,7 @@ def determine_minimum_overlapping_images(
             projections_filename points to a valid projections file. Defaults to False.
         save_selected_images (bool, optional):
             Save the selected images out to selected_images_save_folder. Requires that
-            selected_images_mask_filename contain a mask inidicating which images should be
+            selected_images_mask_filename contain a mask indicating which images should be
             included. Defaults to False.
         projections_filename (Union[PATH_TYPE, None], optional):
             Where to save or load from the projections to faces. Will have a .npz extension.
@@ -69,9 +69,9 @@ def determine_minimum_overlapping_images(
         downsample_target (float, optional):
             Downsample the mesh to this fraction of the original faces. Defaults to 1.
         min_observations_to_be_included (int, optional):
-            Ensure that a camera observes all faces that are observed by at least this many cameras.
-            Setting to a higher value allows you to avoid including cameras only because they are
-            the sole camera to observe a few faces. Defaults to 1.
+            Ensure that a selected camera observes all faces that are observed by at least this many
+            cameras in the original scene. Setting to a higher value allows you to avoid including
+            cameras only because they are the sole camera to observe a few faces. Defaults to 1.
         vis (bool, optional):
             Show intermediate results. Note that this will cause the process to hang until the
             visualization is closed. Defaults to False.
@@ -161,7 +161,8 @@ def determine_minimum_overlapping_images(
 
         # Set up the set cover problem
         problem = SetCover(projection_matrix, set_costs)
-        # Solve the problem
+        # Solve the problem, this can be slow
+        print("Solving the set cover problem to determine the minimum set of cameras")
         solution_cost, time_used = problem.SolveSCP()
         print(
             f"The solution cost is {solution_cost} and solving took {time_used} minutes"
