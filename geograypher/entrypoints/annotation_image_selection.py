@@ -177,6 +177,9 @@ def determine_minimum_overlapping_images(
         camera_set = MetashapeCameraSet(
             camera_file=cameras_file, image_folder=image_folder
         )
+        # If the ROI is provided, subset the cameras to it
+        if ROI is not None:
+            camera_set = camera_set.get_subset_ROI(ROI, buffer_radius=ROI_buffer_meters)
         # Load the mask identifying the selected cameras
         cameras_mask = np.load(selected_images_mask_filename)
         # Convert it from a boolean mask to indices
