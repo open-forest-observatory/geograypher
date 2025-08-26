@@ -40,6 +40,9 @@ def make_simple_camera():
     #    |   .               .|
     #    |.
     #
+    # Note that the orientation is set so the camera is looking down. If you imagine
+    # rotating a right-hand reference frame by 180 so Z (out of the camera) points
+    # down, you end up with Y pointing along -Y and Z pointing along -Z.
     cam_to_world = np.array(
         [
             [1, 0, 0, 0],
