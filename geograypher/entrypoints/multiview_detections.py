@@ -21,8 +21,8 @@ from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import LAT_LON_CRS
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
-from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.files import ensure_folder
+from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.visualization import merge_cylinders
 
 TRANSFORMS = {
