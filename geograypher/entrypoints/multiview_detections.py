@@ -253,7 +253,9 @@ def multiview_detections(
     # Create boundary layers between the ground and the treetops that we
     # will check for ray intersections between
     local_scale = 1 / get_scale_from_transform(local_to_epsg_4978)
-    ceiling, floor = mesh.export_covering_meshes(N=50, z_buffer=(0, 1 * local_scale), subsample=2)
+    ceiling, floor = mesh.export_covering_meshes(
+        N=50, z_buffer=(0, 1 * local_scale), subsample=2
+    )
     mesh.save_mesh(output_dir / "mesh-local.ply")
     ceiling.save(output_dir / "boundary_ceiling.ply")
     floor.save(output_dir / "boundary_floor.ply")
