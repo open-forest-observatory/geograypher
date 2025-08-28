@@ -204,6 +204,10 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         if dkey not in self._maps_ideal2warped:
             self.make_distortion_map(camera)
 
+        # Convert to 0-1 image
+        if distorted_image.dtype == np.uint8:
+            distorted_image = distorted_image / 255
+
         ideal = np.zeros_like(distorted_image)
         for channel in range(distorted_image.shape[2]):
             ideal[:, :, channel] = warp(
@@ -216,7 +220,8 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                 preserve_range=True,  # keep original range
             )
 
-        return ideal
+        # Convert to 0-255 image
+        return (ideal * 255).astype(np.uint8)
 
 
 class COLMAPCameraSet(PhotogrammetryCameraSet):
