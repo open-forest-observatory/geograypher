@@ -149,7 +149,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
 
-    def ideal2warped(self, camera, xpix, ypix):
+    def ideal_to_warped(self, camera, xpix, ypix):
         """
         TODO
         """
@@ -189,7 +189,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             camera.image_width / 2.0 + camera.cx + xd * camera.f + xd * b1 + yd * b2
         )
         ypix_warp = camera.image_height / 2.0 + camera.cy + yd * camera.f
-        return np.vstack([xpix_warp, ypix_warp]).T
+        return xpix_warp, ypix_warp
 
     def dewarp_image(
         self,
