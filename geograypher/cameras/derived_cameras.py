@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import pyproj
 from scipy.spatial.transform import Rotation
+from skimage.transform import warp
 
-from geograypher.cameras import PhotogrammetryCameraSet
+from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
 from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
@@ -86,7 +87,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         cam_to_world_transforms = []
         sensor_IDs = []
 
-        cameras = chunk[2]
+        cameras = chunk.find("cameras")
         # Iterate over metashape cameras and fill out required information
         for cam_or_group in cameras:
             if cam_or_group.tag == "group":
@@ -147,6 +148,75 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             validate_images=validate_images,
             local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
+
+    def ideal2warped(self, camera, xpix, ypix):
+        """
+        TODO
+        """
+
+        # Convert from x and y pixels to the homogeneous camera frame
+        principal_x = camera.image_width / 2.0 + camera.cx
+        principal_y = camera.image_height / 2.0 + camera.cy
+        x = (xpix - principal_x) / camera.f
+        y = (ypix - principal_y) / camera.f
+
+        # Enforce that all expected parameters are found
+        params = sorted(camera.distortion_params.keys())
+        if not params == ["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]:
+            raise ValueError(f"Unexpected distortion params found: {params}")
+        b1 = camera.distortion_params["b1"]
+        b2 = camera.distortion_params["b2"]
+        k1 = camera.distortion_params["k1"]
+        k2 = camera.distortion_params["k2"]
+        k3 = camera.distortion_params["k3"]
+        k4 = camera.distortion_params["k4"]
+        p1 = camera.distortion_params["p1"]
+        p2 = camera.distortion_params["p2"]
+
+        # See page 246 of the manual (labeled page 240) "Frame Cameras" section
+        # for what these parameters mean
+        # https://www.agisoft.com/pdf/metashape-pro_2_2_en.pdf
+        r = np.sqrt(x**2 + y**2)
+        #  Distorted rays
+        xd = x * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p1 * (r**2 + 2 * x**2) + 2 * p2 * x * y
+        )
+        yd = y * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p2 * (r**2 + 2 * y**2) + 2 * p1 * x * y
+        )
+        # Pixels
+        xpix_warp = (
+            camera.image_width / 2.0 + camera.cx + xd * camera.f + xd * b1 + yd * b2
+        )
+        ypix_warp = camera.image_height / 2.0 + camera.cy + yd * camera.f
+        return np.vstack([xpix_warp, ypix_warp]).T
+
+    def dewarp_image(
+        self,
+        camera: PhotogrammetryCamera,
+        distorted_image: np.ndarray,
+        fill_value: int = 0,
+    ) -> np.ndarray:
+        """
+        TODO
+        """
+        dkey = self.distortion_key(camera.distortion_params)
+        if dkey not in self._maps_ideal2warped:
+            self.make_distortion_map(camera)
+
+        ideal = np.zeros_like(distorted_image)
+        for channel in range(distorted_image.shape[2]):
+            ideal[:, :, channel] = warp(
+                image=distorted_image[:, :, channel],
+                inverse_map=self._maps_ideal2warped[dkey],
+                order=1,  # bilinear interpolation
+                mode="constant",  # fill unseen areas with cval
+                cval=0.0,  # black fill
+                clip=True,  # clip to [0,1]
+                preserve_range=True,  # keep original range
+            )
+
+        return ideal
 
 
 class COLMAPCameraSet(PhotogrammetryCameraSet):

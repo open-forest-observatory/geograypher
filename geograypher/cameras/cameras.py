@@ -662,6 +662,8 @@ class PhotogrammetryCameraSet:
         """
         # Record the values
         self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
+        # Save parameters used for caching distortion products
+        self._maps_ideal2warped = {}
 
         # Create an object using the supplied cameras
         if cameras is not None:
@@ -929,6 +931,89 @@ class PhotogrammetryCameraSet:
                 List of tuples containing the camera locations.
         """
         return [x.get_camera_location(**kwargs) for x in self.cameras]
+
+    def distortion_key(self, parameters: Dict[str, float]) -> str:
+        """
+        Make a repeatable string key out of a distortion parameter dict
+        so that we can cache results by distortion parameters. We are
+        deciding that precision in the distortion parameters after 8
+        decimal points will be ignored in the caching process.
+        """
+        keys = sorted(parameters.keys())
+        strings = [f"{key}:{parameters[key]:.8f}" for key in keys]
+        return "|".join(strings)
+
+    def make_distortion_map(self, camera: PhotogrammetryCamera) -> None:
+        """
+        TODO
+        """
+        # Sample over the ideal pixels, shape (H, W)
+        im_h, im_w = camera.image_size
+        rows, cols = np.meshgrid(np.arange(im_h), np.arange(im_w), indexing="ij")
+        # Fill the (H, W) elements with the (i, j) distorted values at those locations
+        warp_cols, warp_rows = self.ideal_to_warped(camera, cols, rows)
+        # Cache this mapping as (2, H, W)
+        self._maps_ideal2warped[self.distortion_key(camera.distortion_params)] = (
+            np.stack([warp_rows, warp_cols], axis=0)
+        )
+
+    def ideal_to_warped(
+        self, camera: PhotogrammetryCamera, xpix: np.ndarray, ypix: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        TODO
+        """
+        raise NotImplementedError("ideal_to_warped not implemented.")
+
+    def dewarp_pixels(
+        self, camera: PhotogrammetryCamera, pixels: np.ndarray, as_pixels: bool = False
+    ) -> np.ndarray:
+        """
+        Apply the inverse camera distortion model to pixel coordinates.
+
+        Given (N, 2) pixel coordinates in the image, this function applies
+        the inverse of the camera's distortion model to recover the true
+        (x/z, y/z) homogeneous ray directions emanating from the camera center.
+        This is useful for mapping distorted image points back to their
+        undistorted, idealized pinhole camera rays.
+
+        Args:
+            pixels (np.ndarray): Array of shape (N, 2) containing pixel
+                coordinates (i, j) in the image.
+            as_pixels (bool): Returns ideal pixels (i, j) if True, otherwise
+                returns normalized image plane coordinates (x/z, y/z).
+
+        Returns:
+            np.ndarray: Array of shape (N, 2) containing the either the
+                undistorted pixels values (i, j) if as_pixels is True,
+                otherwise (x/z, y/z) normalized image plane coordinates.
+        """
+        raise NotImplementedError("dewarp_pixels not implemented.")
+
+    def warp_image(
+        self, camera: PhotogrammetryCamera, ideal_image: np.ndarray, fill_value: int = 0
+    ) -> np.ndarray:
+        """
+        Warp an ideal (undistorted) image to simulate the effect of the
+        camera's distortion model.
+
+        This function takes an image as would be seen by an ideal pinhole
+        camera (no distortion) and warps it according to the distortion
+        parameters, returning an image as if it had been captured by the
+        modeled camera. Pixels in the output image that do not correspond
+        to any input pixel (due to warping) are set to the fill value.
+
+        Args:
+            ideal_image (np.ndarray): (I, J, 3) Undistorted input image
+                (as from a pinhole camera).
+            fill_value (int, optional): Value to use for pixels in the
+                output image that are not mapped from the input. Defaults to 0.
+
+        Returns:
+            np.ndarray: (I, J, 3) Warped (distorted) image as would be seen by
+                the camera.
+        """
+        raise NotImplementedError("warp_image not implemented.")
 
     def get_subset_ROI(
         self,

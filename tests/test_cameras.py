@@ -238,3 +238,8 @@ class TestTriangulateDetections:
             assert (tmp_path / "line_segments.npz").is_file()
             assert (tmp_path / "edge_weights.json").is_file()
             assert (tmp_path / "communities.npz").is_file()
+
+
+def test_distortion_key(sample_camera_set):
+    key = sample_camera_set.distortion_key({"x1": 0.8, "x0": -1.1})
+    assert key == "x0:-1.10000000|x1:0.80000000"
