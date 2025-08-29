@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pyproj
 from scipy.spatial.transform import Rotation
-from skimage.transform import warp
 
 from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
@@ -190,38 +189,6 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         )
         ypix_warp = camera.image_height / 2.0 + camera.cy + yd * camera.f
         return xpix_warp, ypix_warp
-
-    def dewarp_image(
-        self,
-        camera: PhotogrammetryCamera,
-        distorted_image: np.ndarray,
-        fill_value: int = 0,
-    ) -> np.ndarray:
-        """
-        TODO
-        """
-        dkey = self.distortion_key(camera.distortion_params)
-        if dkey not in self._maps_ideal2warped:
-            self.make_distortion_map(camera)
-
-        # Convert to 0-1 image
-        if distorted_image.dtype == np.uint8:
-            distorted_image = distorted_image / 255
-
-        ideal = np.zeros_like(distorted_image)
-        for channel in range(distorted_image.shape[2]):
-            ideal[:, :, channel] = warp(
-                image=distorted_image[:, :, channel],
-                inverse_map=self._maps_ideal2warped[dkey],
-                order=1,  # bilinear interpolation
-                mode="constant",  # fill unseen areas with cval
-                cval=0.0,  # black fill
-                clip=True,  # clip to [0,1]
-                preserve_range=True,  # keep original range
-            )
-
-        # Convert to 0-255 image
-        return (ideal * 255).astype(np.uint8)
 
 
 class COLMAPCameraSet(PhotogrammetryCameraSet):

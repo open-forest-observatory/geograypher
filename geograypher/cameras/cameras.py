@@ -17,7 +17,7 @@ from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import MultiPolygon, Point, Polygon, unary_union
 from skimage.io import imread
-from skimage.transform import resize
+from skimage.transform import resize, warp
 from tqdm import tqdm
 
 from geograypher.constants import (
@@ -41,6 +41,7 @@ from geograypher.utils.geometric import (
 )
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
+from geograypher.utils.indexing import inverse_map_interpolation
 from geograypher.utils.numeric import (
     calc_communities,
     calc_graph_weights,
@@ -663,7 +664,8 @@ class PhotogrammetryCameraSet:
         # Record the values
         self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
         # Save parameters used for caching distortion products
-        self._maps_ideal2warped = {}
+        self._maps_ideal_to_warped = {}
+        self._maps_warped_to_ideal = {}
 
         # Create an object using the supplied cameras
         if cameras is not None:
@@ -938,6 +940,13 @@ class PhotogrammetryCameraSet:
         so that we can cache results by distortion parameters. We are
         deciding that precision in the distortion parameters after 8
         decimal points will be ignored in the caching process.
+
+        Arguments:
+            parameters (dict): Distortion parameters are assumed to be stored
+                "name": float(value)
+
+        Returns:
+            A repeatable string key based on the distortion values.
         """
         keys = sorted(parameters.keys())
         strings = [f"{key}:{parameters[key]:.8f}" for key in keys]
@@ -945,7 +954,22 @@ class PhotogrammetryCameraSet:
 
     def make_distortion_map(self, camera: PhotogrammetryCamera) -> None:
         """
-        TODO
+        Cache a map connecting locations in one image to locations in another.
+        The basic construction is the pixel position of the map is the position
+        in the destination image, and the value of the map is the position in
+        the source image. Therefore if location [20, 30] has value [22.2, 28.4],
+        it means that the destination image pixel [20, 30] will be sampled from
+        the source image at pixel [22.2, 28.4] (the sampler can choose to snap
+        to the closest integer value or interpolate nearby pixels).
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+
+        Caches: In self._maps_ideal_to_warped, stores a map of the structure
+            discussed above, keyed by self.distortion_key(params) so it can
+            be accessed for cameras using the same params.
         """
         # Sample over the ideal pixels, shape (H, W)
         im_h, im_w = camera.image_size
@@ -953,8 +977,11 @@ class PhotogrammetryCameraSet:
         # Fill the (H, W) elements with the (i, j) distorted values at those locations
         warp_cols, warp_rows = self.ideal_to_warped(camera, cols, rows)
         # Cache this mapping as (2, H, W)
-        self._maps_ideal2warped[self.distortion_key(camera.distortion_params)] = (
-            np.stack([warp_rows, warp_cols], axis=0)
+        dkey = self.distortion_key(camera.distortion_params)
+        self._maps_ideal_to_warped[dkey] = np.stack([warp_rows, warp_cols], axis=0)
+        # Invert the warp map
+        self._maps_warped_to_ideal[dkey] = inverse_map_interpolation(
+            self._maps_ideal_to_warped[dkey],
         )
 
     def ideal_to_warped(
@@ -962,8 +989,23 @@ class PhotogrammetryCameraSet:
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         TODO
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            xpix (numpy array): Array of unknown shape, must match ypix but
+                that's it
+            ypix (numpy array): Array of unknown shape
+
+        Returns:
+            Tuple of numpy arrays of warped x pixels and y pixels
+            [0] warped xpix
+            [1] warped ypix
         """
-        raise NotImplementedError("ideal_to_warped not implemented.")
+        raise NotImplementedError(
+            f"ideal_to_warped not implemented for {self.__class__}."
+        )
 
     def dewarp_pixels(
         self, camera: PhotogrammetryCamera, pixels: np.ndarray, as_pixels: bool = False
@@ -1001,9 +1043,12 @@ class PhotogrammetryCameraSet:
         camera (no distortion) and warps it according to the distortion
         parameters, returning an image as if it had been captured by the
         modeled camera. Pixels in the output image that do not correspond
-        to any input pixel (due to warping) are set to the fill value.
+        to any input pixel are set to the fill value.
 
-        Args:
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
             ideal_image (np.ndarray): (I, J, 3) Undistorted input image
                 (as from a pinhole camera).
             fill_value (int, optional): Value to use for pixels in the
@@ -1014,6 +1059,67 @@ class PhotogrammetryCameraSet:
                 the camera.
         """
         raise NotImplementedError("warp_image not implemented.")
+
+    def dewarp_image(
+        self,
+        camera: PhotogrammetryCamera,
+        warped_image: np.ndarray,
+        fill_value: float = 0.0,
+        warped_to_ideal: bool = True,
+    ) -> np.ndarray:
+        """
+        Dewarp a warped (distorted) image to simulate the effect of undoing
+        the camera's distortion model.
+
+        This function takes an image as would be seen by a real lens
+        (distorted) and dewarps it according to the distortion parameters,
+        returning an image as if it had been captured by an ideal camera.
+        Pixels in the output image that do not correspond to any input pixel
+        are set to the fill value.
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            ideal_image (np.ndarray): (I, J, 3) Undistorted input image
+                (as from a pinhole camera).
+            fill_value (int, optional): Value to use for pixels in the
+                output image that are not mapped from the input. Defaults to 0.
+
+        Returns:
+            np.ndarray: (I, J, 3) Dewarped (ideal) image as would be seen by
+                a pinhole camera.
+        """
+
+        # Ensure that there is a cached map for these distortion parameters
+        dkey = self.distortion_key(camera.distortion_params)
+        if dkey not in self._maps_ideal_to_warped:
+            self.make_distortion_map(camera)
+
+        # Convert to 0-1 image, which is what skimage.warp operates on.
+        if warped_image.dtype == np.uint8:
+            warped_image = warped_image / 255
+
+        if warped_to_ideal:
+            inverse_map = self._maps_ideal_to_warped[dkey]
+        else:
+            inverse_map = self._maps_warped_to_ideal[dkey]
+
+        # For each color channel, do the dewarping
+        ideal = np.zeros_like(warped_image)
+        for channel in range(warped_image.shape[2]):
+            ideal[:, :, channel] = warp(
+                image=warped_image[:, :, channel],
+                inverse_map=inverse_map,
+                order=1,  # bilinear interpolation for fractional pixels
+                mode="constant",  # fill unseen areas with cval
+                cval=fill_value,
+                clip=True,  # clip to [0,1]
+                preserve_range=True,  # keep original range without rescaling
+            )
+
+        # Convert to 0-255 image
+        return (ideal * 255).astype(np.uint8)
 
     def get_subset_ROI(
         self,

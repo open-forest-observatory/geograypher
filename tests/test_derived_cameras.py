@@ -1,3 +1,4 @@
+import operator
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -66,6 +67,27 @@ def camera_file(tmp_path: Path):
     return filepath
 
 
+@pytest.fixture
+def gradient():
+    """Make an image with a white center gradated to a black outer ring."""
+
+    # Coordinates
+    size = 21
+    center = size // 2
+    x, y = np.meshgrid(np.arange(size), np.arange(size))
+    # dist = np.maximum(np.abs(x - center), np.abs(y - center))
+    dist = np.sqrt((x - center) ** 2 + (y - center) ** 2)
+
+    # Normalize distance: 0 at center, 1 at max radius
+    gradient = np.clip(1 - (dist / np.max(dist)), 0, 1)
+
+    # Make RGB (same value in all channels for grayscale)
+    image = np.stack([gradient] * 3, axis=2)
+
+    # Scale to 0–255 uint8
+    return (image * 255).astype(np.uint8)
+
+
 class TestMetashapeCameraSetWarp:
 
     def test_instantiate(self, tmp_path):
@@ -87,3 +109,51 @@ class TestMetashapeCameraSetWarp:
         for camera in cameras.cameras:
             for k, v in camera.distortion_params.items():
                 assert np.isclose(v, expected[k])
+
+    @pytest.mark.parametrize(
+        "w2i,k1,relationship",
+        (
+            [True, 0, operator.eq],
+            # If the radial term is positive, it means that in the equation
+            # we have warp = ideal * 1+. That means to dewarp we will sample
+            # from a wider area, and the image will darken
+            [True, 1, operator.lt],
+            # If the radial term is positive, it means that in the equation
+            # we have warp = ideal * 1-. That means to dewarp we will sample
+            # from a smaller area, and the image will lighten
+            [True, -1, operator.gt],
+            # The previous statements are inverted if you are warping in the
+            # other direction.
+            [False, 0, operator.eq],
+            [False, 1, operator.gt],
+            [False, -1, operator.lt],
+        ),
+    )
+    def test_dewarp(self, tmp_path, gradient, w2i, k1, relationship):
+        """
+        Check that with simplified distortion params the image either gets
+        lighter, darker, or stays the same.
+        """
+        cameras = MetashapeCameraSet(
+            camera_file=camera_file(tmp_path),
+            image_folder=tmp_path,
+        )
+        camera = cameras.cameras[0]
+        # Greatly simplify the camera intrinsics
+        camera.cx = 0
+        camera.cy = 0
+        camera.f = 100
+        camera.image_height = gradient.shape[0]
+        camera.image_width = gradient.shape[1]
+        camera.image_size = gradient.shape[:2]
+        # Simplify the camera parameters
+        for param in ["b1", "b2", "k2", "k3", "k4", "p1", "p2"]:
+            camera.distortion_params[param] = 0
+        camera.distortion_params["k1"] = k1
+
+        # Warp the image
+        dewarped = cameras.dewarp_image(camera, gradient, warped_to_ideal=w2i)
+
+        # Check whether the image on the average got lighter, darker, or
+        # stayed the same
+        assert relationship(dewarped.mean(), gradient.mean())

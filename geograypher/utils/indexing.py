@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+from scipy.interpolate import griddata
 
 
 def find_argmax_nonzero_value(
@@ -77,3 +78,41 @@ def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
     # Cast to float, since that's expected
     output_query_array = query_array.astype(float)
     return output_query_array, IDs_to_label
+
+
+def inverse_map_interpolation(ijmap: np.ndarray, fill: int = -1) -> np.ndarray:
+    """
+    TODO
+
+    Arguments:
+        ijmap ((2, H, W) numpy array): TODO
+
+    Returns:
+        (2, H, W) numpy array of the same shape as ijmap
+    """
+
+    # (row, col) grid of pixels coordinates
+    H, W = ijmap.shape[1:]
+    igrid, jgrid = np.meshgrid(np.arange(H), np.arange(W), indexing="ij")
+
+    # Get an (N, 2) array of the grid coordinates
+    grid_coords = np.stack([igrid.ravel(), jgrid.ravel()], axis=1)
+
+    # Get an (N, 2) array of the end coordinates that we have data for
+    goal_samples = np.stack([ijmap[0].ravel(), ijmap[1].ravel()], axis=1)
+
+    # This is a little complicated, but griddata takes in
+    # 1) The samples you have data for (x)
+    # 2) The sample data (y)
+    # 3) The new x at which you want to resample
+    # In this case our sample x data is the mapped indices, the sample y data
+    # is the grid that mapping came from, and the resample x is also the grid
+    # because we are trying to invert.
+    inv_i = griddata(
+        goal_samples, grid_coords[:, 0], grid_coords, method="linear", fill_value=fill
+    )
+    inv_j = griddata(
+        goal_samples, grid_coords[:, 1], grid_coords, method="linear", fill_value=fill
+    )
+
+    return np.stack([inv_i.reshape(H, W), inv_j.reshape(H, W)], axis=0)

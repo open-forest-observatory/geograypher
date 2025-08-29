@@ -241,5 +241,15 @@ class TestTriangulateDetections:
 
 
 def test_distortion_key(sample_camera_set):
-    key = sample_camera_set.distortion_key({"x1": 0.8, "x0": -1.1})
-    assert key == "x0:-1.10000000|x1:0.80000000"
+    for parameters in [
+        {"x1": 0.8, "x0": -1.1, "q3": 3},
+        {"x0": -1.1, "q3": 3, "x1": 0.8},
+        {"x1": 0.8, "q3": 3, "x0": -1.1},
+    ]:
+        key = sample_camera_set.distortion_key(parameters)
+        assert key == "q3:3.00000000|x0:-1.10000000|x1:0.80000000"
+
+
+def test_ideal_to_warped(sample_camera_set):
+    with pytest.raises(NotImplementedError):
+        sample_camera_set.ideal_to_warped(None, None, None)
