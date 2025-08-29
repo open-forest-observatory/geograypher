@@ -952,7 +952,7 @@ class PhotogrammetryCameraSet:
         strings = [f"{key}:{parameters[key]:.8f}" for key in keys]
         return "|".join(strings)
 
-    def make_distortion_map(self, camera: PhotogrammetryCamera) -> None:
+    def make_distortion_map(self, camera: PhotogrammetryCamera, inversion_downsample: int) -> None:
         """
         Cache a map connecting locations in one image to locations in another.
         The basic construction is the pixel position of the map is the position
@@ -966,6 +966,7 @@ class PhotogrammetryCameraSet:
             camera (PhotogrammetryCamera): Camera with parameters that
                 define the warp process. These include image size, principal
                 point, focal length, and distortion parameters.
+            inversion_downsample (int): TODO
 
         Caches: In self._maps_ideal_to_warped, stores a map of the structure
             discussed above, keyed by self.distortion_key(params) so it can
@@ -982,6 +983,7 @@ class PhotogrammetryCameraSet:
         # Invert the warp map
         self._maps_warped_to_ideal[dkey] = inverse_map_interpolation(
             self._maps_ideal_to_warped[dkey],
+            downsample=inversion_downsample,
         )
 
     def ideal_to_warped(
@@ -1065,6 +1067,7 @@ class PhotogrammetryCameraSet:
         camera: PhotogrammetryCamera,
         warped_image: np.ndarray,
         fill_value: float = 0.0,
+        inversion_downsample: int = 2,
         warped_to_ideal: bool = True,
     ) -> np.ndarray:
         """
@@ -1085,6 +1088,8 @@ class PhotogrammetryCameraSet:
                 (as from a pinhole camera).
             fill_value (int, optional): Value to use for pixels in the
                 output image that are not mapped from the input. Defaults to 0.
+            inversion_downsample (int, optional): TODO
+            warped_to_ideal (bool, optional): TODO
 
         Returns:
             np.ndarray: (I, J, 3) Dewarped (ideal) image as would be seen by
@@ -1094,7 +1099,7 @@ class PhotogrammetryCameraSet:
         # Ensure that there is a cached map for these distortion parameters
         dkey = self.distortion_key(camera.distortion_params)
         if dkey not in self._maps_ideal_to_warped:
-            self.make_distortion_map(camera)
+            self.make_distortion_map(camera, inversion_downsample)
 
         # Convert to 0-1 image, which is what skimage.warp operates on.
         if warped_image.dtype == np.uint8:

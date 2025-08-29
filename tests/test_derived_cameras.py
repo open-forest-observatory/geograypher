@@ -129,7 +129,8 @@ class TestMetashapeCameraSetWarp:
             [False, -1, operator.lt],
         ),
     )
-    def test_dewarp(self, tmp_path, gradient, w2i, k1, relationship):
+    @pytest.mark.parametrize("downsample", [1, 2])
+    def test_dewarp(self, tmp_path, gradient, w2i, k1, relationship, downsample):
         """
         Check that with simplified distortion params the image either gets
         lighter, darker, or stays the same.
@@ -152,7 +153,7 @@ class TestMetashapeCameraSetWarp:
         camera.distortion_params["k1"] = k1
 
         # Warp the image
-        dewarped = cameras.dewarp_image(camera, gradient, warped_to_ideal=w2i)
+        dewarped = cameras.dewarp_image(camera, gradient, warped_to_ideal=w2i, inversion_downsample=downsample)
 
         # Check whether the image on the average got lighter, darker, or
         # stayed the same
