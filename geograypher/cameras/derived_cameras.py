@@ -148,9 +148,12 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
 
-    def ideal_to_warped(self, camera, xpix, ypix):
+    def ideal_to_warped(
+        self, camera: PhotogrammetryCamera, xpix: np.ndarray, ypix: np.ndarray
+    ) -> typing.Tuple[np.ndarray, np.ndarray]:
         """
-        TODO
+        For consistency, this should fully match the docstring from
+        cameras.PhotogrammetryCameraSet.ideal_to_warped()
         """
 
         # Convert from x and y pixels to the homogeneous camera frame

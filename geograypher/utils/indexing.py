@@ -80,12 +80,32 @@ def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
     return output_query_array, IDs_to_label
 
 
-def inverse_map_interpolation(ijmap: np.ndarray, downsample: int = 1, fill: int = -1) -> np.ndarray:
+def inverse_map_interpolation(
+    ijmap: np.ndarray, downsample: int = 1, fill: int = -1
+) -> np.ndarray:
     """
-    TODO
+    Inverts the type of map that can be fed to skimage.transform.warp.
+
+    The basic construction is the pixel position of these maps is the position
+    in the destination image, and the value of the map is the position in the
+    source image. Therefore if location [20, 30] has value [22.2, 28.4], it
+    means that the destination image pixel [20, 30] will be sampled from the
+    source image at pixel [22.2, 28.4] (the sampler can choose to snap to the
+    closest integer value or interpolate nearby pixels).
+
+    By inverting, we seek to reverse this map through interpolation. In the
+    example above, in the output we would now have the location [22, 28]
+    have the value [20, 30] (or slightly different because it might
+    interpolate with nearby values).
 
     Arguments:
-        ijmap ((2, H, W) numpy array): TODO
+        ijmap ((2, H, W) numpy array): a map of the structure discussed above
+        downsample (int): Inverting (particularly griddata) can be expensive
+            for high-res image maps. You can downsample in integer steps to
+            save computation, which will downsample both the (i, j) axes. Using
+            downsample=2 will therefore interpolate on 1/4 of the pixels.
+        fill (int): Values outside of the interpolation convex hull will take
+            this value.
 
     Returns:
         (2, H, W) numpy array of the same shape as ijmap
@@ -101,11 +121,13 @@ def inverse_map_interpolation(ijmap: np.ndarray, downsample: int = 1, fill: int 
     # Get (N, 2) arrays of the source and goal coordinates we have data for
     if downsample > 1:
         ds = slice(None, None, downsample)
-        source_samples = np.stack([igrid[ds, ds].ravel(), jgrid[ds, ds].ravel()], axis=1)
-        goal_samples = np.stack([ijmap[0][ds, ds].ravel(), ijmap[1][ds, ds].ravel()], axis=1)
+        sample_y = np.stack([igrid[ds, ds].ravel(), jgrid[ds, ds].ravel()], axis=1)
+        sample_x = np.stack(
+            [ijmap[0][ds, ds].ravel(), ijmap[1][ds, ds].ravel()], axis=1
+        )
     else:
-        source_samples = grid_coords.copy()
-        goal_samples = np.stack([ijmap[0].ravel(), ijmap[1].ravel()], axis=1)
+        sample_y = grid_coords.copy()
+        sample_x = np.stack([ijmap[0].ravel(), ijmap[1].ravel()], axis=1)
 
     # This is a little complicated, but griddata takes in
     # 1) The samples you have data for (x)
@@ -115,10 +137,10 @@ def inverse_map_interpolation(ijmap: np.ndarray, downsample: int = 1, fill: int 
     # is the grid that mapping came from, and the resample x is also the grid
     # because we are trying to invert.
     inv_i = griddata(
-        goal_samples, source_samples[:, 0], grid_coords, method="linear", fill_value=fill
+        sample_x, sample_y[:, 0], grid_coords, method="linear", fill_value=fill
     )
     inv_j = griddata(
-        goal_samples, source_samples[:, 1], grid_coords, method="linear", fill_value=fill
+        sample_x, sample_y[:, 1], grid_coords, method="linear", fill_value=fill
     )
 
     return np.stack([inv_i.reshape(H, W), inv_j.reshape(H, W)], axis=0)

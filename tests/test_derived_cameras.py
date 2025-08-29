@@ -153,7 +153,9 @@ class TestMetashapeCameraSetWarp:
         camera.distortion_params["k1"] = k1
 
         # Warp the image
-        dewarped = cameras.dewarp_image(camera, gradient, warped_to_ideal=w2i, inversion_downsample=downsample)
+        dewarped = cameras.warp_dewarp_image(
+            camera, gradient, warped_to_ideal=w2i, inversion_downsample=downsample
+        )
 
         # Check whether the image on the average got lighter, darker, or
         # stayed the same
