@@ -88,6 +88,20 @@ def gradient():
     return (image * 255).astype(np.uint8)
 
 
+def simplify_camera(camera, image):
+    # Greatly simplify the camera intrinsics
+    camera.cx = 0
+    camera.cy = 0
+    camera.f = 100
+    camera.image_height = image.shape[0]
+    camera.image_width = image.shape[1]
+    camera.image_size = image.shape[:2]
+    # Simplify the camera parameters
+    for param in ["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]:
+        camera.distortion_params[param] = 0
+    return camera
+
+
 class TestMetashapeCameraSetWarp:
 
     def test_instantiate(self, tmp_path):
@@ -130,7 +144,10 @@ class TestMetashapeCameraSetWarp:
         ),
     )
     @pytest.mark.parametrize("downsample", [1, 2])
-    def test_dewarp(self, tmp_path, gradient, w2i, k1, relationship, downsample):
+    @pytest.mark.parametrize("grayscale", [True, False])
+    def test_warp_dewarp(
+        self, tmp_path, gradient, w2i, k1, relationship, downsample, grayscale
+    ):
         """
         Check that with simplified distortion params the image either gets
         lighter, darker, or stays the same.
@@ -139,18 +156,11 @@ class TestMetashapeCameraSetWarp:
             camera_file=camera_file(tmp_path),
             image_folder=tmp_path,
         )
-        camera = cameras.cameras[0]
-        # Greatly simplify the camera intrinsics
-        camera.cx = 0
-        camera.cy = 0
-        camera.f = 100
-        camera.image_height = gradient.shape[0]
-        camera.image_width = gradient.shape[1]
-        camera.image_size = gradient.shape[:2]
-        # Simplify the camera parameters
-        for param in ["b1", "b2", "k2", "k3", "k4", "p1", "p2"]:
-            camera.distortion_params[param] = 0
+        camera = simplify_camera(cameras.cameras[0], gradient)
         camera.distortion_params["k1"] = k1
+
+        if grayscale:
+            gradient = gradient[:, :, 0]
 
         # Warp the image
         dewarped = cameras.warp_dewarp_image(
@@ -160,3 +170,31 @@ class TestMetashapeCameraSetWarp:
         # Check whether the image on the average got lighter, darker, or
         # stayed the same
         assert relationship(dewarped.mean(), gradient.mean())
+
+    @pytest.mark.parametrize("k1", [1.0, 0.0, -1.0])
+    @pytest.mark.parametrize("w2i", [True, False])
+    @pytest.mark.parametrize("downsample", [1, 2])
+    def test_mask_image(self, tmp_path, k1, w2i, downsample):
+        """
+        Check that if warping is applied to a mask image (a few integer classes)
+        those classes are preserved.
+        """
+
+        image = np.ones((21, 21), dtype=np.uint8)
+        image[:10] = 0
+        image[:, 5:] = 2
+
+        cameras = MetashapeCameraSet(
+            camera_file=camera_file(tmp_path),
+            image_folder=tmp_path,
+        )
+        camera = simplify_camera(cameras.cameras[0], image)
+        camera.distortion_params["k1"] = k1
+
+        # Warp the image
+        dewarped = cameras.warp_dewarp_image(
+            camera, image, warped_to_ideal=w2i, inversion_downsample=downsample
+        )
+
+        # Check that we kept our desired classes (no statements about position)
+        assert sorted(np.unique(dewarped)) == [0, 1, 2]

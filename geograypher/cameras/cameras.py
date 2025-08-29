@@ -1064,6 +1064,9 @@ class PhotogrammetryCameraSet:
         if dkey not in self._maps_ideal_to_warped:
             self.make_distortion_map(camera, inversion_downsample)
 
+        # Temporarily expand grayscale images to be (N, M, 1)
+        input_image = np.atleast_3d(input_image)
+
         # Convert to 0-1 image, which is what skimage.warp operates on.
         if input_image.dtype == np.uint8:
             input_image = input_image / 255
@@ -1087,7 +1090,10 @@ class PhotogrammetryCameraSet:
             )
 
         # Convert to 0-255 image
-        return (output_image * 255).astype(np.uint8)
+        output_image = (output_image * 255).astype(np.uint8)
+
+        # Return grayscale if array is (N, M 1), else return RGB
+        return np.squeeze(output_image)
 
     def get_subset_ROI(
         self,
