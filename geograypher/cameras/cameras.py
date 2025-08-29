@@ -1001,7 +1001,6 @@ class PhotogrammetryCameraSet:
     def triangulate_detections(
         self,
         detector: Union[RegionDetectionSegmentor, TabularRectangleSegmentor],
-        transform_to_epsg_4978: Optional[np.ndarray] = None,
         ray_length_meters: float = 1e3,
         boundaries: Optional[Tuple[pv.PolyData, pv.PolyData]] = None,
         limit_ray_length_meters: Optional[float] = None,
@@ -1016,10 +1015,6 @@ class PhotogrammetryCameraSet:
         Args:
             detector (Union[RegionDetectionSegmentor, TabularRectangleSegmentor]):
                 Produces detections per image using the get_detection_centers method.
-            transform_to_epsg_4978 (Optional[np.ndarray]):
-                The 4x4 transform to earth centered earth fixed coordinates. Used to scale
-                from meters to the photogrammetry scale, and also to compute the final
-                points in lat/lon if given. Meters → local scale is 1 if None. Defaults to None.
             ray_length_meters (float, optional):
                 The length of the visualized rays in meters. Defaults to 1000.
             boundaries (Optional[Tuple[pv.PolyData, pv.PolyData]])
@@ -1060,6 +1055,7 @@ class PhotogrammetryCameraSet:
             return path.is_file()
 
         # Determine scale factor relating meters to internal coordinates
+        transform_to_epsg_4978 = self.get_local_to_epsg_4978_transform()
         meters_to_local_scale = 1 / get_scale_from_transform(transform_to_epsg_4978)
         ray_length_local = ray_length_meters * meters_to_local_scale
         similarity_threshold_local = similarity_threshold_meters * meters_to_local_scale

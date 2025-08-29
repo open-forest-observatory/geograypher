@@ -21,8 +21,8 @@ from geograypher.cameras import MetashapeCameraSet
 from geograypher.constants import LAT_LON_CRS
 from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
 from geograypher.predictors.derived_segmentors import RegionDetectionSegmentor
-from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.files import ensure_folder
+from geograypher.utils.geometric import get_scale_from_transform
 from geograypher.utils.visualization import merge_cylinders
 
 TRANSFORMS = {
@@ -51,7 +51,7 @@ def parse_args():
         help="Directory containing raw images or nested images",
     )
     parser.add_argument(
-        "--gpkg-dir",
+        "--detections-dir",
         type=Path,
         required=True,
         help="Directory containing .gpkg files (one per image), should"
@@ -72,7 +72,7 @@ def parse_args():
     )
     parser.add_argument(
         "--mesh-crs",
-        type=int,
+        type=pyproj.crs.CRS.from_epsg,
         required=True,
         help="The CRS to interpret the mesh in (integer)",
     )
@@ -121,7 +121,7 @@ def parse_args():
 
     # Check inputs
     assert args.images_dir.is_dir(), f"Images dir {args.images_dir} doesn't exist"
-    assert args.gpkg_dir.is_dir(), f"Gpkg dir {args.gpkg_dir} doesn't exist"
+    assert args.detections_dir.is_dir(), f"Gpkg dir {args.detections_dir} doesn't exist"
     assert args.camera_file.is_file(), f"Camera XML {args.camera_file} doesn't exist"
     assert args.mesh_file.is_file(), f"Mesh {args.mesh_file} doesn't exist"
 
@@ -182,7 +182,7 @@ def vis_lines(logger, line_segments_file, communities_file, out_dir, batch=250):
 
 def multiview_detections(
     images_dir: Path,
-    gpkg_dir: Path,
+    detections_dir: Path,
     camera_file: Path,
     mesh_file: Path,
     mesh_crs: pyproj.crs.CRS,
@@ -199,7 +199,7 @@ def multiview_detections(
 
     Args:
         images_dir (Path): Directory containing the raw images or nested images
-        gpkg_dir (Path): Directory containing GeoPackage (.gpkg) files with object detection
+        detections_dir (Path): Directory containing GeoPackage (.gpkg) files with object detection
             results, one file per corresponding image
         camera_file (Path): Path to XML file containing camera calibrations and positions
             from photogrammetry software
@@ -207,8 +207,8 @@ def multiview_detections(
         mesh_crs (pyproj.crs.CRS): Coordinate reference system for interpreting the mesh
         output_dir (Path): Directory where results will be saved
         original_image_folder (Optional[Path]): If provided, this will be subtracted off
-        the beginning of absolute image paths stored in the --camera-file.
-        See MetashapeCameraSet for details
+            the beginning of absolute image paths stored in the --camera-file.
+            See MetashapeCameraSet for details
         image_file_extension (str, optional): File extension for images. Defaults to ".JPG"
         similarity_threshold_meters (float, optional): Distance threshold in meters for
             considering ray intersections as similar. Defaults to 0.1
@@ -244,7 +244,7 @@ def multiview_detections(
     # camera locations are defined in the PRF
     mesh = TexturedPhotogrammetryMesh(mesh_file, input_CRS=mesh_crs)
     # We need to instantiate TexturedPhotogrammetryMesh again because
-    # get_mesh_in_cameras_coords() requtrns a pyvista mesh
+    # get_mesh_in_cameras_coords() returns a pyvista mesh
     mesh = TexturedPhotogrammetryMesh(
         mesh.get_mesh_in_cameras_coords(camera_set),
         input_CRS=None,
@@ -253,7 +253,9 @@ def multiview_detections(
     # Create boundary layers between the ground and the treetops that we
     # will check for ray intersections between
     local_scale = 1 / get_scale_from_transform(local_to_epsg_4978)
-    ceiling, floor = mesh.export_covering_meshes(N=50, z_buffer=(0, 1 * local_scale), subsample=2)
+    ceiling, floor = mesh.export_covering_meshes(
+        N=50, z_buffer=(0, 1 * local_scale), subsample=2
+    )
     mesh.save_mesh(output_dir / "mesh-local.ply")
     ceiling.save(output_dir / "boundary_ceiling.ply")
     floor.save(output_dir / "boundary_floor.ply")
@@ -263,7 +265,7 @@ def multiview_detections(
     logger.info("Loading region detection segmentor")
     detector = RegionDetectionSegmentor(
         base_folder=images_dir,
-        lookup_folder=gpkg_dir,
+        lookup_folder=detections_dir,
         label_key=None,
         class_map=None,
     )
@@ -271,7 +273,6 @@ def multiview_detections(
     # Triangulate detections (tree locations) and add lines/points to plotter
     tree_points = camera_set.triangulate_detections(
         detector=detector,
-        transform_to_epsg_4978=local_to_epsg_4978,
         boundaries=(ceiling, floor),
         limit_ray_length_meters=160,
         limit_angle_from_vert=np.deg2rad(50),
@@ -295,7 +296,6 @@ def multiview_detections(
     # Note that we want to store (lat, lon) - which is what tree_points
     # comes in as - in the form (y, x)
     gdf = gpd.GeoDataFrame(
-        pandas.DataFrame(tree_points, columns=["y", "x", "z"]),
         geometry=[Point(x, y, z) for y, x, z in tree_points],
         crs=LAT_LON_CRS,
     )
@@ -307,10 +307,10 @@ if __name__ == "__main__":
     args = parse_args()
     multiview_detections(
         images_dir=args.images_dir,
-        gpkg_dir=args.gpkg_dir,
+        detections_dir=args.detections_dir,
         camera_file=args.camera_file,
         mesh_file=args.mesh_file,
-        mesh_crs=pyproj.crs.CRS.from_epsg(args.mesh_crs),
+        mesh_crs=args.mesh_crs,
         output_dir=args.output_dir,
         original_image_folder=args.original_image_folder,
         image_file_extension=args.image_extension,
