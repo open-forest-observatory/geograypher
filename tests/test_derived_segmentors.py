@@ -35,9 +35,9 @@ class TestRegionDetectionSegmentor:
     def test_detection_centers(self, tmp_path, flat, geo_extension, im_extension):
 
         polygons = [
-            [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)],
+            [(0, 50), (0, 60), (10, 60), (10, 50), (0, 50)],
             [(20, 20), (20, 30), (30, 30), (30, 20), (20, 20)],
-            [(50, 50), (50, 60), (60, 60), (60, 50), (50, 50)],
+            [(100, 50), (100, 60), (110, 60), (110, 50), (100, 50)],
         ]
 
         # Create a series of polygon files with content and empty images
