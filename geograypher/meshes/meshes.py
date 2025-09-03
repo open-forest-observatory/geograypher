@@ -501,7 +501,7 @@ class TexturedPhotogrammetryMesh:
                 self.logger.warn(
                     "Trying to read texture as a scalar from the pyvista mesh:"
                 )
-                texture_array = self.pyvista_mesh[texture]
+                texture_array = self.pyvista_mesh[str(texture)]
                 self.logger.warn("- success")
             except (KeyError, ValueError):
                 self.logger.warn("- failed")
