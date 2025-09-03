@@ -1673,6 +1673,7 @@ class TexturedPhotogrammetryMesh:
                 input_image=pix2face,
                 warped_to_ideal=False,
                 fill_value=-1,
+                interpolation_order=0,  # nearest neighbor interpolation
             )
 
         return pix2face

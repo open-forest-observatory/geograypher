@@ -1026,6 +1026,7 @@ class PhotogrammetryCameraSet:
         input_image: np.ndarray,
         fill_value: float = 0.0,
         inversion_downsample: int = 2,
+        interpolation_order: int = 1,
         warped_to_ideal: bool = True,
     ) -> np.ndarray:
         """
@@ -1051,6 +1052,10 @@ class PhotogrammetryCameraSet:
                 process is too heavyweight for really high-res images,
                 downsampling the inversion process gets a similar result with
                 less computation.
+            interpolation_order (int, optional):
+                The order of the interpolation. 0 is nearest neighbor and should be used for discrete
+                textures like pix2face masks. 1 can be used for data representing continious
+                quantities. Defaults to 1.
             warped_to_ideal (bool, optional): If true, take in a warped image
                 and return an undistorted (dewarped/ideal) image. If false,
                 take in an undistorted image and return a warped image.
@@ -1097,7 +1102,7 @@ class PhotogrammetryCameraSet:
             output_image[:, :, channel] = warp(
                 image=input_image[:, :, channel],
                 inverse_map=inverse_map,
-                order=1,  # bilinear interpolation for fractional pixels
+                order=interpolation_order,  # interpolation strategy for fractional pixels
                 mode="constant",  # fill unseen areas with cval
                 cval=rescaled_fill_value,
                 clip=True,  # clip to [0,1]
