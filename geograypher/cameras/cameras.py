@@ -1067,14 +1067,29 @@ class PhotogrammetryCameraSet:
         # Temporarily expand grayscale images to be (N, M, 1)
         input_image = np.atleast_3d(input_image)
 
-        # Convert to 0-1 image, which is what skimage.warp operates on.
-        if input_image.dtype == np.uint8:
-            input_image = input_image / 255
-
         if warped_to_ideal:
             inverse_map = self._maps_ideal_to_warped[dkey]
         else:
             inverse_map = self._maps_warped_to_ideal[dkey]
+
+        # Compute the min and max of values, including both the inputs and the fill value
+        input_min = min(np.min(input_image), fill_value)
+        input_max = max(np.max(input_image), fill_value)
+
+        # Compute the range of values
+        min_max_range = input_max - input_min
+
+        # If there's no variation, we can avoid division by 0 issues and save computation by just
+        # returning an array of one value
+        if min_max_range == 0:
+            return np.full_like(np.squeeze(input_image), fill_value=fill_value)
+
+        # Record the original datatype
+        initial_dtype = input_image.dtype
+        # Rescale to 0-1
+        input_image = (input_image.astype(float) - input_min) / min_max_range
+        # The fill value will be applied to the rescaled image, so it must be rescaled similarly
+        rescaled_fill_value = (float(fill_value) - input_min) / min_max_range
 
         # For each color channel, do the dewarping
         output_image = np.zeros_like(input_image)
@@ -1084,13 +1099,15 @@ class PhotogrammetryCameraSet:
                 inverse_map=inverse_map,
                 order=1,  # bilinear interpolation for fractional pixels
                 mode="constant",  # fill unseen areas with cval
-                cval=fill_value,
+                cval=rescaled_fill_value,
                 clip=True,  # clip to [0,1]
                 preserve_range=True,  # keep original range without rescaling
             )
 
-        # Convert to 0-255 image
-        output_image = (output_image * 255).astype(np.uint8)
+        # Convert to the original range and datatype
+        output_image = ((output_image * min_max_range) + input_min).astype(
+            initial_dtype
+        )
 
         # Return grayscale if array is (N, M 1), else return RGB
         return np.squeeze(output_image)
