@@ -157,8 +157,10 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         """
 
         # Convert from x and y pixels to the homogeneous camera frame
-        principal_x = camera.image_width / 2.0 + camera.cx
-        principal_y = camera.image_height / 2.0 + camera.cy
+        # Note that for the math to work out, the cx and cy terms are neglected in this step and
+        # only applied at the very end
+        principal_x = camera.image_width / 2.0
+        principal_y = camera.image_height / 2.0
         x = (xpix - principal_x) / camera.f
         y = (ypix - principal_y) / camera.f
 
