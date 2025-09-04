@@ -1380,6 +1380,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#geograypher.utils.numeric.fair_mode_non_nan" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;fair_mode_non_nan
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#geograypher.utils.numeric.format_graph_edges" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;format_graph_edges
@@ -1754,6 +1763,15 @@
   <a href="#geograypher.utils.numeric.create_ramped_weighting" class="md-nav__link">
     <span class="md-ellipsis">
       <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;create_ramped_weighting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geograypher.utils.numeric.fair_mode_non_nan" class="md-nav__link">
+    <span class="md-ellipsis">
+      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;fair_mode_non_nan
     </span>
   </a>
   
@@ -3611,6 +3629,151 @@ each of the A segments (axis 1) (N, N, 3)</p>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">ramped_weighting</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">i_ramp</span><span class="p">,</span> <span class="n">j_ramp</span><span class="p">)</span>
 <a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">return</span> <span class="n">ramped_weighting</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="geograypher.utils.numeric.fair_mode_non_nan" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">fair_mode_non_nan</span><span class="p">(</span><span class="n">values</span><span class="p">)</span></code>
+
+<a href="#geograypher.utils.numeric.fair_mode_non_nan" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the most common value per row in an array of integers and nans. This behaves similarly to
+scipy.stats.mode(values, axis=1, nan_policy="omit") except that for values with equal counts,
+one is chosen randomly, rather than taking the lower value.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>values</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(n, m) The input values (float-typed), consisting of integers and nans</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>np.ndarray: (n,) the most common value per row</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="quote">
+              <summary>Source code in <code>geograypher/utils/numeric.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-622">622</a></span>
+<span class="normal"><a href="#__codelineno-0-623">623</a></span>
+<span class="normal"><a href="#__codelineno-0-624">624</a></span>
+<span class="normal"><a href="#__codelineno-0-625">625</a></span>
+<span class="normal"><a href="#__codelineno-0-626">626</a></span>
+<span class="normal"><a href="#__codelineno-0-627">627</a></span>
+<span class="normal"><a href="#__codelineno-0-628">628</a></span>
+<span class="normal"><a href="#__codelineno-0-629">629</a></span>
+<span class="normal"><a href="#__codelineno-0-630">630</a></span>
+<span class="normal"><a href="#__codelineno-0-631">631</a></span>
+<span class="normal"><a href="#__codelineno-0-632">632</a></span>
+<span class="normal"><a href="#__codelineno-0-633">633</a></span>
+<span class="normal"><a href="#__codelineno-0-634">634</a></span>
+<span class="normal"><a href="#__codelineno-0-635">635</a></span>
+<span class="normal"><a href="#__codelineno-0-636">636</a></span>
+<span class="normal"><a href="#__codelineno-0-637">637</a></span>
+<span class="normal"><a href="#__codelineno-0-638">638</a></span>
+<span class="normal"><a href="#__codelineno-0-639">639</a></span>
+<span class="normal"><a href="#__codelineno-0-640">640</a></span>
+<span class="normal"><a href="#__codelineno-0-641">641</a></span>
+<span class="normal"><a href="#__codelineno-0-642">642</a></span>
+<span class="normal"><a href="#__codelineno-0-643">643</a></span>
+<span class="normal"><a href="#__codelineno-0-644">644</a></span>
+<span class="normal"><a href="#__codelineno-0-645">645</a></span>
+<span class="normal"><a href="#__codelineno-0-646">646</a></span>
+<span class="normal"><a href="#__codelineno-0-647">647</a></span>
+<span class="normal"><a href="#__codelineno-0-648">648</a></span>
+<span class="normal"><a href="#__codelineno-0-649">649</a></span>
+<span class="normal"><a href="#__codelineno-0-650">650</a></span>
+<span class="normal"><a href="#__codelineno-0-651">651</a></span>
+<span class="normal"><a href="#__codelineno-0-652">652</a></span>
+<span class="normal"><a href="#__codelineno-0-653">653</a></span>
+<span class="normal"><a href="#__codelineno-0-654">654</a></span>
+<span class="normal"><a href="#__codelineno-0-655">655</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-622" name="__codelineno-0-622"></a><span class="k">def</span><span class="w"> </span><span class="nf">fair_mode_non_nan</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<a id="__codelineno-0-623" name="__codelineno-0-623"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-624" name="__codelineno-0-624"></a><span class="sd">    Compute the most common value per row in an array of integers and nans. This behaves similarly to</span>
+<a id="__codelineno-0-625" name="__codelineno-0-625"></a><span class="sd">    scipy.stats.mode(values, axis=1, nan_policy=&quot;omit&quot;) except that for values with equal counts,</span>
+<a id="__codelineno-0-626" name="__codelineno-0-626"></a><span class="sd">    one is chosen randomly, rather than taking the lower value.</span>
+<a id="__codelineno-0-627" name="__codelineno-0-627"></a>
+<a id="__codelineno-0-628" name="__codelineno-0-628"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-629" name="__codelineno-0-629"></a><span class="sd">        values (np.ndarray): (n, m) The input values (float-typed), consisting of integers and nans</span>
+<a id="__codelineno-0-630" name="__codelineno-0-630"></a>
+<a id="__codelineno-0-631" name="__codelineno-0-631"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-632" name="__codelineno-0-632"></a><span class="sd">        np.ndarray: (n,) the most common value per row</span>
+<a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-634" name="__codelineno-0-634"></a>    <span class="n">max_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+<a id="__codelineno-0-635" name="__codelineno-0-635"></a>    <span class="n">max_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_val</span><span class="p">)</span>
+<a id="__codelineno-0-636" name="__codelineno-0-636"></a>    <span class="c1"># TODO consider using unique if these indices are sparse</span>
+<a id="__codelineno-0-637" name="__codelineno-0-637"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+<a id="__codelineno-0-638" name="__codelineno-0-638"></a>        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">values</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_val</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+<a id="__codelineno-0-639" name="__codelineno-0-639"></a>    <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<a id="__codelineno-0-640" name="__codelineno-0-640"></a>    <span class="c1"># Check which entires had no classes reported and mask them out</span>
+<a id="__codelineno-0-641" name="__codelineno-0-641"></a>    <span class="c1"># TODO consider removing these rows beforehand</span>
+<a id="__codelineno-0-642" name="__codelineno-0-642"></a>    <span class="n">zeros_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">counts_per_value_per_row</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-0-643" name="__codelineno-0-643"></a>    <span class="c1"># We want to fairly tiebreak since np.argmax will always take th first index</span>
+<a id="__codelineno-0-644" name="__codelineno-0-644"></a>    <span class="c1"># This is hard to do in a vectorized way, so we just add a small random value</span>
+<a id="__codelineno-0-645" name="__codelineno-0-645"></a>    <span class="c1"># independently to each element</span>
+<a id="__codelineno-0-646" name="__codelineno-0-646"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-647" name="__codelineno-0-647"></a>        <span class="n">counts_per_value_per_row</span>
+<a id="__codelineno-0-648" name="__codelineno-0-648"></a>        <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
+<a id="__codelineno-0-649" name="__codelineno-0-649"></a>    <span class="p">)</span>
+<a id="__codelineno-0-650" name="__codelineno-0-650"></a>    <span class="n">most_common_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+<a id="__codelineno-0-651" name="__codelineno-0-651"></a>        <span class="nb">float</span>
+<a id="__codelineno-0-652" name="__codelineno-0-652"></a>    <span class="p">)</span>
+<a id="__codelineno-0-653" name="__codelineno-0-653"></a>    <span class="c1"># Set any faces with zero counts to nan</span>
+<a id="__codelineno-0-654" name="__codelineno-0-654"></a>    <span class="n">most_common_value_per_row</span><span class="p">[</span><span class="n">zeros_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+<a id="__codelineno-0-655" name="__codelineno-0-655"></a>    <span class="k">return</span> <span class="n">most_common_value_per_row</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
