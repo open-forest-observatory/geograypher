@@ -45,7 +45,7 @@ from geograypher.utils.geospatial import (
     get_projected_CRS,
 )
 from geograypher.utils.indexing import ensure_float_labels
-from geograypher.utils.numeric import compute_3D_triangle_area
+from geograypher.utils.numeric import compute_3D_triangle_area, fair_mode_non_nan
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
 
@@ -856,26 +856,19 @@ class TexturedPhotogrammetryMesh:
                 # Return all nans
                 return np.full(values_per_face.shape[0], fill_value=np.nan)
 
-            max_ID = int(max_ID)
-            # TODO consider using unique if these indices are sparse
-            counts_per_class_per_face = np.array(
-                [np.sum(values_per_face == i, axis=1) for i in range(max_ID + 1)]
-            ).T
-            # Check which entires had no classes reported and mask them out
-            # TODO consider removing these rows beforehand
-            zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
-            # We want to fairly tiebreak since np.argmax will always take th first index
-            # This is hard to do in a vectorized way, so we just add a small random value
-            # independently to each element
-            counts_per_class_per_face = (
-                counts_per_class_per_face
-                + np.random.random(counts_per_class_per_face.shape) * 0.5
+            # Compute the most common class per face, doing so by batch to avoid OOM. This is because
+            # this implementation creates a (n_faces, n_classes) array which can grow quite large
+            chunk_size = 100000
+            most_common_class_per_face = np.concatenate(
+                [
+                    fair_mode_non_nan(values_per_face[i : i + chunk_size])
+                    for i in tqdm(
+                        range(0, values_per_face.shape[0], chunk_size),
+                        desc="Computing most common class per face by batch",
+                    )
+                ],
+                axis=0,
             )
-            most_common_class_per_face = np.argmax(
-                counts_per_class_per_face, axis=1
-            ).astype(float)
-            # Set any faces with zero counts to nan
-            most_common_class_per_face[zeros_mask] = np.nan
 
             return most_common_class_per_face
         else:
