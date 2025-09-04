@@ -617,3 +617,39 @@ def calc_communities(
         return path
     else:
         return result
+
+
+def fair_mode_non_nan(values: np.ndarray) -> np.ndarray:
+    """
+    Compute the most common value per row in an array of integers and nans. This behaves similarly to
+    scipy.stats.mode(values, axis=1, nan_policy="omit") except that for values with equal counts,
+    one is chosen randomly, rather than taking the lower value.
+
+    Args:
+        values (np.ndarray): (n, m) The input values (float-typed), consisting of integers and nans
+
+    Returns:
+        np.ndarray: (n,) the most common value per row
+    """
+    max_val = np.nanmax(values)
+    max_val = int(max_val)
+    # TODO consider using unique if these indices are sparse
+    counts_per_value_per_row = np.array(
+        [np.sum(values == i, axis=1) for i in range(max_val + 1)]
+    ).T
+    # Check which entires had no classes reported and mask them out
+    # TODO consider removing these rows beforehand
+    zeros_mask = np.all(counts_per_value_per_row == 0, axis=1)
+    # We want to fairly tiebreak since np.argmax will always take th first index
+    # This is hard to do in a vectorized way, so we just add a small random value
+    # independently to each element
+    counts_per_value_per_row = (
+        counts_per_value_per_row
+        + np.random.random(counts_per_value_per_row.shape) * 0.5
+    )
+    most_common_value_per_row = np.argmax(counts_per_value_per_row, axis=1).astype(
+        float
+    )
+    # Set any faces with zero counts to nan
+    most_common_value_per_row[zeros_mask] = np.nan
+    return most_common_value_per_row
