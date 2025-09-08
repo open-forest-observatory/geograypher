@@ -188,7 +188,6 @@ class TestCalcLineSegments:
 
 class TestTriangulateDetections:
 
-    @pytest.mark.parametrize("to_epsg_4978", [np.eye(4), None])
     @pytest.mark.parametrize("ray_length", [100, 1000])
     @pytest.mark.parametrize("similarity_threshold", [0.1, 1.0])
     @pytest.mark.parametrize("limit_ray_length", [2, 100, None])
@@ -201,7 +200,6 @@ class TestTriangulateDetections:
         self,
         sample_camera_set,
         sample_boundaries,
-        to_epsg_4978,
         ray_length,
         similarity_threshold,
         limit_ray_length,
@@ -219,7 +217,6 @@ class TestTriangulateDetections:
 
         points = sample_camera_set.triangulate_detections(
             detector=MockDetector(),
-            transform_to_epsg_4978=to_epsg_4978,
             ray_length_meters=ray_length,
             boundaries=sample_boundaries if use_boundaries else None,
             limit_ray_length_meters=limit_ray_length,
