@@ -1549,7 +1549,6 @@ class TexturedPhotogrammetryMesh:
                 Should distortion correction be applied. This is expensive but can be neccesary for
                 some camera models which significantly differ from a pinhole model.
 
-
         Returns:
             np.ndarray: For each camera, there is an array that is the shape of an image and
             contains the integer face index for the ray originating at that pixel. Any pixel for
@@ -1557,16 +1556,26 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
+
         # Create a local mesh if it hasn't been created yet
         if mesh is None:
             mesh = self.get_mesh_in_cameras_coords(cameras)
 
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders at once, but pyvista
-        # cannot as far as I can tell
+        # cannot as far as I can tell.
+        # Note that all inputs to pix2face need to be replicated here or those features won't be
+        # passed on.
         if isinstance(cameras, PhotogrammetryCameraSet):
             pix2face_list = [
-                self.pix2face(camera, mesh=mesh, render_img_scale=render_img_scale)
+                self.pix2face(
+                    cameras=camera,
+                    mesh=mesh,
+                    render_img_scale=render_img_scale,
+                    save_to_cache=save_to_cache,
+                    cache_folder=cache_folder,
+                    apply_distortion=apply_distortion,
+                )
                 for camera in cameras
             ]
             pix2face = np.stack(pix2face_list, axis=0)

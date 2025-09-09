@@ -168,7 +168,13 @@ def test_perspective_camera(meshclass):
     camera = make_simple_camera()
 
     # Render the mesh from this camera
-    renders = list(textured_mesh.render_flat(cameras=camera, return_camera=False))
+    renders = list(
+        textured_mesh.render_flat(
+            cameras=camera,
+            return_camera=False,
+            apply_distortion=False,
+        )
+    )
     assert len(renders) == 1
     render = renders[0]
 
