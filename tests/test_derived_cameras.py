@@ -75,10 +75,9 @@ def gradient():
     size = 21
     center = size // 2
     x, y = np.meshgrid(np.arange(size), np.arange(size))
-    # dist = np.maximum(np.abs(x - center), np.abs(y - center))
-    dist = np.sqrt((x - center) ** 2 + (y - center) ** 2)
 
-    # Normalize distance: 0 at center, 1 at max radius
+    # Normalize circular distance: 0 at center, 1 at max radius
+    dist = np.sqrt((x - center) ** 2 + (y - center) ** 2)
     gradient = np.clip(1 - (dist / np.max(dist)), 0, 1)
 
     # Make RGB (same value in all channels for grayscale)
