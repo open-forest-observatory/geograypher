@@ -164,18 +164,18 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         x = (xpix - principal_x) / camera.f
         y = (ypix - principal_y) / camera.f
 
-        # Enforce that all expected parameters are found
+        # Enforce that a strict subset of expected parameters are found
         params = sorted(camera.distortion_params.keys())
-        if not params == ["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]:
+        if not set(params) <= set(["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]):
             raise ValueError(f"Unexpected distortion params found: {params}")
-        b1 = camera.distortion_params["b1"]
-        b2 = camera.distortion_params["b2"]
-        k1 = camera.distortion_params["k1"]
-        k2 = camera.distortion_params["k2"]
-        k3 = camera.distortion_params["k3"]
-        k4 = camera.distortion_params["k4"]
-        p1 = camera.distortion_params["p1"]
-        p2 = camera.distortion_params["p2"]
+        b1 = camera.distortion_params.get("b1", 0)
+        b2 = camera.distortion_params.get("b2", 0)
+        k1 = camera.distortion_params["k1"]  # Enforce that the most basic is required
+        k2 = camera.distortion_params.get("k2", 0)
+        k3 = camera.distortion_params.get("k3", 0)
+        k4 = camera.distortion_params.get("k4", 0)
+        p1 = camera.distortion_params.get("p1", 0)
+        p2 = camera.distortion_params.get("p2", 0)
 
         # See page 246 of the manual (labeled page 240) "Frame Cameras" section
         # for what these parameters mean

@@ -1,5 +1,6 @@
 import operator
 import xml.etree.ElementTree as ET
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
@@ -87,7 +88,7 @@ def gradient():
     return (image * 255).astype(np.uint8)
 
 
-def simplify_camera(camera, image):
+def simplify_camera(camera, image, delete=None):
     # Greatly simplify the camera intrinsics
     camera.cx = 0
     camera.cy = 0
@@ -98,6 +99,9 @@ def simplify_camera(camera, image):
     # Simplify the camera parameters
     for param in ["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]:
         camera.distortion_params[param] = 0
+    if delete is not None:
+        for key in delete:
+            del camera.distortion_params[key]
     return camera
 
 
@@ -197,3 +201,41 @@ class TestMetashapeCameraSetWarp:
 
         # Check that we kept our desired classes (no statements about position)
         assert sorted(np.unique(dewarped)) == [0, 1, 2]
+
+    @pytest.mark.parametrize(
+        "delete", combinations(["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"], 2)
+    )
+    @pytest.mark.parametrize(
+        "w2i,k1,relationship",
+        (
+            [True, 1, operator.lt],
+            [True, -1, operator.gt],
+            [False, 1, operator.gt],
+            [False, -1, operator.lt],
+        ),
+    )
+    @pytest.mark.parametrize("downsample", [1, 2])
+    def test_dropped_parameters(
+        self, tmp_path, gradient, delete, w2i, k1, relationship, downsample
+    ):
+        """
+        Check that if distortion parameters are dropped we continue on. Arbitrarily
+        drop combinations of two parameters, skipping k1.
+        """
+
+        cameras = MetashapeCameraSet(
+            camera_file=camera_file(tmp_path),
+            image_folder=tmp_path,
+        )
+        camera = simplify_camera(cameras.cameras[0], gradient, delete=delete)
+        camera.distortion_params["k1"] = k1
+
+        # Warp the image
+        dewarped = cameras.warp_dewarp_image(
+            camera, gradient, warped_to_ideal=w2i, inversion_downsample=downsample
+        )
+
+        # Check whether the image on the average got lighter, darker, or
+        # stayed the same
+        assert dewarped.shape == gradient.shape
+        assert relationship(dewarped.mean(), gradient.mean())
