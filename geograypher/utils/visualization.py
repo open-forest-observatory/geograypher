@@ -450,7 +450,7 @@ def merge_cylinders(
         center = (start + end) / 2
         direction = end - start
         height = np.linalg.norm(direction)
-        if height == 0:
+        if height == 0 or np.isnan(height):
             continue
         direction = direction / height
         # Some of the chosen parameters (low resolution, no capping) are to reduce
