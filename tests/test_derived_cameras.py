@@ -1,12 +1,19 @@
 import operator
 import xml.etree.ElementTree as ET
-from itertools import combinations
+from itertools import combinations, product
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from geograypher.cameras.derived_cameras import MetashapeCameraSet
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
+from geograypher.meshes.meshes import TexturedPhotogrammetryMesh
+from geograypher.utils.test_utils import (
+    downward_view,
+    make_simple_camera_set,
+    make_simple_mesh,
+)
 
 # Example portion of a real camera file
 CAMERA_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -93,6 +100,7 @@ def simplify_camera(camera, image, delete=None):
     camera.cx = 0
     camera.cy = 0
     camera.f = 100
+    camera._local_to_epsg_4978_transform = np.eye(4)
     camera.image_height = image.shape[0]
     camera.image_width = image.shape[1]
     camera.image_size = image.shape[:2]
@@ -239,3 +247,98 @@ class TestMetashapeCameraSetWarp:
         # stayed the same
         assert dewarped.shape == gradient.shape
         assert relationship(dewarped.mean(), gradient.mean())
+
+
+class TestPix2Face:
+
+    def test_simple_camera(self):
+        """Warp/dewarp should fail if not given a Metashape camera."""
+
+        # Create simple mesh and camera
+        mesh, point_colors = make_simple_mesh(pixels=[], color=None)
+        textured_mesh = TexturedPhotogrammetryMesh(
+            mesh=mesh,
+            input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+            texture=point_colors,
+        )
+        cameras = make_simple_camera_set()
+
+        # Render the mesh from these cameras
+        with pytest.raises(NotImplementedError):
+            textured_mesh.pix2face(
+                cameras=cameras,
+                cache_folder=None,
+                distortion_set=cameras,
+                apply_distortion=True,
+            )
+
+    def test_dewarp_pix2face(self, tmp_path):
+        """
+        Test that when we park a camera right over a mesh and call pix2face
+        the result gets warped (when set).
+        """
+
+        # Load a simple 2x2 mesh with no colors
+        mesh, point_colors = make_simple_mesh(pixels=[], color=None)
+        textured_mesh = TexturedPhotogrammetryMesh(
+            mesh=mesh,
+            input_CRS=EARTH_CENTERED_EARTH_FIXED_CRS,
+            texture=point_colors,
+        )
+
+        # Load a metashape camera set and then clean it up so it is looking
+        # directly at the simple mesh.
+        cameras = MetashapeCameraSet(
+            camera_file=camera_file(tmp_path),
+            image_folder=tmp_path,
+        )
+
+        # Pick an arbitrary sensor size and K1 such that the warping looks somewhat
+        # like our cameras do in practice (corners pulled slightly in).
+        # Note that simplify_camera zeroes out the other distortion parameters.
+        # Note that the choice of K1 is tied to the sensor size by the radius.
+        sensor = 2**8 + 1
+        camera = simplify_camera(cameras.cameras[0], image=np.ones((sensor, sensor, 3)))
+        camera.distortion_params["k1"] = -0.05
+
+        # In addition to simplifying the camera, we need to make sure the set transform
+        # is also removed
+        cameras._local_to_epsg_4978_transform = np.eye(4)
+
+        # Adjust the camera transform so we are looking down with the mesh face in view
+        HT = downward_view(
+            scene_width=4,  # Known width of the simple mesh in X/Y
+            focal=cameras.cameras[0].f,
+            sensor_width=sensor,
+        )
+        cameras.cameras[0].cam_to_world_transform = HT
+        cameras.cameras[0].world_to_cam_transform = np.linalg.inv(HT)
+
+        # Calculate the ideal (plain render) and warped (plain render → apply
+        # distortion parameters) images
+        kwargs = {"cameras": cameras, "cache_folder": None, "distortion_set": cameras}
+        ideal = textured_mesh.pix2face(**kwargs, apply_distortion=False)
+        assert len(ideal) == 1
+        ideal = ideal[0]
+        warped = textured_mesh.pix2face(**kwargs, apply_distortion=True)
+        assert len(warped) == 1
+        warped = warped[0]
+
+        # Make some basic assumptions about shape and type
+        for image in [ideal, warped]:
+            assert isinstance(image, np.ndarray)
+            assert image.dtype == np.int64
+            assert image.shape == (sensor, sensor)
+            # The "invalid" marker
+            assert image.min() >= -1
+            # Don't make explicit statements about the max visible face index
+            # (because any individual face might not align to a pixel), but
+            # it should be near the number of faces
+            assert image.max() < mesh.n_faces
+            assert image.max() > 0.95 * mesh.n_faces
+
+        # Broad statement: when the image is warped it should pull the corners
+        # in and cause the corners to be invalid
+        for corner in product([slice(None, 10), slice(-10, None)], repeat=2):
+            assert len(np.unique(ideal[corner])) > 1
+            assert np.unique(warped[corner]) == np.array([-1])

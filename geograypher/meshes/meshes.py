@@ -102,7 +102,6 @@ class TexturedPhotogrammetryMesh:
         self.vertex_texture = None
         self.face_texture = None
         self.IDs_to_labels = None
-        self.pix2face_camera_set = None
         # Create the plotter that will later be used to compute correspondences between pixels
         # and the mesh. Note that this is only done to prevent a memory leak from creating multiple
         # plotters. See https://github.com/pyvista/pyvista/issues/2252
@@ -1527,6 +1526,7 @@ class TexturedPhotogrammetryMesh:
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+        distortion_set: typing.Optional[PhotogrammetryCameraSet] = None,
         apply_distortion: bool = True,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
@@ -1545,6 +1545,10 @@ class TexturedPhotogrammetryMesh:
             cache_folder ((PATH_TYPE, None), optional):
                 Where to check for and save to cached data. Only applicable if use_cache=True.
                 Defaults to CACHE_FOLDER
+            distortion_set (PhotogrammetryCameraSet, optional): camera set used for calculating
+                and caching the distortion/undistortion maps. This is only required if apply_distortion
+                is True. Note that if you are calling pix2face on batches, you should pass the
+                full camera set in as the distortion_set so that the maps are cached once.
             apply_distortion (bool, optional):
                 Should distortion correction be applied. This is expensive but can be neccesary for
                 some camera models which significantly differ from a pinhole model.
@@ -1574,6 +1578,7 @@ class TexturedPhotogrammetryMesh:
                     render_img_scale=render_img_scale,
                     save_to_cache=save_to_cache,
                     cache_folder=cache_folder,
+                    distortion_set=distortion_set,
                     apply_distortion=apply_distortion,
                 )
                 for camera in cameras
@@ -1672,12 +1677,12 @@ class TexturedPhotogrammetryMesh:
             # Save the most recently computed pix2face correspondance in the cache
             cacher.save(pix2face)
 
-        if apply_distortion and self.pix2face_camera_set is not None:
+        if apply_distortion:
             # Warp the pix2face mask so it matches the warping of the real image which does not
             # conform to the pinhole model.
             # Note this step is slow, and especially on the first iteration which may take multiple
             # minutes.
-            pix2face = self.pix2face_camera_set.warp_dewarp_image(
+            pix2face = distortion_set.warp_dewarp_image(
                 camera=cameras,
                 input_image=pix2face,
                 warped_to_ideal=False,
@@ -1736,8 +1741,6 @@ class TexturedPhotogrammetryMesh:
         )
         texture_dim = face_texture.shape[1]
 
-        # Record the camera set for use in the pix2face method
-        self.pix2face_camera_set = cameras
         # Iterate over batch of the cameras
         batch_stop = max(len(cameras) - batch_size + 1, 1)
         for batch_start in range(0, batch_stop, batch_size):
@@ -1774,8 +1777,6 @@ class TexturedPhotogrammetryMesh:
                     yield (rendered_img, batch_cameras[i])
                 else:
                     yield rendered_img
-        # Wipe the pix2face camera set
-        self.pix2face_camera_set = None
 
     def project_images(
         self,
@@ -1808,9 +1809,6 @@ class TexturedPhotogrammetryMesh:
 
         n_faces = self.faces.shape[0]
 
-        # Record the camera set for use in the pix2face method
-        self.pix2face_camera_set = cameras
-
         # Iterate over batch of the cameras
         batch_stop = max(len(cameras) - batch_size + 1, 1)
         for batch_start in range(0, batch_stop, batch_size):
@@ -1839,9 +1837,6 @@ class TexturedPhotogrammetryMesh:
                     # TODO make sure that null pix2face values are handled properly
                     textured_faces[flat_pix2face] = flat_img
                 yield textured_faces
-
-        # Wipe the pix2face camera set
-        self.pix2face_camera_set = None
 
     def aggregate_projected_images(
         self,

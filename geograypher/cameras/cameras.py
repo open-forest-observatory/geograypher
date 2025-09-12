@@ -1025,7 +1025,7 @@ class PhotogrammetryCameraSet:
         camera: PhotogrammetryCamera,
         input_image: np.ndarray,
         fill_value: float = 0.0,
-        inversion_downsample: int = 2,
+        inversion_downsample: int = 8,
         interpolation_order: int = 1,
         warped_to_ideal: bool = True,
     ) -> np.ndarray:
