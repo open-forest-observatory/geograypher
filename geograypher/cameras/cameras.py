@@ -456,11 +456,17 @@ class PhotogrammetryCamera:
 
         return camera
 
-    def get_vis_mesh(self, frustum_scale: float = 0.1):
+    def get_vis_mesh(
+        self, frustum_scale: float = 0.1
+    ) -> Tuple[pv.PolyData, np.ndarray]:
         """Get this camera as a mesh representation.
 
         Args:
             frustum_scale (float, optional): Size of cameras in world units.
+
+        Returns: A tuple of
+            [0] (PolyData) mesh of the camera as a frustum
+            [1] (ndarray) Array of face colors (0-1 RGB)
         """
 
         scaled_halfwidth = self.image_width / (self.f * 2)
@@ -532,7 +538,7 @@ class PhotogrammetryCamera:
         frustum = pv.PolyData(projected_vertices[:3].T, faces)
         # Unsure exactly what's going on here, but it's required for it to be valid
         frustum.triangulate()
-        return frustum
+        return frustum, face_colors
 
     def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
@@ -1210,16 +1216,18 @@ class PhotogrammetryCameraSet:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
 
-    def get_vis_mesh(self, frustum_scale: float = 0.1):
+    def get_vis_mesh(self, frustum_scale: float = 0.1) -> pv.PolyData:
         """Get all the cameras as a mesh representation.
 
         Args:
             frustum_scale (float, optional): Size of cameras in world units.
+
+        Returns: (PolyData) mesh representation of all cameras as frustums
         """
         polydata = None
         for camera in self.cameras:
             # Get the mesh for each camera
-            mesh = camera.get_vis_mesh(frustum_scale=frustum_scale)
+            mesh, _ = camera.get_vis_mesh(frustum_scale=frustum_scale)
             # And merge it into the scene
             if polydata is None:
                 polydata = mesh
