@@ -240,14 +240,22 @@ class TestTriangulateDetections:
             assert (tmp_path / "communities.npz").is_file()
 
 
-def test_distortion_key(sample_camera_set):
+@pytest.mark.parametrize("image_scale", [0.5, 0.75])
+def test_distortion_key(sample_camera_set, image_scale):
     for parameters in [
         {"x1": 0.8, "x0": -1.1, "q3": 3},
         {"x0": -1.1, "q3": 3, "x1": 0.8},
         {"x1": 0.8, "q3": 3, "x0": -1.1},
     ]:
         key = sample_camera_set.distortion_key(parameters)
-        assert key == "q3:3.00000000|x0:-1.10000000|x1:0.80000000"
+        assert (
+            key == f"q3:3.00000000|x0:-1.10000000|x1:0.80000000|image_scale:1.00000000"
+        )
+        key = sample_camera_set.distortion_key(parameters, image_scale=image_scale)
+        assert (
+            key
+            == f"q3:3.00000000|x0:-1.10000000|x1:0.80000000|image_scale:{image_scale:.8f}"
+        )
 
 
 def test_ideal_to_warped(sample_camera_set):

@@ -272,7 +272,8 @@ class TestPix2Face:
                 apply_distortion=True,
             )
 
-    def test_dewarp_pix2face(self, tmp_path):
+    @pytest.mark.parametrize("render_img_scale", [0.7, 0.8, 0.9, 1.0])
+    def test_dewarp_pix2face(self, tmp_path, render_img_scale):
         """
         Test that when we park a camera right over a mesh and call pix2face
         the result gets warped (when set).
@@ -316,7 +317,12 @@ class TestPix2Face:
 
         # Calculate the ideal (plain render) and warped (plain render → apply
         # distortion parameters) images
-        kwargs = {"cameras": cameras, "cache_folder": None, "distortion_set": cameras}
+        kwargs = {
+            "cameras": cameras,
+            "cache_folder": None,
+            "distortion_set": cameras,
+            "render_img_scale": render_img_scale,
+        }
         ideal = textured_mesh.pix2face(**kwargs, apply_distortion=False)
         assert len(ideal) == 1
         ideal = ideal[0]
@@ -325,10 +331,11 @@ class TestPix2Face:
         warped = warped[0]
 
         # Make some basic assumptions about shape and type
+        scaled_sensor = int(sensor * render_img_scale)
         for image in [ideal, warped]:
             assert isinstance(image, np.ndarray)
             assert image.dtype == np.int64
-            assert image.shape == (sensor, sensor)
+            assert image.shape == (scaled_sensor, scaled_sensor)
             # The "invalid" marker
             assert image.min() >= -1
             # Don't make explicit statements about the max visible face index

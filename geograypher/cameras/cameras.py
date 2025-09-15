@@ -934,7 +934,9 @@ class PhotogrammetryCameraSet:
         """
         return [x.get_camera_location(**kwargs) for x in self.cameras]
 
-    def distortion_key(self, parameters: Dict[str, float]) -> str:
+    def distortion_key(
+        self, parameters: Dict[str, float], image_scale: float = 1.0
+    ) -> str:
         """
         Make a repeatable string key out of a distortion parameter dict
         so that we can cache results by distortion parameters. We are
@@ -944,16 +946,26 @@ class PhotogrammetryCameraSet:
         Arguments:
             parameters (dict): Distortion parameters are assumed to be stored
                 "name": float(value)
+            image_scale (float, optional): If we want to warp a downsampled
+                version of an image, we need to track that mapping seperately
+                because downsampling affects the pixel to pixel mapping.
+                Include the image scale (0-1 float) along with the distortion
+                parameters to make a key.
 
         Returns:
             A repeatable string key based on the distortion values.
         """
         keys = sorted(parameters.keys())
-        strings = [f"{key}:{parameters[key]:.8f}" for key in keys]
+        strings = [f"{key}:{parameters[key]:.8f}" for key in keys] + [
+            f"image_scale:{image_scale:.8f}"
+        ]
         return "|".join(strings)
 
     def make_distortion_map(
-        self, camera: PhotogrammetryCamera, inversion_downsample: int
+        self,
+        camera: PhotogrammetryCamera,
+        inversion_downsample: int,
+        image_scale: float = 1.0,
     ) -> None:
         """
         Cache a map connecting locations in one image to locations in another.
@@ -971,6 +983,9 @@ class PhotogrammetryCameraSet:
             inversion_downsample (int): Downsample the inverse map process in
                 order to reduce computation, at high res the resulting map
                 trafeoffs should be minimal.
+            image_scale: (float, optional) 0-1 fraction of the original image
+                size, used when warping/dewarping downsampled images. See
+                pix2face render_img_scale for an example.
 
         Caches:
             In self._maps_ideal_to_warped, stores a map of the structure
@@ -978,13 +993,35 @@ class PhotogrammetryCameraSet:
                 be accessed for cameras using the same params.
             In self._maps_warped_to_ideal, stores an inverted version
         """
+
         # Sample over the ideal pixels, shape (H, W)
         im_h, im_w = camera.image_size
-        rows, cols = np.meshgrid(np.arange(im_h), np.arange(im_w), indexing="ij")
+        if np.isclose(image_scale, 1.0):
+            h_range = np.arange(im_h)
+            w_range = np.arange(im_w)
+        else:
+            # In order to get a distortion map for a downsampled image, you
+            # need to run the ideal_to_warped equation over the same original
+            # range (0...im_h) because the radius of that range relates
+            # directly to the warping. However, do it in fewer steps (step
+            # size > 1) to reflect the downsampling.
+            h_range = np.arange(im_h, step=1 / image_scale)[: int(im_h * image_scale)]
+            w_range = np.arange(im_w, step=1 / image_scale)[: int(im_w * image_scale)]
+        rows, cols = np.meshgrid(h_range, w_range, indexing="ij")
+
         # Fill the (H, W) elements with the (i, j) distorted values at those locations
         warp_cols, warp_rows = self.ideal_to_warped(camera, cols, rows)
+
+        # If dealing with downsampled images, now that we ran the warp equation,
+        # rescale the results to be within the new scale. If the original im_h
+        # is 1000 and image_scale is 0.5, we need to run ideal_to_warped on
+        # 0-1000 (for radius reasons) and then scale those results to 0-500.
+        if not np.isclose(image_scale, 1.0):
+            warp_cols *= image_scale
+            warp_rows *= image_scale
+
         # Cache this mapping as (2, H, W)
-        dkey = self.distortion_key(camera.distortion_params)
+        dkey = self.distortion_key(camera.distortion_params, image_scale)
         self._maps_ideal_to_warped[dkey] = np.stack([warp_rows, warp_cols], axis=0)
         # Invert the warp map and cache as (2, H, W)
         self._maps_warped_to_ideal[dkey] = inverse_map_interpolation(
@@ -1028,6 +1065,7 @@ class PhotogrammetryCameraSet:
         inversion_downsample: int = 8,
         interpolation_order: int = 1,
         warped_to_ideal: bool = True,
+        image_scale: float = 1.0,
     ) -> np.ndarray:
         """
         Either apply a camera's distortion model to go from ideal→warped or
@@ -1059,15 +1097,18 @@ class PhotogrammetryCameraSet:
             warped_to_ideal (bool, optional): If true, take in a warped image
                 and return an undistorted (dewarped/ideal) image. If false,
                 take in an undistorted image and return a warped image.
+            image_scale: (float, optional) 0-1 fraction of the original image
+                size, used when warping/dewarping downsampled images. See
+                pix2face render_img_scale for an example.
 
         Returns:
             np.ndarray: (I, J, 3) output image
         """
 
         # Ensure that there is a cached map for these distortion parameters
-        dkey = self.distortion_key(camera.distortion_params)
+        dkey = self.distortion_key(camera.distortion_params, image_scale)
         if dkey not in self._maps_ideal_to_warped:
-            self.make_distortion_map(camera, inversion_downsample)
+            self.make_distortion_map(camera, inversion_downsample, image_scale)
 
         # Temporarily expand grayscale images to be (N, M, 1)
         input_image = np.atleast_3d(input_image)
@@ -1080,7 +1121,6 @@ class PhotogrammetryCameraSet:
         # Compute the min and max of values, including both the inputs and the fill value
         input_min = min(np.min(input_image), fill_value)
         input_max = max(np.max(input_image), fill_value)
-
         # Compute the range of values
         min_max_range = input_max - input_min
 
