@@ -208,7 +208,7 @@ class PhotogrammetryCamera:
         return self.lon_lat
 
     def get_camera_location(self, get_z_coordinate: bool = False):
-        """Returns a tuple of camera coordinates from the camera-to-world transfromation matrix.
+        """Returns a tuple of camera coordinates from the camera-to-world transformation matrix.
         Args:
             get_z_coordinate (bool):
                 Flag that user can set if they want z-coordinates. Defaults to False.
@@ -456,16 +456,13 @@ class PhotogrammetryCamera:
 
         return camera
 
-    def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
-        """
-        Visualize the camera as a frustum, at the appropriate translation and
-        rotation and with the given focal length and aspect ratio.
-
+    def get_vis_mesh(self, frustum_scale: float = 0.1):
+        """Get this camera as a mesh representation.
 
         Args:
-            plotter (pv.Plotter): The plotter to add the visualization to
-            frustum_scale (float, optional): The length of the frustum in world units. Defaults to 0.5.
+            frustum_scale (float, optional): Size of cameras in world units.
         """
+
         scaled_halfwidth = self.image_width / (self.f * 2)
         scaled_halfheight = self.image_height / (self.f * 2)
 
@@ -535,9 +532,27 @@ class PhotogrammetryCamera:
         frustum = pv.PolyData(projected_vertices[:3].T, faces)
         # Unsure exactly what's going on here, but it's required for it to be valid
         frustum.triangulate()
+        return frustum
+
+    def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
+        """
+        Visualize the camera as a frustum, at the appropriate translation and
+        rotation and with the given focal length and aspect ratio.
+
+        Args:
+            plotter (pv.Plotter): The plotter to add the visualization to
+            frustum_scale (float, optional): The length of the frustum in world units.
+        """
+
+        mesh, face_colors = self.get_vis_mesh(frustum_scale)
+
         # Show the mesh with the given face colors
         # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
-        plotter.add_mesh(frustum, scalars=face_colors, rgb=True)
+        plotter.add_mesh(
+            mesh,
+            scalars=face_colors,
+            rgb=True,
+        )
 
     def cast_rays(self, pixel_coords_ij: np.ndarray, line_length: float = 10):
         """Compute rays eminating from the camera
@@ -1194,6 +1209,23 @@ class PhotogrammetryCameraSet:
             if force_xvfb:
                 safe_start_xvfb()
             plotter.show(jupyter_backend="trame" if interactive_jupyter else "static")
+
+    def get_vis_mesh(self, frustum_scale: float = 0.1):
+        """Get all the cameras as a mesh representation.
+
+        Args:
+            frustum_scale (float, optional): Size of cameras in world units.
+        """
+        polydata = None
+        for camera in self.cameras:
+            # Get the mesh for each camera
+            mesh = camera.get_vis_mesh(frustum_scale=frustum_scale)
+            # And merge it into the scene
+            if polydata is None:
+                polydata = mesh
+            else:
+                polydata = polydata.merge(mesh)
+        return polydata
 
     def calc_line_segments(
         self,
