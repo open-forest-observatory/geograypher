@@ -272,7 +272,7 @@ class TestPix2Face:
                 apply_distortion=True,
             )
 
-    @pytest.mark.parametrize("render_img_scale", [0.7, 0.8, 0.9, 1.0])
+    @pytest.mark.parametrize("render_img_scale", [0.5, 0.7, 0.9, 1.0])
     def test_dewarp_pix2face(self, tmp_path, render_img_scale):
         """
         Test that when we park a camera right over a mesh and call pix2face
@@ -348,4 +348,4 @@ class TestPix2Face:
         # in and cause the corners to be invalid
         for corner in product([slice(None, 10), slice(-10, None)], repeat=2):
             assert len(np.unique(ideal[corner])) > 1
-            assert np.unique(warped[corner]) == np.array([-1])
+            assert np.all(warped[corner] == -1)

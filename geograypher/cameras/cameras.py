@@ -1017,8 +1017,9 @@ class PhotogrammetryCameraSet:
             # range (0...im_h) because the radius of that range relates
             # directly to the warping. However, do it in fewer steps (step
             # size > 1) to reflect the downsampling.
-            h_range = np.arange(im_h, step=1 / image_scale)[: int(im_h * image_scale)]
-            w_range = np.arange(im_w, step=1 / image_scale)[: int(im_w * image_scale)]
+            kwargs = {"start": 1 / (2 * image_scale), "step": 1 / image_scale}
+            h_range = np.arange(stop=im_h, **kwargs)[: int(im_h * image_scale)]
+            w_range = np.arange(stop=im_w, **kwargs)[: int(im_w * image_scale)]
         rows, cols = np.meshgrid(h_range, w_range, indexing="ij")
 
         # Fill the (H, W) elements with the (i, j) distorted values at those locations

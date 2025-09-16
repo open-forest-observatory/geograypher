@@ -1,4 +1,5 @@
 from itertools import product
+from typing import List, Tuple
 
 import numpy as np
 import pyvista as pv
@@ -65,12 +66,23 @@ def downward_view(scene_width, focal, sensor_width):
     )
 
 
-def make_simple_mesh(pixels, color, background=50, buffer=0):
+def make_simple_mesh(
+    pixels: np.ndarray, color: List[int], background: int = 50, buffer: int = 0
+) -> Tuple[pv.PolyData, np.ndarray]:
     """
     Create a flat mesh with the given pixels colored. Designed to line up
     with the simple camera so that 1 interval between points = 1 pixel.
 
-    TODO
+    Arguments:
+        pixels (ndarray): (Q, 2) array of (i, j) pixel values we want to color
+        color (List[int]): 3-element 0-255 color to set the pixels to
+        background (int):
+        buffer (int): Number of pixels to offset around each pixel with the
+            same color
+
+    Returns: Two element tuple of
+        [0] pyvista mesh of the plane
+        [1] (M, 3) color vector for each point in the mesh
     """
 
     # Define the number of pixels we want to support. 200 intervals (pixels) =
@@ -117,14 +129,24 @@ def make_simple_mesh(pixels, color, background=50, buffer=0):
     return plane, point_colors
 
 
-def pixel_idx(vector, i, j, stride, color, buffer=0):
+def pixel_idx(
+    vector: np.ndarray, i: int, j: int, stride: int, color: List[int], buffer: int = 0
+) -> None:
     """
     Helper to turn unflattened ij pixels into the color vector around
     that mesh area. Note that we have to invert the i dimension b/c of
     how plane texturing is applied vs. how images are rendered. This
     way (i, j) will correspond to (i, j) in the image.
 
-    TODO
+    Arguments:
+        vector (ndarray): Shape (M*N,) array, flattened (M, N) image
+        i, j (int): row, column location we want to set a color
+        stride: N, a.k.a. the number of columns in the unflattened image
+        color (List[int]): 3-element 0-255 color to set the pixel to
+        buffet (int): Number of pixels to offset around each pixel with the
+            same color
+
+    Returns: None, vector is modified in place
     """
 
     # For robustness purposes we may want to color more than 1 pixel
