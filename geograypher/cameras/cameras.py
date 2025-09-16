@@ -456,17 +456,14 @@ class PhotogrammetryCamera:
 
         return camera
 
-    def get_vis_mesh(
-        self, frustum_scale: float = 0.1
-    ) -> Tuple[pv.PolyData, np.ndarray]:
+    def get_vis_mesh(self, frustum_scale: float = 0.1) -> pv.PolyData:
         """Get this camera as a mesh representation.
 
         Args:
             frustum_scale (float, optional): Size of cameras in world units.
 
         Returns: A tuple of
-            [0] (PolyData) mesh of the camera as a frustum
-            [1] (ndarray) Array of face colors (0-1 RGB)
+            PolyData: blue mesh of the camera as a frustum with a red face indicating the image top.
         """
 
         scaled_halfwidth = self.image_width / (self.f * 2)
@@ -525,20 +522,31 @@ class PhotogrammetryCamera:
                 [3, 0, 2, 3],  # bottom
                 [3, 0, 3, 4],  # side
                 [3, 0, 4, 1],  # top
-                [3, 1, 2, 3],  # endcap tiangle #1
-                [3, 3, 4, 1],  # endcap tiangle #2
+                [3, 1, 2, 3],  # endcap triangle #1
+                [3, 3, 4, 1],  # endcap triangle #2
             ]
         )
         # All blue except the top (-Y) surface is red
         face_colors = np.array(
-            [[0, 0, 1], [1, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]]
-        ).astype(float)
+            [
+                [0, 0, 255],
+                [255, 0, 0],
+                [0, 0, 255],
+                [0, 0, 255],
+                [0, 0, 255],
+                [0, 0, 255],
+            ]
+        ).astype(np.uint8)
 
         # Create a mesh for the camera frustum
         frustum = pv.PolyData(projected_vertices[:3].T, faces)
         # Unsure exactly what's going on here, but it's required for it to be valid
         frustum.triangulate()
-        return frustum, face_colors
+
+        # Assign the face colors to the mesh
+        frustum["RGB"] = pv.pyvista_ndarray(face_colors)
+
+        return frustum
 
     def vis(self, plotter: pv.Plotter = None, frustum_scale: float = 0.1):
         """
@@ -550,13 +558,12 @@ class PhotogrammetryCamera:
             frustum_scale (float, optional): The length of the frustum in world units.
         """
 
-        mesh, face_colors = self.get_vis_mesh(frustum_scale)
+        mesh = self.get_vis_mesh(frustum_scale)
 
         # Show the mesh with the given face colors
-        # TODO understand how this understands it's face vs. vertex colors? Simply by checking the number of values?
         plotter.add_mesh(
             mesh,
-            scalars=face_colors,
+            scalars="RGB",
             rgb=True,
         )
 
@@ -1226,7 +1233,7 @@ class PhotogrammetryCameraSet:
         """
         return pv.merge(
             [
-                camera.get_vis_mesh(frustum_scale=frustum_scale)[0]
+                camera.get_vis_mesh(frustum_scale=frustum_scale)
                 for camera in self.cameras
             ]
         )
