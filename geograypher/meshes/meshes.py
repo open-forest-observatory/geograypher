@@ -1508,7 +1508,24 @@ class TexturedPhotogrammetryMesh:
         hasher.update(self.pyvista_mesh.faces.tobytes())
         return hasher.hexdigest()
 
-    def get_mesh_in_cameras_coords(self, cameras):
+    def get_mesh_in_cameras_coords(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        inplace: bool = False,
+    ) -> typing.Optional[pv.PolyData]:
+        """Obtain a mesh in the same local coordinate frame convention as the camera set.
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                Camera or camera set to match the convention of.
+            inplace (bool, optional):
+                Should the object be update to reflect this convetion. Otherwise, a pyvista mesh is
+                returned and the self object remains unchanged. Defaults to False.
+
+        Returns:
+            typing.Optional[pv.PolyData]: Mesh in the camera's coordinate system if inplace=False
+        """
+        # Reproject the mesh into ECEF
         mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
 
         # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
@@ -1517,6 +1534,15 @@ class TexturedPhotogrammetryMesh:
         epsg_4978_to_camera = np.linalg.inv(local_to_epsg_4978_transform)
         # Transform the mesh using this transform
         mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
+
+        if inplace:
+            # Overwrite the mesh with the updated version
+            self.pyvista_mesh = mesh
+            # Indicate that there is no longer a valid CRS
+            self.CRS = None
+            # Return None to match common convention for inplace methods
+            return None
+
         return mesh
 
     def pix2face(

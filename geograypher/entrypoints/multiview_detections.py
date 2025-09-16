@@ -243,12 +243,8 @@ def multiview_detections(
     # Load mesh in the photogrammetry reference frame (PRF). This is because the
     # camera locations are defined in the PRF
     mesh = TexturedPhotogrammetryMesh(mesh_file, input_CRS=mesh_crs)
-    # We need to instantiate TexturedPhotogrammetryMesh again because
-    # get_mesh_in_cameras_coords() returns a pyvista mesh
-    mesh = TexturedPhotogrammetryMesh(
-        mesh.get_mesh_in_cameras_coords(camera_set),
-        input_CRS=None,
-    )
+    # Convert the mesh into one in the same coordinate frame as the camera set
+    mesh.get_mesh_in_cameras_coords(camera_set, inplace=True)
 
     # Create boundary layers between the ground and the treetops that we
     # will check for ray intersections between
