@@ -45,7 +45,7 @@ from geograypher.utils.geospatial import (
     get_projected_CRS,
 )
 from geograypher.utils.indexing import ensure_float_labels
-from geograypher.utils.numeric import compute_3D_triangle_area
+from geograypher.utils.numeric import compute_3D_triangle_area, fair_mode_non_nan
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
 
@@ -856,26 +856,19 @@ class TexturedPhotogrammetryMesh:
                 # Return all nans
                 return np.full(values_per_face.shape[0], fill_value=np.nan)
 
-            max_ID = int(max_ID)
-            # TODO consider using unique if these indices are sparse
-            counts_per_class_per_face = np.array(
-                [np.sum(values_per_face == i, axis=1) for i in range(max_ID + 1)]
-            ).T
-            # Check which entires had no classes reported and mask them out
-            # TODO consider removing these rows beforehand
-            zeros_mask = np.all(counts_per_class_per_face == 0, axis=1)
-            # We want to fairly tiebreak since np.argmax will always take th first index
-            # This is hard to do in a vectorized way, so we just add a small random value
-            # independently to each element
-            counts_per_class_per_face = (
-                counts_per_class_per_face
-                + np.random.random(counts_per_class_per_face.shape) * 0.5
+            # Compute the most common class per face, doing so by batch to avoid OOM. This is because
+            # this implementation creates a (n_faces, n_classes) array which can grow quite large
+            chunk_size = 100000
+            most_common_class_per_face = np.concatenate(
+                [
+                    fair_mode_non_nan(values_per_face[i : i + chunk_size])
+                    for i in tqdm(
+                        range(0, values_per_face.shape[0], chunk_size),
+                        desc="Computing most common class per face by batch",
+                    )
+                ],
+                axis=0,
             )
-            most_common_class_per_face = np.argmax(
-                counts_per_class_per_face, axis=1
-            ).astype(float)
-            # Set any faces with zero counts to nan
-            most_common_class_per_face[zeros_mask] = np.nan
 
             return most_common_class_per_face
         else:
@@ -1508,7 +1501,24 @@ class TexturedPhotogrammetryMesh:
         hasher.update(self.pyvista_mesh.faces.tobytes())
         return hasher.hexdigest()
 
-    def get_mesh_in_cameras_coords(self, cameras):
+    def get_mesh_in_cameras_coords(
+        self,
+        cameras: typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet],
+        inplace: bool = False,
+    ) -> typing.Optional[pv.PolyData]:
+        """Obtain a mesh in the same local coordinate frame convention as the camera set.
+
+        Args:
+            cameras (typing.Union[PhotogrammetryCamera, PhotogrammetryCameraSet]):
+                Camera or camera set to match the convention of.
+            inplace (bool, optional):
+                Should the object be update to reflect this convetion. Otherwise, a pyvista mesh is
+                returned and the self object remains unchanged. Defaults to False.
+
+        Returns:
+            typing.Optional[pv.PolyData]: Mesh in the camera's coordinate system if inplace=False
+        """
+        # Reproject the mesh into ECEF
         mesh = self.reproject_CRS(EARTH_CENTERED_EARTH_FIXED_CRS, inplace=False)
 
         # Get the inverse 4x4 transform, which maps from Earth Centered, Earth Fixed (EPSG:4978)
@@ -1517,6 +1527,15 @@ class TexturedPhotogrammetryMesh:
         epsg_4978_to_camera = np.linalg.inv(local_to_epsg_4978_transform)
         # Transform the mesh using this transform
         mesh = mesh.transform(epsg_4978_to_camera, inplace=False)
+
+        if inplace:
+            # Overwrite the mesh with the updated version
+            self.pyvista_mesh = mesh
+            # Indicate that there is no longer a valid CRS
+            self.CRS = None
+            # Return None to match common convention for inplace methods
+            return None
+
         return mesh
 
     def pix2face(
