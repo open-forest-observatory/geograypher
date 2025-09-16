@@ -142,21 +142,21 @@ class TestMetashapeCameraSetWarp:
             # If the radial term is positive, it means that in the equation
             # we have warp = ideal * 1+. That means to dewarp we will sample
             # from a wider area, and the image will darken
-            [True, 1, operator.lt],
+            [True, 10, operator.lt],
             # If the radial term is positive, it means that in the equation
             # we have warp = ideal * 1-. That means to dewarp we will sample
             # from a smaller area, and the image will lighten
-            [True, -1, operator.gt],
+            [True, -10, operator.gt],
             # The previous statements are inverted if you are warping in the
             # other direction.
             [False, 0, operator.eq],
-            [False, 1, operator.gt],
-            [False, -1, operator.lt],
+            [False, 10, operator.gt],
+            [False, -10, operator.lt],
         ),
     )
     @pytest.mark.parametrize("downsample", [1, 2])
     @pytest.mark.parametrize("grayscale", [True, False])
-    def test_warp_dewarp(
+    def test_warp_dewarp_image(
         self, tmp_path, gradient, w2i, k1, relationship, downsample, grayscale
     ):
         """
@@ -247,6 +247,70 @@ class TestMetashapeCameraSetWarp:
         # stayed the same
         assert dewarped.shape == gradient.shape
         assert relationship(dewarped.mean(), gradient.mean())
+
+    @pytest.mark.parametrize(
+        "w2i,k1,relationship",
+        (
+            [True, 0, operator.eq],
+            # If the radial term is positive, it means that in the equation
+            # we have warp = ideal * 1+. That means to dewarp we will sample
+            # from a wider area, and the image will darken
+            [True, 0.5, operator.lt],
+            # If the radial term is positive, it means that in the equation
+            # we have warp = ideal * 1-. That means to dewarp we will sample
+            # from a smaller area, and the image will lighten
+            [True, -0.5, operator.gt],
+            # The previous statements are inverted if you are warping in the
+            # other direction.
+            [False, 0, operator.eq],
+            [False, 0.5, operator.gt],
+            [False, -0.5, operator.lt],
+        ),
+    )
+    @pytest.mark.parametrize("downsample", [1, 2])
+    def test_warp_dewarp_pixels(self, tmp_path, w2i, k1, relationship, downsample):
+
+        # Create a fake image size for our simplified camera
+        fake = np.zeros((101, 101, 3), dtype=np.uint8)
+
+        # Create a Metashape camera with simplified distortion
+        cameras = MetashapeCameraSet(
+            camera_file=camera_file(tmp_path),
+            image_folder=tmp_path,
+        )
+        camera = simplify_camera(cameras.cameras[0], fake)
+        camera.distortion_params["k1"] = k1
+
+        # Choose pixels we want to sample (N, 2) in the 21x21 image
+        pixels = np.array(
+            [
+                [20, 20],
+                [20, 50],
+                [20, 80],
+                [50, 20],
+                [50, 80],
+                [80, 20],
+                [80, 50],
+                [80, 80],
+            ]
+        )
+        center = np.mean([[0, 0], fake.shape[:2]], axis=0).astype(int)
+
+        # Warp the pixels
+        dewarped = cameras.warp_dewarp_pixels(
+            camera, pixels, warped_to_ideal=w2i, inversion_downsample=downsample
+        )
+
+        # Basic size and type checks
+        assert isinstance(dewarped, np.ndarray)
+        assert dewarped.shape == pixels.shape
+        assert dewarped.dtype == int
+
+        # Check whether the pixels regressed towards the center or away from
+        # the center, as appropriate
+        original = np.linalg.norm(pixels - center, axis=1)
+        altered = np.linalg.norm(dewarped - center, axis=1)
+        assert relationship(altered, original).all()
 
 
 class TestPix2Face:

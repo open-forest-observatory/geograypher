@@ -1095,7 +1095,7 @@ class PhotogrammetryCameraSet:
             camera (PhotogrammetryCamera): Camera with parameters that
                 define the warp process. These include image size, principal
                 point, focal length, and distortion parameters.
-            ideal_image (np.ndarray): (I, J, 3) Undistorted input image
+            input_image (np.ndarray): (I, J, 3) Undistorted input image
                 (as from a pinhole camera).
             fill_value (int, optional): Value to use for pixels in the
                 output image that are not mapped from the input. Defaults to 0.
@@ -1169,6 +1169,54 @@ class PhotogrammetryCameraSet:
 
         # Return grayscale if array is (N, M 1), else return RGB
         return np.squeeze(output_image)
+
+    def warp_dewarp_pixels(
+        self,
+        camera: PhotogrammetryCamera,
+        pixels: np.ndarray,
+        inversion_downsample: int = 8,
+        warped_to_ideal: bool = True,
+    ):
+        """
+        Either apply a camera's distortion model to go from ideal pixels→warped
+        or undo the camera's distortion model to go from warped pixels→ideal,
+        depending on the warped_to_ideal flag.
+
+        Note that the warp map is cached, so the first call will take longer
+        and subsequent calls should be much faster.
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            pixels (np.ndarray): (N, 2) Pixels locations in (i, j) format.
+            inversion_downsample (int, optional): The distortion map creation
+                process is too heavyweight for really high-res images,
+                downsampling the inversion process gets a similar result with
+                less computation.
+            warped_to_ideal (bool, optional): If true, take in a warped image
+                and return an undistorted (dewarped/ideal) image. If false,
+                take in an undistorted image and return a warped image.
+
+        Returns:
+            np.ndarray: (N, 2) warped/dewarped output pixel locations (i, j)
+        """
+
+        # Ensure that there is a cached map for these distortion parameters
+        dkey = self.distortion_key(camera.distortion_params)
+        if dkey not in self._maps_ideal_to_warped:
+            self.make_distortion_map(camera, inversion_downsample)
+
+        # Get the right mapping array
+        if warped_to_ideal:
+            rowmap, colmap = self._maps_warped_to_ideal[dkey]
+        else:
+            rowmap, colmap = self._maps_ideal_to_warped[dkey]
+
+        # Look up the pixel locations, and cast as integers
+        rows = rowmap[pixels[:, 0], pixels[:, 1]].astype(int)
+        cols = colmap[pixels[:, 0], pixels[:, 1]].astype(int)
+        return np.stack([rows, cols], axis=0).T
 
     def get_subset_ROI(
         self,
