@@ -251,7 +251,11 @@ def multiview_detections(
     )
 
     # Create boundary layers between the ground and the treetops that we
-    # will check for ray intersections between
+    # will check for ray intersections between. Note that the z_buffer
+    # defines, in meters (which is then translated to local scale), the
+    # spacing of the covering meshes from the mesh model. For example,
+    # z_buffer[0] is the spacing between mesh and floor, and z_buffer[1]
+    # is the spacing between mesh and ceiling.
     local_scale = 1 / get_scale_from_transform(local_to_epsg_4978)
     ceiling, floor = mesh.export_covering_meshes(
         N=50, z_buffer=(0, 1 * local_scale), subsample=2
