@@ -1224,16 +1224,12 @@ class PhotogrammetryCameraSet:
 
         Returns: (PolyData) mesh representation of all cameras as frustums
         """
-        polydata = None
-        for camera in self.cameras:
-            # Get the mesh for each camera
-            mesh, _ = camera.get_vis_mesh(frustum_scale=frustum_scale)
-            # And merge it into the scene
-            if polydata is None:
-                polydata = mesh
-            else:
-                polydata = polydata.merge(mesh)
-        return polydata
+        return pv.merge(
+            [
+                camera.get_vis_mesh(frustum_scale=frustum_scale)[0]
+                for camera in self.cameras
+            ]
+        )
 
     def calc_line_segments(
         self,
