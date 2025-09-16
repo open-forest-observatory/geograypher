@@ -462,8 +462,8 @@ class PhotogrammetryCamera:
         Args:
             frustum_scale (float, optional): Size of cameras in world units.
 
-        Returns: A tuple of
-            PolyData: blue mesh of the camera as a frustum with a red face indicating the image top.
+        Returns (PolyData): blue mesh of the camera as a frustum with a
+            red face indicating the image top.
         """
 
         scaled_halfwidth = self.image_width / (self.f * 2)
@@ -481,26 +481,10 @@ class PhotogrammetryCamera:
             np.array(
                 [
                     [0, 0, 0],
-                    [
-                        right,
-                        top,
-                        1,
-                    ],
-                    [
-                        right,
-                        bottom,
-                        1,
-                    ],
-                    [
-                        left,
-                        bottom,
-                        1,
-                    ],
-                    [
-                        left,
-                        top,
-                        1,
-                    ],
+                    [right, top, 1],
+                    [right, bottom, 1],
+                    [left, bottom, 1],
+                    [left, top, 1],
                 ]
             ).T
             * frustum_scale
