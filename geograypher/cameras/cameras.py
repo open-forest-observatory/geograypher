@@ -1095,8 +1095,7 @@ class PhotogrammetryCameraSet:
             camera (PhotogrammetryCamera): Camera with parameters that
                 define the warp process. These include image size, principal
                 point, focal length, and distortion parameters.
-            input_image (np.ndarray): (I, J, 3) Undistorted input image
-                (as from a pinhole camera).
+            input_image (np.ndarray): (I, J, 3) Input image
             fill_value (int, optional): Value to use for pixels in the
                 output image that are not mapped from the input. Defaults to 0.
             inversion_downsample (int, optional): The distortion map creation
