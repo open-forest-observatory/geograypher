@@ -59,7 +59,7 @@ def parse_sensors(sensors, default_sensor_dict=None):
 
         sensor_dict["image_width"] = int(sensor[0].get("width"))
         sensor_dict["image_height"] = int(sensor[0].get("height"))
-        calibration = sensor.find("calibration")
+        calibration = sensor.find("calibration[@class='adjusted']")
 
         if calibration is None:
             if default_sensor_dict is not None:
@@ -72,7 +72,7 @@ def parse_sensors(sensors, default_sensor_dict=None):
 
             # Extract the objects for the principal points
             cx = calibration.find("cx")
-            cy = calibration.find("cx")
+            cy = calibration.find("cy")
 
             try:
                 # If they are set, use the value. Otherwise, use the default.
@@ -86,7 +86,8 @@ def parse_sensors(sensors, default_sensor_dict=None):
                 # Get potentially-empty dict of distortion parameters
                 sensor_dict["distortion_params"] = {
                     calibration[i].tag: float(calibration[i].text)
-                    for i in range(3, len(calibration))
+                    for i in range(len(calibration))
+                    if calibration[i].tag not in ["resolution", "f", "cx", "cy"]
                 }
             except KeyError:
                 sensor_dict = None

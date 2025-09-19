@@ -1545,6 +1545,8 @@ class TexturedPhotogrammetryMesh:
         render_img_scale: float = 1,
         save_to_cache: bool = False,
         cache_folder: typing.Union[None, PATH_TYPE] = CACHE_FOLDER,
+        distortion_set: typing.Optional[PhotogrammetryCameraSet] = None,
+        apply_distortion: bool = True,
     ) -> np.ndarray:
         """Compute the face that a ray from each pixel would intersect for each camera
 
@@ -1562,6 +1564,13 @@ class TexturedPhotogrammetryMesh:
             cache_folder ((PATH_TYPE, None), optional):
                 Where to check for and save to cached data. Only applicable if use_cache=True.
                 Defaults to CACHE_FOLDER
+            distortion_set (PhotogrammetryCameraSet, optional): camera set used for calculating
+                and caching the distortion/undistortion maps. This is only required if apply_distortion
+                is True. Note that if you are calling pix2face on batches, you should pass the
+                full camera set in as the distortion_set so that the maps are cached once.
+            apply_distortion (bool, optional):
+                Should distortion correction be applied. This is expensive but can be neccesary for
+                some camera models which significantly differ from a pinhole model.
 
         Returns:
             np.ndarray: For each camera, there is an array that is the shape of an image and
@@ -1570,16 +1579,27 @@ class TexturedPhotogrammetryMesh:
             a single PhotogrammetryCamera, the shape is (h, w). If it's a camera set, then it is
             (n_cameras, h, w). Note that a one-length camera set will have a leading singleton dim.
         """
+
         # Create a local mesh if it hasn't been created yet
         if mesh is None:
             mesh = self.get_mesh_in_cameras_coords(cameras)
 
         # If a set of cameras is passed in, call this method on each camera and concatenate
-        # Other derived methods might be able to compute a batch of renders and once, but pyvista
-        # cannot as far as I can tell
+        # Other derived methods might be able to compute a batch of renders at once, but pyvista
+        # cannot as far as I can tell.
+        # Note that all inputs to pix2face need to be replicated here or those features won't be
+        # passed on.
         if isinstance(cameras, PhotogrammetryCameraSet):
             pix2face_list = [
-                self.pix2face(camera, mesh=mesh, render_img_scale=render_img_scale)
+                self.pix2face(
+                    cameras=camera,
+                    mesh=mesh,
+                    render_img_scale=render_img_scale,
+                    save_to_cache=save_to_cache,
+                    cache_folder=cache_folder,
+                    distortion_set=distortion_set,
+                    apply_distortion=apply_distortion,
+                )
                 for camera in cameras
             ]
             pix2face = np.stack(pix2face_list, axis=0)
@@ -1675,6 +1695,20 @@ class TexturedPhotogrammetryMesh:
         if save_to_cache:
             # Save the most recently computed pix2face correspondance in the cache
             cacher.save(pix2face)
+
+        if apply_distortion:
+            # Warp the pix2face mask so it matches the warping of the real image which does not
+            # conform to the pinhole model.
+            # Note this step is slow, and especially on the first iteration which may take multiple
+            # minutes.
+            pix2face = distortion_set.warp_dewarp_image(
+                camera=cameras,
+                input_image=pix2face,
+                warped_to_ideal=False,
+                fill_value=-1,
+                interpolation_order=0,  # nearest neighbor interpolation
+                image_scale=render_img_scale,
+            )
 
         return pix2face
 
@@ -2117,6 +2151,7 @@ class TexturedPhotogrammetryMesh:
             camera_set,
             render_img_scale=render_image_scale,
             return_camera=True,
+            distortion_set=camera_set,
             **render_kwargs,
         )
 
