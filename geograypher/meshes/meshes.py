@@ -2151,6 +2151,7 @@ class TexturedPhotogrammetryMesh:
             camera_set,
             render_img_scale=render_image_scale,
             return_camera=True,
+            distortion_set=camera_set,
             **render_kwargs,
         )
 
