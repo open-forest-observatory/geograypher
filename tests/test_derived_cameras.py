@@ -281,7 +281,7 @@ class TestMetashapeCameraSetWarp:
         camera = simplify_camera(cameras.cameras[0], fake)
         camera.distortion_params["k1"] = k1
 
-        # Choose pixels we want to sample (N, 2) in the 21x21 image
+        # Choose pixels we want to sample (N, 2) in the image
         pixels = np.array(
             [
                 [20, 20],
@@ -304,7 +304,7 @@ class TestMetashapeCameraSetWarp:
         # Basic size and type checks
         assert isinstance(dewarped, np.ndarray)
         assert dewarped.shape == pixels.shape
-        assert dewarped.dtype == int
+        assert dewarped.dtype == float
 
         # Check whether the pixels regressed towards the center or away from
         # the center, as appropriate

@@ -1200,6 +1200,7 @@ class PhotogrammetryCameraSet:
 
         Returns:
             np.ndarray: (N, 2) warped/dewarped output pixel locations (i, j)
+                Note that the output is floating point (subpixel)
         """
 
         # Ensure that there is a cached map for these distortion parameters
@@ -1213,9 +1214,9 @@ class PhotogrammetryCameraSet:
         else:
             rowmap, colmap = self._maps_ideal_to_warped[dkey]
 
-        # Look up the pixel locations, and cast as integers
-        rows = rowmap[pixels[:, 0], pixels[:, 1]].astype(int)
-        cols = colmap[pixels[:, 0], pixels[:, 1]].astype(int)
+        # Look up the pixel locations
+        rows = rowmap[pixels[:, 0], pixels[:, 1]]
+        cols = colmap[pixels[:, 0], pixels[:, 1]]
         return np.stack([rows, cols], axis=0).T
 
     def get_subset_ROI(
