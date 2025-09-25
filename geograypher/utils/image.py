@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 import piexif
 from skimage.transform import warp, downscale_local_mean
+from scipy.spatial.transform import Rotation
 
 
 def get_GPS_exif(filename):
@@ -82,23 +83,12 @@ def perspective_from_equirectangular(
     # normalize to unit
     pixel_directions /= np.linalg.norm(pixel_directions, axis=-1, keepdims=True)
 
-    # Create a matrix to apply the rotation to the direction vectors.
-    # Create yaw rotation matrix (about y)
-    Ry = np.array(
-        [[np.cos(yaw), 0, np.sin(yaw)], [0, 1, 0], [-np.sin(yaw), 0, np.cos(yaw)]]
-    )
-    # Create the pitch rotation matrix (about x)
-    Rx = np.array(
-        [
-            [1, 0, 0],
-            [0, np.cos(pitch), -np.sin(pitch)],
-            [0, np.sin(pitch), np.cos(pitch)],
-        ]
-    )
-    # Compose the two rotations
-    R = Ry @ Rx
-    # Rotate the pixel drections by the rotation matrix
-    pixel_directions = pixel_directions @ R.T
+    rotation_matrix = Rotation.from_euler("yx", [yaw, pitch]).as_matrix()
+
+    # Rotate the pixel directions by the rotation matrix
+    # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
+    # so this allows the dimensions to align for the matrix multiplication.
+    pixel_directions = pixel_directions @ rotation_matrix.T
 
     # Convert 3D directions to spherical coordinates
     # horizontal angle
