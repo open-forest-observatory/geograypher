@@ -7,7 +7,7 @@ import pandas as pd
 import pyproj
 from scipy.spatial.transform import Rotation
 
-from geograypher.cameras import PhotogrammetryCameraSet
+from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, PATH_TYPE
 from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
@@ -86,7 +86,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         cam_to_world_transforms = []
         sensor_IDs = []
 
-        cameras = chunk[2]
+        cameras = chunk.find("cameras")
         # Iterate over metashape cameras and fill out required information
         for cam_or_group in cameras:
             if cam_or_group.tag == "group":
@@ -147,6 +147,53 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             validate_images=validate_images,
             local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
+
+    def ideal_to_warped(
+        self, camera: PhotogrammetryCamera, xpix: np.ndarray, ypix: np.ndarray
+    ) -> typing.Tuple[np.ndarray, np.ndarray]:
+        """
+        For consistency, this should fully match the docstring from
+        cameras.PhotogrammetryCameraSet.ideal_to_warped()
+        """
+
+        # Convert from x and y pixels to the homogeneous camera frame
+        # Note that for the math to work out, the cx and cy terms are neglected in this step and
+        # only applied at the very end
+        principal_x = camera.image_width / 2.0
+        principal_y = camera.image_height / 2.0
+        x = (xpix - principal_x) / camera.f
+        y = (ypix - principal_y) / camera.f
+
+        # Enforce that a strict subset of expected parameters are found
+        params = sorted(camera.distortion_params.keys())
+        if not set(params) <= set(["b1", "b2", "k1", "k2", "k3", "k4", "p1", "p2"]):
+            raise ValueError(f"Unexpected distortion params found: {params}")
+        b1 = camera.distortion_params.get("b1", 0)
+        b2 = camera.distortion_params.get("b2", 0)
+        k1 = camera.distortion_params["k1"]  # Enforce that the most basic is required
+        k2 = camera.distortion_params.get("k2", 0)
+        k3 = camera.distortion_params.get("k3", 0)
+        k4 = camera.distortion_params.get("k4", 0)
+        p1 = camera.distortion_params.get("p1", 0)
+        p2 = camera.distortion_params.get("p2", 0)
+
+        # See page 246 of the manual (labeled page 240) "Frame Cameras" section
+        # for what these parameters mean
+        # https://www.agisoft.com/pdf/metashape-pro_2_2_en.pdf
+        r = np.sqrt(x**2 + y**2)
+        #  Distorted rays
+        xd = x * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p1 * (r**2 + 2 * x**2) + 2 * p2 * x * y
+        )
+        yd = y * (1 + k1 * r**2 + k2 * r**4 + k3 * r**6 + k4 * r**8) + (
+            p2 * (r**2 + 2 * y**2) + 2 * p1 * x * y
+        )
+        # Pixels
+        xpix_warp = (
+            camera.image_width / 2.0 + camera.cx + xd * camera.f + xd * b1 + yd * b2
+        )
+        ypix_warp = camera.image_height / 2.0 + camera.cy + yd * camera.f
+        return xpix_warp, ypix_warp
 
 
 class COLMAPCameraSet(PhotogrammetryCameraSet):

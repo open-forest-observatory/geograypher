@@ -17,7 +17,7 @@ from pyvista import demos
 from scipy.spatial.distance import pdist
 from shapely import MultiPolygon, Point, Polygon, unary_union
 from skimage.io import imread
-from skimage.transform import resize
+from skimage.transform import resize, warp
 from tqdm import tqdm
 
 from geograypher.constants import (
@@ -41,6 +41,7 @@ from geograypher.utils.geometric import (
 )
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
 from geograypher.utils.image import get_GPS_exif
+from geograypher.utils.indexing import inverse_map_interpolation
 from geograypher.utils.numeric import (
     calc_communities,
     calc_graph_weights,
@@ -674,6 +675,9 @@ class PhotogrammetryCameraSet:
         """
         # Record the values
         self._local_to_epsg_4978_transform = local_to_epsg_4978_transform
+        # Save parameters used for caching distortion products
+        self._maps_ideal_to_warped = {}
+        self._maps_warped_to_ideal = {}
 
         # Create an object using the supplied cameras
         if cameras is not None:
@@ -941,6 +945,278 @@ class PhotogrammetryCameraSet:
                 List of tuples containing the camera locations.
         """
         return [x.get_camera_location(**kwargs) for x in self.cameras]
+
+    def distortion_key(
+        self, parameters: Dict[str, float], image_scale: float = 1.0
+    ) -> str:
+        """
+        Make a repeatable string key out of a distortion parameter dict
+        so that we can cache results by distortion parameters. We are
+        deciding that precision in the distortion parameters after 8
+        decimal points will be ignored in the caching process.
+
+        Arguments:
+            parameters (dict): Distortion parameters are assumed to be stored
+                "name": float(value)
+            image_scale (float, optional): If we want to warp a downsampled
+                version of an image, we need to track that mapping seperately
+                because downsampling affects the pixel to pixel mapping.
+                Include the image scale (0-1 float) along with the distortion
+                parameters to make a key.
+
+        Returns:
+            A repeatable string key based on the distortion values.
+        """
+        keys = sorted(parameters.keys())
+        strings = [f"{key}:{parameters[key]:.8f}" for key in keys] + [
+            f"image_scale:{image_scale:.8f}"
+        ]
+        return "|".join(strings)
+
+    def make_distortion_map(
+        self,
+        camera: PhotogrammetryCamera,
+        inversion_downsample: int,
+        image_scale: float = 1.0,
+    ) -> None:
+        """
+        Cache a map connecting locations in one image to locations in another.
+        The basic construction is the pixel position of the map is the position
+        in the destination image, and the value of the map is the position in
+        the source image. Therefore if location [20, 30] has value [22.2, 28.4],
+        it means that the destination image pixel [20, 30] will be sampled from
+        the source image at pixel [22.2, 28.4] (the sampler can choose to snap
+        to the closest integer value or interpolate nearby pixels).
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            inversion_downsample (int): Downsample the inverse map process in
+                order to reduce computation, at high res the resulting map
+                trafeoffs should be minimal.
+            image_scale: (float, optional) 0-1 fraction of the original image
+                size, used when warping/dewarping downsampled images. See
+                pix2face render_img_scale for an example.
+
+        Caches:
+            In self._maps_ideal_to_warped, stores a map of the structure
+                discussed above, keyed by self.distortion_key(params) so it can
+                be accessed for cameras using the same params.
+            In self._maps_warped_to_ideal, stores an inverted version
+        """
+
+        # Sample over the ideal pixels, shape (H, W)
+        im_h, im_w = camera.image_size
+        if np.isclose(image_scale, 1.0):
+            h_range = np.arange(im_h)
+            w_range = np.arange(im_w)
+        else:
+            # In order to get a distortion map for a downsampled image, you
+            # need to run the ideal_to_warped equation over the same original
+            # range (0...im_h) because the radius of that range relates
+            # directly to the warping. However, do it in fewer steps (step
+            # size > 1) to reflect the downsampling.
+            kwargs = {"start": 1 / (2 * image_scale), "step": 1 / image_scale}
+            h_range = np.arange(stop=im_h, **kwargs)[: int(im_h * image_scale)]
+            w_range = np.arange(stop=im_w, **kwargs)[: int(im_w * image_scale)]
+        rows, cols = np.meshgrid(h_range, w_range, indexing="ij")
+
+        # Fill the (H, W) elements with the (i, j) distorted values at those locations
+        warp_cols, warp_rows = self.ideal_to_warped(camera, cols, rows)
+
+        # If dealing with downsampled images, now that we ran the warp equation,
+        # rescale the results to be within the new scale. If the original im_h
+        # is 1000 and image_scale is 0.5, we need to run ideal_to_warped on
+        # 0-1000 (for radius reasons) and then scale those results to 0-500.
+        if not np.isclose(image_scale, 1.0):
+            warp_cols *= image_scale
+            warp_rows *= image_scale
+
+        # Cache this mapping as (2, H, W)
+        dkey = self.distortion_key(camera.distortion_params, image_scale)
+        self._maps_ideal_to_warped[dkey] = np.stack([warp_rows, warp_cols], axis=0)
+        # Invert the warp map and cache as (2, H, W)
+        self._maps_warped_to_ideal[dkey] = inverse_map_interpolation(
+            self._maps_ideal_to_warped[dkey],
+            downsample=inversion_downsample,
+        )
+
+    def ideal_to_warped(
+        self, camera: PhotogrammetryCamera, xpix: np.ndarray, ypix: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Apply the given camera's distortion parameters to map pixels in an
+        ideal pinhole camera to pixel locations in the warped/distorted
+        image.
+
+        NOTE: Some standards apparently can define their distortion models
+        from warped to ideal, if we end up handling cameras like that we can
+        make the use-case more flexible.
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            xpix (numpy array): Array of unknown shape, must match ypix
+            ypix (numpy array): Array of unknown shape, must match xpix
+
+        Returns:
+            Tuple of numpy arrays of warped x pixels and y pixels
+            [0] warped xpix
+            [1] warped ypix
+        """
+        raise NotImplementedError(
+            f"ideal_to_warped not implemented for {self.__class__}."
+        )
+
+    def warp_dewarp_image(
+        self,
+        camera: PhotogrammetryCamera,
+        input_image: np.ndarray,
+        fill_value: float = 0.0,
+        inversion_downsample: int = 8,
+        interpolation_order: int = 1,
+        warped_to_ideal: bool = True,
+        image_scale: float = 1.0,
+    ) -> np.ndarray:
+        """
+        Either apply a camera's distortion model to go from ideal→warped or
+        undo the camera's distortion model to go from warped→ideal, depending
+        on the warped_to_ideal flag.
+
+        Pixels in the output image that do not correspond to any input pixel
+        are set to the fill value.
+
+        Note that the warp map is cached, so the first call will take longer
+        and subsequent calls should be much faster.
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            input_image (np.ndarray): (I, J, 3) Input image
+            fill_value (int, optional): Value to use for pixels in the
+                output image that are not mapped from the input. Defaults to 0.
+            inversion_downsample (int, optional): The distortion map creation
+                process is too heavyweight for really high-res images,
+                downsampling the inversion process gets a similar result with
+                less computation.
+            interpolation_order (int, optional):
+                The order of the interpolation. 0 is nearest neighbor and should be used for discrete
+                textures like pix2face masks. 1 can be used for data representing continious
+                quantities. Defaults to 1.
+            warped_to_ideal (bool, optional): If true, take in a warped image
+                and return an undistorted (dewarped/ideal) image. If false,
+                take in an undistorted image and return a warped image.
+            image_scale: (float, optional) 0-1 fraction of the original image
+                size, used when warping/dewarping downsampled images. See
+                pix2face render_img_scale for an example.
+
+        Returns:
+            np.ndarray: (I, J, 3) output image
+        """
+
+        # Ensure that there is a cached map for these distortion parameters
+        dkey = self.distortion_key(camera.distortion_params, image_scale)
+        if dkey not in self._maps_ideal_to_warped:
+            self.make_distortion_map(camera, inversion_downsample, image_scale)
+
+        # Temporarily expand grayscale images to be (N, M, 1)
+        input_image = np.atleast_3d(input_image)
+
+        if warped_to_ideal:
+            inverse_map = self._maps_ideal_to_warped[dkey]
+        else:
+            inverse_map = self._maps_warped_to_ideal[dkey]
+
+        # Compute the min and max of values, including both the inputs and the fill value
+        input_min = min(np.min(input_image), fill_value)
+        input_max = max(np.max(input_image), fill_value)
+        # Compute the range of values
+        min_max_range = input_max - input_min
+
+        # If there's no variation, we can avoid division by 0 issues and save computation by just
+        # returning an array of one value
+        if min_max_range == 0:
+            return np.full_like(np.squeeze(input_image), fill_value=fill_value)
+
+        # Record the original datatype
+        initial_dtype = input_image.dtype
+        # Rescale to 0-1
+        input_image = (input_image.astype(float) - input_min) / min_max_range
+        # The fill value will be applied to the rescaled image, so it must be rescaled similarly
+        rescaled_fill_value = (float(fill_value) - input_min) / min_max_range
+
+        # For each color channel, do the dewarping
+        output_image = np.zeros_like(input_image)
+        for channel in range(input_image.shape[2]):
+            output_image[:, :, channel] = warp(
+                image=input_image[:, :, channel],
+                inverse_map=inverse_map,
+                order=interpolation_order,  # interpolation strategy for fractional pixels
+                mode="constant",  # fill unseen areas with cval
+                cval=rescaled_fill_value,
+                clip=True,  # clip to [0,1]
+                preserve_range=True,  # keep original range without rescaling
+            )
+
+        # Convert to the original range and datatype
+        output_image = ((output_image * min_max_range) + input_min).astype(
+            initial_dtype
+        )
+
+        # Return grayscale if array is (N, M 1), else return RGB
+        return np.squeeze(output_image)
+
+    def warp_dewarp_pixels(
+        self,
+        camera: PhotogrammetryCamera,
+        pixels: np.ndarray,
+        inversion_downsample: int = 8,
+        warped_to_ideal: bool = True,
+    ):
+        """
+        Either apply a camera's distortion model to go from ideal pixels→warped
+        or undo the camera's distortion model to go from warped pixels→ideal,
+        depending on the warped_to_ideal flag.
+
+        Note that the warp map is cached, so the first call will take longer
+        and subsequent calls should be much faster.
+
+        Arguments:
+            camera (PhotogrammetryCamera): Camera with parameters that
+                define the warp process. These include image size, principal
+                point, focal length, and distortion parameters.
+            pixels (np.ndarray): (N, 2) Pixels locations in (i, j) format.
+            inversion_downsample (int, optional): The distortion map creation
+                process is too heavyweight for really high-res images,
+                downsampling the inversion process gets a similar result with
+                less computation.
+            warped_to_ideal (bool, optional): If true, take in a warped image
+                and return an undistorted (dewarped/ideal) image. If false,
+                take in an undistorted image and return a warped image.
+
+        Returns:
+            np.ndarray: (N, 2) warped/dewarped output pixel locations (i, j)
+                Note that the output is floating point (subpixel)
+        """
+
+        # Ensure that there is a cached map for these distortion parameters
+        dkey = self.distortion_key(camera.distortion_params)
+        if dkey not in self._maps_ideal_to_warped:
+            self.make_distortion_map(camera, inversion_downsample)
+
+        # Get the right mapping array
+        if warped_to_ideal:
+            rowmap, colmap = self._maps_warped_to_ideal[dkey]
+        else:
+            rowmap, colmap = self._maps_ideal_to_warped[dkey]
+
+        # Look up the pixel locations
+        rows = rowmap[pixels[:, 0], pixels[:, 1]]
+        cols = colmap[pixels[:, 0], pixels[:, 1]]
+        return np.stack([rows, cols], axis=0).T
 
     def get_subset_ROI(
         self,
