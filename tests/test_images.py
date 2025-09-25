@@ -46,3 +46,15 @@ def test_equi_to_perspective(expected, yaw_deg, pitch_deg):
     assert np.allclose(sample[45, 90, :2], expected[1], atol=1)
     assert np.allclose(sample[90, 45, :2], expected[2], atol=1)
     assert np.allclose(sample[45, 0, :2], expected[3], atol=1)
+
+    ## For debugging, unccoment these
+    ## This shows the indices in the original image from which the perspective image was sampled
+    # f, ax = plt.subplots(1, 2)
+    # cb = ax[0].imshow(sample[:, :, 0])
+    # f.colorbar(cb, ax=ax[0])
+    # ax[0].title.set_text("I values")
+
+    # cb = ax[1].imshow(sample[:, :, 1])
+    # f.colorbar(cb, ax=ax[1])
+    # ax[1].title.set_text("J values")
+    # plt.show()
