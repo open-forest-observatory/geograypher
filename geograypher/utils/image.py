@@ -53,7 +53,7 @@ def perspective_from_equirectangular(
     # Output image dimensions
     out_w, out_h = output_size
 
-    # Sample a larger image and downsample to reduce aliasing
+    # Sample a larger image and then downsample to reduce aliasing
     out_w = int(out_w * oversample_factor)
     out_h = int(out_h * oversample_factor)
 
@@ -62,7 +62,7 @@ def perspective_from_equirectangular(
     yaw = np.deg2rad(yaw_deg)
     pitch = np.deg2rad(pitch_deg)
 
-    # Compute the aspect ratio of the sizes requested
+    # Compute the aspect ratio of the requested image dimensions
     aspect_ratio = out_h / out_w
 
     # Create homogenous image coordinates for the output image
@@ -97,6 +97,7 @@ def perspective_from_equirectangular(
     )
     # Compose the two rotations
     R = Ry @ Rx
+    # Rotate the pixel drections by the rotation matrix
     pixel_directions = pixel_directions @ R.T
 
     # Convert 3D directions to spherical coordinates
@@ -115,9 +116,11 @@ def perspective_from_equirectangular(
     i = np.clip(i, 0, H - 1)
     j = np.clip(j, 0, W - 1)
 
-    # Note switch in v and u
+    # Stack the coordinates
     ij = np.stack((i, j), axis=0)
 
+    # Sample pixels from the specified coordinates to obtain the perspective image
+    # Note this must be done channel-wise
     sampled_perspective = np.stack(
         [
             warp(equi_img[..., c], ij, order=warp_order)
@@ -125,15 +128,14 @@ def perspective_from_equirectangular(
         ],
         axis=2,
     )
-    sampled_perspective = (sampled_perspective * 255).astype(np.uint8)
 
     if oversample_factor > 1:
         sampled_perspective = downscale_local_mean(
             sampled_perspective, (oversample_factor, oversample_factor, 1)
-        ).astype(np.uint8)
+        )
 
     # Also save a mask of the pixels being sampled
     mask = np.zeros(equi_img.shape[:2], dtype=bool)
     mask[i.astype(int), j.astype(int)] = True
 
-    return Image.fromarray(sampled_perspective), mask
+    return sampled_perspective, mask
