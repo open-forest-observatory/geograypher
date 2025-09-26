@@ -35,6 +35,7 @@ def perspective_from_equirectangular(
     output_size=(1440, 1440),
     warp_order: int = 1,
     oversample_factor: int = 1,
+    return_mask: bool = False,
 ):
     """Convert equirectangular (360) image to a perspective view.
     Parameters:
@@ -100,11 +101,17 @@ def perspective_from_equirectangular(
     i = (0.5 - altitude / np.pi) * H
     j = (horizontal / (2 * np.pi) + 0.5) * W
 
-    # Ensure that the coordinates are within the image
-    # TODO note that we could add pixels to the original equirectantular image to handle the wrap
-    # around case. But this is likely a minimal effect.
+    # Replicate the pixels from the opposite side of the image to handle wrap-around
+    equi_img = np.concatenate(
+        [equi_img[:, -1:, :], equi_img, equi_img[:, 0:1, :]], axis=1
+    )
+
+    j += 1  # offset by 1 to account for the extra pixel at the start
+
+    # Ensure that the coordinates are within the image. Note that the cropping in j is more generous
+    # becuase of the wrap-around pixels.
     i = np.clip(i, 0, H - 1)
-    j = np.clip(j, 0, W - 1)
+    j = np.clip(j, 0, W + 1)
 
     # Stack the coordinates
     ij = np.stack((i, j), axis=0)
@@ -124,8 +131,19 @@ def perspective_from_equirectangular(
             sampled_perspective, (oversample_factor, oversample_factor, 1)
         )
 
+    # If only the resampled image is needed, return it
+    if not return_mask:
+        return sampled_perspective
+    # Otherwise return a mask of the pixels which were sampled
+
     # Also save a mask of the pixels being sampled
     mask = np.zeros(equi_img.shape[:2], dtype=bool)
     mask[i.astype(int), j.astype(int)] = True
+
+    # Handle edge effects by logical ORing the original edge with the opposite side
+    mask[:, 1] = np.logical_or(mask[:, 1], mask[:, -1])
+    mask[:, -2] = np.logical_or(mask[:, -2], mask[:, 0])
+    # Crop the additional edge pixels
+    mask = mask[:, 1:-1]
 
     return sampled_perspective, mask
