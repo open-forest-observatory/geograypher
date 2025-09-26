@@ -6,6 +6,7 @@ from PIL import Image
 import piexif
 from skimage.transform import warp, downscale_local_mean
 from scipy.spatial.transform import Rotation
+from typing import Tuple, Optional
 
 
 def get_GPS_exif(filename):
@@ -28,29 +29,43 @@ def get_GPS_exif(filename):
 
 
 def perspective_from_equirectangular(
-    equi_img,
-    fov_deg=90,
-    yaw_deg=0,
-    pitch_deg=0,
-    roll_deg=0,
-    output_size=(1440, 1440),
+    equi_img: np.ndarray,
+    fov_deg: float,
+    output_size: Tuple[float] = (1440, 1440),
+    yaw_deg: float = 0,
+    pitch_deg: float = 0,
+    roll_deg: float = 0,
     warp_order: int = 1,
     oversample_factor: int = 1,
     return_mask: bool = False,
-):
-    """Convert equirectangular (360) image to a perspective view.
-    Parameters:
-    - equi_img: np.ndarray the equirectangular image
-    - fov_deg: float, horizontal field of view in degrees
-    - yaw_deg: float, rotation around vertical axis (degrees)
-    - pitch_deg: float, rotation around horizontal axis (degrees)
-    - warp_order: int, order of polynomal interpolation in skimage.transform.warp
-    - oversample_factor: int, sample an image from the original which is larger by this factor to avoid aliasing
-
-    - output_size: (width, height) of output perspective image. Defaults to 1/4 the width.
-    Returns:
-    - PIL.Image of perspective projection
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
+    Sample a perspective image from an equirectangular (360) image. Different parameters of the
+    "virtual camera" can be controlled, including the field of view, oreintation (yaw, pitch, roll),
+    and output image size.
+
+    Args:
+        equi_img (np.ndarray):
+            Equirectangular image in (H, W, C) format. Currently only float (0,1) images are
+            supported but this is a TODO.
+        fov_deg float: camera horizontal field of view.
+        output_size Tuple[float]: Shape of the output image to sample (i, j).
+        yaw_deg (float, optional): yaw camera orientation. Defaults to 0.
+        pitch_deg (float, optional): pitch camera orientation. Defaults to 0.
+        roll_deg (float, optional): roll camera orientation. Defaults to 0.
+        warp_order (int, optional): Interpolation order to use when sampling pixels. Defaults to 1.
+        oversample_factor (int, optional):
+            Sample this number times more pixels in each dimension. This helps avoid aliasing but
+            increases runtime. Defaults to 1.
+        return_mask (bool, optional):
+           Return a mask showing what pixels from the original image were
+             sampled. Defaults to False.
+
+    Returns:
+        np.ndarray: The sampled perspective image
+        Optional[np.ndarray]]: The mask of sampled locations, if requested
+    """
+    # Convert an equirectangular (360) image to a perspective view.
     H, W = equi_img.shape[:2]
 
     # Output image dimensions
