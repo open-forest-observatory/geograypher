@@ -8,7 +8,7 @@ import pytest
     "expected,yaw_deg,pitch_deg",
     (
         [[(45, 270), (90, 315), (135, 270), (90, 225)], 90, 0],
-        [[(45, 360), (90, 45), (135, 360), (90, 315)], 180, 0],
+        [[(45, 0), (90, 45), (135, 0), (90, 315)], 180, 0],
     ),
 )
 def test_equi_to_perspective(expected, yaw_deg, pitch_deg):
@@ -29,7 +29,7 @@ def test_equi_to_perspective(expected, yaw_deg, pitch_deg):
     # Divide by 360 to get values in [0, 1] for skimage
     img = img / 360.0
 
-    sample, _ = perspective_from_equirectangular(
+    sample = perspective_from_equirectangular(
         equi_img=img,
         fov_deg=fov_deg,
         yaw_deg=yaw_deg,
