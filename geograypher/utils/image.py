@@ -1,12 +1,10 @@
-import piexif
-from PIL import Image
+from typing import Optional, Tuple
 
 import numpy as np
-from PIL import Image
 import piexif
-from skimage.transform import warp, downscale_local_mean
+from PIL import Image
 from scipy.spatial.transform import Rotation
-from typing import Tuple, Optional
+from skimage.transform import downscale_local_mean, warp
 
 
 def get_GPS_exif(filename):

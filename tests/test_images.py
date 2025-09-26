@@ -1,7 +1,8 @@
-import numpy as np
-from geograypher.utils.image import perspective_from_equirectangular
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
+
+from geograypher.utils.image import perspective_from_equirectangular
 
 
 @pytest.mark.parametrize(
