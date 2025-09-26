@@ -32,6 +32,7 @@ def perspective_from_equirectangular(
     fov_deg=90,
     yaw_deg=0,
     pitch_deg=0,
+    roll_deg=0,
     output_size=(1440, 1440),
     warp_order: int = 1,
     oversample_factor: int = 1,
@@ -63,6 +64,7 @@ def perspective_from_equirectangular(
     fov = np.deg2rad(fov_deg)
     yaw = np.deg2rad(yaw_deg)
     pitch = np.deg2rad(pitch_deg)
+    roll = np.deg2rad(roll_deg)
 
     # Compute the aspect ratio of the requested image dimensions
     aspect_ratio = out_h / out_w
@@ -84,7 +86,8 @@ def perspective_from_equirectangular(
     # normalize to unit
     pixel_directions /= np.linalg.norm(pixel_directions, axis=-1, keepdims=True)
 
-    rotation_matrix = Rotation.from_euler("yx", [yaw, pitch]).as_matrix()
+    # Seems to correspond to the roll-pitch-yaw convention
+    rotation_matrix = Rotation.from_euler("zyx", [roll, yaw, pitch]).as_matrix()
 
     # Rotate the pixel directions by the rotation matrix
     # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
