@@ -18,7 +18,7 @@ import rasterio as rio
 import shapely
 import skimage
 import ubelt as ub
-from scipy.spatial import KDTree
+from scipy.spatial import ConvexHull, KDTree
 from shapely import MultiPolygon, Polygon
 from skimage.transform import resize
 from tqdm import tqdm
@@ -179,7 +179,6 @@ class TexturedPhotogrammetryMesh:
 
         # TODO: Make a mechanism for reading this from metadata.xml
         self.pyvista_mesh.points = self.pyvista_mesh.points.astype(float)
-        print(self.pyvista_mesh.points.dtype)
         self.pyvista_mesh.points += np.array([763400, 4229800, 0])
 
         self.logger.info("Selecting an ROI from mesh")
@@ -562,7 +561,6 @@ class TexturedPhotogrammetryMesh:
         ],
         buffer_meters: float = 0,
         simplify_tol_meters: int = 0,
-        default_CRS: pyproj.CRS = pyproj.CRS.from_epsg(4326),
         return_original_IDs: bool = False,
     ):
         """Get a subset of the mesh based on geospatial data
@@ -575,7 +573,6 @@ class TexturedPhotogrammetryMesh:
                 * A file that can be loaded by geopandas
             buffer_meters (float, optional): Expand the geometry by this amount of meters. Defaults to 0.
             simplify_tol_meters (float, optional): Simplify the geometry using this as the tolerance. Defaults to 0.
-            default_CRS (pyproj.CRS, optional): The CRS to use if one isn't provided. Defaults to pyproj.CRS.from_epsg(4326).
             return_original_IDs (bool, optional): Return the indices into the original mesh. Defaults to False.
 
         Returns:
@@ -591,7 +588,11 @@ class TexturedPhotogrammetryMesh:
         if isinstance(region_of_interest, gpd.GeoDataFrame):
             ROI_gpd = region_of_interest
         elif isinstance(region_of_interest, (Polygon, MultiPolygon)):
-            ROI_gpd = gpd.DataFrame(crs=default_CRS, geometry=[region_of_interest])
+            ROI_gpd = gpd.GeoDataFrame(crs=self.CRS, geometry=[region_of_interest])
+        elif isinstance(region_of_interest, PhotogrammetryCameraSet):
+            cam_points = np.array(region_of_interest.get_camera_locations(as_CRS=self.CRS))
+            boundary = cam_points[ConvexHull(cam_points).vertices]
+            ROI_gpd = gpd.GeoDataFrame(crs=self.CRS, geometry=[Polygon(boundary)])
         else:
             ROI_gpd = gpd.read_file(region_of_interest)
 

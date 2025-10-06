@@ -12,6 +12,7 @@ import geopandas as gpd
 import networkx
 import numpy as np
 import numpy.ma as ma
+import pyproj
 import pyvista as pv
 from pyvista import demos
 from scipy.spatial.distance import pdist
@@ -208,19 +209,33 @@ class PhotogrammetryCamera:
 
         return self.lon_lat
 
-    def get_camera_location(self, get_z_coordinate: bool = False):
+    def get_camera_location(self, get_z_coordinate: bool = False, as_CRS: Optional[pyproj.CRS] = None):
         """Returns a tuple of camera coordinates from the camera-to-world transformation matrix.
         Args:
             get_z_coordinate (bool):
                 Flag that user can set if they want z-coordinates. Defaults to False.
+            as_CRS (Optional[pyproj.CRS]):
+                If given, return the points in the given CRS. If not given,
+                return points in the default frame (Metashape local)
         Returns:
             Tuple[float, float (, float)]: tuple containing internal mesh coordinates of the camera
         """
-        return (
-            tuple(self.cam_to_world_transform[0:3, 3])
-            if get_z_coordinate
-            else tuple(self.cam_to_world_transform[0:2, 3])
-        )
+
+        if as_CRS is None:
+            point = self.cam_to_world_transform[0:3, 3]
+        else:
+            transformer = pyproj.Transformer.from_crs(EARTH_CENTERED_EARTH_FIXED_CRS, as_CRS)
+            cam_in_ECEF = (
+                self._local_to_epsg_4978_transform
+                @ self.cam_to_world_transform
+                @ np.array([[0, 0, 0, 1]]).T
+            )
+            point = transformer.transform(
+                xx=cam_in_ECEF[0, 0],
+                yy=cam_in_ECEF[1, 0],
+                zz=cam_in_ECEF[2, 0],
+            )
+        return tuple(point) if get_z_coordinate else tuple(point[:2])
 
     def get_camera_view_angle(self, in_deg: bool = True) -> tuple:
         """Get the off-nadir pitch and yaw angles, computed geometrically from the photogrammtery result
@@ -944,7 +959,7 @@ class PhotogrammetryCameraSet:
             List[Tuple[float, float] or Tuple[float, float, float]]:
                 List of tuples containing the camera locations.
         """
-        return [x.get_camera_location(**kwargs) for x in self.cameras]
+        return [cam.get_camera_location(**kwargs) for cam in self.cameras]
 
     def distortion_key(
         self, parameters: Dict[str, float], image_scale: float = 1.0
