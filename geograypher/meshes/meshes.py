@@ -177,6 +177,11 @@ class TexturedPhotogrammetryMesh:
             self.logger.info("Reading the mesh")
             self.pyvista_mesh = pv.read(mesh)
 
+        # TODO: Make a mechanism for reading this from metadata.xml
+        self.pyvista_mesh.points = self.pyvista_mesh.points.astype(float)
+        print(self.pyvista_mesh.points.dtype)
+        self.pyvista_mesh.points += np.array([763400, 4229800, 0])
+
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
         self.pyvista_mesh = self.select_mesh_ROI(

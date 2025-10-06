@@ -12,6 +12,61 @@ from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS, LAT_LON_CRS, P
 from geograypher.utils.parsing import parse_sensors, parse_transform_metashape
 
 
+# TODO: Generalize these and put them in a reasonable place
+def sixify(iterable):
+    """
+    Take each element in the iterable and return 6 of each in a new list.
+    For example,
+        [A, B]
+    becomes
+        [A, A, A, A, A, A, B, B, B, B, B, B]
+    """
+    return [item for item in iterable for _ in range(6)]
+
+# TODO: These shouldn't live here and likely already exist elsewhere. We can
+# likely also just use the construction tools of the render process.
+def Rx(theta: float) -> np.ndarray:
+    c, s = np.cos(theta), np.sin(theta)
+    return np.array([
+        [1,  0,  0, 0],
+        [0,  c, -s, 0],
+        [0,  s,  c, 0],
+        [0,  0,  0, 1]
+    ], dtype=float)
+
+def Ry(theta: float) -> np.ndarray:
+    c, s = np.cos(theta), np.sin(theta)
+    return np.array([
+        [ c, 0,  s, 0],
+        [ 0, 1,  0, 0],
+        [-s, 0,  c, 0],
+        [ 0, 0,  0, 1]
+    ], dtype=float)
+
+# TODO: Make this more generalizable with reading transformations from the render process
+def cubify(transforms, names):
+    new_transforms = []
+    new_names = []
+    for transform, name in zip(transforms, names):
+        for T, suffix in (
+            (np.eye(4), "_yaw000_pitch000"),
+            (Rx(np.deg2rad(90)), "_yaw000_pitch090"),
+            (Rx(np.deg2rad(-90)), "_yaw000_pitch-90"),
+            (Ry(np.deg2rad(-90)), "_yaw090_pitch000"),
+            (Ry(np.deg2rad(180)), "_yaw180_pitch000"),
+            (Ry(np.deg2rad(90)), "_yaw270_pitch000"),
+        ):
+            # Apply the simple rotation to the world_to_cam frame, then invert
+            # it back to cam_to_world as the final output
+            world_to_cam = np.linalg.inv(transform)
+            new_transforms.append(np.linalg.inv(T @ world_to_cam))
+            # NOTE: png will probably be discontinued and for some reason the path
+            # coming in as "name" has no suffix, so we will likely need to include
+            # the extension in the mapping from the render process
+            new_names.append(name.parent / f"{name.stem}{suffix}.png")
+    return new_transforms, new_names
+
+
 def update_lists(
     camera,
     image_folder,
@@ -136,14 +191,32 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
             # TODO consider trying to parse from the xml
             lon_lats = None
 
+        # TODO: The 360→cube image renderer should save a mapping file that
+        # stores this. For now hard-code it
+        # {
+        #   image01 → [image01-rot1, image01-rot2, ...]
+        #   image02 → [image02-rot1, image02-rot2, ...]
+        #   ...
+        # }
+        # rotations = [matrix, matrix, ...]
+        # image size = M x N
+        sensors_dict[0]["image_width"] = 1440
+        sensors_dict[0]["image_height"] = 1440
+        # The focal length equation is (same for x and y in this case)
+        # FOVx = 2 * arctan(width / (2 * fx))
+        sensors_dict[0]["f"] = 1440 / 2 * np.tan(np.deg2rad(90) / 2)
+
+        # TODO: Read this mapping from the mapping file, don't hardcode it
+        cam_to_world_transforms, image_filenames = cubify(cam_to_world_transforms, image_filenames)
+
         # Actually construct the camera objects using the base class
         super().__init__(
-            cam_to_world_transforms=cam_to_world_transforms,
             intrinsic_params_per_sensor_type=sensors_dict,
+            cam_to_world_transforms=cam_to_world_transforms,
             image_filenames=image_filenames,
-            lon_lats=lon_lats,
+            lon_lats=sixify(lon_lats),
+            sensor_IDs=sixify(sensor_IDs),
             image_folder=image_folder,
-            sensor_IDs=sensor_IDs,
             validate_images=validate_images,
             local_to_epsg_4978_transform=chunk_to_epsg4978,
         )
