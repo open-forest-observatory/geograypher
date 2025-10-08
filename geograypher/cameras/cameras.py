@@ -209,7 +209,9 @@ class PhotogrammetryCamera:
 
         return self.lon_lat
 
-    def get_camera_location(self, get_z_coordinate: bool = False, as_CRS: Optional[pyproj.CRS] = None):
+    def get_camera_location(
+        self, get_z_coordinate: bool = False, as_CRS: Optional[pyproj.CRS] = None
+    ):
         """Returns a tuple of camera coordinates from the camera-to-world transformation matrix.
         Args:
             get_z_coordinate (bool):
@@ -224,7 +226,9 @@ class PhotogrammetryCamera:
         if as_CRS is None:
             point = self.cam_to_world_transform[0:3, 3]
         else:
-            transformer = pyproj.Transformer.from_crs(EARTH_CENTERED_EARTH_FIXED_CRS, as_CRS)
+            transformer = pyproj.Transformer.from_crs(
+                EARTH_CENTERED_EARTH_FIXED_CRS, as_CRS
+            )
             cam_in_ECEF = (
                 self._local_to_epsg_4978_transform
                 @ self.cam_to_world_transform

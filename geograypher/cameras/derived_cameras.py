@@ -23,25 +23,22 @@ def sixify(iterable):
     """
     return [item for item in iterable for _ in range(6)]
 
+
 # TODO: These shouldn't live here and likely already exist elsewhere. We can
 # likely also just use the construction tools of the render process.
 def Rx(theta: float) -> np.ndarray:
     c, s = np.cos(theta), np.sin(theta)
-    return np.array([
-        [1,  0,  0, 0],
-        [0,  c, -s, 0],
-        [0,  s,  c, 0],
-        [0,  0,  0, 1]
-    ], dtype=float)
+    return np.array(
+        [[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]], dtype=float
+    )
+
 
 def Ry(theta: float) -> np.ndarray:
     c, s = np.cos(theta), np.sin(theta)
-    return np.array([
-        [ c, 0,  s, 0],
-        [ 0, 1,  0, 0],
-        [-s, 0,  c, 0],
-        [ 0, 0,  0, 1]
-    ], dtype=float)
+    return np.array(
+        [[c, 0, s, 0], [0, 1, 0, 0], [-s, 0, c, 0], [0, 0, 0, 1]], dtype=float
+    )
+
 
 # TODO: Make this more generalizable with reading transformations from the render process
 def cubify(transforms, names):
@@ -207,7 +204,9 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         sensors_dict[0]["f"] = 1440 / 2 * np.tan(np.deg2rad(90) / 2)
 
         # TODO: Read this mapping from the mapping file, don't hardcode it
-        cam_to_world_transforms, image_filenames = cubify(cam_to_world_transforms, image_filenames)
+        cam_to_world_transforms, image_filenames = cubify(
+            cam_to_world_transforms, image_filenames
+        )
 
         # Actually construct the camera objects using the base class
         super().__init__(

@@ -590,7 +590,9 @@ class TexturedPhotogrammetryMesh:
         elif isinstance(region_of_interest, (Polygon, MultiPolygon)):
             ROI_gpd = gpd.GeoDataFrame(crs=self.CRS, geometry=[region_of_interest])
         elif isinstance(region_of_interest, PhotogrammetryCameraSet):
-            cam_points = np.array(region_of_interest.get_camera_locations(as_CRS=self.CRS))
+            cam_points = np.array(
+                region_of_interest.get_camera_locations(as_CRS=self.CRS)
+            )
             boundary = cam_points[ConvexHull(cam_points).vertices]
             ROI_gpd = gpd.GeoDataFrame(crs=self.CRS, geometry=[Polygon(boundary)])
         else:
