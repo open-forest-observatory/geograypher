@@ -99,8 +99,14 @@ def perspective_from_equirectangular(
     # normalize to unit
     pixel_directions /= np.linalg.norm(pixel_directions, axis=-1, keepdims=True)
 
+    # Permute the axes
+    ## New Z has to be old -Y
+    ## New Y has to be old X
+    ## New X has to be old Z
+
     # Seems to correspond to the roll-pitch-yaw convention
-    rotation_matrix = Rotation.from_euler("zyx", [roll, yaw, pitch]).as_matrix()
+    # https://stackoverflow.com/questions/74434119/scipy-rotation-matrix-from-as-euler-angles
+    rotation_matrix = Rotation.from_euler("ZYX", [yaw, pitch, roll]).as_matrix()
 
     # Rotate the pixel directions by the rotation matrix
     # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
