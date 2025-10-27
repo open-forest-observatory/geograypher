@@ -58,6 +58,7 @@ class TexturedPhotogrammetryMesh:
         texture: typing.Union[PATH_TYPE, np.ndarray, None] = None,
         texture_column_name: typing.Union[PATH_TYPE, None] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
+        shift: typing.Union[np.ndarray, None] = None,
         ROI: typing.Union[
             gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None
         ] = None,
@@ -86,6 +87,9 @@ class TexturedPhotogrammetryMesh:
             IDs_to_labels (typing.Union[PATH_TYPE, dict, None], optional):
                 dictionary or path to JSON file containing the mapping from integer IDs to string
                 class names. Defaults to None.
+            shift (typing.Union[np.ndarray, None], optional):
+                If provided, shift all vertex coordinates by this amount in the input_CRS frame.
+                Defaults to None.
             ROI (typing.Union[ gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None ], optional):
                 Crop the mesh to this region. For more information see `select_mesh_ROI`. Defaults
                 to None.
@@ -124,6 +128,7 @@ class TexturedPhotogrammetryMesh:
             mesh=mesh,
             input_CRS=input_CRS,
             downsample_target=downsample_target,
+            shift=shift,
             ROI=ROI,
             ROI_buffer_meters=ROI_buffer_meters,
         )
@@ -148,6 +153,7 @@ class TexturedPhotogrammetryMesh:
         mesh: typing.Union[PATH_TYPE, pv.PolyData],
         input_CRS: pyproj.CRS,
         downsample_target: float = 1.0,
+        shift: typing.Union[np.ndarray, None] = None,
         ROI=None,
         ROI_buffer_meters=0,
         ROI_simplify_tol_meters=2,
@@ -159,6 +165,9 @@ class TexturedPhotogrammetryMesh:
                 Path to the mesh or actual mesh
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
+            shift (typing.Union[np.ndarray, None], optional):
+                If provided, shift all vertex coordinates by this amount in the input_CRS frame.
+                Defaults to None.
             ROI:
                 See select_mesh_ROI. Defaults to None
             ROI_buffer_meters:
@@ -176,6 +185,13 @@ class TexturedPhotogrammetryMesh:
             # TODO see if pytorch3d has faster/more flexible readers. I'd assume no, but it's good to check
             self.logger.info("Reading the mesh")
             self.pyvista_mesh = pv.read(mesh)
+
+        # Up-cast to avoid quantization errors after we shift or transform to larger values
+        self.pyvista_mesh.points = self.pyvista_mesh.points.astype(float)
+
+        # If a shift is provided, shift all mesh vertices by this amount
+        if shift is not None:
+            self.pyvista_mesh.points += shift
 
         self.logger.info("Selecting an ROI from mesh")
         # Select a region of interest if needed
