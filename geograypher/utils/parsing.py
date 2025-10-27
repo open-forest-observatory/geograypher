@@ -8,7 +8,7 @@ import pyproj
 
 
 def parse_metashape_mesh_metadata(
-    mesh_metadata_file: typing.Union[str, Path]
+    mesh_metadata_file: typing.Union[str, Path],
 ) -> typing.Tuple[typing.Union[pyproj.CRS, None], typing.Union[np.ndarray, None]]:
     """
     Parse the metadata file which is produced by Metashape when exporting a mesh to determine the
