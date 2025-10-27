@@ -9,7 +9,7 @@ import pyproj
 
 def parse_metashape_mesh_metadata(
     mesh_metadata_file: typing.Union[str, Path]
-) -> typing.Tuple[pyproj.CRS, np.ndarray]:
+) -> typing.Tuple[typing.Union[pyproj.CRS, None], typing.Union[np.ndarray, None]]:
     """
     Parse the metadata file which is produced by Metashape when exporting a mesh to determine the
     coordinate reference frame and origin shift to use when interpreting the mesh.
@@ -19,14 +19,25 @@ def parse_metashape_mesh_metadata(
         mesh_metadata_file (typing.Union[str, Path]): Path to the metadata XML file.
 
     Returns:
-        pyproj.CRS: The CRS to interpret the vertices (after the shift)
-        np.ndarray: The shift to be added to the mesh vertices
+        Union[pyproj.CRS, None]:
+            The CRS to interpret the vertices (after the shift). If not present, None is returned.
+        Union[np.ndarray, None]:
+            The shift to be added to the mesh vertices. If not present, None is returned.
     """
     tree = ET.parse(mesh_metadata_file)
     root = tree.getroot()
-    # Parse and cast the CRS and shift
-    CRS = pyproj.CRS(root.find("SRS").text)
-    shift = np.array(root.find("SRSOrigin").text.split(","), dtype=float)
+
+    # Parse CRS and shift
+    CRS = root.find("SRS")
+    shift = root.find("SRSOrigin")
+
+    # If CRS is present, convert it to a pyproj type
+    if CRS is not None:
+        CRS = pyproj.CRS(CRS.text)
+
+    # If the shift is present, convert to a numpy array
+    if shift is not None:
+        shift = np.array(shift.text.split(","), dtype=float)
     return CRS, shift
 
 
