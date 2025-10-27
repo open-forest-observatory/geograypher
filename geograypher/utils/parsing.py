@@ -1,6 +1,6 @@
+import typing
 import xml.etree.ElementTree as ET
 from copy import copy
-import typing
 from pathlib import Path
 
 import numpy as np
