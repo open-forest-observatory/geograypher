@@ -88,8 +88,8 @@ class TexturedPhotogrammetryMesh:
                 dictionary or path to JSON file containing the mapping from integer IDs to string
                 class names. Defaults to None.
             shift (typing.Union[np.ndarray, None], optional):
-                If provided, shift all vertex coordinates by this amount in the input_CRS frame.
-                Defaults to None.
+                Represents an [x, y, z] shift as a (3,) array. If provided, shift all vertex
+                coordinates by this amount in the input_CRS frame. Defaults to None.
             ROI (typing.Union[ gpd.GeoDataFrame, Polygon, MultiPolygon, PATH_TYPE, None ], optional):
                 Crop the mesh to this region. For more information see `select_mesh_ROI`. Defaults
                 to None.
@@ -166,8 +166,8 @@ class TexturedPhotogrammetryMesh:
             downsample_target (float, optional):
                 What fraction of mesh vertices to downsample to. Defaults to 1.0, (does nothing).
             shift (typing.Union[np.ndarray, None], optional):
-                If provided, shift all vertex coordinates by this amount in the input_CRS frame.
-                Defaults to None.
+                Represents an [x, y, z] shift as a (3,) array. If provided, shift all vertex
+                coordinates by this amount in the input_CRS frame. Defaults to None.
             ROI:
                 See select_mesh_ROI. Defaults to None
             ROI_buffer_meters:
