@@ -1,7 +1,44 @@
+import typing
 import xml.etree.ElementTree as ET
 from copy import copy
+from pathlib import Path
 
 import numpy as np
+import pyproj
+
+
+def parse_metashape_mesh_metadata(
+    mesh_metadata_file: typing.Union[str, Path],
+) -> typing.Tuple[typing.Union[pyproj.CRS, None], typing.Union[np.ndarray, None]]:
+    """
+    Parse the metadata file which is produced by Metashape when exporting a mesh to determine the
+    coordinate reference frame and origin shift to use when interpreting the mesh.
+
+
+    Args:
+        mesh_metadata_file (typing.Union[str, Path]): Path to the metadata XML file.
+
+    Returns:
+        Union[pyproj.CRS, None]:
+            The CRS to interpret the vertices (after the shift). If not present, None is returned.
+        Union[np.ndarray, None]:
+            The shift to be added to the mesh vertices. If not present, None is returned.
+    """
+    tree = ET.parse(mesh_metadata_file)
+    root = tree.getroot()
+
+    # Parse CRS and shift
+    CRS = root.find("SRS")
+    shift = root.find("SRSOrigin")
+
+    # If CRS is present, convert it to a pyproj type
+    if CRS is not None:
+        CRS = pyproj.CRS(CRS.text)
+
+    # If the shift is present, convert to a numpy array
+    if shift is not None:
+        shift = np.array(shift.text.split(","), dtype=float)
+    return CRS, shift
 
 
 def make_4x4_transform(rotation_str: str, translation_str: str, scale_str: str = "1"):
