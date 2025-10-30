@@ -125,8 +125,9 @@ def perspective_from_equirectangular(
     # Convert 3D directions to spherical coordinates
     # horizontal angle
     horizontal = np.arctan2(pixel_directions[..., 0], pixel_directions[..., 2])
-    # vertical angle
-    altitude = np.arcsin(pixel_directions[..., 1])
+    # vertical angle. Clip to avoid floating point errors which extend beyond the valid domain
+    # of arcsin
+    altitude = np.arcsin(np.clip(pixel_directions[..., 1], -1.0, 1.0))
 
     # Map to equirectangular image coordinates
     i = (0.5 - altitude / np.pi) * H
