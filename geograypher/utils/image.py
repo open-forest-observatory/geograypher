@@ -99,10 +99,12 @@ def perspective_from_equirectangular(
     # normalize to unit
     pixel_directions /= np.linalg.norm(pixel_directions, axis=-1, keepdims=True)
 
-    # Permute the axes
+    # Permute the axes between the frames used for the conventional definition of yaw, pitch, roll
+    # and the axes used for a camera frame.
     ## New Z has to be old -Y
     ## New Y has to be old X
     ## New X has to be old Z
+    perumutation_matrix = np.array([[0, 0, 1], [1, 0, 0], [0, -1, 0]])
 
     # Seems to correspond to the roll-pitch-yaw convention
     # https://stackoverflow.com/questions/74434119/scipy-rotation-matrix-from-as-euler-angles
@@ -111,7 +113,14 @@ def perspective_from_equirectangular(
     # Rotate the pixel directions by the rotation matrix
     # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
     # so this allows the dimensions to align for the matrix multiplication.
-    pixel_directions = pixel_directions @ rotation_matrix.T
+    # The permutation matrix can be thought of first converting into the conventional RPY frame,
+    # then applying the rotation, then converting back into the camera frame.
+    pixel_directions = (
+        pixel_directions
+        @ perumutation_matrix.T
+        @ rotation_matrix.T
+        @ perumutation_matrix
+    )
 
     # Convert 3D directions to spherical coordinates
     # horizontal angle
