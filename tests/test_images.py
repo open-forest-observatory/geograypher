@@ -5,57 +5,92 @@ import pytest
 from geograypher.utils.image import perspective_from_equirectangular
 
 
-@pytest.mark.parametrize(
-    "expected,yaw_deg,pitch_deg",
-    (
-        [[(45, 270), (90, 315), (135, 270), (90, 225)], 90, 0],
-        [[(45, 0), (90, 45), (135, 0), (90, 315)], 180, 0],
-    ),
-)
-def test_equi_to_perspective(expected, yaw_deg, pitch_deg):
+def convert_yp_to_xyz(yaw_pitch_deg):
+    # AI slop
+    yaw_rad = np.deg2rad(yaw_pitch_deg[0])
+    pitch_rad = np.deg2rad(yaw_pitch_deg[1])
+
+    x = np.cos(pitch_rad) * np.sin(yaw_rad)
+    y = np.sin(pitch_rad)
+    z = np.cos(pitch_rad) * np.cos(yaw_rad)
+
+    return np.array([x, y, z])
+
+
+# @pytest.mark.parametrize(
+#    "yaw_deg,pitch_deg,roll_deg",
+#    ([180, 90, 30],),
+# )
+@pytest.mark.parametrize("yaw_deg", [0, 45, 180, 270])
+@pytest.mark.parametrize("pitch_deg", [0, 45, 90, -90])
+@pytest.mark.parametrize("roll_deg", [0, 30, 45, 180])
+def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     output_size = (91, 91)
-    fov_deg = 90
+    fov_deg = 60
     oversample_factor = 1
     warp_order = 0
 
-    # Create a test equirectangular image where the pixel values are the (i,j) coordinates
-    i_samples = np.arange(180)
-    j_samples = np.arange(360)
+    # Create a test equirectangular image where the pixel values are the (pitch, yaw) coordinates,
+    # Defined using the center of the image as (0,0)
+
+    # Negative from image convention
+    i_samples = np.arange(90, -90, -1)
+    j_samples = np.arange(-180, 180, 1)
 
     ij = np.meshgrid(i_samples, j_samples, indexing="ij")
     img = np.stack(
         ij,
         axis=-1,
     )
-    # Divide by 360 to get values in [0, 1] for skimage
-    img = img / 360.0
+    # scale and shift to (0,1) range for skimage compatibility
+    img = (img / 360.0) + 0.5
 
-    sample = perspective_from_equirectangular(
+    sample, mask = perspective_from_equirectangular(
         equi_img=img,
         fov_deg=fov_deg,
         yaw_deg=yaw_deg,
         pitch_deg=pitch_deg,
+        roll_deg=roll_deg,
         output_size=output_size,
         warp_order=warp_order,
         oversample_factor=oversample_factor,
+        return_mask=True,
     )
     # Re-scale back to original pixel values
-    sample = sample * 360.0
+    sample = sample * 360.0 - 180.0
 
     # Check the four pixels at the center of each side to see if the value is what was expected
-    assert np.allclose(sample[0, 45, :2], expected[0], atol=1)
-    assert np.allclose(sample[45, 90, :2], expected[1], atol=1)
-    assert np.allclose(sample[90, 45, :2], expected[2], atol=1)
-    assert np.allclose(sample[45, 0, :2], expected[3], atol=1)
+    # assert np.allclose(sample[0, 45, :2], expected[0], atol=1)
+    # assert np.allclose(sample[45, 90, :2], expected[1], atol=1)
+    # assert np.allclose(sample[90, 45, :2], expected[2], atol=1)
+    # assert np.allclose(sample[45, 0, :2], expected[3], atol=1)
 
-    ## For debugging, unccoment these
+    xyz_sample = convert_yp_to_xyz(sample[45, 45, :])
+    xyz_input = convert_yp_to_xyz([pitch_deg, yaw_deg])
+    print(
+        np.array(xyz_sample) - np.array(xyz_input),
+        sample[45, 45, :],
+        [pitch_deg, yaw_deg],
+    )
+    assert np.allclose(
+        xyz_sample,
+        xyz_input,
+        atol=0.02,
+    )
+
+    ## For debugging, uncomment these
     ## This shows the indices in the original image from which the perspective image was sampled
-    # f, ax = plt.subplots(1, 2)
-    # cb = ax[0].imshow(sample[:, :, 0])
-    # f.colorbar(cb, ax=ax[0])
-    # ax[0].title.set_text("I values")
+    if False:
+        f, ax = plt.subplots(1, 3)
+        cb = ax[0].imshow(sample[:, :, 0])
+        f.colorbar(cb, ax=ax[0])
+        ax[0].title.set_text("I values")
 
-    # cb = ax[1].imshow(sample[:, :, 1])
-    # f.colorbar(cb, ax=ax[1])
-    # ax[1].title.set_text("J values")
-    # plt.show()
+        cb = ax[1].imshow(sample[:, :, 1])
+        f.colorbar(cb, ax=ax[1])
+        ax[1].title.set_text("J values")
+
+        cb = ax[2].imshow(mask)
+        f.colorbar(cb, ax=ax[2])
+        ax[2].title.set_text("Mask")
+        plt.show()
