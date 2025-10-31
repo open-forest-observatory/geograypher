@@ -33,7 +33,7 @@ def convert_py_to_xyz(pitch_yaw_deg):
 def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     output_size = (151, 101)
     fov_deg = 60
-    oversample_factor = 1
+    oversample_factor = 2
     warp_order = 0
 
     # Create a test equirectangular image where the pixel values are the (pitch, yaw) coordinates,
