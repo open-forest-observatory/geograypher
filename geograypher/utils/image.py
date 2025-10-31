@@ -55,6 +55,63 @@ def rotate_by_roll_pitch_yaw(
     return rotation_matrix_in_cam_frame
 
 
+def flexible_inputs_warp(
+    input_image: np.ndarray,
+    inverse_map: np.ndarray,
+    interpolation_order: int = None,
+    fill_value: float = 0.0,
+):
+    """
+    Extends the functionality of skimage.transform.warp to handle arbitrary datatypes and
+    multi-channel images
+    """
+    # Temporarily expand grayscale images to be (N, M, 1)
+    input_image = np.atleast_3d(input_image)
+
+    # Note if the fill_value is not actually used and is in fact outside the range of the input
+    # values it will result in an artificially small range of data for the real values. But it won't
+    # affect the results aside from the possible loss of precision.
+    # Compute the min and max of values, including both the inputs and the fill value
+    input_min = min(np.min(input_image), fill_value)
+    input_max = max(np.max(input_image), fill_value)
+    # Compute the range of values
+    min_max_range = input_max - input_min
+
+    # If there's no variation, we can avoid division by 0 issues and save computation by just
+    # returning an array of one value
+    if min_max_range == 0:
+        return np.full_like(np.squeeze(input_image), fill_value=fill_value)
+
+    # Record the original datatype
+    initial_dtype = input_image.dtype
+    # Rescale to 0-1
+    input_image = (input_image.astype(float) - input_min) / min_max_range
+    # The fill value will be applied to the rescaled image, so it must be rescaled similarly
+    rescaled_fill_value = (float(fill_value) - input_min) / min_max_range
+
+    # Create an output image that's the shape of inverse map (minus first dimension which is 2 [i,j])
+    # and the number of channels from the input image
+    output_image = np.zeros(inverse_map.shape[1:] + (input_image.shape[2],))
+    # For each color channel, do the warping
+    for channel in range(input_image.shape[2]):
+        warped = warp(
+            image=input_image[:, :, channel],
+            inverse_map=inverse_map,
+            order=interpolation_order,  # interpolation strategy for fractional pixels
+            mode="constant",  # fill unseen areas with cval
+            cval=rescaled_fill_value,
+            clip=True,  # clip to [0,1]
+            preserve_range=True,  # keep original range without rescaling
+        )
+        output_image[:, :, channel] = warped
+
+    # Convert to the original range and datatype
+    output_image = ((output_image * min_max_range) + input_min).astype(initial_dtype)
+
+    # If the original image was grayscale, remove the added singleton dimension
+    return np.squeeze(output_image)
+
+
 def perspective_from_equirectangular(
     equi_img: np.ndarray,
     fov_deg: float,
@@ -164,13 +221,8 @@ def perspective_from_equirectangular(
     ij = np.stack((i, j), axis=0)
 
     # Sample pixels from the specified coordinates to obtain the perspective image
-    # Note this must be done channel-wise
-    sampled_perspective = np.stack(
-        [
-            warp(equi_img[..., c], ij, order=warp_order)
-            for c in range(equi_img.shape[2])
-        ],
-        axis=2,
+    sampled_perspective = flexible_inputs_warp(
+        input_image=equi_img, inverse_map=ij, interpolation_order=warp_order
     )
 
     if oversample_factor > 1:
