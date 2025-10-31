@@ -31,7 +31,7 @@ def convert_py_to_xyz(pitch_yaw_deg):
 @pytest.mark.parametrize("pitch_deg", [0, 45, 90, -90])
 @pytest.mark.parametrize("roll_deg", [0, 30, 45, 180])
 def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
-    output_size = (91, 91)
+    output_size = (151, 101)
     fov_deg = 60
     oversample_factor = 1
     warp_order = 0
@@ -66,12 +66,12 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     # Re-scale back to original pixel values
     sample = sample * 360.0 - 180.0
 
-    xyz_sample = convert_py_to_xyz(sample[45, 45, :])
+    xyz_sample = convert_py_to_xyz(sample[50, 75, :])
     xyz_input = convert_py_to_xyz([pitch_deg, yaw_deg])
     # Print out the difference for debugging
     print(
         np.array(xyz_sample) - np.array(xyz_input),
-        sample[45, 45, :],
+        sample[50, 75, :],
         [pitch_deg, yaw_deg],
     )
     assert np.allclose(
