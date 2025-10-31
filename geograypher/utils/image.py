@@ -26,6 +26,35 @@ def get_GPS_exif(filename):
     return lon, lat
 
 
+def rotate_by_roll_pitch_yaw(
+    roll_deg: float, pitch_deg: float, yaw_deg: float
+) -> np.ndarray:
+    # Convert from degrees to radians
+    yaw = np.deg2rad(yaw_deg)
+    pitch = np.deg2rad(pitch_deg)
+    roll = np.deg2rad(roll_deg)
+
+    # RPY is defined with roll about X, pitch about Y, yaw about Z. We need to convert from the
+    # perspective camera frame axes convention to the RPY convention.
+    # New Z has to be old -Y
+    # New Y has to be old X
+    # New X has to be old Z
+    perumutation_matrix = np.array([[0, 0, 1], [1, 0, 0], [0, -1, 0]])
+
+    # Calculate the rotation matrix corresponding to the roll-pitch-yaw convention
+    # https://stackoverflow.com/questions/74434119/scipy-rotation-matrix-from-as-euler-angles
+    rotation_matrix = Rotation.from_euler("ZYX", [yaw, pitch, roll]).as_matrix()
+
+    # The permutation matrix can be thought of first converting into the conventional RPY frame,
+    # then applying the rotation, then converting back into the camera frame.
+    # TODO determine why we're using the transpose rotation matrix
+    rotation_matrix_in_cam_frame = (
+        perumutation_matrix.T @ rotation_matrix.T @ perumutation_matrix
+    )
+
+    return rotation_matrix_in_cam_frame
+
+
 def perspective_from_equirectangular(
     equi_img: np.ndarray,
     fov_deg: float,
@@ -75,9 +104,6 @@ def perspective_from_equirectangular(
 
     # FOV and angles in radians
     fov = np.deg2rad(fov_deg)
-    yaw = np.deg2rad(yaw_deg)
-    pitch = np.deg2rad(pitch_deg)
-    roll = np.deg2rad(roll_deg)
 
     # Compute the aspect ratio of the requested image dimensions
     aspect_ratio = out_h / out_w
@@ -99,28 +125,14 @@ def perspective_from_equirectangular(
     # normalize to unit
     pixel_directions /= np.linalg.norm(pixel_directions, axis=-1, keepdims=True)
 
-    # Permute the axes between the frames used for the conventional definition of yaw, pitch, roll
-    # and the axes used for a camera frame.
-    ## New Z has to be old -Y
-    ## New Y has to be old X
-    ## New X has to be old Z
-    perumutation_matrix = np.array([[0, 0, 1], [1, 0, 0], [0, -1, 0]])
-
-    # Seems to correspond to the roll-pitch-yaw convention
-    # https://stackoverflow.com/questions/74434119/scipy-rotation-matrix-from-as-euler-angles
-    rotation_matrix = Rotation.from_euler("ZYX", [yaw, pitch, roll]).as_matrix()
+    rotation_matrix = rotate_by_roll_pitch_yaw(roll_deg, pitch_deg, yaw_deg)
 
     # Rotate the pixel directions by the rotation matrix
     # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
     # so this allows the dimensions to align for the matrix multiplication.
     # The permutation matrix can be thought of first converting into the conventional RPY frame,
     # then applying the rotation, then converting back into the camera frame.
-    pixel_directions = (
-        pixel_directions
-        @ perumutation_matrix.T
-        @ rotation_matrix.T
-        @ perumutation_matrix
-    )
+    pixel_directions = pixel_directions @ rotation_matrix
 
     # Convert 3D directions to spherical coordinates
     # horizontal angle
