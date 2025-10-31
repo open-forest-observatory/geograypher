@@ -148,18 +148,17 @@ def perspective_from_equirectangular(
     # Map to equirectangular image coordinates
     i = (0.5 - altitude / np.pi) * H
     j = (horizontal / (2 * np.pi) + 0.5) * W
-
-    # Replicate the pixels from the opposite side of the image to handle wrap-around
-    equi_img = np.concatenate(
-        [equi_img[:, -1:, :], equi_img, equi_img[:, 0:1, :]], axis=1
-    )
-
-    j += 1  # offset by 1 to account for the extra pixel at the start
+    # The range of these coordinates would be i in [0, H], j in [0, W]
+    # To account for the wraparound effects if the sampling goes of the right edge, add the left row
+    # of pixels to the right side.
+    # TODO think more about sub-pixel considerations and how these coordinates interact with skimage
+    # conventions on sampling and interpolation.
+    equi_img = np.concatenate([equi_img, equi_img[:, 0:1, :]], axis=1)
 
     # Ensure that the coordinates are within the image. Note that the cropping in j is more generous
-    # becuase of the wrap-around pixels.
+    # because of the wrap-around pixel.
     i = np.clip(i, 0, H - 1)
-    j = np.clip(j, 0, W + 1)
+    j = np.clip(j, 0, W)
 
     # Stack the coordinates
     ij = np.stack((i, j), axis=0)
@@ -184,14 +183,15 @@ def perspective_from_equirectangular(
         return sampled_perspective
     # Otherwise return a mask of the pixels which were sampled
 
-    # Also save a mask of the pixels being sampled
-    mask = np.zeros(equi_img.shape[:2], dtype=bool)
-    mask[i.astype(int), j.astype(int)] = True
+    # Also save a mask of the pixels being sampled. Note that pixel needs to be added in the width
+    mask = np.zeros((equi_img.shape[0], equi_img.shape[1] + 1), dtype=bool)
+    # Set pixels which were sampled to True
+    mask[np.round(i).astype(int), np.round(j).astype(int)] = True
 
-    # Handle edge effects by logical ORing the original edge with the opposite side
-    mask[:, 1] = np.logical_or(mask[:, 1], mask[:, -1])
-    mask[:, -2] = np.logical_or(mask[:, -2], mask[:, 0])
-    # Crop the additional edge pixels
-    mask = mask[:, 1:-1]
+    # In some cases the right edge might have been sampled, so report this as a sampled pixel on the
+    # left edge
+    mask[:, 0] = np.logical_or(mask[:, 0], mask[:, -1])
+    # Remove the right edge pixels
+    mask = mask[:, :-1]
 
     return sampled_perspective, mask
