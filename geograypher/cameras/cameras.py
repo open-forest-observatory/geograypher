@@ -40,8 +40,7 @@ from geograypher.utils.geometric import (
     projection_onto_plane,
 )
 from geograypher.utils.geospatial import convert_CRS_3D_points, ensure_projected_CRS
-from geograypher.utils.image import get_GPS_exif
-from geograypher.utils.image import flexible_inputs_warp
+from geograypher.utils.image import flexible_inputs_warp, get_GPS_exif
 from geograypher.utils.indexing import inverse_map_interpolation
 from geograypher.utils.numeric import (
     calc_communities,
