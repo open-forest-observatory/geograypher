@@ -27,10 +27,6 @@ def convert_py_to_xyz(pitch_yaw_deg):
     return np.array([x, y, z])
 
 
-# @pytest.mark.parametrize(
-#    "yaw_deg,pitch_deg,roll_deg",
-#    ([180, 90, 30],),
-# )
 @pytest.mark.parametrize("yaw_deg", [0, 45, 180, 270])
 @pytest.mark.parametrize("pitch_deg", [0, 45, 90, -90])
 @pytest.mark.parametrize("roll_deg", [0, 30, 45, 180])
@@ -99,4 +95,6 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
         cb = ax[2].imshow(mask)
         f.colorbar(cb, ax=ax[2])
         ax[2].title.set_text("Mask")
+
+        f.suptitle(f"roll {roll_deg} pitch {pitch_deg} yaw {yaw_deg}")
         plt.show()
