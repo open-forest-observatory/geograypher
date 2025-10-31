@@ -41,11 +41,12 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     warp_order = 0
 
     # Create a test equirectangular image where the pixel values are the (pitch, yaw) coordinates,
-    # Defined using the center of the image as (0,0)
+    # Defined using the center of the image as (0,0). Note that there is a half pixel offset so
+    # that the center of the pixel corresponds to the angle.
 
     # Negative from image convention
-    i_samples = np.arange(90, -90, -1)
-    j_samples = np.arange(-180, 180, 1)
+    i_samples = np.arange(90 - 0.5, -90, -1)
+    j_samples = np.arange(-180 + 0.5, 180, 1)
 
     ij = np.meshgrid(i_samples, j_samples, indexing="ij")
     img = np.stack(
@@ -69,14 +70,9 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     # Re-scale back to original pixel values
     sample = sample * 360.0 - 180.0
 
-    # Check the four pixels at the center of each side to see if the value is what was expected
-    # assert np.allclose(sample[0, 45, :2], expected[0], atol=1)
-    # assert np.allclose(sample[45, 90, :2], expected[1], atol=1)
-    # assert np.allclose(sample[90, 45, :2], expected[2], atol=1)
-    # assert np.allclose(sample[45, 0, :2], expected[3], atol=1)
-
     xyz_sample = convert_py_to_xyz(sample[45, 45, :])
     xyz_input = convert_py_to_xyz([pitch_deg, yaw_deg])
+    # Print out the difference for debugging
     print(
         np.array(xyz_sample) - np.array(xyz_input),
         sample[45, 45, :],
@@ -85,7 +81,7 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     assert np.allclose(
         xyz_sample,
         xyz_input,
-        atol=0.02,  # TODO decrease this tolerance
+        atol=0.01,
     )
 
     ## For debugging, uncomment these

@@ -49,7 +49,7 @@ def rotate_by_roll_pitch_yaw(
     # then applying the rotation, then converting back into the camera frame.
     # TODO determine why we're using the transpose rotation matrix
     rotation_matrix_in_cam_frame = (
-        perumutation_matrix.T @ rotation_matrix.T @ perumutation_matrix
+        perumutation_matrix.T @ rotation_matrix @ perumutation_matrix
     )
 
     return rotation_matrix_in_cam_frame
@@ -108,11 +108,17 @@ def perspective_from_equirectangular(
     # Compute the aspect ratio of the requested image dimensions
     aspect_ratio = out_h / out_w
 
+    # Compute the distance from the center of the image to the edge in the x dimension
+    x_dist = np.tan(fov / 2)
+    y_dist = x_dist * aspect_ratio
+
+    # Compute the size of each pixel to center the rays within the pixel rather than using the
+    # top-left corner
+    pixel_width = (2 * x_dist) / out_w
+
     # Create homogenous image coordinates for the output image
-    x = np.linspace(-np.tan(fov / 2), np.tan(fov / 2), out_w)
-    y = np.linspace(
-        -np.tan(fov / 2) * aspect_ratio, np.tan(fov / 2) * aspect_ratio, out_h
-    )
+    x = np.arange(-x_dist + pixel_width / 2, x_dist, pixel_width)
+    y = np.arange(-y_dist + pixel_width / 2, y_dist, pixel_width)
 
     xv, yv = np.meshgrid(
         x, -y
@@ -130,9 +136,7 @@ def perspective_from_equirectangular(
     # Rotate the pixel directions by the rotation matrix
     # The strange convention here is to deal with the fact that pixel_directions is (w, h, 3)
     # so this allows the dimensions to align for the matrix multiplication.
-    # The permutation matrix can be thought of first converting into the conventional RPY frame,
-    # then applying the rotation, then converting back into the camera frame.
-    pixel_directions = pixel_directions @ rotation_matrix
+    pixel_directions = pixel_directions @ rotation_matrix.T
 
     # Convert 3D directions to spherical coordinates
     # horizontal angle
