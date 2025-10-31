@@ -5,14 +5,24 @@ import pytest
 from geograypher.utils.image import perspective_from_equirectangular
 
 
-def convert_yp_to_xyz(yaw_pitch_deg):
-    # AI slop
-    yaw_rad = np.deg2rad(yaw_pitch_deg[0])
-    pitch_rad = np.deg2rad(yaw_pitch_deg[1])
+def convert_py_to_xyz(pitch_yaw_deg):
+    """Take a pitch-yaw representation and convert it to a direction on a unit sphere
 
-    x = np.cos(pitch_rad) * np.sin(yaw_rad)
-    y = np.sin(pitch_rad)
-    z = np.cos(pitch_rad) * np.cos(yaw_rad)
+    Args:
+        pitch_yaw_deg (tuple[float]): pitch and yaw in degrees
+
+    Returns:
+        np.array: [x,y,z] unit vector
+    """
+    pitch_rad = np.deg2rad(pitch_yaw_deg[0])
+    yaw_rad = np.deg2rad(pitch_yaw_deg[1])
+
+    # x is the direction of the initial forward direction
+    x = np.cos(pitch_rad) * np.cos(yaw_rad)
+    # y is the left direction with the initial direction being forward
+    y = np.cos(pitch_rad) * np.sin(yaw_rad)
+    # z is the up direction with the initial direction being forward
+    z = np.sin(pitch_rad)
 
     return np.array([x, y, z])
 
@@ -65,8 +75,8 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     # assert np.allclose(sample[90, 45, :2], expected[2], atol=1)
     # assert np.allclose(sample[45, 0, :2], expected[3], atol=1)
 
-    xyz_sample = convert_yp_to_xyz(sample[45, 45, :])
-    xyz_input = convert_yp_to_xyz([pitch_deg, yaw_deg])
+    xyz_sample = convert_py_to_xyz(sample[45, 45, :])
+    xyz_input = convert_py_to_xyz([pitch_deg, yaw_deg])
     print(
         np.array(xyz_sample) - np.array(xyz_input),
         sample[45, 45, :],
@@ -75,7 +85,7 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
     assert np.allclose(
         xyz_sample,
         xyz_input,
-        atol=0.02,
+        atol=0.02,  # TODO decrease this tolerance
     )
 
     ## For debugging, uncomment these
