@@ -180,9 +180,8 @@ def perspective_from_equirectangular(
     x = np.arange(-x_dist + pixel_width / 2, x_dist, pixel_width)
     y = np.arange(-y_dist + pixel_width / 2, y_dist, pixel_width)
 
-    xv, yv = np.meshgrid(
-        x, -y
-    )  # invert y for image coordinates to account for array indexing notation
+    # invert y for image coordinates to account for array indexing notation
+    xv, yv = np.meshgrid(x, -y)
 
     # The z direction
     zv = np.ones_like(xv)
