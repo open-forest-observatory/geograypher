@@ -31,7 +31,7 @@ def convert_py_to_xyz(pitch_yaw_deg):
 @pytest.mark.parametrize("pitch_deg", [0, 45, 90, -90])
 @pytest.mark.parametrize("roll_deg", [0, 30, 45, 180])
 def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
-    output_size = (151, 101)
+    output_size = (101, 151)
     fov_deg = 60
     oversample_factor = 2
     warp_order = 0
@@ -49,8 +49,6 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
         ij,
         axis=-1,
     )
-    # scale and shift to (0,1) range for skimage compatibility
-    img = (img / 360.0) + 0.5
 
     sample, mask = perspective_from_equirectangular(
         equi_img=img,
@@ -63,9 +61,15 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
         oversample_factor=oversample_factor,
         return_mask=True,
     )
-    # Re-scale back to original pixel values
-    sample = sample * 360.0 - 180.0
 
+    # Simple checks
+    assert sample.shape[:2] == output_size
+    assert sample.shape[2] == 2
+    assert sample.dtype == float
+    assert mask.shape == img.shape[:2]
+    assert mask.dtype == bool
+
+    # Convert to xyz unit vectors to avoid issues with wraparound or at the poles
     xyz_sample = convert_py_to_xyz(sample[50, 75, :])
     xyz_input = convert_py_to_xyz([pitch_deg, yaw_deg])
     # Print out the difference for debugging
@@ -74,6 +78,7 @@ def test_equi_to_perspective(yaw_deg, pitch_deg, roll_deg):
         sample[50, 75, :],
         [pitch_deg, yaw_deg],
     )
+    # Check that they roughly match
     assert np.allclose(
         xyz_sample,
         xyz_input,

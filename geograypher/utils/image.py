@@ -47,7 +47,6 @@ def rotate_by_roll_pitch_yaw(
 
     # The permutation matrix can be thought of first converting into the conventional RPY frame,
     # then applying the rotation, then converting back into the camera frame.
-    # TODO determine why we're using the transpose rotation matrix
     rotation_matrix_in_cam_frame = (
         perumutation_matrix.T @ rotation_matrix @ perumutation_matrix
     )
@@ -125,13 +124,17 @@ def perspective_from_equirectangular(
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Sample a perspective image from an equirectangular (360) image. Different parameters of the
-    "virtual camera" can be controlled, including the field of view, oreintation (yaw, pitch, roll),
+    "virtual camera" can be controlled, including the field of view, orientation (yaw, pitch, roll),
     and output image size.
+
+    The rotations are defined using the roll-pitch-yaw convention. The roll axis corresponds to the
+    camera Z (forward) axis, pitch corresponds to the X axis, and yaw corresponds to the Y axis.
+
+    With RPY all set to zero, the camera is looking toward the center of the equirectangular image.
 
     Args:
         equi_img (np.ndarray):
-            Equirectangular image in (H, W, C) format. Currently only float (0,1) images are
-            supported but this is a TODO.
+            Equirectangular image in (H, W, C) format.
         fov_deg float: camera horizontal field of view.
         output_size Tuple[float]: Shape of the output image to sample (i, j).
         yaw_deg (float, optional): yaw camera orientation. Defaults to 0.
@@ -153,7 +156,7 @@ def perspective_from_equirectangular(
     H, W = equi_img.shape[:2]
 
     # Output image dimensions
-    out_w, out_h = output_size
+    out_h, out_w = output_size
 
     # Sample a larger image and then downsample to reduce aliasing
     out_w = int(out_w * oversample_factor)
@@ -235,8 +238,8 @@ def perspective_from_equirectangular(
         return sampled_perspective
     # Otherwise return a mask of the pixels which were sampled
 
-    # Also save a mask of the pixels being sampled. Note that pixel needs to be added in the width
-    mask = np.zeros((equi_img.shape[0], equi_img.shape[1] + 1), dtype=bool)
+    # Also save a mask of the pixels being sampled.
+    mask = np.zeros((equi_img.shape[0], equi_img.shape[1]), dtype=bool)
     # Set pixels which were sampled to True
     mask[np.round(i).astype(int), np.round(j).astype(int)] = True
 
