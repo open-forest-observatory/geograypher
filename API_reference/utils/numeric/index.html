@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="../../../assets/logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
     
     
       
@@ -3740,7 +3740,11 @@ one is chosen randomly, rather than taking the lower value.</p>
 <span class="normal"><a href="#__codelineno-0-652">652</a></span>
 <span class="normal"><a href="#__codelineno-0-653">653</a></span>
 <span class="normal"><a href="#__codelineno-0-654">654</a></span>
-<span class="normal"><a href="#__codelineno-0-655">655</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-622" name="__codelineno-0-622"></a><span class="k">def</span><span class="w"> </span><span class="nf">fair_mode_non_nan</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-655">655</a></span>
+<span class="normal"><a href="#__codelineno-0-656">656</a></span>
+<span class="normal"><a href="#__codelineno-0-657">657</a></span>
+<span class="normal"><a href="#__codelineno-0-658">658</a></span>
+<span class="normal"><a href="#__codelineno-0-659">659</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-622" name="__codelineno-0-622"></a><span class="k">def</span><span class="w"> </span><span class="nf">fair_mode_non_nan</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <a id="__codelineno-0-623" name="__codelineno-0-623"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-624" name="__codelineno-0-624"></a><span class="sd">    Compute the most common value per row in an array of integers and nans. This behaves similarly to</span>
 <a id="__codelineno-0-625" name="__codelineno-0-625"></a><span class="sd">    scipy.stats.mode(values, axis=1, nan_policy=&quot;omit&quot;) except that for values with equal counts,</span>
@@ -3753,27 +3757,31 @@ one is chosen randomly, rather than taking the lower value.</p>
 <a id="__codelineno-0-632" name="__codelineno-0-632"></a><span class="sd">        np.ndarray: (n,) the most common value per row</span>
 <a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-634" name="__codelineno-0-634"></a>    <span class="n">max_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-<a id="__codelineno-0-635" name="__codelineno-0-635"></a>    <span class="n">max_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_val</span><span class="p">)</span>
-<a id="__codelineno-0-636" name="__codelineno-0-636"></a>    <span class="c1"># TODO consider using unique if these indices are sparse</span>
-<a id="__codelineno-0-637" name="__codelineno-0-637"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-<a id="__codelineno-0-638" name="__codelineno-0-638"></a>        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">values</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_val</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
-<a id="__codelineno-0-639" name="__codelineno-0-639"></a>    <span class="p">)</span><span class="o">.</span><span class="n">T</span>
-<a id="__codelineno-0-640" name="__codelineno-0-640"></a>    <span class="c1"># Check which entires had no classes reported and mask them out</span>
-<a id="__codelineno-0-641" name="__codelineno-0-641"></a>    <span class="c1"># TODO consider removing these rows beforehand</span>
-<a id="__codelineno-0-642" name="__codelineno-0-642"></a>    <span class="n">zeros_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">counts_per_value_per_row</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-<a id="__codelineno-0-643" name="__codelineno-0-643"></a>    <span class="c1"># We want to fairly tiebreak since np.argmax will always take th first index</span>
-<a id="__codelineno-0-644" name="__codelineno-0-644"></a>    <span class="c1"># This is hard to do in a vectorized way, so we just add a small random value</span>
-<a id="__codelineno-0-645" name="__codelineno-0-645"></a>    <span class="c1"># independently to each element</span>
-<a id="__codelineno-0-646" name="__codelineno-0-646"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-647" name="__codelineno-0-647"></a>        <span class="n">counts_per_value_per_row</span>
-<a id="__codelineno-0-648" name="__codelineno-0-648"></a>        <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
-<a id="__codelineno-0-649" name="__codelineno-0-649"></a>    <span class="p">)</span>
-<a id="__codelineno-0-650" name="__codelineno-0-650"></a>    <span class="n">most_common_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
-<a id="__codelineno-0-651" name="__codelineno-0-651"></a>        <span class="nb">float</span>
-<a id="__codelineno-0-652" name="__codelineno-0-652"></a>    <span class="p">)</span>
-<a id="__codelineno-0-653" name="__codelineno-0-653"></a>    <span class="c1"># Set any faces with zero counts to nan</span>
-<a id="__codelineno-0-654" name="__codelineno-0-654"></a>    <span class="n">most_common_value_per_row</span><span class="p">[</span><span class="n">zeros_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-<a id="__codelineno-0-655" name="__codelineno-0-655"></a>    <span class="k">return</span> <span class="n">most_common_value_per_row</span>
+<a id="__codelineno-0-635" name="__codelineno-0-635"></a>    <span class="c1"># All input values are nan, return all nans</span>
+<a id="__codelineno-0-636" name="__codelineno-0-636"></a>    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">max_val</span><span class="p">):</span>
+<a id="__codelineno-0-637" name="__codelineno-0-637"></a>        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-0-638" name="__codelineno-0-638"></a>
+<a id="__codelineno-0-639" name="__codelineno-0-639"></a>    <span class="n">max_val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_val</span><span class="p">)</span>
+<a id="__codelineno-0-640" name="__codelineno-0-640"></a>    <span class="c1"># TODO consider using unique if these indices are sparse</span>
+<a id="__codelineno-0-641" name="__codelineno-0-641"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+<a id="__codelineno-0-642" name="__codelineno-0-642"></a>        <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">values</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_val</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+<a id="__codelineno-0-643" name="__codelineno-0-643"></a>    <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<a id="__codelineno-0-644" name="__codelineno-0-644"></a>    <span class="c1"># Check which entires had no classes reported and mask them out</span>
+<a id="__codelineno-0-645" name="__codelineno-0-645"></a>    <span class="c1"># TODO consider removing these rows beforehand</span>
+<a id="__codelineno-0-646" name="__codelineno-0-646"></a>    <span class="n">zeros_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">counts_per_value_per_row</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-0-647" name="__codelineno-0-647"></a>    <span class="c1"># We want to fairly tiebreak since np.argmax will always take th first index</span>
+<a id="__codelineno-0-648" name="__codelineno-0-648"></a>    <span class="c1"># This is hard to do in a vectorized way, so we just add a small random value</span>
+<a id="__codelineno-0-649" name="__codelineno-0-649"></a>    <span class="c1"># independently to each element</span>
+<a id="__codelineno-0-650" name="__codelineno-0-650"></a>    <span class="n">counts_per_value_per_row</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-651" name="__codelineno-0-651"></a>        <span class="n">counts_per_value_per_row</span>
+<a id="__codelineno-0-652" name="__codelineno-0-652"></a>        <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
+<a id="__codelineno-0-653" name="__codelineno-0-653"></a>    <span class="p">)</span>
+<a id="__codelineno-0-654" name="__codelineno-0-654"></a>    <span class="n">most_common_value_per_row</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts_per_value_per_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+<a id="__codelineno-0-655" name="__codelineno-0-655"></a>        <span class="nb">float</span>
+<a id="__codelineno-0-656" name="__codelineno-0-656"></a>    <span class="p">)</span>
+<a id="__codelineno-0-657" name="__codelineno-0-657"></a>    <span class="c1"># Set any faces with zero counts to nan</span>
+<a id="__codelineno-0-658" name="__codelineno-0-658"></a>    <span class="n">most_common_value_per_row</span><span class="p">[</span><span class="n">zeros_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="k">return</span> <span class="n">most_common_value_per_row</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
