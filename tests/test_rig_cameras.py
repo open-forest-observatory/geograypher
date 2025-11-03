@@ -15,7 +15,7 @@ def test_rig_cameras():
         "/ofo-share/repos-david/under-canopy-mapping/data/predictions/2024-ofo-gopro__st-0077-gopro-360-photos-timelapse-subset"
     )
     RIG_CAMERA_DEF = {
-        "f": 1440 / np.sqrt(2),
+        "f": 1440 / 2,
         "cx": 0.0,
         "cy": 0.0,
         "image_width": 1440,
