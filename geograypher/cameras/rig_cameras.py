@@ -61,5 +61,4 @@ def create_rig_cameras(
         sensor_IDs=sensor_ids,
     )
 
-    cam_set.vis(show=True)
-    breakpoint()
+    return cam_set

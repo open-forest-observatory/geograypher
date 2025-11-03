@@ -31,7 +31,7 @@ def test_rig_cameras():
     ]
     RESAMPLED_FORMAT_STR = "_yaw{yaw_deg:.0f}_pitch{pitch_deg:.0f}"
 
-    create_rig_cameras(
+    rig_camera = create_rig_cameras(
         camera_file=CAMERAS_FILENAME,
         original_images=IMAGE_FOLDER,
         resampled_images=PREDICTED_IMAGE_LABELS_FOLDER,
@@ -39,3 +39,6 @@ def test_rig_cameras():
         rig_orientations=RIG_ORIENTATIONS,
         resampled_filename_format_str=RESAMPLED_FORMAT_STR,
     )
+
+    rig_camera.vis()
+    # TODO actually do some tests
