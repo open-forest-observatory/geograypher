@@ -632,6 +632,10 @@ def fair_mode_non_nan(values: np.ndarray) -> np.ndarray:
         np.ndarray: (n,) the most common value per row
     """
     max_val = np.nanmax(values)
+    # All input values are nan, return all nans
+    if np.isnan(max_val):
+        return np.full((values.shape[0],), fill_value=np.nan)
+
     max_val = int(max_val)
     # TODO consider using unique if these indices are sparse
     counts_per_value_per_row = np.array(
