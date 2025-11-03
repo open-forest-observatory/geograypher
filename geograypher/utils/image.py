@@ -39,7 +39,7 @@ def rotate_by_roll_pitch_yaw(
     # New Z has to be old -Y
     # New Y has to be old X
     # New X has to be old Z
-    perumutation_matrix = np.array([[0, 0, 1], [1, 0, 0], [0, -1, 0]])
+    permutation_matrix = np.array([[0, 0, 1], [1, 0, 0], [0, -1, 0]])
 
     # Calculate the rotation matrix corresponding to the roll-pitch-yaw convention
     # https://stackoverflow.com/questions/74434119/scipy-rotation-matrix-from-as-euler-angles
@@ -48,7 +48,7 @@ def rotate_by_roll_pitch_yaw(
     # The permutation matrix can be thought of first converting into the conventional RPY frame,
     # then applying the rotation, then converting back into the camera frame.
     rotation_matrix_in_cam_frame = (
-        perumutation_matrix.T @ rotation_matrix @ perumutation_matrix
+        permutation_matrix.T @ rotation_matrix @ permutation_matrix
     )
 
     return rotation_matrix_in_cam_frame
@@ -59,7 +59,7 @@ def flexible_inputs_warp(
     inverse_map: np.ndarray,
     interpolation_order: int = None,
     fill_value: float = 0.0,
-):
+) -> np.ndarray:
     """
     Extends the functionality of skimage.transform.warp to handle arbitrary datatypes and
     multi-channel images
@@ -114,7 +114,7 @@ def flexible_inputs_warp(
 def perspective_from_equirectangular(
     equi_img: np.ndarray,
     fov_deg: float,
-    output_size: Tuple[float] = (1440, 1440),
+    output_size: Tuple[int, int] = (1440, 1440),
     yaw_deg: float = 0,
     pitch_deg: float = 0,
     roll_deg: float = 0,
@@ -136,7 +136,7 @@ def perspective_from_equirectangular(
         equi_img (np.ndarray):
             Equirectangular image in (H, W, C) format.
         fov_deg float: camera horizontal field of view.
-        output_size Tuple[float]: Shape of the output image to sample (i, j).
+        output_size Tuple[int, int]: Shape of the output image to sample (i, j).
         yaw_deg (float, optional): yaw camera orientation. Defaults to 0.
         pitch_deg (float, optional): pitch camera orientation. Defaults to 0.
         roll_deg (float, optional): roll camera orientation. Defaults to 0.
@@ -239,7 +239,8 @@ def perspective_from_equirectangular(
 
     # Also save a mask of the pixels being sampled.
     mask = np.zeros((equi_img.shape[0], equi_img.shape[1]), dtype=bool)
-    # Set pixels which were sampled to True
+    # Set pixels which were sampled to True. Out of bound errors are not possible because the values
+    # have been clipped to the appropriate range.
     mask[np.round(i).astype(int), np.round(j).astype(int)] = True
 
     # In some cases the right edge might have been sampled, so report this as a sampled pixel on the
