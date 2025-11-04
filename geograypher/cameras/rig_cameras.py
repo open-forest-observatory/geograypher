@@ -59,6 +59,7 @@ def create_rig_cameras(
         intrinsic_params_per_sensor_type={0: rig_camera},
         image_filenames=new_image_filenames,
         sensor_IDs=sensor_ids,
+        local_to_epsg_4978_transform=initial_camera_set.get_local_to_epsg_4978_transform(),
     )
 
     return cam_set
