@@ -1,11 +1,11 @@
 from pathlib import Path
 
-import numpy as np
 import pytest
 
-from geograypher.cameras.rig_cameras import create_rig_cameras
+from geograypher.cameras.rig_cameras import create_rig_cameras_from_equirectangular
 
 
+@pytest.mark.skip(reason="Skipped due to not having portable test data for github")
 def test_rig_cameras():
     CAMERAS_FILENAME = Path(
         "/ofo-share/scratch-eric/tmp/automate-test-360-st0077_SHIFT/automate-test-360-st0077_cameras.xml"
@@ -33,14 +33,14 @@ def test_rig_cameras():
     ]
     RESAMPLED_FORMAT_STR = "_yaw{yaw_deg:.0f}_pitch{pitch_deg:.0f}"
 
-    rig_camera = create_rig_cameras(
+    rig_camera = create_rig_cameras_from_equirectangular(
         camera_file=CAMERAS_FILENAME,
         original_images=IMAGE_FOLDER,
-        resampled_images=PREDICTED_IMAGE_LABELS_FOLDER,
+        perspective_images=PREDICTED_IMAGE_LABELS_FOLDER,
         rig_camera=RIG_CAMERA_DEF,
         rig_orientations=RIG_ORIENTATIONS,
-        resampled_filename_format_str=RESAMPLED_FORMAT_STR,
+        perspective_filename_format_str=RESAMPLED_FORMAT_STR,
     )
 
-    rig_camera.vis()
+    # rig_camera.vis()
     # TODO actually do some tests
