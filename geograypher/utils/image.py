@@ -27,7 +27,10 @@ def get_GPS_exif(filename):
 
 
 def rotate_by_roll_pitch_yaw(
-    roll_deg: float, pitch_deg: float, yaw_deg: float
+    roll_deg: float,
+    pitch_deg: float,
+    yaw_deg: float,
+    return_4x4: bool = False,
 ) -> np.ndarray:
     # Convert from degrees to radians
     yaw = np.deg2rad(yaw_deg)
@@ -50,6 +53,18 @@ def rotate_by_roll_pitch_yaw(
     rotation_matrix_in_cam_frame = (
         permutation_matrix.T @ rotation_matrix @ permutation_matrix
     )
+
+    if return_4x4:
+        # Pad with zeros except for a 1 at 3,3
+        rotation_matrix_in_cam_frame = np.concatenate(
+            [
+                np.concatenate(
+                    [rotation_matrix_in_cam_frame, np.zeros((3, 1))], axis=1
+                ),
+                np.array([[0, 0, 0, 1]]),
+            ],
+            axis=0,
+        )
 
     return rotation_matrix_in_cam_frame
 
