@@ -3,9 +3,9 @@ import json
 import logging
 import sys
 import typing
+from collections import defaultdict
 from pathlib import Path
 from time import time
-from collections import defaultdict
 
 import fiona
 import geopandas as gpd
