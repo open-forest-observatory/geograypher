@@ -1,5 +1,6 @@
 import argparse
 import typing
+from math import ceil
 from pathlib import Path
 
 import fiona
@@ -36,7 +37,7 @@ def render_labels(
     IDs_to_labels: typing.Union[dict, None] = None,
     render_image_scale: float = 1,
     mesh_downsample: float = 1,
-    n_render_clusters: typing.Union[int, None] = None,
+    n_cameras_per_chunk: typing.Union[int, None] = None,
     cast_to_uint8: bool = True,
     save_as_npy: bool = False,
     vis: bool = False,
@@ -89,9 +90,10 @@ def render_labels(
             Downsample the images to this fraction of the size for increased performance but lower quality. Defaults to 1.
         mesh_downsample (float, optional):
             Downsample the mesh to this fraction of vertices for increased performance but lower quality. Defaults to 1.
-        n_render_clusters (typing.Union[int, None]):
-            If set, break the camera set and mesh into this many clusters before rendering. This is
-            useful for large meshes that are otherwise very slow. Defaults to None.
+        n_cameras_per_chunk (typing.Union[int, None]):
+            If set, break the camera set and mesh into chunks so there are approximately this many
+            cameras per chunk. This is useful for large meshes that are otherwise very slow.
+            Defaults to None.
         cast_to_uint8 (bool, optional):
             If True, cast the rendered labels to uint8. If False, it is cast to uint16 or uint32, if not saved as .npy.
             Defaults to True.
@@ -129,10 +131,16 @@ def render_labels(
     if subset_images_savefolder is not None:
         camera_set.save_images(subset_images_savefolder)
 
+    # Determine how many chunks, if any, the mesh cameras should be split into
+    n_render_chunks = (
+        None
+        if n_cameras_per_chunk is None
+        else int(ceil(len(camera_set) / n_cameras_per_chunk))
+    )
     # Select whether to use a class that renders by chunks or not
     MeshClass = (
         TexturedPhotogrammetryMesh
-        if n_render_clusters is None
+        if n_render_chunks is None
         else TexturedPhotogrammetryMeshChunked
     )
 
@@ -169,11 +177,9 @@ def render_labels(
     if vis or mesh_vis_file is not None:
         mesh.vis(camera_set=camera_set, screenshot_filename=mesh_vis_file)
 
-    # Include n_render_clusters as an optional keyword argument, if provided. This is only applicable
+    # Include n_render_chunks as an optional keyword argument, if provided. This is only applicable
     # if this mesh is a TexturedPhotogrammetryMeshChunked object
-    render_kwargs = (
-        {} if n_render_clusters is None else {"n_clusters": n_render_clusters}
-    )
+    render_kwargs = {} if n_render_chunks is None else {"n_clusters": n_render_chunks}
     # Render the labels and save them. This is the slow step.
     mesh.save_renders(
         camera_set=camera_set,
