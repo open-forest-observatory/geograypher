@@ -1016,10 +1016,16 @@ class TexturedPhotogrammetryMesh:
         if self.is_discrete_texture():
             self.logger.info("discrete texture, saving classes")
             self.logger.info(f"Saving IDs_to_labels to {str(savepath)}")
-            with open(savepath, "w") as outfile_h:
-                json.dump(
-                    self.get_IDs_to_labels(), outfile_h, ensure_ascii=False, indent=4
-                )
+            try:
+                with open(savepath, "w") as outfile_h:
+                    json.dump(
+                        self.get_IDs_to_labels(),
+                        outfile_h,
+                        ensure_ascii=False,
+                        indent=4,
+                    )
+            except:
+                self.logger.warn("Could not serialize IDs_to_labels due to JSON error")
         else:
             self.logger.warn("non-discrete texture, not saving classes")
 
