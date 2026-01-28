@@ -1018,11 +1018,15 @@ class TexturedPhotogrammetryMesh:
             self.logger.info(f"Saving IDs_to_labels to {str(savepath)}")
             try:
                 with open(savepath, "w") as outfile_h:
+                    # Try to dump the mapping, falling back on the string encoder for types in the
+                    # dict values that cannot be JSON serialized. This is most common with
+                    # np.int64
                     json.dump(
                         self.get_IDs_to_labels(),
                         outfile_h,
                         ensure_ascii=False,
                         indent=4,
+                        default=str,
                     )
             except:
                 self.logger.warn("Could not serialize IDs_to_labels due to JSON error")
