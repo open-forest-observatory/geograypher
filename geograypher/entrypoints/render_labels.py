@@ -1,7 +1,7 @@
 import argparse
 import typing
-from pathlib import Path
 from math import ceil
+from pathlib import Path
 
 import fiona
 import geopandas as gpd
