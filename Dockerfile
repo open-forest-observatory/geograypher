@@ -2,13 +2,14 @@
 # TODO fix the cchardet issue and upgrade to a more modern python version
 FROM python:3.10-slim
 # Install git, gcc/g++, and curl for downloading and compiling
-# Also install libgl1 and libglib2.0-0 for cv2/albumentations dependency
+# Also install libgl1 and libxrender1 for system graphics dependencies
 RUN apt-get update && \
     apt-get install -y \
     git \
     build-essential \
     curl \
-    libgl1 && \
+    libgl1 \
+    libxrender1 && \
     rm -rf /var/lib/apt/lists/*
 # Install poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
