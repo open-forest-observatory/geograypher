@@ -241,6 +241,7 @@ def parse_args():
     parser.add_argument("--cameras-ROI-buffer-radius-meters", default=100, type=float)
     parser.add_argument("--render-image-scale", type=float, default=1)
     parser.add_argument("--mesh-downsample", type=float, default=1)
+    parser.add_argument("--cast-to-uint8", action="store_true")
     parser.add_argument("--vis", action="store_true")
     parser.add_argument("--mesh-vis-file", type=Path)
     parser.add_argument("--labels-vis-folder", type=Path)
