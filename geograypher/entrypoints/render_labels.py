@@ -1,4 +1,5 @@
 import argparse
+import json
 import typing
 from math import ceil
 from pathlib import Path
@@ -241,12 +242,19 @@ def parse_args():
     parser.add_argument("--cameras-ROI-buffer-radius-meters", default=100, type=float)
     parser.add_argument("--render-image-scale", type=float, default=1)
     parser.add_argument("--mesh-downsample", type=float, default=1)
+    parser.add_argument("--IDs-to-labels", type=Path)
+    parser.add_argument("--n-cameras-per-chunk", type=int)
     parser.add_argument("--cast-to-uint8", action="store_true")
+    parser.add_argument("--save-as-npy", action="store_true")
     parser.add_argument("--vis", action="store_true")
     parser.add_argument("--mesh-vis-file", type=Path)
     parser.add_argument("--labels-vis-folder", type=Path)
 
     args = parser.parse_args()
+    # Load IDs_to_labels from a JSON file if provided
+    if args.IDs_to_labels is not None:
+        with open(args.IDs_to_labels) as f:
+            args.IDs_to_labels = json.load(f)
     return args
 
 
