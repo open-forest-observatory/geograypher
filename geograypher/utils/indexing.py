@@ -31,7 +31,10 @@ def find_argmax_nonzero_value(
     return argmax
 
 
-def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
+def ensure_float_labels(query_array, full_array=None, background_ID=None) -> (np.ndarray, dict):
+    if not (background_ID is None or isinstance(background_ID, int)):
+        raise ValueError(f"The background must be None or an int but instead is {background_ID}")
+
     # Standardizing the type
     if isinstance(query_array, pd.Series):
         query_array = query_array.to_numpy()
@@ -50,9 +53,18 @@ def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
 
         IDs_to_label = {}
         # Iterate through and set the values that match to the integer label
-        for i, unique_value in enumerate(unique_values):
+        i = 0
+        for unique_value in unique_values:
+            # If it matches the background ID, increment to skip
+            if i is not None and i == background_ID:
+                i += 1
+
+            # Skip the background ID
             output_query_array[query_array == unique_value] = i
             IDs_to_label[i] = unique_value
+
+            # Increment normally
+            i += 1
 
         return output_query_array, IDs_to_label
 
@@ -70,7 +82,16 @@ def ensure_float_labels(query_array, full_array=None) -> (np.ndarray, dict):
             else np.round(full_array[np.isfinite(full_array)])
         )
 
-        IDs_to_label = {i: val for i, val in enumerate(unique_values)}
+        IDs_to_label = {}
+        i = 0
+        for unique_value in unique_values:
+            # Increment to skip if it matches the background ID
+            if i is not None and i == background_ID:
+                i += 1
+
+            IDs_to_label[i] = unique_value
+            # Increment normally
+            i += 1
     else:
         # These are not discrete, so it doesn't make sense to represent them with IDs
         IDs_to_label = None

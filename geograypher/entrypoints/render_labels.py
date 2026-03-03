@@ -251,10 +251,6 @@ def parse_args():
     parser.add_argument("--labels-vis-folder", type=Path)
 
     args = parser.parse_args()
-    # Load IDs_to_labels from a JSON file if provided
-    if args.IDs_to_labels is not None:
-        with open(args.IDs_to_labels) as f:
-            args.IDs_to_labels = json.load(f)
     return args
 
 
