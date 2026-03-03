@@ -146,7 +146,12 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels, "r") as file:
                 IDs_to_labels = json.load(file)
                 IDs_to_labels = {int(id): label for id, label in IDs_to_labels.items()}
-        self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels, background_ID=NULL_TEXTURE_INT_VALUE)
+        self.load_texture(
+            texture,
+            texture_column_name,
+            IDs_to_labels=IDs_to_labels,
+            background_ID=NULL_TEXTURE_INT_VALUE,
+        )
 
     # Setup methods
     def load_mesh(
@@ -381,7 +386,7 @@ class TexturedPhotogrammetryMesh:
         is_vertex_texture: typing.Union[bool, None] = None,
         delete_existing: bool = True,
         update_IDs_to_labels: bool = True,
-        background_ID: int = None
+        background_ID: int = None,
     ):
         """Set the internal texture representation
 
@@ -418,7 +423,9 @@ class TexturedPhotogrammetryMesh:
         else:
             if IDs_to_labels is None:
                 texture_array, derived_IDs_to_labels = ensure_float_labels(
-                    texture_array, full_array=all_discrete_texture_values, background_ID=background_ID
+                    texture_array,
+                    full_array=all_discrete_texture_values,
+                    background_ID=background_ID,
                 )
                 # If requested, record these new IDs_to_labels
                 if update_IDs_to_labels:

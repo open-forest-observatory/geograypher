@@ -31,9 +31,13 @@ def find_argmax_nonzero_value(
     return argmax
 
 
-def ensure_float_labels(query_array, full_array=None, background_ID=None) -> (np.ndarray, dict):
+def ensure_float_labels(
+    query_array, full_array=None, background_ID=None
+) -> (np.ndarray, dict):
     if not (background_ID is None or isinstance(background_ID, int)):
-        raise ValueError(f"The background must be None or an int but instead is {background_ID}")
+        raise ValueError(
+            f"The background must be None or an int but instead is {background_ID}"
+        )
 
     # Standardizing the type
     if isinstance(query_array, pd.Series):
