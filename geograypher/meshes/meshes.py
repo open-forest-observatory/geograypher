@@ -45,7 +45,7 @@ from geograypher.utils.geospatial import (
     ensure_projected_CRS,
     get_projected_CRS,
 )
-from geograypher.utils.indexing import ensure_float_labels
+from geograypher.utils.indexing import determine_IDs_to_labels
 from geograypher.utils.numeric import compute_3D_triangle_area, fair_mode_non_nan
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
@@ -355,6 +355,7 @@ class TexturedPhotogrammetryMesh:
             if self.vertex_texture is not None:
                 return self.standardize_texture(self.vertex_texture)
             elif try_verts_faces_conversion:
+                # TODO this should be fixed since it will perform a breaking conversion
                 self.set_texture(self.face_to_vert_texture(self.face_texture))
                 self.vertex_texture
             else:
@@ -368,6 +369,7 @@ class TexturedPhotogrammetryMesh:
                 face_texture = self.vert_to_face_texture(
                     self.vertex_texture, discrete=self.is_discrete_texture()
                 )
+                # TODO this should be fixed since it will perform a breaking conversion
                 self.set_texture(face_texture)
                 return self.face_texture
             else:
@@ -412,8 +414,14 @@ class TexturedPhotogrammetryMesh:
             ValueError: If the size of the texture doesn't match the number of either faces or vertices
             ValueError: If the number of faces and vertices are the same and is_vertex_texture isn't set
         """
-        # Ensure that the texture is 2D and a numpy array
+        # Ensure that the texture is 2D
         texture_array = self.standardize_texture(texture_array)
+
+        # The texture which is set should be either
+        # - an array of floats, representing a continuous quantity
+        # - an array of floats with int values, representing a categorical variable
+        # - - If IDs_to_labels is set, the texture array should be remapping by applying labels-to-IDs mapping
+        # - - If IDs_to_labels is unset, it should be first computed from all unique values. Then applied as above.
 
         if texture_array.ndim == 2 and texture_array.shape[1] != 1:
             # If it is more than one column, it's assumed to be a real-valued
@@ -422,15 +430,15 @@ class TexturedPhotogrammetryMesh:
             self.IDs_to_labels = None
         else:
             if IDs_to_labels is None:
-                texture_array, derived_IDs_to_labels = ensure_float_labels(
-                    texture_array,
-                    full_array=all_discrete_texture_values,
+                # Compute IDs_to_labels from data
+                IDs_to_labels = determine_IDs_to_labels(
+                    texture_array=texture_array,
+                    all_discrete_texture_values=all_discrete_texture_values,
                     background_ID=background_ID,
                 )
-                # If requested, record these new IDs_to_labels
-                if update_IDs_to_labels:
-                    self.IDs_to_labels = derived_IDs_to_labels
-            else:
+
+            # If the data is truly continious, there will be no IDs to labels
+            if IDs_to_labels is not None:
                 # Create the inverse mapping, returning nan for anything not in it
                 labels_to_IDs = defaultdict(lambda: np.nan)
                 labels_to_IDs.update({v: k for k, v in IDs_to_labels.items()})
@@ -442,7 +450,7 @@ class TexturedPhotogrammetryMesh:
                 # Check that the mapping only produces ints
                 if not np.all([isinstance(v, int) for v in labels_to_IDs.values()]):
                     raise ValueError(
-                        "The labels to IDs mapping does not produce only floats"
+                        "The labels to IDs mapping does not produce only ints"
                     )
 
                 # This step updates the texture array from the initial labels to the new IDs.
@@ -454,9 +462,9 @@ class TexturedPhotogrammetryMesh:
                 # Reinstate the squeezed dimension
                 texture_array = np.expand_dims(texture_array, axis=1)
 
-                # If requested, record these IDs to labels
-                if update_IDs_to_labels:
-                    self.IDs_to_labels = IDs_to_labels
+            # If requested, record these IDs to labels
+            if update_IDs_to_labels:
+                self.IDs_to_labels = IDs_to_labels
 
         # If it is not specified whether this is a vertex texture, attempt to infer it from the shape
         # TODO consider refactoring to check whether it matches the number of one of them,
@@ -1544,8 +1552,7 @@ class TexturedPhotogrammetryMesh:
             # If the label names are present, and the class is not already included, add it as the last element
             if ground_ID is None:
                 # Set it to the first unused ID
-                # TODO improve this since it should be the max plus one
-                ground_ID = len(IDs_to_labels)
+                ground_ID = np.max(IDs_to_labels.keys()) + 1
 
         self.add_label(label_name=ground_class_name, label_ID=ground_ID)
 
@@ -1554,9 +1561,11 @@ class TexturedPhotogrammetryMesh:
 
         # Optionally apply the texture to the mesh
         if set_mesh_texture:
-            # TODO look into why this shouldn't update the IDs to labels.
-            # I guess because it may have been initially user-provided.
-            self.set_texture(labels, update_IDs_to_labels=False)
+            # Set the mesh texture, without updating the previous mapping since it has already been
+            # handled
+            self.set_texture(
+                labels, IDs_to_labels=self.IDs_to_labels, update_IDs_to_labels=False
+            )
 
         return labels
 

@@ -1,4 +1,5 @@
 import logging
+import typing
 
 import numpy as np
 import pandas as pd
@@ -31,78 +32,56 @@ def find_argmax_nonzero_value(
     return argmax
 
 
-def ensure_float_labels(
-    query_array, full_array=None, background_ID=None
-) -> (np.ndarray, dict):
-    if not (background_ID is None or isinstance(background_ID, int)):
-        raise ValueError(
-            f"The background must be None or an int but instead is {background_ID}"
-        )
+def determine_IDs_to_labels(
+    texture_array: np.ndarray,
+    all_discrete_texture_values: typing.Union[typing.List, None] = None,
+    background_ID: int = None,
+):
+    """Return the mapping of unique IDs to labels, or None if values are continous floats
 
-    # Standardizing the type
-    if isinstance(query_array, pd.Series):
-        query_array = query_array.to_numpy()
-    else:
-        query_array = np.array(query_array)
+    Args:
+        texture_array (np.ndarray): _description_
+        IDs_to_labels (typing.Union[None, dict], optional): _description_. Defaults to None.
+        all_discrete_texture_values (typing.Union[typing.List, None], optional): _description_. Defaults to None.
+        background_ID (int, optional): _description_. Defaults to None.
+    """
+    # Check to see if the data is a continious float representation
+    if texture_array.dtype == float:
+        finite_labels = texture_array[np.isfinite(texture_array)]
 
-    # Check if the array is a string or some other object type that is not numeric
-    if query_array.dtype in (str, np.dtype("O")):
-        # Get unique values from full array if provided, or query array if not
-        # Note that if the full array is not provided, the IDs will change based
-        # on what set of the labeled data is indexed
-        unique_values = np.unique(query_array if full_array is None else full_array)
+        # If the data does not approximate integer data, it truly represents a contious quantity. Therefore, return None
+        if not np.allclose(finite_labels, finite_labels.astype(int)):
+            return None
 
-        # Build an output array
-        output_query_array = np.full_like(query_array, fill_value=np.nan, dtype=float)
+    # In this case, it's time to compute IDs to labels
+    # If all the discrete texture values are provided, use that. Otherwise, just use
+    # the texture array values.
+    # TODO, it would be good to eliminate the concept of passing all_discrete_texture_values
+    # and handle that solely with IDs_to_labels
+    unique_values_source = (
+        texture_array
+        if all_discrete_texture_values is None
+        else all_discrete_texture_values
+    )
+    unique_values = np.unique(unique_values_source)
 
-        IDs_to_label = {}
-        # Iterate through and set the values that match to the integer label
-        i = 0
-        for unique_value in unique_values:
-            # If it matches the background ID, increment to skip
-            if i is not None and i == background_ID:
-                i += 1
+    # Build the IDs to labels mapping
 
-            # Skip the background ID
-            output_query_array[query_array == unique_value] = i
-            IDs_to_label[i] = unique_value
-
-            # Increment normally
+    IDs_to_label = {}
+    # Iterate through and set the values that match to the integer label
+    i = 0
+    for unique_value in unique_values:
+        # If it matches the background ID, increment to skip
+        if i is not None and i == background_ID:
             i += 1
 
-        return output_query_array, IDs_to_label
+        # Set the value in the dict
+        IDs_to_label[i] = unique_value
 
-    # This is numeric data, but we want to check if it's representing something
-    # categorical/ordinal
+        # Increment normally
+        i += 1
 
-    # Determine which labels are finite so we can cast them to ints
-    finite_labels = query_array[np.isfinite(query_array)]
-    # See if all labels are approximately ints
-    if np.allclose(finite_labels, finite_labels.astype(int)):
-        # Try to remove any numerical issues by rounding to the ints
-        unique_values = np.unique(
-            np.round(query_array[np.isfinite(query_array)])
-            if full_array is None
-            else np.round(full_array[np.isfinite(full_array)])
-        )
-
-        IDs_to_label = {}
-        i = 0
-        for unique_value in unique_values:
-            # Increment to skip if it matches the background ID
-            if i is not None and i == background_ID:
-                i += 1
-
-            IDs_to_label[i] = unique_value
-            # Increment normally
-            i += 1
-    else:
-        # These are not discrete, so it doesn't make sense to represent them with IDs
-        IDs_to_label = None
-
-    # Cast to float, since that's expected
-    output_query_array = query_array.astype(float)
-    return output_query_array, IDs_to_label
+    return IDs_to_label
 
 
 def inverse_map_interpolation(
