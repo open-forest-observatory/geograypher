@@ -545,6 +545,12 @@ class TexturedPhotogrammetryMesh:
             texture_column_name: The column to use as the label for a vector data input
             IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
         """
+        # Try to parse the texture in many different ways
+        # Default all values to None, since only some approaches provided it
+        all_values = None
+        # Set texture array
+        texture_array = None
+
         # If the texture is None, try to load it from the mesh
         # Note that this requires us to have not decimated yet
         if texture is None:
@@ -570,12 +576,6 @@ class TexturedPhotogrammetryMesh:
                     self.IDs_to_labels = IDs_to_labels
 
                 return
-
-        # Try to parse the texture in many different ways
-        # Default all values to None, since only some approaches provided it
-        all_values = None
-        # Set texture array
-        texture_array = None
 
         # The easy case, a texture is passed in directly
         if isinstance(texture, np.ndarray):
