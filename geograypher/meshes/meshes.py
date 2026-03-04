@@ -437,7 +437,9 @@ class TexturedPhotogrammetryMesh:
                         "The labels to IDs mapping does not produce only floats"
                     )
 
-                # Perform the mapping
+                # This step updates the texture array from the initial labels to the new IDs.
+                # Because the default dict has a default value of zero, any items not in the labels
+                # are given the value of nan. This step can be slow for large textures.
                 texture_array = np.array(
                     [labels_to_IDs[l] for l in texture_array.squeeze()]
                 )
@@ -1638,6 +1640,12 @@ class TexturedPhotogrammetryMesh:
         # Create a local mesh if it hasn't been created yet
         if mesh is None:
             mesh = self.get_mesh_in_cameras_coords(cameras)
+
+        if distortion_set is None and apply_distortion:
+            self.logger.warn(
+                "Distortion requested but no distortion parameters provided. Skipping"
+            )
+            apply_distortion = False
 
         # If a set of cameras is passed in, call this method on each camera and concatenate
         # Other derived methods might be able to compute a batch of renders at once, but pyvista
