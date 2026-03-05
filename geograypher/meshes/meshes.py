@@ -432,8 +432,12 @@ class TexturedPhotogrammetryMesh:
                     background_ID=background_ID,
                 )
 
+            # If the IDs_to_labels mapping is identity, don't do the next remapping step
+            is_identity_mapping = list(IDs_to_labels.keys()) == list(
+                IDs_to_labels.values()
+            )
             # If the data is truly continious, there will be no IDs to labels
-            if IDs_to_labels is not None:
+            if IDs_to_labels is not None and not is_identity_mapping:
                 # Create the inverse mapping, returning nan for anything not in it
                 labels_to_IDs = defaultdict(lambda: np.nan)
                 labels_to_IDs.update({v: k for k, v in IDs_to_labels.items()})

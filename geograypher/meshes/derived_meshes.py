@@ -122,9 +122,28 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
                 else None
             )
 
+            # If this represents a discrete texture we want to make sure the values are not remapped again
+            if self.is_discrete_texture():
+                # Determine unique valuesin this subset
+                unique_submesh_values = np.unique(sub_mesh_texture)
+                # Remove nan
+                unique_submesh_values = (
+                    unique_submesh_values[np.isfinite(unique_submesh_values)]
+                    if len(unique_submesh_values) > 0
+                    else []
+                )
+                # Compute the identity mapping
+                IDs_to_labels = {u: u for u in unique_submesh_values}
+            else:
+                # Otherwise no mapping should be applied
+                IDs_to_labels = None
+
             # Wrap this pyvista mesh in a photogrammetry mesh
             sub_mesh_TPM = TexturedPhotogrammetryMesh(
-                sub_mesh_pv, texture=sub_mesh_texture, input_CRS=self.CRS
+                sub_mesh_pv,
+                texture=sub_mesh_texture,
+                input_CRS=self.CRS,
+                IDs_to_labels=IDs_to_labels,
             )
 
             # Return the submesh as a Textured Photogrammetry Mesh, the subset of cameras, and the
