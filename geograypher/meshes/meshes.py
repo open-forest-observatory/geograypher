@@ -45,7 +45,7 @@ from geograypher.utils.geospatial import (
     ensure_projected_CRS,
     get_projected_CRS,
 )
-from geograypher.utils.indexing import ensure_float_labels
+from geograypher.utils.indexing import determine_IDs_to_labels
 from geograypher.utils.numeric import compute_3D_triangle_area, fair_mode_non_nan
 from geograypher.utils.visualization import create_composite, create_pv_plotter
 
@@ -146,7 +146,12 @@ class TexturedPhotogrammetryMesh:
             with open(IDs_to_labels, "r") as file:
                 IDs_to_labels = json.load(file)
                 IDs_to_labels = {int(id): label for id, label in IDs_to_labels.items()}
-        self.load_texture(texture, texture_column_name, IDs_to_labels=IDs_to_labels)
+        self.load_texture(
+            texture,
+            texture_column_name,
+            IDs_to_labels=IDs_to_labels,
+            background_ID=NULL_TEXTURE_INT_VALUE,
+        )
 
     # Setup methods
     def load_mesh(
@@ -350,8 +355,9 @@ class TexturedPhotogrammetryMesh:
             if self.vertex_texture is not None:
                 return self.standardize_texture(self.vertex_texture)
             elif try_verts_faces_conversion:
-                self.set_texture(self.face_to_vert_texture(self.face_texture))
-                self.vertex_texture
+                vert_texture = self.face_to_vert_texture(self.face_texture)
+                self.set_texture(vert_texture)
+                return self.vertex_texture
             else:
                 raise ValueError(
                     "Vertex texture not present and conversion was not requested"
@@ -373,16 +379,17 @@ class TexturedPhotogrammetryMesh:
     def is_discrete_texture(self):
         return self.IDs_to_labels is not None
 
-    def set_texture(
+    def remap_texture(
         self,
         texture_array: np.ndarray,
         IDs_to_labels: typing.Union[None, dict] = None,
         all_discrete_texture_values: typing.Union[typing.List, None] = None,
-        is_vertex_texture: typing.Union[bool, None] = None,
-        delete_existing: bool = True,
         update_IDs_to_labels: bool = True,
-    ):
-        """Set the internal texture representation
+        background_ID: int = None,
+    ) -> np.array:
+        """
+        Remap the texture from the initial representation to either continious floats or floats
+        representing discrete integer values. This also sets self.IDs_to_labels
 
         Args:
             texture_array (np.ndarray):
@@ -393,21 +400,23 @@ class TexturedPhotogrammetryMesh:
             all_discrete_texture_values (typing.Union[typing.List, None], optional):
                 Are all the texture values known to be discrete, representing IDs. Computed from
                 the data if not set. Defaults to None.
-            is_vertex_texture (typing.Union[bool, None], optional):
-                Are the texture values supposed to correspond to the vertices. Computed from the
-                data if not set. Defaults to None.
-            delete_existing (bool, optional):
-                Delete the existing texture when the other one (face, vertex) is set. Defaults to True.
             update_IDs_to_labels (bool, optional):
                 Should IDs to labels be updated based on either the provided IDs_to_labels or the
                 derived ones. Defaults to True.
+            background_ID (int, optional):
+                An ID which should not be included in IDs_to_labels
 
-        Raises:
-            ValueError: If the size of the texture doesn't match the number of either faces or vertices
-            ValueError: If the number of faces and vertices are the same and is_vertex_texture isn't set
+        Returns:
+            np.array: remapped texture
         """
-        # Ensure that the texture is 2D and a numpy array
+        # Ensure that the texture is 2D
         texture_array = self.standardize_texture(texture_array)
+
+        # The texture which is set should be either
+        # - an array of floats, representing a continuous quantity
+        # - an array of floats with int values, representing a categorical variable
+        # - - If IDs_to_labels is set, the texture array should be remapping by applying labels-to-IDs mapping
+        # - - If IDs_to_labels is unset, it should be first computed from all unique values. Then applied as above.
 
         if texture_array.ndim == 2 and texture_array.shape[1] != 1:
             # If it is more than one column, it's assumed to be a real-valued
@@ -416,13 +425,19 @@ class TexturedPhotogrammetryMesh:
             self.IDs_to_labels = None
         else:
             if IDs_to_labels is None:
-                texture_array, derived_IDs_to_labels = ensure_float_labels(
-                    texture_array, full_array=all_discrete_texture_values
+                # Compute IDs_to_labels from data
+                IDs_to_labels = determine_IDs_to_labels(
+                    texture_array=texture_array,
+                    all_discrete_texture_values=all_discrete_texture_values,
+                    background_ID=background_ID,
                 )
-                # If requested, record these new IDs_to_labels
-                if update_IDs_to_labels:
-                    self.IDs_to_labels = derived_IDs_to_labels
-            else:
+
+            # If the IDs_to_labels mapping is identity, don't do the next remapping step
+            is_identity_mapping = list(IDs_to_labels.keys()) == list(
+                IDs_to_labels.values()
+            )
+            # If the data is truly continious, there will be no IDs to labels
+            if IDs_to_labels is not None and not is_identity_mapping:
                 # Create the inverse mapping, returning nan for anything not in it
                 labels_to_IDs = defaultdict(lambda: np.nan)
                 labels_to_IDs.update({v: k for k, v in IDs_to_labels.items()})
@@ -434,21 +449,53 @@ class TexturedPhotogrammetryMesh:
                 # Check that the mapping only produces ints
                 if not np.all([isinstance(v, int) for v in labels_to_IDs.values()]):
                     raise ValueError(
-                        "The labels to IDs mapping does not produce only floats"
+                        "The labels to IDs mapping does not produce only ints"
                     )
 
                 # This step updates the texture array from the initial labels to the new IDs.
                 # Because the default dict has a default value of zero, any items not in the labels
                 # are given the value of nan. This step can be slow for large textures.
                 texture_array = np.array(
-                    [labels_to_IDs[l] for l in texture_array.squeeze()]
+                    [
+                        labels_to_IDs[l]
+                        for l in tqdm(
+                            texture_array.squeeze(), desc="Remapping labels to IDs"
+                        )
+                    ]
                 )
                 # Reinstate the squeezed dimension
                 texture_array = np.expand_dims(texture_array, axis=1)
 
-                # If requested, record these IDs to labels
-                if update_IDs_to_labels:
-                    self.IDs_to_labels = IDs_to_labels
+            # If requested, record these IDs to labels
+            if update_IDs_to_labels:
+                self.IDs_to_labels = IDs_to_labels
+
+        return texture_array
+
+    def set_texture(
+        self,
+        texture_array: np.ndarray,
+        is_vertex_texture: typing.Union[bool, None] = None,
+        delete_existing: bool = True,
+    ):
+        """Set the internal texture representation
+
+        Args:
+            texture_array (np.ndarray):
+                The array of texture values. The first dimension must be the length of faces or
+                verts. A second dimension is optional.
+            is_vertex_texture (typing.Union[bool, None], optional):
+                Are the texture values supposed to correspond to the vertices. Computed from the
+                data if not set. Defaults to None.
+            delete_existing (bool, optional):
+                Delete the existing texture when the other one (face, vertex) is set. Defaults to True.
+
+        Raises:
+            ValueError: If the size of the texture doesn't match the number of either faces or vertices
+            ValueError: If the number of faces and vertices are the same and is_vertex_texture isn't set
+        """
+        # Ensure that the texture is 2D
+        texture_array = self.standardize_texture(texture_array)
 
         # If it is not specified whether this is a vertex texture, attempt to infer it from the shape
         # TODO consider refactoring to check whether it matches the number of one of them,
@@ -487,6 +534,7 @@ class TexturedPhotogrammetryMesh:
         texture: typing.Union[str, PATH_TYPE, np.ndarray, None],
         texture_column_name: typing.Union[None, PATH_TYPE] = None,
         IDs_to_labels: typing.Union[PATH_TYPE, dict, None] = None,
+        background_ID: typing.Union[int, None] = None,
     ):
         """Sets either self.face_texture or self.vertex_texture to an (n_{faces, verts}, m channels) array. Note that the other
            one will be left as None
@@ -501,15 +549,15 @@ class TexturedPhotogrammetryMesh:
             texture_column_name: The column to use as the label for a vector data input
             IDs_to_labels (typing.Union[None, dict]): Dictionary mapping from integer IDs to string class names
         """
-        # The easy case, a texture is passed in directly
-        if isinstance(texture, np.ndarray):
-            self.set_texture(
-                texture_array=texture,
-                IDs_to_labels=IDs_to_labels,
-            )
+        # Try to parse the texture in many different ways
+        # Default all values to None, since only some approaches provided it
+        all_values = None
+        # Set texture array
+        texture_array = None
+
         # If the texture is None, try to load it from the mesh
         # Note that this requires us to have not decimated yet
-        elif texture is None:
+        if texture is None:
             # See if the mesh has a texture, else this will be None
             texture_array = self.pyvista_mesh.active_scalars
 
@@ -523,24 +571,22 @@ class TexturedPhotogrammetryMesh:
                         # This is supposted to be one channel
                         texture_array = texture_array[:, 0].astype(float)
                         # Set any values that are the ignore int value to nan
-                texture_array = texture_array.astype(float)
-                texture_array[texture_array == NULL_TEXTURE_INT_VALUE] = np.nan
-
-                self.set_texture(
-                    texture_array,
-                    IDs_to_labels=IDs_to_labels,
-                )
             else:
-                if IDs_to_labels is not None:
-                    self.IDs_to_labels = IDs_to_labels
                 # Assume that no texture will be needed, consider printing a warning
                 self.logger.warn("No texture provided")
-        else:
-            # Try handling all the other supported filetypes
-            texture_array = None
-            all_values = None
 
-            # Name of scalar in the mesh
+                # Still set IDs to labels even if there's no texture
+                if IDs_to_labels is not None:
+                    self.IDs_to_labels = IDs_to_labels
+
+                return
+
+        # The easy case, a texture is passed in directly
+        if isinstance(texture, np.ndarray):
+            texture_array = texture
+
+        # The texture is a scalar in the mesh
+        if texture_array is None:
             try:
                 self.logger.warn(
                     "Trying to read texture as a scalar from the pyvista mesh:"
@@ -550,48 +596,51 @@ class TexturedPhotogrammetryMesh:
             except (KeyError, ValueError):
                 self.logger.warn("- failed")
 
-            # Numpy file
-            if texture_array is None:
-                try:
-                    self.logger.warn("Trying to read texture as a numpy file:")
-                    texture_array = np.load(texture, allow_pickle=True)
-                    self.logger.warn("- success")
-                except:
-                    self.logger.warn("- failed")
+        # Numpy file
+        if texture_array is None:
+            try:
+                self.logger.warn("Trying to read texture as a numpy file:")
+                texture_array = np.load(texture, allow_pickle=True)
+                self.logger.warn("- success")
+            except:
+                self.logger.warn("- failed")
 
-            # Vector file
-            if texture_array is None:
-                try:
-                    self.logger.warn("Trying to read texture as vector file:")
-                    # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
-                    texture_array, all_values = self.get_values_for_verts_from_vector(
-                        column_names=texture_column_name,
-                        vector_source=texture,
-                    )
-                    self.logger.warn("- success")
-                except (IndexError, fiona.errors.DriverError):
-                    self.logger.warn("- failed")
+        # Vector file
+        if texture_array is None:
+            try:
+                self.logger.warn("Trying to read texture as vector file:")
+                # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
+                texture_array, all_values = self.get_values_for_verts_from_vector(
+                    column_names=texture_column_name,
+                    vector_source=texture,
+                )
+                self.logger.warn("- success")
+            except (IndexError, fiona.errors.DriverError):
+                self.logger.warn("- failed")
 
-            # Raster file
-            if texture_array is None:
-                try:
-                    # TODO
-                    self.logger.warn("Trying to read as texture as raster file: ")
-                    texture_array = self.get_vert_values_from_raster_file(texture)
-                    self.logger.warn("- success")
-                except:
-                    self.logger.warn("- failed")
+        # Raster file
+        if texture_array is None:
+            try:
+                self.logger.warn("Trying to read as texture as raster file: ")
+                texture_array = self.get_vert_values_from_raster_file(texture)
+                self.logger.warn("- success")
+            except:
+                self.logger.warn("- failed")
 
-            # Error out if not set, since we assume the intent was to have a texture at this point
-            if texture_array is None:
-                raise ValueError(f"Could not load texture for {texture}")
+        # Error out if not set, since we assume the intent was to have a texture at this point
+        if texture_array is None:
+            raise ValueError(f"Could not load texture for {texture}")
 
-            # This will error if something is wrong with the texture that was loaded
-            self.set_texture(
-                texture_array,
-                all_discrete_texture_values=all_values,
-                IDs_to_labels=IDs_to_labels,
-            )
+        # This will error if something is wrong with the texture that was loaded
+        remapped_texture = self.remap_texture(
+            texture_array=texture_array,
+            IDs_to_labels=IDs_to_labels,
+            all_discrete_texture_values=all_values,
+            update_IDs_to_labels=True,
+            background_ID=background_ID,
+        )
+        # Set the texture
+        self.set_texture(remapped_texture)
 
     def select_mesh_ROI(
         self,
@@ -1532,8 +1581,7 @@ class TexturedPhotogrammetryMesh:
             # If the label names are present, and the class is not already included, add it as the last element
             if ground_ID is None:
                 # Set it to the first unused ID
-                # TODO improve this since it should be the max plus one
-                ground_ID = len(IDs_to_labels)
+                ground_ID = np.max(IDs_to_labels.keys()) + 1
 
         self.add_label(label_name=ground_class_name, label_ID=ground_ID)
 
@@ -1542,9 +1590,8 @@ class TexturedPhotogrammetryMesh:
 
         # Optionally apply the texture to the mesh
         if set_mesh_texture:
-            # TODO look into why this shouldn't update the IDs to labels.
-            # I guess because it may have been initially user-provided.
-            self.set_texture(labels, update_IDs_to_labels=False)
+            # Set the mesh texture with the new ground ID added
+            self.set_texture(labels)
 
         return labels
 
