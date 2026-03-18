@@ -35,6 +35,7 @@ from geograypher.constants import (
     PATH_TYPE,
     RATIO_3D_2D_KEY,
     VERT_ID,
+    FACE_ID,
     VIS_FOLDER,
 )
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
@@ -610,7 +611,7 @@ class TexturedPhotogrammetryMesh:
             try:
                 self.logger.warn("Trying to read texture as vector file:")
                 # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
-                texture_array, all_values = self.get_values_for_verts_from_vector(
+                texture_array, all_values = self.get_values_for_faces_from_vector(
                     column_names=texture_column_name,
                     vector_source=texture,
                 )
@@ -800,6 +801,30 @@ class TexturedPhotogrammetryMesh:
 
         return points
 
+    def get_face_centers_gdf(self, CRS: pyproj.CRS) -> gpd.GeoDataFrame:
+        """Obtain the x, y locations of the face centers as a dataframe
+
+        Args:
+            CRS (pyproj.CRS): CRS to get the centers in
+
+        Returns:
+            gpd.GeoDataFrame: A geodataframe with only point geometry, represting the center of each face
+        """
+        # Get the mesh in the desired CRS
+        reprojected_mesh = self.reproject_CRS(target_CRS=CRS, inplace=False)
+        # Use the PyVista method to get the centers of each face as a numpy array. In my experience,
+        # this operation is very fast.
+        centers = np.array(reprojected_mesh.cell_centers().points)
+        # Convert to a geodataframe
+        # TODO consider whether a 3D dataframe (POINTZ format) would be helpful.
+        face_centers_gdf = gpd.GeoDataFrame(
+            geometry=gpd.points_from_xy(centers[:, 0], centers[:, 1]), crs=CRS
+        )
+        # Add an index column because the normal index will not be preserved in future operations
+        face_centers_gdf[FACE_ID] = face_centers_gdf.index
+
+        return face_centers_gdf
+
     def get_faces_2d_gdf(
         self,
         crs: pyproj.CRS,
@@ -968,12 +993,12 @@ class TexturedPhotogrammetryMesh:
             return average_value_per_face
 
     # Operations on vector data
-    def get_values_for_verts_from_vector(
+    def get_values_for_faces_from_vector(
         self,
         vector_source: typing.Union[gpd.GeoDataFrame, PATH_TYPE],
         column_names: typing.Union[str, typing.List[str]],
     ) -> np.ndarray:
-        """Get the value from a dataframe for each vertex
+        """Get the value from a dataframe for each face center
 
         Args:
             vector_source (typing.Union[gpd.GeoDataFrame, PATH_TYPE]): geo data frame or path to data that can be loaded by geopandas
@@ -981,9 +1006,9 @@ class TexturedPhotogrammetryMesh:
 
         Returns:
             np.ndarray | dict[str, np.ndarray]:
-                An array or dict of string->array mappings, with one element per vector file polygon
+                An array or dict of string->array mappings, with one element per mesh face represtinging the obtained textures
             np.ndarray | dict[str, np.ndarray]:
-                An array or dict of string->array mappings, with one element per mesh vertex
+                An array or dict of string->array mappings, representing all values in the vector file
         """
         # Lead the vector data if not already provided in memory
         if isinstance(vector_source, gpd.GeoDataFrame):
@@ -1010,16 +1035,18 @@ class TexturedPhotogrammetryMesh:
         elif isinstance(column_names, str):
             column_names = [column_names]
 
-        # Get a dataframe of vertices
-        verts_df = self.get_verts_geodataframe(gdf.crs)
+        # Get a dataframe of the face centers
+        face_centers_gdf = self.get_face_centers_gdf(gdf.crs)
 
         # See which vertices are in the geopolygons
-        points_in_polygons_gdf = gpd.tools.overlay(verts_df, gdf, how="intersection")
+        points_in_polygons_gdf = gpd.tools.overlay(
+            face_centers_gdf, gdf, how="intersection"
+        )
         # Get the index array
-        index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
+        index_array = points_in_polygons_gdf[FACE_ID].to_numpy()
 
         # This is one entry per vertex
-        labeled_verts_dict = {}
+        labeled_faces_dict = {}
         all_values_dict = {}
         # Extract the data from each
         for column_name in column_names:
@@ -1030,12 +1057,12 @@ class TexturedPhotogrammetryMesh:
                 # TODO be set to the default value for the type of the column
                 null_value = "null"
             elif column_values.dtype == int:
-                null_value = 255
+                null_value = NULL_TEXTURE_INT_VALUE
             else:
                 null_value = np.nan
-            # Create an array, one per vertex, with the null value
+            # Create an array, one per face center, with the null value
             values = np.full(
-                shape=verts_df.shape[0],
+                shape=face_centers_gdf.shape[0],
                 dtype=column_values.dtype,
                 fill_value=null_value,
             )
@@ -1043,17 +1070,17 @@ class TexturedPhotogrammetryMesh:
             values[index_array] = column_values
 
             # Record the results
-            labeled_verts_dict[column_name] = values
+            labeled_faces_dict[column_name] = values
             all_values_dict[column_name] = gdf[column_name]
 
         # If only one name was requested, just return that
         if len(column_names) == 1:
-            labeled_verts = np.array(list(labeled_verts_dict.values())[0])
+            labeled_faces = np.array(list(labeled_faces_dict.values())[0])
             all_values = np.array(list(all_values_dict.values())[0])
 
-            return labeled_verts, all_values
+            return labeled_faces, all_values
         # Else return a dict of all requested values
-        return labeled_verts_dict, all_values_dict
+        return labeled_faces_dict, all_values_dict
 
     def save_IDs_to_labels(self, savepath: PATH_TYPE):
         """saves the contents of the IDs_to_labels to the file savepath provided
