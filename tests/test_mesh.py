@@ -85,8 +85,8 @@ class TestMeshProjection:
         )
 
         # Get the mesh vertices in the new CRS
-        vertices_geospatial = textured_photogrammetry_mesh.get_verts_geodataframe(
-            output_CRS
+        vertices_geospatial = textured_photogrammetry_mesh.get_mesh_points_geodataframe(
+            output_CRS, use_vertices=True
         )
         # Reproject the labels to the new CRs
         labels.to_crs(output_CRS, inplace=True)

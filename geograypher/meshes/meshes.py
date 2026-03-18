@@ -1107,34 +1107,35 @@ class TexturedPhotogrammetryMesh:
         else:
             self.logger.warn("non-discrete texture, not saving classes")
 
-    def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
-        # TODO consider moving most of this functionality to a utils file
-        if save_vert_texture:
-            vert_texture = self.get_texture(request_vertex_texture=True)
-            n_channels = vert_texture.shape[1]
+    def save_mesh(self, savepath: PATH_TYPE):
+        """Save the underlying mesh to disk
 
-            if n_channels == 1:
-                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
-                vert_texture = np.tile(vert_texture, reps=(1, 3))
-            if n_channels > 3:
-                self.logger.warning(
-                    "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
-                )
-                # Take the argmax
-                vert_texture = np.nanargmax(vert_texture, axis=1, keepdims=True)
-                # Replace nan with 255
-                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
-                # Expand to the right number of channels
-                vert_texture = np.repeat(vert_texture, repeats=(1, 3))
+        Args:
+            savepath (PATH_TYPE): File to save mesh to. Should have a mesh extension (e.g. .ply)
+        """
+        texture = self.get_texture()
+        n_channels = texture.shape[1]
 
-            vert_texture = vert_texture.astype(np.uint8)
-        else:
-            vert_texture = None
+        if n_channels == 1:
+            texture = np.nan_to_num(texture, nan=NULL_TEXTURE_INT_VALUE)
+            texture = np.tile(texture, reps=(1, 3))
+        if n_channels > 3:
+            self.logger.warning(
+                "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
+            )
+            # Take the argmax
+            texture = np.nanargmax(texture, axis=1, keepdims=True)
+            # Replace nan with 255
+            texture = np.nan_to_num(texture, nan=NULL_TEXTURE_INT_VALUE)
+            # Expand to the right number of channels
+            texture = np.repeat(texture, repeats=(1, 3))
+
+        texture = texture.astype(np.uint8)
 
         # Create folder if it doesn't exist
         ensure_containing_folder(savepath)
         # Actually save the mesh
-        self.pyvista_mesh.save(savepath, texture=vert_texture)
+        self.pyvista_mesh.save(savepath, texture=texture)
         self.save_IDs_to_labels(Path(savepath).stem + "_IDs_to_labels.json")
 
     def label_polygons(
