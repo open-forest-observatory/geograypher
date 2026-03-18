@@ -699,7 +699,7 @@ class TexturedPhotogrammetryMesh:
 
         self.logger.info("Extracting verts for dataframe")
         # Get the vertices as a dataframe in the same CRS
-        verts_df = self.get_verts_geodataframe(ROI_gpd.crs)
+        verts_df = self.get_mesh_points_geodataframe(ROI_gpd.crs, use_vertices=True)
         self.logger.info("Checking intersection of verts with ROI")
         # Determine which vertices are within the ROI polygon
         verts_in_ROI = gpd.tools.overlay(verts_df, ROI_gpd, how="intersection")
@@ -797,7 +797,9 @@ class TexturedPhotogrammetryMesh:
             gpd.GeoDataFrame: A dataframe with all the face centers or vertices
         """
         # Get the numpy array of points
-        mesh_points = self.get_vertices_in_CRS(crs=crs, use_vertices=use_vertices)
+        mesh_points = self.get_mesh_points_in_CRS(
+            output_CRS=crs, use_vertices=use_vertices
+        )
 
         df = pd.DataFrame(
             {
@@ -1028,7 +1030,9 @@ class TexturedPhotogrammetryMesh:
             column_names = [column_names]
 
         # Get a dataframe of the face centers
-        face_centers_gdf = self.get_face_centers_gdf(gdf.crs)
+        face_centers_gdf = self.get_mesh_points_geodataframe(
+            gdf.crs, use_vertices=False
+        )
 
         # See which vertices are in the geopolygons
         points_in_polygons_gdf = gpd.tools.overlay(
@@ -1445,7 +1449,7 @@ class TexturedPhotogrammetryMesh:
         self,
         raster_file: PATH_TYPE,
         use_vertex_locations: bool = False,
-        return_verts_in_CRS: bool = False,
+        return_mesh_points: bool = False,
         nodata_fill_value: float = np.nan,
     ):
         """
@@ -1454,7 +1458,7 @@ class TexturedPhotogrammetryMesh:
         Args:
             raster_file (PATH_TYPE, optional): The path to the geospatial raster file.
             use_vertex_locations (bool, optional): Use the vertex locations for queries, alternatively face centers. Defaults to False.
-            return_verts_in_CRS (bool, optional): Return the vertices transformed into the raster CRS
+            return_mesh_points (bool, optional): Return the points used to query the raster
             nodata_fill_value (float, optional): Set data defined by the opened file as NODATAVAL to this value
 
         Returns:
@@ -1464,12 +1468,9 @@ class TexturedPhotogrammetryMesh:
         # Open the DTM file
         raster = rio.open(raster_file)
         # Get the mesh points in the coordinate reference system of the DTM
-        if use_vertex_locations:
-            locations_in_raster_CRS = self.get_vertices_in_CRS(
-                raster.crs, force_easting_northing=True
-            )
-        else:
-            locations_in_raster_CRS = self.get_face_centers_gdf(raster.crs)
+        locations_in_raster_CRS = self.get_mesh_points_in_CRS(
+            output_CRS=raster.crs, use_vertices=use_vertex_locations
+        )
 
         # Get the points as a list
         easting_points = locations_in_raster_CRS[:, 0].tolist()
@@ -1491,7 +1492,7 @@ class TexturedPhotogrammetryMesh:
             nodata_fill_value
         )
 
-        if return_verts_in_CRS:
+        if return_mesh_points:
             return sampled_raster_values, locations_in_raster_CRS
 
         return sampled_raster_values
@@ -1520,7 +1521,9 @@ class TexturedPhotogrammetryMesh:
         # This method gets the value of the raster at each mesh point and also returns the 3D points
         # which were used for the query.
         DTM_heights, mesh_points_in_raster_CRS = self.get_values_from_raster_file(
-            raster_file=DTM_file, use_vertex_locations=use_vertex_locations
+            raster_file=DTM_file,
+            use_vertex_locations=use_vertex_locations,
+            return_mesh_points=True,
         )
 
         # Extract the mesh point (face centers/vertices) heights
