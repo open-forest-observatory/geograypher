@@ -801,14 +801,18 @@ class TexturedPhotogrammetryMesh:
 
         return points
 
-    def get_face_centers_gdf(self, CRS: pyproj.CRS) -> gpd.GeoDataFrame:
+    def get_face_centers_gdf(
+        self, CRS: pyproj.CRS, return_3d: bool = False
+    ) -> gpd.GeoDataFrame:
         """Obtain the x, y locations of the face centers as a dataframe
 
         Args:
             CRS (pyproj.CRS): CRS to get the centers in
+            return_3d (bool, optional):
+                If True, return 3D Point (POINTZ) geometry including elevation. Defaults to False.
 
         Returns:
-            gpd.GeoDataFrame: A geodataframe with only point geometry, represting the center of each face
+            gpd.GeoDataFrame: A geodataframe with point geometry representing the center of each face
         """
         # Get the mesh in the desired CRS
         reprojected_mesh = self.reproject_CRS(target_CRS=CRS, inplace=False)
@@ -816,10 +820,17 @@ class TexturedPhotogrammetryMesh:
         # this operation is very fast.
         centers = np.array(reprojected_mesh.cell_centers().points)
         # Convert to a geodataframe
-        # TODO consider whether a 3D dataframe (POINTZ format) would be helpful.
-        face_centers_gdf = gpd.GeoDataFrame(
-            geometry=gpd.points_from_xy(centers[:, 0], centers[:, 1]), crs=CRS
-        )
+        if return_3d:
+            face_centers_gdf = gpd.GeoDataFrame(
+                geometry=gpd.points_from_xy(
+                    centers[:, 0], centers[:, 1], centers[:, 2]
+                ),
+                crs=CRS,
+            )
+        else:
+            face_centers_gdf = gpd.GeoDataFrame(
+                geometry=gpd.points_from_xy(centers[:, 0], centers[:, 1]), crs=CRS
+            )
         # Add an index column because the normal index will not be preserved in future operations
         face_centers_gdf[FACE_ID] = face_centers_gdf.index
 
@@ -1449,16 +1460,19 @@ class TexturedPhotogrammetryMesh:
 
     # Operations on raster files
 
-    def get_vert_values_from_raster_file(
+    def get_values_from_raster_file(
         self,
         raster_file: PATH_TYPE,
+        use_vertex_locations: bool = False,
         return_verts_in_CRS: bool = False,
         nodata_fill_value: float = np.nan,
     ):
-        """Compute the height above groun for each point on the mesh
+        """
+        Compute the value of the raster under each mesh point, either the face centers of vertices
 
         Args:
             raster_file (PATH_TYPE, optional): The path to the geospatial raster file.
+            use_vertex_locations (bool, optional): Use the vertex locations for queries, alternatively face centers. Defaults to False.
             return_verts_in_CRS (bool, optional): Return the vertices transformed into the raster CRS
             nodata_fill_value (float, optional): Set data defined by the opened file as NODATAVAL to this value
 
@@ -1469,20 +1483,23 @@ class TexturedPhotogrammetryMesh:
         # Open the DTM file
         raster = rio.open(raster_file)
         # Get the mesh points in the coordinate reference system of the DTM
-        verts_in_raster_CRS = self.get_vertices_in_CRS(
-            raster.crs, force_easting_northing=True
-        )
+        if use_vertex_locations:
+            locations_in_raster_CRS = self.get_vertices_in_CRS(
+                raster.crs, force_easting_northing=True
+            )
+        else:
+            locations_in_raster_CRS = self.get_face_centers_gdf(raster.crs)
 
         # Get the points as a list
-        easting_points = verts_in_raster_CRS[:, 0].tolist()
-        northing_points = verts_in_raster_CRS[:, 1].tolist()
+        easting_points = locations_in_raster_CRS[:, 0].tolist()
+        northing_points = locations_in_raster_CRS[:, 1].tolist()
 
         # Zip them together
         zipped_locations = zip(easting_points, northing_points)
         sampling_iter = tqdm(
             zipped_locations,
             desc=f"Sampling values from raster {raster_file}",
-            total=verts_in_raster_CRS.shape[0],
+            total=locations_in_raster_CRS.shape[0],
         )
         # Sample the raster file and squeeze if single channel
         sampled_raster_values = np.squeeze(np.array(list(raster.sample(sampling_iter))))
@@ -1494,38 +1511,45 @@ class TexturedPhotogrammetryMesh:
         )
 
         if return_verts_in_CRS:
-            return sampled_raster_values, verts_in_raster_CRS
+            return sampled_raster_values, locations_in_raster_CRS
 
         return sampled_raster_values
 
     def get_height_above_ground(
-        self, DTM_file: PATH_TYPE, threshold: float = None
+        self,
+        DTM_file: PATH_TYPE,
+        use_vertex_locations: bool = False,
+        threshold: float = None,
     ) -> np.ndarray:
-        """Return height above ground for a points in the mesh and a given DTM
+        """Return height above ground for each face in the mesh given a DTM
 
         Args:
-            DTM_file (PATH_TYPE): Path to the digital terrain model raster
+            DTM_file (PATH_TYPE):
+                Path to the digital terrain model raster
+            use_vertex_locations (bool, optional):
+                Get the heights per vertex, alteratively uses the face centers. Defaults to False
             threshold (float, optional):
-                If not None, return a boolean mask for points under this height. Defaults to None.
+                If not None, return a boolean mask for faces under this height. Defaults to None.
 
         Returns:
-            np.ndarray: Either the height above ground or a boolean mask for ground points
+            np.ndarray:
+                Either the height above ground or whether it is less than the threshold for either
+                the face centers or the vertices.
         """
-        # Get the height from the DTM and the points in the same CRS
-        DTM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
-            DTM_file, return_verts_in_CRS=True
+        # This method gets the value of the raster at each mesh point and also returns the 3D points
+        # which were used for the query.
+        DTM_heights, mesh_points_in_raster_CRS = self.get_values_from_raster_file(
+            raster_file=DTM_file, use_vertex_locations=use_vertex_locations
         )
-        # Extract the vertex height as the third channel
-        verts_height = verts_in_raster_CRS[:, 2]
-        # Subtract the two to get the height above ground
-        height_above_ground = verts_height - DTM_heights
 
-        # If the threshold is not None, return a boolean mask that is true for ground points
+        # Extract the mesh point (face centers/vertices) heights
+        mesh_points_heights = mesh_points_in_raster_CRS[:, 2]
+        # And perform the subtraction
+        height_above_ground = mesh_points_heights - DTM_heights
+
+        # If the threshold is not None, return a boolean mask that is true for ground faces
         if threshold is not None:
-            # Return boolean mask
-            # TODO see if this will break for nan values
             return height_above_ground < threshold
-        # Return height above ground
         return height_above_ground
 
     def label_ground_class(
@@ -1555,14 +1579,14 @@ class TexturedPhotogrammetryMesh:
         """
 
         if labels is None:
-            # Default to using vertex labels since it's the native way to check height above the DTM
-            use_vertex_labels = True
+            # Default to using face labels since it's the prefered way to check height above the DTM
+            use_vertex_locations = False
         elif labels is not None:
             # Check the size of the input labels and set what type they are. Note this could override existing value
             if labels.shape[0] == self.pyvista_mesh.points.shape[0]:
-                use_vertex_labels = True
+                use_vertex_locations = True
             elif labels.shape[0] == self.faces.shape[0]:
-                use_vertex_labels = False
+                use_vertex_locations = False
             else:
                 raise ValueError(
                     "Labels were provided but didn't match the shape of vertices or faces"
@@ -1572,18 +1596,15 @@ class TexturedPhotogrammetryMesh:
         if labels is None:
             # Get the vertex textures from the mesh
             labels = self.get_texture(
-                request_vertex_texture=use_vertex_labels,
+                request_vertex_texture=use_vertex_locations,
             )
 
         # Compute which vertices are part of the ground by thresholding the height above the DTM
         ground_mask = self.get_height_above_ground(
-            DTM_file=DTM_file, threshold=height_above_ground_threshold
+            DTM_file=DTM_file,
+            threshold=height_above_ground_threshold,
+            use_vertex_locations=use_vertex_locations,
         )
-        # If we needed a mask for the faces, compute that instead
-        if not use_vertex_labels:
-            ground_mask = self.vert_to_face_texture(ground_mask.astype(int)).astype(
-                bool
-            )
 
         # Replace only vertices that were previously labeled as something else, to avoid class imbalance
         if only_label_existing_labels:
