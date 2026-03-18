@@ -749,47 +749,60 @@ class TexturedPhotogrammetryMesh:
         return list(self.IDs_to_labels.values())
 
     # Vertex methods
-    def get_vertices_in_CRS(
-        self, output_CRS: pyproj.CRS, force_easting_northing: bool = True
+    def get_mesh_points_in_CRS(
+        self,
+        output_CRS: pyproj.CRS,
+        use_vertices: bool = False,
+        force_easting_northing: bool = True,
     ):
-        """Return the coordinates of the mesh vertices in a given CRS
+        """Return the coordinates of the mesh face centers or vertices in a given CRS
 
         Args:
             output_CRS (pyproj.CRS): The coordinate reference system to transform to
+            use_vertices (bool, optional): Get the vertex locations rather than default face centers.
             force_easting_northing (bool, optional): Ensure that the returned points are east first, then north
 
         Returns:
-            np.ndarray: (n_points, 3)
+            np.ndarray: Either (n_points, 3) or (n_faces, 3)
         """
         # Reproject the mesh
         reprojected_mesh = self.reproject_CRS(output_CRS, inplace=False)
-        verts_in_output_CRS = np.array(reprojected_mesh.points)
+
+        if use_vertices:
+            points_in_output_CRS = np.array(reprojected_mesh.points)
+        else:
+            points_in_output_CRS = np.array(reprojected_mesh.cell_centers().points)
 
         # Pyproj respects the CRS axis ordering, which is northing/easting for most projected coordinate systems
         # This causes headaches because it's assumed by rasterio and geopandas to be easting/northing
         # https://rasterio.readthedocs.io/en/stable/api/rasterio.crs.html#rasterio.crs.epsg_treats_as_latlong
         if force_easting_northing and rio.crs.epsg_treats_as_latlong(output_CRS):
             # Swap first two columns
-            verts_in_output_CRS = verts_in_output_CRS[:, [1, 0, 2]]
+            points_in_output_CRS = points_in_output_CRS[:, [1, 0, 2]]
 
-        return verts_in_output_CRS
+        return points_in_output_CRS
 
-    def get_verts_geodataframe(self, crs: pyproj.CRS) -> gpd.GeoDataFrame:
-        """Obtain the vertices as a dataframe
+    def get_mesh_points_geodataframe(
+        self,
+        crs: pyproj.CRS,
+        use_vertices: bool = False,
+    ) -> gpd.GeoDataFrame:
+        """Obtain the mesh face centers or vertices as a dataframe
 
         Args:
             crs (pyproj.CRS): The CRS to use
+            use_vertices (bool, optional): Get the vertex locations rather than default face centers.
 
         Returns:
-            gpd.GeoDataFrame: A dataframe with all the vertices
+            gpd.GeoDataFrame: A dataframe with all the face centers or vertices
         """
-        # Get the vertices in the same CRS as the geofile
-        verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
+        # Get the numpy array of points
+        mesh_points = self.get_vertices_in_CRS(crs=crs, use_vertices=use_vertices)
 
         df = pd.DataFrame(
             {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
+                "east": mesh_points[:, 0],
+                "north": mesh_points[:, 1],
             }
         )
         # Create a column of Point objects to use as the geometry
@@ -797,44 +810,12 @@ class TexturedPhotogrammetryMesh:
         points = gpd.GeoDataFrame(df, crs=crs)
 
         # Add an index column because the normal index will not be preserved in future operations
-        points[VERT_ID] = df.index
+        if use_vertices:
+            points[VERT_ID] = df.index
+        else:
+            points[FACE_ID] = df.index
 
         return points
-
-    def get_face_centers_gdf(
-        self, CRS: pyproj.CRS, return_3d: bool = False
-    ) -> gpd.GeoDataFrame:
-        """Obtain the x, y locations of the face centers as a dataframe
-
-        Args:
-            CRS (pyproj.CRS): CRS to get the centers in
-            return_3d (bool, optional):
-                If True, return 3D Point (POINTZ) geometry including elevation. Defaults to False.
-
-        Returns:
-            gpd.GeoDataFrame: A geodataframe with point geometry representing the center of each face
-        """
-        # Get the mesh in the desired CRS
-        reprojected_mesh = self.reproject_CRS(target_CRS=CRS, inplace=False)
-        # Use the PyVista method to get the centers of each face as a numpy array. In my experience,
-        # this operation is very fast.
-        centers = np.array(reprojected_mesh.cell_centers().points)
-        # Convert to a geodataframe
-        if return_3d:
-            face_centers_gdf = gpd.GeoDataFrame(
-                geometry=gpd.points_from_xy(
-                    centers[:, 0], centers[:, 1], centers[:, 2]
-                ),
-                crs=CRS,
-            )
-        else:
-            face_centers_gdf = gpd.GeoDataFrame(
-                geometry=gpd.points_from_xy(centers[:, 0], centers[:, 1]), crs=CRS
-            )
-        # Add an index column because the normal index will not be preserved in future operations
-        face_centers_gdf[FACE_ID] = face_centers_gdf.index
-
-        return face_centers_gdf
 
     def get_faces_2d_gdf(
         self,
