@@ -30,12 +30,12 @@ from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_CRS,
+    FACE_ID,
     LAT_LON_CRS,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
     RATIO_3D_2D_KEY,
     VERT_ID,
-    FACE_ID,
     VIS_FOLDER,
 )
 from geograypher.utils.files import ensure_containing_folder, ensure_folder
