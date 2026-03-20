@@ -179,9 +179,9 @@ def render_height_masks(
 
     mesh = load_mesh()
 
-    # Calculate the height of each mesh vertex above the detected ground (DTM).
+    # Calculate the height of each mesh face above the detected ground (DTM).
     # Note that DTM files usually cover a smaller area spatially than the mesh,
-    # and points outside the DTM ROI will have a height of NaN.
+    # and faces outside the DTM ROI will have a height of NaN.
     height = mesh.get_height_above_ground(DTM_file=dtm_file)
 
     if output_mode == "threshold":
@@ -224,7 +224,7 @@ def render_height_masks(
             normalize = Normalize(vmin=np.nanmin(texture), vmax=np.nanmax(texture))
             colored = cm.get_cmap("viridis")(normalize(texture))
         vis_mesh = load_mesh(texture=(colored[:, :3] * 255).astype(np.uint8))
-        vis_mesh.save_mesh(vis_folder / "height_mesh.ply", save_vert_texture=True)
+        vis_mesh.save_mesh(vis_folder / "height_mesh.ply")
 
     # For each camera, render the height-painted mesh onto that camera view
     height_mesh.save_renders(

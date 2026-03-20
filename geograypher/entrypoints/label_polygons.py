@@ -83,14 +83,11 @@ def label_polygons(
     if vis_mesh:
         mesh.vis(vis_scalars=predicted_face_classes)
 
-    # Extract which vertices are labeled as ground
-    # TODO check that the types are correct here
-    ground_mask_verts = mesh.get_height_above_ground(
+    # Extract which faces are labeled as ground
+    ground_mask_faces = mesh.get_height_above_ground(
         DTM_file=DTM_file,
         threshold=height_above_ground_threshold,
     )
-    # Convert that vertex labels into face labels
-    ground_mask_faces = mesh.vert_to_face_texture(ground_mask_verts)
 
     # Ground points get a weighting of ground_voting_weight, others get 1
     ground_weighting = 1 - (

@@ -18,6 +18,7 @@ VIS_FOLDER = Path(Path(__file__).parent, "..", "vis").resolve()
 CACHE_FOLDER = Path(Path(__file__).parent, "..", "cache").resolve()
 
 VERT_ID = "vert_ID"
+FACE_ID = "face_ID"
 CLASS_ID_KEY = "class_ID"
 INSTANCE_ID_KEY = "instance_ID"
 PRED_CLASS_ID_KEY = "pred_class_ID"

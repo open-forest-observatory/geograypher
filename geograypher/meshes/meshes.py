@@ -30,6 +30,7 @@ from geograypher.constants import (
     CLASS_ID_KEY,
     CLASS_NAMES_KEY,
     EARTH_CENTERED_EARTH_FIXED_CRS,
+    FACE_ID,
     LAT_LON_CRS,
     NULL_TEXTURE_INT_VALUE,
     PATH_TYPE,
@@ -610,7 +611,7 @@ class TexturedPhotogrammetryMesh:
             try:
                 self.logger.warn("Trying to read texture as vector file:")
                 # TODO IDs to labels should be used here if set so the computed IDs are aligned with that mapping
-                texture_array, all_values = self.get_values_for_verts_from_vector(
+                texture_array, all_values = self.get_values_for_faces_from_vector(
                     column_names=texture_column_name,
                     vector_source=texture,
                 )
@@ -698,7 +699,7 @@ class TexturedPhotogrammetryMesh:
 
         self.logger.info("Extracting verts for dataframe")
         # Get the vertices as a dataframe in the same CRS
-        verts_df = self.get_verts_geodataframe(ROI_gpd.crs)
+        verts_df = self.get_mesh_points_geodataframe(ROI_gpd.crs, use_vertices=True)
         self.logger.info("Checking intersection of verts with ROI")
         # Determine which vertices are within the ROI polygon
         verts_in_ROI = gpd.tools.overlay(verts_df, ROI_gpd, how="intersection")
@@ -748,47 +749,62 @@ class TexturedPhotogrammetryMesh:
         return list(self.IDs_to_labels.values())
 
     # Vertex methods
-    def get_vertices_in_CRS(
-        self, output_CRS: pyproj.CRS, force_easting_northing: bool = True
+    def get_mesh_points_in_CRS(
+        self,
+        output_CRS: pyproj.CRS,
+        use_vertices: bool = False,
+        force_easting_northing: bool = True,
     ):
-        """Return the coordinates of the mesh vertices in a given CRS
+        """Return the coordinates of the mesh face centers or vertices in a given CRS
 
         Args:
             output_CRS (pyproj.CRS): The coordinate reference system to transform to
+            use_vertices (bool, optional): Get the vertex locations rather than default face centers.
             force_easting_northing (bool, optional): Ensure that the returned points are east first, then north
 
         Returns:
-            np.ndarray: (n_points, 3)
+            np.ndarray: Either (n_points, 3) or (n_faces, 3)
         """
         # Reproject the mesh
         reprojected_mesh = self.reproject_CRS(output_CRS, inplace=False)
-        verts_in_output_CRS = np.array(reprojected_mesh.points)
+
+        if use_vertices:
+            points_in_output_CRS = np.array(reprojected_mesh.points)
+        else:
+            points_in_output_CRS = np.array(reprojected_mesh.cell_centers().points)
 
         # Pyproj respects the CRS axis ordering, which is northing/easting for most projected coordinate systems
         # This causes headaches because it's assumed by rasterio and geopandas to be easting/northing
         # https://rasterio.readthedocs.io/en/stable/api/rasterio.crs.html#rasterio.crs.epsg_treats_as_latlong
         if force_easting_northing and rio.crs.epsg_treats_as_latlong(output_CRS):
             # Swap first two columns
-            verts_in_output_CRS = verts_in_output_CRS[:, [1, 0, 2]]
+            points_in_output_CRS = points_in_output_CRS[:, [1, 0, 2]]
 
-        return verts_in_output_CRS
+        return points_in_output_CRS
 
-    def get_verts_geodataframe(self, crs: pyproj.CRS) -> gpd.GeoDataFrame:
-        """Obtain the vertices as a dataframe
+    def get_mesh_points_geodataframe(
+        self,
+        crs: pyproj.CRS,
+        use_vertices: bool = False,
+    ) -> gpd.GeoDataFrame:
+        """Obtain the mesh face centers or vertices as a dataframe
 
         Args:
             crs (pyproj.CRS): The CRS to use
+            use_vertices (bool, optional): Get the vertex locations rather than default face centers.
 
         Returns:
-            gpd.GeoDataFrame: A dataframe with all the vertices
+            gpd.GeoDataFrame: A dataframe with all the face centers or vertices
         """
-        # Get the vertices in the same CRS as the geofile
-        verts_in_geopolygon_crs = self.get_vertices_in_CRS(crs)
+        # Get the numpy array of points
+        mesh_points = self.get_mesh_points_in_CRS(
+            output_CRS=crs, use_vertices=use_vertices
+        )
 
         df = pd.DataFrame(
             {
-                "east": verts_in_geopolygon_crs[:, 0],
-                "north": verts_in_geopolygon_crs[:, 1],
+                "east": mesh_points[:, 0],
+                "north": mesh_points[:, 1],
             }
         )
         # Create a column of Point objects to use as the geometry
@@ -796,7 +812,10 @@ class TexturedPhotogrammetryMesh:
         points = gpd.GeoDataFrame(df, crs=crs)
 
         # Add an index column because the normal index will not be preserved in future operations
-        points[VERT_ID] = df.index
+        if use_vertices:
+            points[VERT_ID] = df.index
+        else:
+            points[FACE_ID] = df.index
 
         return points
 
@@ -968,12 +987,12 @@ class TexturedPhotogrammetryMesh:
             return average_value_per_face
 
     # Operations on vector data
-    def get_values_for_verts_from_vector(
+    def get_values_for_faces_from_vector(
         self,
         vector_source: typing.Union[gpd.GeoDataFrame, PATH_TYPE],
         column_names: typing.Union[str, typing.List[str]],
     ) -> np.ndarray:
-        """Get the value from a dataframe for each vertex
+        """Get the value from a dataframe for each face center
 
         Args:
             vector_source (typing.Union[gpd.GeoDataFrame, PATH_TYPE]): geo data frame or path to data that can be loaded by geopandas
@@ -981,9 +1000,9 @@ class TexturedPhotogrammetryMesh:
 
         Returns:
             np.ndarray | dict[str, np.ndarray]:
-                An array or dict of string->array mappings, with one element per vector file polygon
+                An array or dict of string->array mappings, with one element per mesh face represtinging the obtained textures
             np.ndarray | dict[str, np.ndarray]:
-                An array or dict of string->array mappings, with one element per mesh vertex
+                An array or dict of string->array mappings, representing all values in the vector file
         """
         # Lead the vector data if not already provided in memory
         if isinstance(vector_source, gpd.GeoDataFrame):
@@ -1010,16 +1029,20 @@ class TexturedPhotogrammetryMesh:
         elif isinstance(column_names, str):
             column_names = [column_names]
 
-        # Get a dataframe of vertices
-        verts_df = self.get_verts_geodataframe(gdf.crs)
+        # Get a dataframe of the face centers
+        face_centers_gdf = self.get_mesh_points_geodataframe(
+            gdf.crs, use_vertices=False
+        )
 
         # See which vertices are in the geopolygons
-        points_in_polygons_gdf = gpd.tools.overlay(verts_df, gdf, how="intersection")
+        points_in_polygons_gdf = gpd.tools.overlay(
+            face_centers_gdf, gdf, how="intersection"
+        )
         # Get the index array
-        index_array = points_in_polygons_gdf[VERT_ID].to_numpy()
+        index_array = points_in_polygons_gdf[FACE_ID].to_numpy()
 
         # This is one entry per vertex
-        labeled_verts_dict = {}
+        labeled_faces_dict = {}
         all_values_dict = {}
         # Extract the data from each
         for column_name in column_names:
@@ -1030,12 +1053,12 @@ class TexturedPhotogrammetryMesh:
                 # TODO be set to the default value for the type of the column
                 null_value = "null"
             elif column_values.dtype == int:
-                null_value = 255
+                null_value = NULL_TEXTURE_INT_VALUE
             else:
                 null_value = np.nan
-            # Create an array, one per vertex, with the null value
+            # Create an array, one per face center, with the null value
             values = np.full(
-                shape=verts_df.shape[0],
+                shape=face_centers_gdf.shape[0],
                 dtype=column_values.dtype,
                 fill_value=null_value,
             )
@@ -1043,17 +1066,17 @@ class TexturedPhotogrammetryMesh:
             values[index_array] = column_values
 
             # Record the results
-            labeled_verts_dict[column_name] = values
+            labeled_faces_dict[column_name] = values
             all_values_dict[column_name] = gdf[column_name]
 
         # If only one name was requested, just return that
         if len(column_names) == 1:
-            labeled_verts = np.array(list(labeled_verts_dict.values())[0])
+            labeled_faces = np.array(list(labeled_faces_dict.values())[0])
             all_values = np.array(list(all_values_dict.values())[0])
 
-            return labeled_verts, all_values
+            return labeled_faces, all_values
         # Else return a dict of all requested values
-        return labeled_verts_dict, all_values_dict
+        return labeled_faces_dict, all_values_dict
 
     def save_IDs_to_labels(self, savepath: PATH_TYPE):
         """saves the contents of the IDs_to_labels to the file savepath provided
@@ -1084,34 +1107,35 @@ class TexturedPhotogrammetryMesh:
         else:
             self.logger.warn("non-discrete texture, not saving classes")
 
-    def save_mesh(self, savepath: PATH_TYPE, save_vert_texture: bool = True):
-        # TODO consider moving most of this functionality to a utils file
-        if save_vert_texture:
-            vert_texture = self.get_texture(request_vertex_texture=True)
-            n_channels = vert_texture.shape[1]
+    def save_mesh(self, savepath: PATH_TYPE):
+        """Save the underlying mesh to disk
 
-            if n_channels == 1:
-                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
-                vert_texture = np.tile(vert_texture, reps=(1, 3))
-            if n_channels > 3:
-                self.logger.warning(
-                    "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
-                )
-                # Take the argmax
-                vert_texture = np.nanargmax(vert_texture, axis=1, keepdims=True)
-                # Replace nan with 255
-                vert_texture = np.nan_to_num(vert_texture, nan=NULL_TEXTURE_INT_VALUE)
-                # Expand to the right number of channels
-                vert_texture = np.repeat(vert_texture, repeats=(1, 3))
+        Args:
+            savepath (PATH_TYPE): File to save mesh to. Should have a mesh extension (e.g. .ply)
+        """
+        texture = self.get_texture()
+        n_channels = texture.shape[1]
 
-            vert_texture = vert_texture.astype(np.uint8)
-        else:
-            vert_texture = None
+        if n_channels == 1:
+            texture = np.nan_to_num(texture, nan=NULL_TEXTURE_INT_VALUE)
+            texture = np.tile(texture, reps=(1, 3))
+        if n_channels > 3:
+            self.logger.warning(
+                "Too many channels to save, attempting to treat them as class probabilities and take the argmax"
+            )
+            # Take the argmax
+            texture = np.nanargmax(texture, axis=1, keepdims=True)
+            # Replace nan with 255
+            texture = np.nan_to_num(texture, nan=NULL_TEXTURE_INT_VALUE)
+            # Expand to the right number of channels
+            texture = np.repeat(texture, repeats=(1, 3))
+
+        texture = texture.astype(np.uint8)
 
         # Create folder if it doesn't exist
         ensure_containing_folder(savepath)
         # Actually save the mesh
-        self.pyvista_mesh.save(savepath, texture=vert_texture)
+        self.pyvista_mesh.save(savepath, texture=texture)
         self.save_IDs_to_labels(Path(savepath).stem + "_IDs_to_labels.json")
 
     def label_polygons(
@@ -1422,17 +1446,20 @@ class TexturedPhotogrammetryMesh:
 
     # Operations on raster files
 
-    def get_vert_values_from_raster_file(
+    def get_values_from_raster_file(
         self,
         raster_file: PATH_TYPE,
-        return_verts_in_CRS: bool = False,
+        use_vertex_locations: bool = False,
+        return_mesh_points: bool = False,
         nodata_fill_value: float = np.nan,
     ):
-        """Compute the height above groun for each point on the mesh
+        """
+        Compute the value of the raster under each mesh point, either the face centers of vertices
 
         Args:
             raster_file (PATH_TYPE, optional): The path to the geospatial raster file.
-            return_verts_in_CRS (bool, optional): Return the vertices transformed into the raster CRS
+            use_vertex_locations (bool, optional): Use the vertex locations for queries, alternatively face centers. Defaults to False.
+            return_mesh_points (bool, optional): Return the points used to query the raster
             nodata_fill_value (float, optional): Set data defined by the opened file as NODATAVAL to this value
 
         Returns:
@@ -1442,20 +1469,20 @@ class TexturedPhotogrammetryMesh:
         # Open the DTM file
         raster = rio.open(raster_file)
         # Get the mesh points in the coordinate reference system of the DTM
-        verts_in_raster_CRS = self.get_vertices_in_CRS(
-            raster.crs, force_easting_northing=True
+        locations_in_raster_CRS = self.get_mesh_points_in_CRS(
+            output_CRS=raster.crs, use_vertices=use_vertex_locations
         )
 
         # Get the points as a list
-        easting_points = verts_in_raster_CRS[:, 0].tolist()
-        northing_points = verts_in_raster_CRS[:, 1].tolist()
+        easting_points = locations_in_raster_CRS[:, 0].tolist()
+        northing_points = locations_in_raster_CRS[:, 1].tolist()
 
         # Zip them together
         zipped_locations = zip(easting_points, northing_points)
         sampling_iter = tqdm(
             zipped_locations,
             desc=f"Sampling values from raster {raster_file}",
-            total=verts_in_raster_CRS.shape[0],
+            total=locations_in_raster_CRS.shape[0],
         )
         # Sample the raster file and squeeze if single channel
         sampled_raster_values = np.squeeze(np.array(list(raster.sample(sampling_iter))))
@@ -1466,39 +1493,48 @@ class TexturedPhotogrammetryMesh:
             nodata_fill_value
         )
 
-        if return_verts_in_CRS:
-            return sampled_raster_values, verts_in_raster_CRS
+        if return_mesh_points:
+            return sampled_raster_values, locations_in_raster_CRS
 
         return sampled_raster_values
 
     def get_height_above_ground(
-        self, DTM_file: PATH_TYPE, threshold: float = None
+        self,
+        DTM_file: PATH_TYPE,
+        use_vertex_locations: bool = False,
+        threshold: float = None,
     ) -> np.ndarray:
-        """Return height above ground for a points in the mesh and a given DTM
+        """Return height above ground for each face in the mesh given a DTM
 
         Args:
-            DTM_file (PATH_TYPE): Path to the digital terrain model raster
+            DTM_file (PATH_TYPE):
+                Path to the digital terrain model raster
+            use_vertex_locations (bool, optional):
+                Get the heights per vertex, alteratively uses the face centers. Defaults to False
             threshold (float, optional):
-                If not None, return a boolean mask for points under this height. Defaults to None.
+                If not None, return a boolean mask for faces under this height. Defaults to None.
 
         Returns:
-            np.ndarray: Either the height above ground or a boolean mask for ground points
+            np.ndarray:
+                Either the height above ground or whether it is less than the threshold for either
+                the face centers or the vertices.
         """
-        # Get the height from the DTM and the points in the same CRS
-        DTM_heights, verts_in_raster_CRS = self.get_vert_values_from_raster_file(
-            DTM_file, return_verts_in_CRS=True
+        # This method gets the value of the raster at each mesh point and also returns the 3D points
+        # which were used for the query.
+        DTM_heights, mesh_points_in_raster_CRS = self.get_values_from_raster_file(
+            raster_file=DTM_file,
+            use_vertex_locations=use_vertex_locations,
+            return_mesh_points=True,
         )
-        # Extract the vertex height as the third channel
-        verts_height = verts_in_raster_CRS[:, 2]
-        # Subtract the two to get the height above ground
-        height_above_ground = verts_height - DTM_heights
 
-        # If the threshold is not None, return a boolean mask that is true for ground points
+        # Extract the mesh point (face centers/vertices) heights
+        mesh_points_heights = mesh_points_in_raster_CRS[:, 2]
+        # And perform the subtraction
+        height_above_ground = mesh_points_heights - DTM_heights
+
+        # If the threshold is not None, return a boolean mask that is true for ground faces
         if threshold is not None:
-            # Return boolean mask
-            # TODO see if this will break for nan values
             return height_above_ground < threshold
-        # Return height above ground
         return height_above_ground
 
     def label_ground_class(
@@ -1528,14 +1564,14 @@ class TexturedPhotogrammetryMesh:
         """
 
         if labels is None:
-            # Default to using vertex labels since it's the native way to check height above the DTM
-            use_vertex_labels = True
+            # Default to using face labels since it's the prefered way to check height above the DTM
+            use_vertex_locations = False
         elif labels is not None:
             # Check the size of the input labels and set what type they are. Note this could override existing value
             if labels.shape[0] == self.pyvista_mesh.points.shape[0]:
-                use_vertex_labels = True
+                use_vertex_locations = True
             elif labels.shape[0] == self.faces.shape[0]:
-                use_vertex_labels = False
+                use_vertex_locations = False
             else:
                 raise ValueError(
                     "Labels were provided but didn't match the shape of vertices or faces"
@@ -1545,18 +1581,15 @@ class TexturedPhotogrammetryMesh:
         if labels is None:
             # Get the vertex textures from the mesh
             labels = self.get_texture(
-                request_vertex_texture=use_vertex_labels,
+                request_vertex_texture=use_vertex_locations,
             )
 
         # Compute which vertices are part of the ground by thresholding the height above the DTM
         ground_mask = self.get_height_above_ground(
-            DTM_file=DTM_file, threshold=height_above_ground_threshold
+            DTM_file=DTM_file,
+            threshold=height_above_ground_threshold,
+            use_vertex_locations=use_vertex_locations,
         )
-        # If we needed a mask for the faces, compute that instead
-        if not use_vertex_labels:
-            ground_mask = self.vert_to_face_texture(ground_mask.astype(int)).astype(
-                bool
-            )
 
         # Replace only vertices that were previously labeled as something else, to avoid class imbalance
         if only_label_existing_labels:
