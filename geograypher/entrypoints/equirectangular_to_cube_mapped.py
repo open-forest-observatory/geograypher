@@ -1,16 +1,16 @@
 import argparse
-import geopandas as gpd
-import numpy as np
-import matplotlib.pyplot as plt
-from pathlib import Path
-from sklearn.cluster import KMeans
 from math import round
+from pathlib import Path
 
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
 from imageio.v2 import imread, imwrite
+from sklearn.cluster import KMeans
 
-from geograypher.utils.image import perspective_from_equirectangular
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.utils.geospatial import ensure_projected_CRS
+from geograypher.utils.image import perspective_from_equirectangular
 
 # Camera orientations (fov, yaw, pitch) to sample from each equirectangular image
 FYPS = [
