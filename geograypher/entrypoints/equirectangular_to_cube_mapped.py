@@ -88,7 +88,6 @@ def chip_dataset(
             ]
         ).T
 
-
         # Run KMeans clustering and identify the image indices nearest each cluster center
         closest_indices = select_indices_nearest_cluster_centers(
             camera_locations_numpy, n_images_to_save
@@ -156,7 +155,9 @@ def parse_args():
         description="Chip equirectangular images into perspective views."
     )
     parser.add_argument(
-        "image_dir", type=Path, help="Folder of equirectangular images to process",
+        "image_dir",
+        type=Path,
+        help="Folder of equirectangular images to process",
     )
     parser.add_argument(
         "--output-dir",
@@ -203,6 +204,7 @@ def parse_args():
 
     return args
 
+
 def main():
     args = parse_args
 
@@ -225,7 +227,12 @@ def main():
             print("No images were processed; skipping mask sum visualization.")
         else:
             visualize_mask_sum(
-                last_img, FYPS, output_size, args.oversample_factor, args.warp_order, args.visualize_mask_sum_path
+                last_img,
+                FYPS,
+                output_size,
+                args.oversample_factor,
+                args.warp_order,
+                args.visualize_mask_sum_path,
             )
 
 
