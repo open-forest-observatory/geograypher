@@ -195,7 +195,7 @@ def parse_args():
         help="Folder of equirectangular images to process",
     )
     parser.add_argument(
-        "--output-dir",
+        "output_dir",
         type=Path,
         required=True,
         help="Directory under which per-dataset output folders are created",
