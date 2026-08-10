@@ -1,5 +1,5 @@
 import argparse
-from math import round
+import typing
 from pathlib import Path
 
 import geopandas as gpd
@@ -41,81 +41,81 @@ def select_indices_nearest_cluster_centers(points, num_clusters):
     return closest_indices
 
 
-def chip_dataset(
-    dataset: Path,
+def chip_equirectangular_folder(
+    input_dir: Path,
     output_dir: Path,
     fyps: list[tuple[float, float, float]],
-    n_images_to_save: int | None,
+    n_images_to_save: typing.Union[int, None],
     output_size: tuple[int, int],
     oversample_factor: int,
     warp_order: int,
-    photogrammetry_cameras_path: Path | None = None,
-) -> np.ndarray | None:
+    photogrammetry_cameras_path: typing.Union[Path, None] = None,
+) -> typing.Union[np.ndarray, None]:
     """Create a set of perspective projection images given a folder of equirectangular images.
 
     Args:
-        dataset (Path): Path to a folder of equirectangular images
+        input_dir (Path): Path to a folder of equirectangular images
         output_dir (Path): Where to save the output projected images.
         fyps (list[tuple[float, float, float]]): The field of view, yaw, and pitch angles defining the virtual camera rig.
-        n_images_to_save (int | None): How many to save. If None, all are saved.
+        n_images_to_save (typing.Union[int, None]): How many to save. If None, all are saved.
         output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size.
         oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
         warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
-        photogrammetry_cameras_path (Path | None, optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
+        photogrammetry_cameras_path (typing.Union[Path, None], optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
 
     Returns:
-        np.ndarray | None: Either the last image loaded or None
+        typing.Union[np.ndarray, None]: Either the last image loaded or None
     """
-    if photogrammetry_cameras_path is None:
-        # Select files to save sequentially if no camera file is provided to determine locations
-        files = sorted(dataset.glob("*"))
+    # Get all files in the dataset folder
+    files = sorted([f for f in input_dir.rglob("*") if f.is_file()])
 
-        # Select all images if no number is provided
-        if n_images_to_save is None:
-            files_to_save = files
-        else:
-            files_to_save = files[:: min(n_images_to_save, len(files))]
+    if n_images_to_save is None:
+        # Save all images
+        files_to_save = files
     else:
-        # Use the locations to select a subset of images nearest the kmeans centers
+        if photogrammetry_cameras_path is None:
+            # Select files to save sequentially if no camera file is provided to determine locations
+            files = sorted(input_dir.glob("*"))
 
-        # Parse the photogrammetry result file using the geograypher camera class.
-        # Default fields which are not actually used.
-        cameras = MetashapeCameraSet(
-            camera_file=photogrammetry_cameras_path,
-            image_folder="",
-            default_sensor_params={"f": 1.0, "cx": 0.0, "cy": 0.0},
-        )
+            files_to_save = files[:: min(n_images_to_save, len(files))]
+        else:
+            # Use the locations to select a subset of images nearest the kmeans centers
 
-        # Extract the coordinates of the image locations and convert them to an (n, 2) array in an
-        # appropriate projected CRS
-        camera_locations_lon_lat = cameras.get_lon_lat_coords()
-        camera_locations_lon_lat_gdf = gpd.GeoDataFrame(
-            geometry=gpd.points_from_xy(*zip(*camera_locations_lon_lat)),
-            crs=4326,
-        )
-        camera_locations_gdf_projected = ensure_projected_CRS(
-            camera_locations_lon_lat_gdf
-        )
-        camera_locations_numpy = np.vstack(
-            [
-                camera_locations_gdf_projected.geometry.x,
-                camera_locations_gdf_projected.geometry.y,
-            ]
-        ).T
+            # Parse the photogrammetry result file using the geograypher camera class.
+            # Default fields which are not actually used.
+            cameras = MetashapeCameraSet(
+                camera_file=photogrammetry_cameras_path,
+                image_folder=input_dir,
+                default_sensor_params={"f": 1.0, "cx": 0.0, "cy": 0.0},
+            )
 
-        # Run KMeans clustering and identify the image indices nearest each cluster center
-        closest_indices = select_indices_nearest_cluster_centers(
-            camera_locations_numpy, n_images_to_save
-        )
+            # Extract the coordinates of the image locations and convert them to an (n, 2) array in an
+            # appropriate projected CRS
+            camera_locations_lon_lat = cameras.get_lon_lat_coords()
+            camera_locations_lon_lat_gdf = gpd.GeoDataFrame(
+                geometry=gpd.points_from_xy(*zip(*camera_locations_lon_lat)),
+                crs=4326,
+            )
+            camera_locations_gdf_projected = ensure_projected_CRS(
+                camera_locations_lon_lat_gdf
+            )
+            camera_locations_numpy = np.vstack(
+                [
+                    camera_locations_gdf_projected.geometry.x,
+                    camera_locations_gdf_projected.geometry.y,
+                ]
+            ).T
 
-        # Get all image filenames
-        image_filenames = cameras.get_image_filename(index=None)
+            # Run KMeans clustering and identify the image indices nearest each cluster center
+            closest_indices = select_indices_nearest_cluster_centers(
+                camera_locations_numpy, n_images_to_save
+            )
 
-        # Return the subset corresponding to kmeans centers
-        files_to_save = [image_filenames[i] for i in closest_indices]
+            # Get all image filenames
+            image_filenames = cameras.get_image_filename(index=None)
 
-    dataset_output_dir = output_dir / dataset.parts[-1]
-    dataset_output_dir.mkdir(parents=True, exist_ok=True)
+            # Return the subset corresponding to kmeans centers
+            files_to_save = [image_filenames[i] for i in closest_indices]
 
     last_img = None
     for f in files_to_save:
@@ -132,9 +132,11 @@ def chip_dataset(
                 return_mask=False,
             )
             out_path = (
-                dataset_output_dir
+                output_dir
+                / f.parent.relative_to(input_dir)
                 / f"{f.stem}_fov{int(round(fov))}_yaw{int(round(yaw))}_pitch{int(round(pitch))}.png"
             )
+            out_path.parent.mkdir(parents=True, exist_ok=True)
             imwrite(out_path, resampled.astype(np.uint8))
 
     return last_img
@@ -197,7 +199,6 @@ def parse_args():
     parser.add_argument(
         "output_dir",
         type=Path,
-        required=True,
         help="Directory under which per-dataset output folders are created",
     )
     parser.add_argument(
@@ -240,13 +241,12 @@ def parse_args():
 
 
 def main():
-    args = parse_args
-
+    args = parse_args()
     # Perform type conversion
     output_size = tuple(args.output_size)
 
     # Chip all images
-    last_img = chip_dataset(
+    last_img = chip_equirectangular_folder(
         args.image_dir,
         args.output_dir,
         FYPS,
