@@ -57,8 +57,8 @@ def chip_dataset(
         dataset (Path): Path to a folder of equirectangular images
         output_dir (Path): Where to save the output projected images.
         fyps (list[tuple[float, float, float]]): The focal length, yaw, and pitch angles defining the virtual camera rig.
-        n_images_to_save (int | None): How many to save. If None, all are saved. 
-        output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size. 
+        n_images_to_save (int | None): How many to save. If None, all are saved.
+        output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size.
         oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
         warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
         photogrammetry_cameras_path (Path | None, optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
@@ -141,7 +141,12 @@ def chip_dataset(
 
 
 def visualize_mask_sum(
-    img: np.ndarray, fyps: list[tuple[float, float, float]], output_size: tuple[int, int], oversample_factor: int, warp_order: int, output_path: Path
+    img: np.ndarray,
+    fyps: list[tuple[float, float, float]],
+    output_size: tuple[int, int],
+    oversample_factor: int,
+    warp_order: int,
+    output_path: Path,
 ):
     """Visualize where the perspective images are sampled from on the original image.
 
