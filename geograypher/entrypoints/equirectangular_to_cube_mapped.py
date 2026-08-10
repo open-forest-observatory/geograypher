@@ -56,7 +56,7 @@ def chip_dataset(
     Args:
         dataset (Path): Path to a folder of equirectangular images
         output_dir (Path): Where to save the output projected images.
-        fyps (list[tuple[float, float, float]]): The focal length, yaw, and pitch angles defining the virtual camera rig.
+        fyps (list[tuple[float, float, float]]): The field of view, yaw, and pitch angles defining the virtual camera rig.
         n_images_to_save (int | None): How many to save. If None, all are saved.
         output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size.
         oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
