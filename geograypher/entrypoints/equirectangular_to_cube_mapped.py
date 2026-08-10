@@ -50,6 +50,7 @@ def chip_equirectangular_folder(
     oversample_factor: int,
     warp_order: int,
     photogrammetry_cameras_path: typing.Union[Path, None] = None,
+    image_extensions: list[str] = [".jpg", ".jpeg", ".png", ".tif", ".tiff"],
 ) -> typing.Union[np.ndarray, None]:
     """Create a set of perspective projection images given a folder of equirectangular images.
 
@@ -62,12 +63,19 @@ def chip_equirectangular_folder(
         oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
         warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
         photogrammetry_cameras_path (typing.Union[Path, None], optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
+        image_extensions (list[str], optional): List of image file extensions to include searched files. Defaults to [".jpg", ".jpeg", ".png", ".tif", ".tiff"].
 
     Returns:
         typing.Union[np.ndarray, None]: Either the last image loaded or None
     """
     # Get all files in the dataset folder
-    files = sorted([f for f in input_dir.rglob("*") if f.is_file()])
+    files = sorted(
+        [
+            f
+            for f in input_dir.rglob("*")
+            if (f.is_file() and f.suffix.lower() in image_extensions)
+        ]
+    )
 
     if n_images_to_save is None:
         # Save all images
