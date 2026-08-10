@@ -42,15 +42,30 @@ def select_indices_nearest_cluster_centers(points, num_clusters):
 
 
 def chip_dataset(
-    dataset,
-    output_dir,
-    fyps,
-    n_images_to_save,
-    output_size,
-    oversample_factor,
-    warp_order,
-    photogrammetry_cameras_path=None,
-):
+    dataset: Path,
+    output_dir: Path,
+    fyps: list[tuple[float, float, float]],
+    n_images_to_save: int | None,
+    output_size: tuple[int, int],
+    oversample_factor: int,
+    warp_order: int,
+    photogrammetry_cameras_path: Path | None = None,
+) -> np.ndarray | None:
+    """Create a set of perspective projection images given a folder of equirectangular images.
+
+    Args:
+        dataset (Path): Path to a folder of equirectangular images
+        output_dir (Path): Where to save the output projected images.
+        fyps (list[tuple[float, float, float]]): The focal length, yaw, and pitch angles defining the virtual camera rig.
+        n_images_to_save (int | None): How many to save. If None, all are saved. 
+        output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size. 
+        oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
+        warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
+        photogrammetry_cameras_path (Path | None, optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
+
+    Returns:
+        np.ndarray | None: Either the last image loaded or None
+    """
     if photogrammetry_cameras_path is None:
         # Select files to save sequentially if no camera file is provided to determine locations
         files = sorted(dataset.glob("*"))
@@ -126,8 +141,18 @@ def chip_dataset(
 
 
 def visualize_mask_sum(
-    img, fyps, output_size, oversample_factor, warp_order, output_path
+    img: np.ndarray, fyps: list[tuple[float, float, float]], output_size: tuple[int, int], oversample_factor: int, warp_order: int, output_path: Path
 ):
+    """Visualize where the perspective images are sampled from on the original image.
+
+    Args:
+        img (np.ndarray): See `perspective_from_equirectangular`
+        fyps (list[tuple[float, float, float]]): See `perspective_from_equirectangular`
+        output_size (tuple[int, int]): See `perspective_from_equirectangular`
+        oversample_factor (int): See `perspective_from_equirectangular`
+        warp_order (int): See `perspective_from_equirectangular`
+        output_path (Path): Path to save the visualization
+    """
     imgs_and_masks = [
         perspective_from_equirectangular(
             img,
@@ -141,9 +166,14 @@ def visualize_mask_sum(
         )
         for fov, yaw, pitch in fyps
     ]
+
+    # Extract all masks, dropping resampled images
     _, masks = zip(*imgs_and_masks)
 
+    # Count projections per pixel
     masks_sum = np.sum(masks, axis=0)
+
+    # Visualize and save
     plt.imshow(masks_sum)
     plt.colorbar()
     plt.savefig(output_path)
@@ -207,9 +237,10 @@ def parse_args():
 def main():
     args = parse_args
 
+    # Perform type conversion
     output_size = tuple(args.output_size)
 
-    last_img = None
+    # Chip all images
     last_img = chip_dataset(
         args.image_dir,
         args.output_dir,
@@ -221,6 +252,7 @@ def main():
         args.photogrammetry_cameras_path,
     )
 
+    # Show and save where points are sampled from on the equirectangular image
     if args.visualize_mask_sum_path:
         if last_img is None:
             print("No images were processed; skipping mask sum visualization.")
