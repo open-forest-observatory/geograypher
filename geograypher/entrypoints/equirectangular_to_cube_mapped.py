@@ -22,11 +22,6 @@ FYPS = [
     (90 - 0.001, 270, 0),
 ]
 
-# Take this many images to chip
-# The total saved chips will be six times larger than this number, corresponding to the number of
-# cube-mapped views
-N_IMAGES_TO_SAVE = 10
-
 # Sample this many more pixels than the final resolution before downsampling
 OVERSAMPLE_FACTOR = 4
 # Order of interpolation
@@ -59,7 +54,12 @@ def chip_dataset(
     if photogrammetry_cameras_path is None:
         # Select files to save sequentially if no camera file is provided to determine locations
         files = sorted(dataset.glob("*"))
-        files_to_save = files[:: min(n_images_to_save, len(files))]
+
+        # Select all images if no number is provided
+        if n_images_to_save is None:
+            files_to_save = files
+        else:
+            files_to_save = files[::min(n_images_to_save, len(files))]
     else:
         # Use the locations to select a subset of images nearest the kmeans centers
 
@@ -168,8 +168,7 @@ def parse_args():
     parser.add_argument(
         "--n-images-to-save",
         type=int,
-        default=N_IMAGES_TO_SAVE,
-        help=f"Chip this many original images (default: {N_IMAGES_TO_SAVE})",
+        help=f"Chip this many original images. If not provided, all images will be saved. (default: None)",
     )
     parser.add_argument(
         "--oversample-factor",
