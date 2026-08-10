@@ -59,7 +59,7 @@ def chip_dataset(
         if n_images_to_save is None:
             files_to_save = files
         else:
-            files_to_save = files[::min(n_images_to_save, len(files))]
+            files_to_save = files[:: min(n_images_to_save, len(files))]
     else:
         # Use the locations to select a subset of images nearest the kmeans centers
 
