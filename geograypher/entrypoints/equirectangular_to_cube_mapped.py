@@ -126,7 +126,9 @@ def chip_equirectangular_folder(
                 # Return the subset corresponding to kmeans centers
                 files_to_save = [image_filenames[i] for i in closest_indices]
             except KeyError:
-                logging.warning("Could not extract camera locations from photogrammetry camera file. Falling back to sequential selection of images.")
+                logging.warning(
+                    "Could not extract camera locations from photogrammetry camera file. Falling back to sequential selection of images."
+                )
 
         # Either there was no photogrammetry camera file provided or the kmeans operation failed,
         # due to missing georeferencing information. In either case, select images sequentially.
