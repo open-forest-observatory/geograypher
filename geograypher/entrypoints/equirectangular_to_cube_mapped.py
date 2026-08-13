@@ -1,4 +1,5 @@
 import argparse
+import logging
 import typing
 from pathlib import Path
 
@@ -81,12 +82,10 @@ def chip_equirectangular_folder(
         # Save all images
         files_to_save = files
     else:
-        if photogrammetry_cameras_path is None:
-            # Select files to save sequentially if no camera file is provided to determine locations
-            files = sorted(input_dir.glob("*"))
+        # Initialize
+        files_to_save = None
 
-            files_to_save = files[:: min(n_images_to_save, len(files))]
-        else:
+        if photogrammetry_cameras_path is not None:
             # Use the locations to select a subset of images nearest the kmeans centers
 
             # Parse the photogrammetry result file using the geograypher camera class.
@@ -99,31 +98,48 @@ def chip_equirectangular_folder(
 
             # Extract the coordinates of the image locations and convert them to an (n, 2) array in an
             # appropriate projected CRS
-            camera_locations_lon_lat = cameras.get_lon_lat_coords()
-            camera_locations_lon_lat_gdf = gpd.GeoDataFrame(
-                geometry=gpd.points_from_xy(*zip(*camera_locations_lon_lat)),
-                crs=4326,
-            )
-            camera_locations_gdf_projected = ensure_projected_CRS(
-                camera_locations_lon_lat_gdf
-            )
-            camera_locations_numpy = np.vstack(
-                [
-                    camera_locations_gdf_projected.geometry.x,
-                    camera_locations_gdf_projected.geometry.y,
-                ]
-            ).T
+            try:
+                camera_locations_lon_lat = cameras.get_lon_lat_coords()
 
-            # Run KMeans clustering and identify the image indices nearest each cluster center
-            closest_indices = select_indices_nearest_cluster_centers(
-                camera_locations_numpy, n_images_to_save
+                camera_locations_lon_lat_gdf = gpd.GeoDataFrame(
+                    geometry=gpd.points_from_xy(*zip(*camera_locations_lon_lat)),
+                    crs=4326,
+                )
+                camera_locations_gdf_projected = ensure_projected_CRS(
+                    camera_locations_lon_lat_gdf
+                )
+                camera_locations_numpy = np.vstack(
+                    [
+                        camera_locations_gdf_projected.geometry.x,
+                        camera_locations_gdf_projected.geometry.y,
+                    ]
+                ).T
+
+                # Run KMeans clustering and identify the image indices nearest each cluster center
+                closest_indices = select_indices_nearest_cluster_centers(
+                    camera_locations_numpy, n_images_to_save
+                )
+
+                # Get all image filenames
+                image_filenames = cameras.get_image_filename(index=None)
+
+                # Return the subset corresponding to kmeans centers
+                files_to_save = [image_filenames[i] for i in closest_indices]
+            except KeyError:
+                logging.warning(
+                    "Could not extract camera locations from photogrammetry camera file. Falling back to sequential selection of images."
+                )
+
+        # Either there was no photogrammetry camera file provided or the kmeans operation failed,
+        # due to missing georeferencing information. In either case, select images sequentially.
+        if files_to_save is None:
+            # Select files to save sequentially if no camera file is provided to determine locations
+            stride = max(1, len(files) // n_images_to_save)
+            files_to_save = files[::stride]
+            # Ensure that the exact number if images is returned, given the stride is rounded down
+            files_to_save = np.random.choice(
+                files_to_save, size=n_images_to_save, replace=False
             )
-
-            # Get all image filenames
-            image_filenames = cameras.get_image_filename(index=None)
-
-            # Return the subset corresponding to kmeans centers
-            files_to_save = [image_filenames[i] for i in closest_indices]
 
     last_img = None
     for f in files_to_save:
