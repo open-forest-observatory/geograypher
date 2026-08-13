@@ -134,7 +134,10 @@ def chip_equirectangular_folder(
         # due to missing georeferencing information. In either case, select images sequentially.
         if files_to_save is None:
             # Select files to save sequentially if no camera file is provided to determine locations
-            files_to_save = files[:: min(n_images_to_save, len(files))]
+            stride = max(1, len(files) // n_images_to_save)
+            files_to_save = files[::stride]
+            # Ensure that the exact number if images is returned, given the stride is rounded down
+            files_to_save = np.random.choice(files_to_save, size=n_images_to_save, replace=False)
 
     last_img = None
     for f in files_to_save:
