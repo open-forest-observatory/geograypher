@@ -137,7 +137,9 @@ def chip_equirectangular_folder(
             stride = max(1, len(files) // n_images_to_save)
             files_to_save = files[::stride]
             # Ensure that the exact number if images is returned, given the stride is rounded down
-            files_to_save = np.random.choice(files_to_save, size=n_images_to_save, replace=False)
+            files_to_save = np.random.choice(
+                files_to_save, size=n_images_to_save, replace=False
+            )
 
     last_img = None
     for f in files_to_save:
