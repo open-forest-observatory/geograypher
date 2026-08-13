@@ -70,7 +70,9 @@ def make_4x4_transform(rotation_str: str, translation_str: str, scale_str: str =
     return transform
 
 
-def parse_transform_metashape(camera_file: PATH_TYPE, return_component_id:bool=False):
+def parse_transform_metashape(
+    camera_file: PATH_TYPE, return_component_id: bool = False
+):
     """
     Get the georeferncing transform from a camera file. Note that this corresponds to the active
     component (set of registered cameras).
