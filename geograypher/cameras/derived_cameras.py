@@ -19,10 +19,17 @@ def update_lists(
     image_filenames,
     sensor_IDs,
     original_image_folder=None,
+    active_component_id=None,
 ):
     transform = camera.find("transform")
     if transform is None:
         # skipping unaligned camera
+        return
+    if (
+        active_component_id is not None
+        and camera.get("component_id") != active_component_id
+    ):
+        # skipping camera that is not part of the active component
         return
     # If valid, parse into numpy array
     cam_to_world_transforms.append(np.fromstring(transform.text, sep=" ").reshape(4, 4))
@@ -86,6 +93,13 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
         cam_to_world_transforms = []
         sensor_IDs = []
 
+        # Get the transform from the chunk to the earth-centered, earth-fixed (ECEF) frame, along
+        # with the ID of the active component, so cameras belonging to other components can be
+        # excluded below
+        chunk_to_epsg4978, active_component_id = parse_transform_metashape(
+            camera_file=camera_file, return_component_id=True
+        )
+
         cameras = chunk.find("cameras")
         # Iterate over metashape cameras and fill out required information
         for cam_or_group in cameras:
@@ -98,6 +112,7 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                         image_filenames,
                         sensor_IDs,
                         original_image_folder=original_image_folder,
+                        active_component_id=active_component_id,
                     )
             else:
                 update_lists(
@@ -107,14 +122,11 @@ class MetashapeCameraSet(PhotogrammetryCameraSet):
                     image_filenames,
                     sensor_IDs,
                     original_image_folder=original_image_folder,
+                    active_component_id=active_component_id,
                 )
 
         # Compute the lat lon using the transforms, because the reference values recorded in the file
         # reflect the EXIF values, not the optimized ones
-
-        # Get the transform from the chunk to the earth-centered, earth-fixed (ECEF) frame
-        chunk_to_epsg4978 = parse_transform_metashape(camera_file=camera_file)
-
         if chunk_to_epsg4978 is not None:
             # Compute the location of each camera in ECEF
             cam_locs_in_epsg4978 = []

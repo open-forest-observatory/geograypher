@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pyproj
 
+from geograypher.constants import PATH_TYPE
+
 
 def parse_metashape_mesh_metadata(
     mesh_metadata_file: typing.Union[str, Path],
@@ -68,23 +70,42 @@ def make_4x4_transform(rotation_str: str, translation_str: str, scale_str: str =
     return transform
 
 
-def parse_transform_metashape(camera_file):
+def parse_transform_metashape(camera_file: PATH_TYPE, return_component_id:bool=False):
+    """
+    Get the georeferncing transform from a camera file. Note that this corresponds to the active
+    component (set of registered cameras).
+
+
+    Args:
+        camera_file (PATH_TYPE): Path to the camera file
+        return_component_id (bool, optional): Should the active component ID be returned. Defaults to False.
+
+    Returns:
+        np.ndarray: (4, 4) A homogenous transform mapping from cam to world
+        Union[str, None]: The ID of the active component, if requested
+    """
     tree = ET.parse(camera_file)
     root = tree.getroot()
     # first level
     components = root.find("chunk").find("components")
 
-    assert len(components) == 1
-    transform = components.find("component").find("transform")
+    # There may be multiple non-registered sets of cameras ("components"). Select the active one,
+    # which should be the largest one.
+    active_component_id = components.get("active_id")
+    active_component = components.find(f"component[@id='{active_component_id}']")
+
+    transform = active_component.find("transform")
     if transform is None:
-        return None
+        local_to_epgs_4978_transform = None
+    else:
+        rotation = transform.find("rotation").text
+        translation = transform.find("translation").text
+        scale = transform.find("scale").text
 
-    rotation = transform.find("rotation").text
-    translation = transform.find("translation").text
-    scale = transform.find("scale").text
+        local_to_epgs_4978_transform = make_4x4_transform(rotation, translation, scale)
 
-    local_to_epgs_4978_transform = make_4x4_transform(rotation, translation, scale)
-
+    if return_component_id:
+        return local_to_epgs_4978_transform, active_component_id
     return local_to_epgs_4978_transform
 
 
