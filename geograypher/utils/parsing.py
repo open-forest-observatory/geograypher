@@ -92,7 +92,7 @@ def parse_transform_metashape(
     components = root.find("chunk").find("components")
 
     # There may be multiple non-registered sets of cameras ("components"). Select the active one,
-    # which should be the largest one.
+    # which corresponds to the one used to generate photogrammetry products.
     active_component_id = components.get("active_id")
     active_component = components.find(f"component[@id='{active_component_id}']")
 
