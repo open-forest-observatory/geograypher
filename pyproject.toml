@@ -2,6 +2,7 @@
 name = "geograypher"
 version = "0.4.0"
 description = "Enabling Geospatial Predictions from Individual Drone Images"
+license = "GPL-3.0-only"
 authors = [
   {name = "David Russell", email = "djrussell@ucdavis.edu"},
   {name = "Avnoor Singh Sidhu"},
