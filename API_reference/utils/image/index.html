@@ -2041,15 +2041,15 @@ multi-channel images</p>
 <a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="n">interpolation_order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">fill_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
 <a id="__codelineno-0-77" name="__codelineno-0-77"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="w">    </span><span class="sd">"""</span>
 <a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="sd">    Extends the functionality of skimage.transform.warp to handle arbitrary datatypes and</span>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">    multi-channel images</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">    """</span>
 <a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="c1"># Temporarily expand grayscale images to be (N, M, 1)</span>
 <a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="n">input_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_3d</span><span class="p">(</span><span class="n">input_image</span><span class="p">)</span>
 <a id="__codelineno-0-84" name="__codelineno-0-84"></a>
 <a id="__codelineno-0-85" name="__codelineno-0-85"></a>    <span class="c1"># Note if the fill_value is not actually used and is in fact outside the range of the input</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="c1"># values it will result in an artificially small range of data for the real values. But it won&#39;t</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="c1"># values it will result in an artificially small range of data for the real values. But it won't</span>
 <a id="__codelineno-0-87" name="__codelineno-0-87"></a>    <span class="c1"># affect the results aside from the possible loss of precision.</span>
 <a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="c1"># Compute the min and max of values, including both the inputs and the fill value</span>
 <a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="n">input_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">input_image</span><span class="p">),</span> <span class="n">fill_value</span><span class="p">)</span>
@@ -2057,7 +2057,7 @@ multi-channel images</p>
 <a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="c1"># Compute the range of values</span>
 <a id="__codelineno-0-92" name="__codelineno-0-92"></a>    <span class="n">min_max_range</span> <span class="o">=</span> <span class="n">input_max</span> <span class="o">-</span> <span class="n">input_min</span>
 <a id="__codelineno-0-93" name="__codelineno-0-93"></a>
-<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="c1"># If there&#39;s no variation, we can avoid division by 0 issues and save computation by just</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="c1"># If there's no variation, we can avoid division by 0 issues and save computation by just</span>
 <a id="__codelineno-0-95" name="__codelineno-0-95"></a>    <span class="c1"># returning an array of one value</span>
 <a id="__codelineno-0-96" name="__codelineno-0-96"></a>    <span class="k">if</span> <span class="n">min_max_range</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
 <a id="__codelineno-0-97" name="__codelineno-0-97"></a>        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">input_image</span><span class="p">),</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
@@ -2069,7 +2069,7 @@ multi-channel images</p>
 <a id="__codelineno-0-103" name="__codelineno-0-103"></a>    <span class="c1"># The fill value will be applied to the rescaled image, so it must be rescaled similarly</span>
 <a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="n">rescaled_fill_value</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">fill_value</span><span class="p">)</span> <span class="o">-</span> <span class="n">input_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">min_max_range</span>
 <a id="__codelineno-0-105" name="__codelineno-0-105"></a>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="c1"># Create an output image that&#39;s the shape of inverse map (minus first dimension which is 2 [i,j])</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="c1"># Create an output image that's the shape of inverse map (minus first dimension which is 2 [i,j])</span>
 <a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="c1"># and the number of channels from the input image</span>
 <a id="__codelineno-0-108" name="__codelineno-0-108"></a>    <span class="n">output_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">inverse_map</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="n">input_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],))</span>
 <a id="__codelineno-0-109" name="__codelineno-0-109"></a>    <span class="c1"># For each color channel, do the warping</span>
@@ -2078,7 +2078,7 @@ multi-channel images</p>
 <a id="__codelineno-0-112" name="__codelineno-0-112"></a>            <span class="n">image</span><span class="o">=</span><span class="n">input_image</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">channel</span><span class="p">],</span>
 <a id="__codelineno-0-113" name="__codelineno-0-113"></a>            <span class="n">inverse_map</span><span class="o">=</span><span class="n">inverse_map</span><span class="p">,</span>
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="n">order</span><span class="o">=</span><span class="n">interpolation_order</span><span class="p">,</span>  <span class="c1"># interpolation strategy for fractional pixels</span>
-<a id="__codelineno-0-115" name="__codelineno-0-115"></a>            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>  <span class="c1"># fill unseen areas with cval</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>            <span class="n">mode</span><span class="o">=</span><span class="s2">"constant"</span><span class="p">,</span>  <span class="c1"># fill unseen areas with cval</span>
 <a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="n">cval</span><span class="o">=</span><span class="n">rescaled_fill_value</span><span class="p">,</span>
 <a id="__codelineno-0-117" name="__codelineno-0-117"></a>            <span class="n">clip</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># clip to [0,1]</span>
 <a id="__codelineno-0-118" name="__codelineno-0-118"></a>            <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># keep original range without rescaling</span>
@@ -2458,9 +2458,9 @@ increases runtime. Defaults to 1.</p>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="n">oversample_factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="n">return_mask</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="w">    </span><span class="sd">"""</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">    Sample a perspective image from an equirectangular (360) image. Different parameters of the</span>
-<a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    &quot;virtual camera&quot; can be controlled, including the field of view, orientation (yaw, pitch, roll),</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">    "virtual camera" can be controlled, including the field of view, orientation (yaw, pitch, roll),</span>
 <a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">    and output image size.</span>
 <a id="__codelineno-0-144" name="__codelineno-0-144"></a>
 <a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    The rotations are defined using the roll-pitch-yaw convention. The roll axis corresponds to the</span>
@@ -2487,7 +2487,7 @@ increases runtime. Defaults to 1.</p>
 <a id="__codelineno-0-166" name="__codelineno-0-166"></a><span class="sd">    Returns:</span>
 <a id="__codelineno-0-167" name="__codelineno-0-167"></a><span class="sd">        np.ndarray: The sampled perspective image</span>
 <a id="__codelineno-0-168" name="__codelineno-0-168"></a><span class="sd">        Optional[np.ndarray]]: The mask of sampled locations, if requested</span>
-<a id="__codelineno-0-169" name="__codelineno-0-169"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a><span class="sd">    """</span>
 <a id="__codelineno-0-170" name="__codelineno-0-170"></a>    <span class="c1"># Convert an equirectangular (360) image to a perspective view.</span>
 <a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="n">H</span><span class="p">,</span> <span class="n">W</span> <span class="o">=</span> <span class="n">equi_img</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
 <a id="__codelineno-0-172" name="__codelineno-0-172"></a>

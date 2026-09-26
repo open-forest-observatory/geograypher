@@ -2019,7 +2019,7 @@
 </code></pre></div>
 <p>Then re-run <code>poetry install</code>.</p>
 <h4 id="libgl-error">libGL error<a class="headerlink" href="#libgl-error" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30&#39; not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>libGL error: MESA-LOADER: failed to open swrast: &lt;CONDA ENV LOCATION&gt;/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
 </code></pre></div>
 <p>If this happens, you can fix it by symlinking to the system version. I don't know why this is required.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ln -sf /usr/lib/x86_64-linux-gnu/libstdc++.so.6 &lt;CONDA ENV LOCATION&gt;/lib/libstdc++.so.6
@@ -2038,8 +2038,8 @@ If you do not have root access on your machine, it may not be possible to instal
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>conda install pytorch3d -c pytorch3d -y
 </code></pre></div>
 <p>Validate the installation</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python -c &quot;import torch; print(torch.cuda.is_available())&quot;
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python -c &quot;import pytorch3d; print(pytorch3d.__version__)&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python -c "import torch; print(torch.cuda.is_available())"
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python -c "import pytorch3d; print(pytorch3d.__version__)"
 </code></pre></div>
 
 

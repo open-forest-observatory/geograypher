@@ -2320,7 +2320,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-281" name="__codelineno-0-281"></a>    <span class="n">count_dtype</span><span class="p">:</span> <span class="nb">type</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span>
 <a id="__codelineno-0-282" name="__codelineno-0-282"></a>    <span class="n">max_overlapping_tiles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
 <a id="__codelineno-0-283" name="__codelineno-0-283"></a><span class="p">):</span>
-<a id="__codelineno-0-284" name="__codelineno-0-284"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Take tiled predictions on disk and aggregate them into a raster</span>
+<a id="__codelineno-0-284" name="__codelineno-0-284"></a><span class="w">    </span><span class="sd">"""Take tiled predictions on disk and aggregate them into a raster</span>
 <a id="__codelineno-0-285" name="__codelineno-0-285"></a>
 <a id="__codelineno-0-286" name="__codelineno-0-286"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-287" name="__codelineno-0-287"></a><span class="sd">        raster_file (PATH_TYPE):</span>
@@ -2344,20 +2344,20 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-305" name="__codelineno-0-305"></a><span class="sd">            The max number of prediction tiles that may overlap at a given point. This is used to upper bound the valud in the count matrix,</span>
 <a id="__codelineno-0-306" name="__codelineno-0-306"></a><span class="sd">            because we use scaled np.uint8 values rather than floats for efficiency. Setting a lower value enables slightly more accuracy in the</span>
 <a id="__codelineno-0-307" name="__codelineno-0-307"></a><span class="sd">            aggregation process, but too low can lead to overflow. Defaults to 4</span>
-<a id="__codelineno-0-308" name="__codelineno-0-308"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-308" name="__codelineno-0-308"></a><span class="sd">    """</span>
 <a id="__codelineno-0-309" name="__codelineno-0-309"></a>    <span class="c1"># Find the filenames of tiled predictions</span>
-<a id="__codelineno-0-310" name="__codelineno-0-310"></a>    <span class="n">pred_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pred_folder</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_file</span><span class="p">()]</span>
+<a id="__codelineno-0-310" name="__codelineno-0-310"></a>    <span class="n">pred_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">pred_folder</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"*"</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_file</span><span class="p">()]</span>
 <a id="__codelineno-0-311" name="__codelineno-0-311"></a>
 <a id="__codelineno-0-312" name="__codelineno-0-312"></a>    <span class="c1"># Set nodataval to the first unused class ID</span>
 <a id="__codelineno-0-313" name="__codelineno-0-313"></a>    <span class="k">if</span> <span class="n">nodataval</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-314" name="__codelineno-0-314"></a>        <span class="n">nodataval</span> <span class="o">=</span> <span class="n">num_classes</span>
 <a id="__codelineno-0-315" name="__codelineno-0-315"></a>
-<a id="__codelineno-0-316" name="__codelineno-0-316"></a>    <span class="c1"># If the user didn&#39;t specify where to write the counts, create a tempfile that will be deleted</span>
+<a id="__codelineno-0-316" name="__codelineno-0-316"></a>    <span class="c1"># If the user didn't specify where to write the counts, create a tempfile that will be deleted</span>
 <a id="__codelineno-0-317" name="__codelineno-0-317"></a>    <span class="k">if</span> <span class="n">counts_savefile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-318" name="__codelineno-0-318"></a>        <span class="c1"># Create the containing folder if required</span>
 <a id="__codelineno-0-319" name="__codelineno-0-319"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">class_savefile</span><span class="p">)</span>
 <a id="__codelineno-0-320" name="__codelineno-0-320"></a>        <span class="n">counts_savefile_manager</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
-<a id="__codelineno-0-321" name="__codelineno-0-321"></a>            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w+&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.tif&quot;</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">class_savefile</span><span class="o">.</span><span class="n">parent</span>
+<a id="__codelineno-0-321" name="__codelineno-0-321"></a>            <span class="n">mode</span><span class="o">=</span><span class="s2">"w+"</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".tif"</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">class_savefile</span><span class="o">.</span><span class="n">parent</span>
 <a id="__codelineno-0-322" name="__codelineno-0-322"></a>        <span class="p">)</span>
 <a id="__codelineno-0-323" name="__codelineno-0-323"></a>        <span class="n">counts_savefile</span> <span class="o">=</span> <span class="n">counts_savefile_manager</span><span class="o">.</span><span class="n">name</span>
 <a id="__codelineno-0-324" name="__codelineno-0-324"></a>
@@ -2373,8 +2373,8 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-334" name="__codelineno-0-334"></a>
 <a id="__codelineno-0-335" name="__codelineno-0-335"></a>        <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
 <a id="__codelineno-0-336" name="__codelineno-0-336"></a>            <span class="n">counts_savefile</span><span class="p">,</span>
-<a id="__codelineno-0-337" name="__codelineno-0-337"></a>            <span class="s2">&quot;w+&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-338" name="__codelineno-0-338"></a>            <span class="n">driver</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-337" name="__codelineno-0-337"></a>            <span class="s2">"w+"</span><span class="p">,</span>
+<a id="__codelineno-0-338" name="__codelineno-0-338"></a>            <span class="n">driver</span><span class="o">=</span><span class="s2">"GTiff"</span><span class="p">,</span>
 <a id="__codelineno-0-339" name="__codelineno-0-339"></a>            <span class="n">height</span><span class="o">=</span><span class="n">extent</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
 <a id="__codelineno-0-340" name="__codelineno-0-340"></a>            <span class="n">width</span><span class="o">=</span><span class="n">extent</span><span class="o">.</span><span class="n">width</span><span class="p">,</span>
 <a id="__codelineno-0-341" name="__codelineno-0-341"></a>            <span class="n">count</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span>
@@ -2386,17 +2386,17 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-347" name="__codelineno-0-347"></a>            <span class="n">pred_weighting_dict</span> <span class="o">=</span> <span class="p">{}</span>
 <a id="__codelineno-0-348" name="__codelineno-0-348"></a>            <span class="k">for</span> <span class="n">pred_file</span><span class="p">,</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
 <a id="__codelineno-0-349" name="__codelineno-0-349"></a>                <span class="nb">zip</span><span class="p">(</span><span class="n">pred_files</span><span class="p">,</span> <span class="n">windows</span><span class="p">),</span>
-<a id="__codelineno-0-350" name="__codelineno-0-350"></a>                <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Aggregating raster predictions&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-350" name="__codelineno-0-350"></a>                <span class="n">desc</span><span class="o">=</span><span class="s2">"Aggregating raster predictions"</span><span class="p">,</span>
 <a id="__codelineno-0-351" name="__codelineno-0-351"></a>                <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">pred_files</span><span class="p">),</span>
 <a id="__codelineno-0-352" name="__codelineno-0-352"></a>            <span class="p">):</span>
 <a id="__codelineno-0-353" name="__codelineno-0-353"></a>                <span class="c1"># Read the prediction from disk</span>
 <a id="__codelineno-0-354" name="__codelineno-0-354"></a>                <span class="n">pred</span> <span class="o">=</span> <span class="n">read_image_or_numpy</span><span class="p">(</span><span class="n">pred_file</span><span class="p">)</span>
 <a id="__codelineno-0-355" name="__codelineno-0-355"></a>
 <a id="__codelineno-0-356" name="__codelineno-0-356"></a>                <span class="k">if</span> <span class="n">pred</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">width</span><span class="p">):</span>
-<a id="__codelineno-0-357" name="__codelineno-0-357"></a>                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Size of pred does not match window&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-357" name="__codelineno-0-357"></a>                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Size of pred does not match window"</span><span class="p">)</span>
 <a id="__codelineno-0-358" name="__codelineno-0-358"></a>
 <a id="__codelineno-0-359" name="__codelineno-0-359"></a>                <span class="c1"># We want to downweight portions at the edge so we create a ramped weighting mask</span>
-<a id="__codelineno-0-360" name="__codelineno-0-360"></a>                <span class="c1"># but we don&#39;t want to duplicate this computation because it&#39;s the same for each same sized chip</span>
+<a id="__codelineno-0-360" name="__codelineno-0-360"></a>                <span class="c1"># but we don't want to duplicate this computation because it's the same for each same sized chip</span>
 <a id="__codelineno-0-361" name="__codelineno-0-361"></a>                <span class="k">if</span> <span class="n">pred</span><span class="o">.</span><span class="n">shape</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">pred_weighting_dict</span><span class="p">:</span>
 <a id="__codelineno-0-362" name="__codelineno-0-362"></a>                    <span class="c1"># We want to keep this as a uint8</span>
 <a id="__codelineno-0-363" name="__codelineno-0-363"></a>                    <span class="n">pred_weighting</span> <span class="o">=</span> <span class="n">create_ramped_weighting</span><span class="p">(</span>
@@ -2420,7 +2420,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-381" name="__codelineno-0-381"></a>                    <span class="n">band_ind</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
 <a id="__codelineno-0-382" name="__codelineno-0-382"></a>                    <span class="n">class_i_window_counts</span> <span class="o">=</span> <span class="n">dst</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">band_ind</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">)</span>
 <a id="__codelineno-0-383" name="__codelineno-0-383"></a>                    <span class="n">class_i_preds</span> <span class="o">=</span> <span class="n">pred</span> <span class="o">==</span> <span class="n">i</span>
-<a id="__codelineno-0-384" name="__codelineno-0-384"></a>                    <span class="c1"># If nothing matches this class, don&#39;t waste computation</span>
+<a id="__codelineno-0-384" name="__codelineno-0-384"></a>                    <span class="c1"># If nothing matches this class, don't waste computation</span>
 <a id="__codelineno-0-385" name="__codelineno-0-385"></a>                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">class_i_preds</span><span class="p">):</span>
 <a id="__codelineno-0-386" name="__codelineno-0-386"></a>                        <span class="k">continue</span>
 <a id="__codelineno-0-387" name="__codelineno-0-387"></a>                    <span class="c1"># Weight the predictions to downweight the ones at the edge</span>
@@ -2434,12 +2434,12 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-395" name="__codelineno-0-395"></a>
 <a id="__codelineno-0-396" name="__codelineno-0-396"></a>    <span class="c1">## Convert counts file to max-class file</span>
 <a id="__codelineno-0-397" name="__codelineno-0-397"></a>
-<a id="__codelineno-0-398" name="__codelineno-0-398"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">counts_savefile</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+<a id="__codelineno-0-398" name="__codelineno-0-398"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">counts_savefile</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
 <a id="__codelineno-0-399" name="__codelineno-0-399"></a>        <span class="c1"># Create a one-band file to store the index of the most predicted class</span>
 <a id="__codelineno-0-400" name="__codelineno-0-400"></a>        <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
 <a id="__codelineno-0-401" name="__codelineno-0-401"></a>            <span class="n">class_savefile</span><span class="p">,</span>
-<a id="__codelineno-0-402" name="__codelineno-0-402"></a>            <span class="s2">&quot;w&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-403" name="__codelineno-0-403"></a>            <span class="n">driver</span><span class="o">=</span><span class="s2">&quot;GTiff&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-402" name="__codelineno-0-402"></a>            <span class="s2">"w"</span><span class="p">,</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a>            <span class="n">driver</span><span class="o">=</span><span class="s2">"GTiff"</span><span class="p">,</span>
 <a id="__codelineno-0-404" name="__codelineno-0-404"></a>            <span class="n">height</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
 <a id="__codelineno-0-405" name="__codelineno-0-405"></a>            <span class="n">width</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
 <a id="__codelineno-0-406" name="__codelineno-0-406"></a>            <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
@@ -2451,14 +2451,14 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-412" name="__codelineno-0-412"></a>            <span class="c1"># Iterate over the blocks corresponding to the tiff driver in the dataset</span>
 <a id="__codelineno-0-413" name="__codelineno-0-413"></a>            <span class="c1"># to compute the max class and write it out</span>
 <a id="__codelineno-0-414" name="__codelineno-0-414"></a>            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">window</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span>
-<a id="__codelineno-0-415" name="__codelineno-0-415"></a>                <span class="nb">list</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">block_windows</span><span class="p">()),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Writing out max class&quot;</span>
+<a id="__codelineno-0-415" name="__codelineno-0-415"></a>                <span class="nb">list</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">block_windows</span><span class="p">()),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">"Writing out max class"</span>
 <a id="__codelineno-0-416" name="__codelineno-0-416"></a>            <span class="p">):</span>
 <a id="__codelineno-0-417" name="__codelineno-0-417"></a>                <span class="c1"># Read in the counts</span>
 <a id="__codelineno-0-418" name="__codelineno-0-418"></a>                <span class="n">counts_array</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">)</span>
 <a id="__codelineno-0-419" name="__codelineno-0-419"></a>                <span class="c1"># Compute which pixels have no recorded predictions and mask them out</span>
 <a id="__codelineno-0-420" name="__codelineno-0-420"></a>                <span class="n">nodata_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
 <a id="__codelineno-0-421" name="__codelineno-0-421"></a>
-<a id="__codelineno-0-422" name="__codelineno-0-422"></a>                <span class="c1"># If it&#39;s all nodata, don&#39;t write it out</span>
+<a id="__codelineno-0-422" name="__codelineno-0-422"></a>                <span class="c1"># If it's all nodata, don't write it out</span>
 <a id="__codelineno-0-423" name="__codelineno-0-423"></a>                <span class="c1"># TODO make sure this works as expected</span>
 <a id="__codelineno-0-424" name="__codelineno-0-424"></a>                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">nodata_mask</span><span class="p">):</span>
 <a id="__codelineno-0-425" name="__codelineno-0-425"></a>                    <span class="k">continue</span>
@@ -2466,7 +2466,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-427" name="__codelineno-0-427"></a>                <span class="c1"># Compute which class had the highest counts</span>
 <a id="__codelineno-0-428" name="__codelineno-0-428"></a>                <span class="n">max_class</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">counts_array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <a id="__codelineno-0-429" name="__codelineno-0-429"></a>                <span class="n">max_class</span><span class="p">[</span><span class="n">nodata_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">nodataval</span>
-<a id="__codelineno-0-430" name="__codelineno-0-430"></a>                <span class="c1"># TODO, it would be good to check if it&#39;s all nodata and skip the write because that&#39;s unneeded</span>
+<a id="__codelineno-0-430" name="__codelineno-0-430"></a>                <span class="c1"># TODO, it would be good to check if it's all nodata and skip the write because that's unneeded</span>
 <a id="__codelineno-0-431" name="__codelineno-0-431"></a>                <span class="n">dst</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">max_class</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -2478,7 +2478,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 
 
 <h4 id="geograypher.predictors.ortho_segmentor.parse_windows_from_files" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">parse_windows_from_files</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">return_in_extent_coords</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">parse_windows_from_files</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">':'</span><span class="p">,</span> <span class="n">return_in_extent_coords</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 <a href="#geograypher.predictors.ortho_segmentor.parse_windows_from_files" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -2618,9 +2618,9 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <span class="normal"><a href="#__codelineno-0-79">79</a></span>
 <span class="normal"><a href="#__codelineno-0-80">80</a></span>
 <span class="normal"><a href="#__codelineno-0-81">81</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="k">def</span><span class="w"> </span><span class="nf">parse_windows_from_files</span><span class="p">(</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span> <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="n">return_in_extent_coords</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span> <span class="n">sep</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">":"</span><span class="p">,</span> <span class="n">return_in_extent_coords</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Window</span><span class="p">],</span> <span class="n">Window</span><span class="p">]:</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the boxes and extent from a list of filenames</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">    </span><span class="sd">"""Return the boxes and extent from a list of filenames</span>
 <a id="__codelineno-0-44" name="__codelineno-0-44"></a>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">        files (list[Path]): List of filenames</span>
@@ -2629,7 +2629,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">    Returns:</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">        tuple[list[Window], Window]: List of windows for each file and extent</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    """</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="c1"># Split the coords out, currently ignorign the filename as the first element</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">file</span><span class="o">.</span><span class="n">stem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">sep</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>
@@ -2643,7 +2643,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 <a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="n">extent</span> <span class="o">=</span> <span class="n">Window</span><span class="p">(</span><span class="n">row_off</span><span class="o">=</span><span class="n">ymin</span><span class="p">,</span> <span class="n">col_off</span><span class="o">=</span><span class="n">xmin</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">xmax</span> <span class="o">-</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">ymax</span> <span class="o">-</span> <span class="n">ymin</span><span class="p">)</span>
 <a id="__codelineno-0-64" name="__codelineno-0-64"></a>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="k">if</span> <span class="n">return_in_extent_coords</span><span class="p">:</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="c1"># Subtract out x and y min so it&#39;s w.r.t. the extent coordinates</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="c1"># Subtract out x and y min so it's w.r.t. the extent coordinates</span>
 <a id="__codelineno-0-67" name="__codelineno-0-67"></a>        <span class="n">coords_array</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">coords_array</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">xmin</span>
 <a id="__codelineno-0-68" name="__codelineno-0-68"></a>        <span class="n">coords_array</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">coords_array</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ymin</span>
 <a id="__codelineno-0-69" name="__codelineno-0-69"></a>
@@ -2669,7 +2669,7 @@ aggregation process, but too low can lead to overflow. Defaults to 4</p>
 
 
 <h4 id="geograypher.predictors.ortho_segmentor.write_chips" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">write_chips</span><span class="p">(</span><span class="n">raster_file</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">,</span> <span class="n">chip_size</span><span class="p">,</span> <span class="n">chip_stride</span><span class="p">,</span> <span class="n">label_vector_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_column</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_remap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_empty_tiles</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">drop_transparency</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">remove_old</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">output_suffix</span><span class="o">=</span><span class="s1">&#39;.JPG&#39;</span><span class="p">,</span> <span class="n">ROI_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">background_ind</span><span class="o">=</span><span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">)</span></code>
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <code class="highlight language-python"><span class="n">write_chips</span><span class="p">(</span><span class="n">raster_file</span><span class="p">,</span> <span class="n">output_folder</span><span class="p">,</span> <span class="n">chip_size</span><span class="p">,</span> <span class="n">chip_stride</span><span class="p">,</span> <span class="n">label_vector_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_column</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_remap</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_empty_tiles</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">drop_transparency</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">remove_old</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">output_suffix</span><span class="o">=</span><span class="s1">'.JPG'</span><span class="p">,</span> <span class="n">ROI_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">background_ind</span><span class="o">=</span><span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">)</span></code>
 
 <a href="#geograypher.predictors.ortho_segmentor.write_chips" class="headerlink" title="Permanent link">&para;</a></h4>
 
@@ -3095,11 +3095,11 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="n">write_empty_tiles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="n">drop_transparency</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="n">remove_old</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="n">output_suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;.JPG&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="n">output_suffix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">".JPG"</span><span class="p">,</span>
 <a id="__codelineno-0-108" name="__codelineno-0-108"></a>    <span class="n">ROI_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-109" name="__codelineno-0-109"></a>    <span class="n">background_ind</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NULL_TEXTURE_INT_VALUE</span><span class="p">,</span>
 <a id="__codelineno-0-110" name="__codelineno-0-110"></a><span class="p">):</span>
-<a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Take raster data and tile it for machine learning training or inference</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="w">    </span><span class="sd">"""Take raster data and tile it for machine learning training or inference</span>
 <a id="__codelineno-0-112" name="__codelineno-0-112"></a>
 <a id="__codelineno-0-113" name="__codelineno-0-113"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="sd">        raster_file (PATH_TYPE):</span>
@@ -3128,13 +3128,13 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="sd">        remove_old (bool, optional):</span>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a><span class="sd">            Remove `output_folder` if present. Defaults to True.</span>
 <a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="sd">        output_suffix (str, optional):</span>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">            Suffix for written imagery files. Defaults to &quot;.JPG&quot;.</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a><span class="sd">            Suffix for written imagery files. Defaults to ".JPG".</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a><span class="sd">        ROI_file (Optional[PATH_TYPE], optional):</span>
 <a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="sd">            Path to a geospatial region of interest to restrict tile generation to. Defaults to None.</span>
 <a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="sd">        background_ind (int, optional):</span>
 <a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">            If labels are written, any un-labeled region will have this value.</span>
 <a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">            Defaults to `NULL_TEXTURE_INT_VALUE`.</span>
-<a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="sd">    """</span>
 <a id="__codelineno-0-147" name="__codelineno-0-147"></a>    <span class="c1"># Remove the existing directory</span>
 <a id="__codelineno-0-148" name="__codelineno-0-148"></a>    <span class="k">if</span> <span class="n">remove_old</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">output_folder</span><span class="p">):</span>
 <a id="__codelineno-0-149" name="__codelineno-0-149"></a>        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
@@ -3146,7 +3146,7 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-155" name="__codelineno-0-155"></a>        <span class="n">label_gdf</span> <span class="o">=</span> <span class="kc">None</span>
 <a id="__codelineno-0-156" name="__codelineno-0-156"></a>
 <a id="__codelineno-0-157" name="__codelineno-0-157"></a>    <span class="c1"># Open the raster file</span>
-<a id="__codelineno-0-158" name="__codelineno-0-158"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">raster_file</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dataset</span><span class="p">:</span>
+<a id="__codelineno-0-158" name="__codelineno-0-158"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">raster_file</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">dataset</span><span class="p">:</span>
 <a id="__codelineno-0-159" name="__codelineno-0-159"></a>        <span class="n">working_CRS</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">crs</span>
 <a id="__codelineno-0-160" name="__codelineno-0-160"></a>        <span class="c1"># Create a list of windows for reading</span>
 <a id="__codelineno-0-161" name="__codelineno-0-161"></a>        <span class="n">windows</span> <span class="o">=</span> <span class="n">create_windows</span><span class="p">(</span>
@@ -3155,9 +3155,9 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-164" name="__codelineno-0-164"></a>            <span class="n">window_stride</span><span class="o">=</span><span class="n">chip_stride</span><span class="p">,</span>
 <a id="__codelineno-0-165" name="__codelineno-0-165"></a>        <span class="p">)</span>
 <a id="__codelineno-0-166" name="__codelineno-0-166"></a>
-<a id="__codelineno-0-167" name="__codelineno-0-167"></a>        <span class="n">desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Writing image chips to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>        <span class="n">desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Writing image chips to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">"</span>
 <a id="__codelineno-0-168" name="__codelineno-0-168"></a>        <span class="k">if</span> <span class="n">label_gdf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="n">desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Writing image chips and labels to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="n">desc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Writing image chips and labels to </span><span class="si">{</span><span class="n">output_folder</span><span class="si">}</span><span class="s2">"</span>
 <a id="__codelineno-0-170" name="__codelineno-0-170"></a>            <span class="n">label_gdf</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">working_CRS</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <a id="__codelineno-0-171" name="__codelineno-0-171"></a>
 <a id="__codelineno-0-172" name="__codelineno-0-172"></a>            <span class="k">if</span> <span class="n">label_column</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -3169,8 +3169,8 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-178" name="__codelineno-0-178"></a>                <span class="n">label_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">label_remap</span><span class="p">[</span><span class="n">old_label</span><span class="p">]</span> <span class="k">for</span> <span class="n">old_label</span> <span class="ow">in</span> <span class="n">label_values</span><span class="p">]</span>
 <a id="__codelineno-0-179" name="__codelineno-0-179"></a>
 <a id="__codelineno-0-180" name="__codelineno-0-180"></a>            <span class="n">label_shapes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">label_gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">label_values</span><span class="p">))</span>
-<a id="__codelineno-0-181" name="__codelineno-0-181"></a>            <span class="n">labels_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;anns&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-182" name="__codelineno-0-182"></a>            <span class="n">output_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">&quot;imgs&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>            <span class="n">labels_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">"anns"</span><span class="p">)</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>            <span class="n">output_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_folder</span><span class="p">,</span> <span class="s2">"imgs"</span><span class="p">)</span>
 <a id="__codelineno-0-183" name="__codelineno-0-183"></a>
 <a id="__codelineno-0-184" name="__codelineno-0-184"></a>            <span class="n">ensure_folder</span><span class="p">(</span><span class="n">labels_folder</span><span class="p">)</span>
 <a id="__codelineno-0-185" name="__codelineno-0-185"></a>        <span class="n">ensure_folder</span><span class="p">(</span><span class="n">output_folder</span><span class="p">)</span>
@@ -3195,14 +3195,14 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-204" name="__codelineno-0-204"></a>                    <span class="p">(</span><span class="n">chip_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
 <a id="__codelineno-0-205" name="__codelineno-0-205"></a>                <span class="p">)</span>
 <a id="__codelineno-0-206" name="__codelineno-0-206"></a>                <span class="n">geospatial_corners</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a>                    <span class="n">window_transformer</span><span class="o">.</span><span class="n">xy</span><span class="p">(</span><span class="n">pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pc</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">offset</span><span class="o">=</span><span class="s2">&quot;ul&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-207" name="__codelineno-0-207"></a>                    <span class="n">window_transformer</span><span class="o">.</span><span class="n">xy</span><span class="p">(</span><span class="n">pc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pc</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">offset</span><span class="o">=</span><span class="s2">"ul"</span><span class="p">)</span>
 <a id="__codelineno-0-208" name="__codelineno-0-208"></a>                    <span class="k">for</span> <span class="n">pc</span> <span class="ow">in</span> <span class="n">pixel_corners</span>
 <a id="__codelineno-0-209" name="__codelineno-0-209"></a>                <span class="p">]</span>
 <a id="__codelineno-0-210" name="__codelineno-0-210"></a>                <span class="n">geospatial_corners</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">geospatial_corners</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 <a id="__codelineno-0-211" name="__codelineno-0-211"></a>                <span class="n">window_polygon</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">geospatial_corners</span><span class="p">)</span>
 <a id="__codelineno-0-212" name="__codelineno-0-212"></a>
 <a id="__codelineno-0-213" name="__codelineno-0-213"></a>                <span class="k">if</span> <span class="ow">not</span> <span class="n">ROI_geometry</span><span class="o">.</span><span class="n">intersects</span><span class="p">(</span><span class="n">window_polygon</span><span class="p">):</span>
-<a id="__codelineno-0-214" name="__codelineno-0-214"></a>                    <span class="c1"># Skip writing this chip if it doesn&#39;t intersect the ROI</span>
+<a id="__codelineno-0-214" name="__codelineno-0-214"></a>                    <span class="c1"># Skip writing this chip if it doesn't intersect the ROI</span>
 <a id="__codelineno-0-215" name="__codelineno-0-215"></a>                    <span class="k">continue</span>
 <a id="__codelineno-0-216" name="__codelineno-0-216"></a>
 <a id="__codelineno-0-217" name="__codelineno-0-217"></a>            <span class="k">if</span> <span class="n">label_gdf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -3215,7 +3215,7 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-224" name="__codelineno-0-224"></a>                    <span class="n">fill</span><span class="o">=</span><span class="n">background_ind</span><span class="p">,</span>
 <a id="__codelineno-0-225" name="__codelineno-0-225"></a>                <span class="p">)</span>
 <a id="__codelineno-0-226" name="__codelineno-0-226"></a>                <span class="n">labels_raster</span> <span class="o">=</span> <span class="n">labels_raster</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-<a id="__codelineno-0-227" name="__codelineno-0-227"></a>                <span class="c1"># See if we should skip this tile since it&#39;s only background data</span>
+<a id="__codelineno-0-227" name="__codelineno-0-227"></a>                <span class="c1"># See if we should skip this tile since it's only background data</span>
 <a id="__codelineno-0-228" name="__codelineno-0-228"></a>                <span class="k">if</span> <span class="ow">not</span> <span class="n">write_empty_tiles</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span>
 <a id="__codelineno-0-229" name="__codelineno-0-229"></a>                    <span class="n">labels_raster</span> <span class="o">==</span> <span class="n">NULL_TEXTURE_INT_VALUE</span>
 <a id="__codelineno-0-230" name="__codelineno-0-230"></a>                <span class="p">):</span>
@@ -3225,7 +3225,7 @@ Defaults to <code>NULL_TEXTURE_INT_VALUE</code>.</p>
 <a id="__codelineno-0-234" name="__codelineno-0-234"></a>                <span class="n">output_file_name</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span>
 <a id="__codelineno-0-235" name="__codelineno-0-235"></a>                    <span class="n">labels_folder</span><span class="p">,</span>
 <a id="__codelineno-0-236" name="__codelineno-0-236"></a>                    <span class="n">get_str_from_window</span><span class="p">(</span>
-<a id="__codelineno-0-237" name="__codelineno-0-237"></a>                        <span class="n">raster_file</span><span class="o">=</span><span class="n">raster_file</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.png&quot;</span>
+<a id="__codelineno-0-237" name="__codelineno-0-237"></a>                        <span class="n">raster_file</span><span class="o">=</span><span class="n">raster_file</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">window</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".png"</span>
 <a id="__codelineno-0-238" name="__codelineno-0-238"></a>                    <span class="p">),</span>
 <a id="__codelineno-0-239" name="__codelineno-0-239"></a>                <span class="p">)</span>
 <a id="__codelineno-0-240" name="__codelineno-0-240"></a>                <span class="n">imwrite</span><span class="p">(</span>

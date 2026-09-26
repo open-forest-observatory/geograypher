@@ -2068,25 +2068,25 @@
 <a id="__codelineno-0-8" name="__codelineno-0-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="n">num_classes</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9"></a>
 <a id="__codelineno-0-10" name="__codelineno-0-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;This is for things like loading a model. It&#39;s fine to not override it if there&#39;s no setup&quot;&quot;&quot;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">        </span><span class="sd">"""This is for things like loading a model. It's fine to not override it if there's no setup"""</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12"></a>        <span class="k">pass</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13"></a>
 <a id="__codelineno-0-14" name="__codelineno-0-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">segment_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Produce a segmentation mask for an image</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">        </span><span class="sd">"""Produce a segmentation mask for an image</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16"></a>
 <a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">        Args:</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="sd">            image (np.ndarray): np</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20"></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Abstract base class&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">        """</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a>        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"Abstract base class"</span><span class="p">)</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21"></a>
 <a id="__codelineno-0-22" name="__codelineno-0-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">segment_image_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">        </span><span class="sd">"""</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">        Segment a batch of images, to potentially use full compute capacity. The current implementation</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">        should be overriden when there is a way to get improvements</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">        Args:</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">            images (typing.List[np.ndarray]): The list of images</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        """</span>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a>        <span class="n">segmentations</span> <span class="o">=</span> <span class="p">[]</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>        <span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">images</span><span class="p">:</span>
@@ -2100,7 +2100,7 @@
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="n">num_classes</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>        <span class="n">ignore_ind</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert an image of indices to a one-hot, one-per-channel encoding</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">        </span><span class="sd">"""Convert an image of indices to a one-hot, one-per-channel encoding</span>
 <a id="__codelineno-0-44" name="__codelineno-0-44"></a>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="sd">        Args:</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">            inds_image (np.ndarray): Image of integer indices. (m, n)</span>
@@ -2109,17 +2109,17 @@
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">        Returns:</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">            np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">        """</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="k">if</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>            <span class="n">inds_image_copy</span> <span class="o">=</span> <span class="n">inds_image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>            <span class="c1"># Mask out ignore ind so it&#39;s not used in computation</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>            <span class="c1"># Mask out ignore ind so it's not used in computation</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="n">inds_image_copy</span><span class="p">[</span><span class="n">inds_image_copy</span> <span class="o">==</span> <span class="n">ignore_ind</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a>            <span class="n">num_classes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">inds_image_copy</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
 <a id="__codelineno-0-58" name="__codelineno-0-58"></a>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>        <span class="n">one_hot_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>            <span class="p">(</span><span class="n">inds_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inds_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num_classes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="p">)</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="c1"># Iterate up to max ind, not num_classes to avoid wasted computation when there won&#39;t be matches</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="c1"># Iterate up to max ind, not num_classes to avoid wasted computation when there won't be matches</span>
 <a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_classes</span><span class="p">):</span>
 <a id="__codelineno-0-64" name="__codelineno-0-64"></a>            <span class="c1"># TODO determine if there are any more efficient ways to do this</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>            <span class="c1"># Maybe create all these slices and then concatenate</span>
@@ -2287,7 +2287,7 @@
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">ignore_ind</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">255</span><span class="p">,</span>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert an image of indices to a one-hot, one-per-channel encoding</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">    </span><span class="sd">"""Convert an image of indices to a one-hot, one-per-channel encoding</span>
 <a id="__codelineno-0-44" name="__codelineno-0-44"></a>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">        inds_image (np.ndarray): Image of integer indices. (m, n)</span>
@@ -2296,17 +2296,17 @@
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">    Returns:</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">        np.ndarray: (m, n, num_classes) boolean array with one channel filled with a True, all else False</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    """</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="k">if</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="n">inds_image_copy</span> <span class="o">=</span> <span class="n">inds_image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="c1"># Mask out ignore ind so it&#39;s not used in computation</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="c1"># Mask out ignore ind so it's not used in computation</span>
 <a id="__codelineno-0-56" name="__codelineno-0-56"></a>        <span class="n">inds_image_copy</span><span class="p">[</span><span class="n">inds_image_copy</span> <span class="o">==</span> <span class="n">ignore_ind</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
 <a id="__codelineno-0-57" name="__codelineno-0-57"></a>        <span class="n">num_classes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">inds_image_copy</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
 <a id="__codelineno-0-58" name="__codelineno-0-58"></a>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="n">one_hot_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>        <span class="p">(</span><span class="n">inds_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inds_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num_classes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="p">)</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="c1"># Iterate up to max ind, not num_classes to avoid wasted computation when there won&#39;t be matches</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="c1"># Iterate up to max ind, not num_classes to avoid wasted computation when there won't be matches</span>
 <a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_classes</span><span class="p">):</span>
 <a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="c1"># TODO determine if there are any more efficient ways to do this</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>        <span class="c1"># Maybe create all these slices and then concatenate</span>
@@ -2374,12 +2374,12 @@
 <span class="normal"><a href="#__codelineno-0-18">18</a></span>
 <span class="normal"><a href="#__codelineno-0-19">19</a></span>
 <span class="normal"><a href="#__codelineno-0-20">20</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">segment_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Produce a segmentation mask for an image</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="sd">"""Produce a segmentation mask for an image</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16"></a>
 <a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="sd">        image (np.ndarray): np</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Abstract base class&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    """</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"Abstract base class"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2448,13 +2448,13 @@ should be overriden when there is a way to get improvements</p>
 <span class="normal"><a href="#__codelineno-0-33">33</a></span>
 <span class="normal"><a href="#__codelineno-0-34">34</a></span>
 <span class="normal"><a href="#__codelineno-0-35">35</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="k">def</span><span class="w"> </span><span class="nf">segment_image_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">    </span><span class="sd">"""</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">    Segment a batch of images, to potentially use full compute capacity. The current implementation</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    should be overriden when there is a way to get improvements</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    Args:</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">        images (typing.List[np.ndarray]): The list of images</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">    """</span>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="n">segmentations</span> <span class="o">=</span> <span class="p">[]</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="k">for</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">images</span><span class="p">:</span>
@@ -2486,7 +2486,7 @@ should be overriden when there is a way to get improvements</p>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-10">10</a></span>
 <span class="normal"><a href="#__codelineno-0-11">11</a></span>
 <span class="normal"><a href="#__codelineno-0-12">12</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;This is for things like loading a model. It&#39;s fine to not override it if there&#39;s no setup&quot;&quot;&quot;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="sd">"""This is for things like loading a model. It's fine to not override it if there's no setup"""</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12"></a>    <span class="k">pass</span>
 </code></pre></div></td></tr></table></div>
             </details>
