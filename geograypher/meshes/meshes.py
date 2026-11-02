@@ -999,9 +999,9 @@ class TexturedPhotogrammetryMesh:
             column_names (typing.Union[str, typing.List[str]]): Which columns to obtain data from
 
         Returns:
-            np.ndarray | dict[str, np.ndarray]:
+            typing.Union[np.ndarray, dict[str, np.ndarray]]:
                 An array or dict of string->array mappings, with one element per mesh face represtinging the obtained textures
-            np.ndarray | dict[str, np.ndarray]:
+            typing.Union[np.ndarray, dict[str, np.ndarray]]:
                 An array or dict of string->array mappings, representing all values in the vector file
         """
         # Lead the vector data if not already provided in memory

@@ -1446,8 +1446,11 @@ class PhotogrammetryCameraSet:
             else:
                 frustum_scale = DEFAULT_FRUSTUM_SCALE
 
-        for camera in self.cameras:
-            camera.vis(plotter, frustum_scale=frustum_scale)
+        # Get the merged mesh representation to avoid adding multiple independent meshes
+        vis_mesh = self.get_vis_mesh(frustum_scale=frustum_scale)
+        plotter.add_mesh(vis_mesh, scalars="RGB", rgb=True)
+        breakpoint()
+
         if add_orientation_cube:
             # TODO Consider adding to a freestanding vis module
             ocube = demos.orientation_cube()
@@ -1476,7 +1479,9 @@ class PhotogrammetryCameraSet:
         return pv.merge(
             [
                 camera.get_vis_mesh(frustum_scale=frustum_scale)
-                for camera in self.cameras
+                for camera in tqdm(
+                    self.cameras, desc="Getting vis mesh for each camera"
+                )
             ]
         )
 

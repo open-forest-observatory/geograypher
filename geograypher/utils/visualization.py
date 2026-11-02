@@ -157,7 +157,7 @@ def create_composite(
 
         cmap = plt.get_cmap(vis_options["cmap"])
         null_mask = np.logical_or(
-            label_image == NULL_TEXTURE_INT_VALUE,
+            label_image == 255,
             np.logical_not(np.isfinite(label_image)),
         )
         if not vis_options["discrete"]:
