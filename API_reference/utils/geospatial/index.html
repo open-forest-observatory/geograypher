@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -27,10 +27,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2081,49 +2081,49 @@ coordinates.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/geospatial.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span>
-<span class="normal"><a href="#__codelineno-0-38">38</a></span>
-<span class="normal"><a href="#__codelineno-0-39">39</a></span>
-<span class="normal"><a href="#__codelineno-0-40">40</a></span>
-<span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span>
-<span class="normal"><a href="#__codelineno-0-43">43</a></span>
-<span class="normal"><a href="#__codelineno-0-44">44</a></span>
-<span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">ensure_projected_CRS</span><span class="p">(</span><span class="n">geodata</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">    </span><span class="sd">"""Returns a projected geodataframe from the provided geodataframe by converting it to</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">    ESPG:4326 (if not already) and determining the projected CRS from the point</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    coordinates.</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">        geodata (gpd.GeoDataGrame): Original geodataframe that is potentially unprojected</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">        gpd.GeoDataGrame: projected geodataframe</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="sd">    """</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="c1"># If CRS is projected return immediately</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="k">if</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">is_projected</span><span class="p">:</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="k">return</span> <span class="n">geodata</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="c1"># If CRS is geographic and not long-lat, convert it to long-lat</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">if</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">is_geographic</span> <span class="ow">and</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span> <span class="o">!=</span> <span class="n">LAT_LON_CRS</span><span class="p">:</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>        <span class="n">geodata</span> <span class="o">=</span> <span class="n">geodata</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">LAT_LON_CRS</span><span class="p">)</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="c1"># Convert geographic long-lat CRS to projected CRS</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">point</span> <span class="o">=</span> <span class="n">geodata</span><span class="p">[</span><span class="s2">"geometry"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">centroid</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="n">geometric_crs</span> <span class="o">=</span> <span class="n">get_projected_CRS</span><span class="p">(</span><span class="n">lon</span><span class="o">=</span><span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">lat</span><span class="o">=</span><span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="k">return</span> <span class="n">geodata</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">geometric_crs</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-48">48</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-27" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">ensure_projected_CRS</span><span class="p">(</span><span class="n">geodata</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-28" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-28"></a><span class="w">    </span><span class="sd">"""Returns a projected geodataframe from the provided geodataframe by converting it to</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-29" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-29"></a><span class="sd">    ESPG:4326 (if not already) and determining the projected CRS from the point</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-30" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-30"></a><span class="sd">    coordinates.</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-31" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-31"></a>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-32" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-32"></a><span class="sd">    Args:</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-33" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-33"></a><span class="sd">        geodata (gpd.GeoDataGrame): Original geodataframe that is potentially unprojected</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-34" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-34"></a><span class="sd">    Returns:</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-35" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-35"></a><span class="sd">        gpd.GeoDataGrame: projected geodataframe</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-36" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-36"></a><span class="sd">    """</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-37" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-37"></a>    <span class="c1"># If CRS is projected return immediately</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-38" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-38"></a>    <span class="k">if</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">is_projected</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-39" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-39"></a>        <span class="k">return</span> <span class="n">geodata</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-40" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-40"></a>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-41" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-41"></a>    <span class="c1"># If CRS is geographic and not long-lat, convert it to long-lat</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-42" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-42"></a>    <span class="k">if</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span><span class="o">.</span><span class="n">is_geographic</span> <span class="ow">and</span> <span class="n">geodata</span><span class="o">.</span><span class="n">crs</span> <span class="o">!=</span> <span class="n">LAT_LON_CRS</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-43" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-43"></a>        <span class="n">geodata</span> <span class="o">=</span> <span class="n">geodata</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">LAT_LON_CRS</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-44" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-44"></a>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-45" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-45"></a>    <span class="c1"># Convert geographic long-lat CRS to projected CRS</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-46" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-46"></a>    <span class="n">point</span> <span class="o">=</span> <span class="n">geodata</span><span class="p">[</span><span class="s2">"geometry"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">centroid</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-47" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-47"></a>    <span class="n">geometric_crs</span> <span class="o">=</span> <span class="n">get_projected_CRS</span><span class="p">(</span><span class="n">lon</span><span class="o">=</span><span class="n">point</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">lat</span><span class="o">=</span><span class="n">point</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-48" name="geograypher.utils.geospatial.ensure_projected_CRS--source--__codelineno-0-48"></a>    <span class="k">return</span> <span class="n">geodata</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">geometric_crs</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2258,141 +2258,141 @@ coordinates.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/geospatial.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-150">150</a></span>
-<span class="normal"><a href="#__codelineno-0-151">151</a></span>
-<span class="normal"><a href="#__codelineno-0-152">152</a></span>
-<span class="normal"><a href="#__codelineno-0-153">153</a></span>
-<span class="normal"><a href="#__codelineno-0-154">154</a></span>
-<span class="normal"><a href="#__codelineno-0-155">155</a></span>
-<span class="normal"><a href="#__codelineno-0-156">156</a></span>
-<span class="normal"><a href="#__codelineno-0-157">157</a></span>
-<span class="normal"><a href="#__codelineno-0-158">158</a></span>
-<span class="normal"><a href="#__codelineno-0-159">159</a></span>
-<span class="normal"><a href="#__codelineno-0-160">160</a></span>
-<span class="normal"><a href="#__codelineno-0-161">161</a></span>
-<span class="normal"><a href="#__codelineno-0-162">162</a></span>
-<span class="normal"><a href="#__codelineno-0-163">163</a></span>
-<span class="normal"><a href="#__codelineno-0-164">164</a></span>
-<span class="normal"><a href="#__codelineno-0-165">165</a></span>
-<span class="normal"><a href="#__codelineno-0-166">166</a></span>
-<span class="normal"><a href="#__codelineno-0-167">167</a></span>
-<span class="normal"><a href="#__codelineno-0-168">168</a></span>
-<span class="normal"><a href="#__codelineno-0-169">169</a></span>
-<span class="normal"><a href="#__codelineno-0-170">170</a></span>
-<span class="normal"><a href="#__codelineno-0-171">171</a></span>
-<span class="normal"><a href="#__codelineno-0-172">172</a></span>
-<span class="normal"><a href="#__codelineno-0-173">173</a></span>
-<span class="normal"><a href="#__codelineno-0-174">174</a></span>
-<span class="normal"><a href="#__codelineno-0-175">175</a></span>
-<span class="normal"><a href="#__codelineno-0-176">176</a></span>
-<span class="normal"><a href="#__codelineno-0-177">177</a></span>
-<span class="normal"><a href="#__codelineno-0-178">178</a></span>
-<span class="normal"><a href="#__codelineno-0-179">179</a></span>
-<span class="normal"><a href="#__codelineno-0-180">180</a></span>
-<span class="normal"><a href="#__codelineno-0-181">181</a></span>
-<span class="normal"><a href="#__codelineno-0-182">182</a></span>
-<span class="normal"><a href="#__codelineno-0-183">183</a></span>
-<span class="normal"><a href="#__codelineno-0-184">184</a></span>
-<span class="normal"><a href="#__codelineno-0-185">185</a></span>
-<span class="normal"><a href="#__codelineno-0-186">186</a></span>
-<span class="normal"><a href="#__codelineno-0-187">187</a></span>
-<span class="normal"><a href="#__codelineno-0-188">188</a></span>
-<span class="normal"><a href="#__codelineno-0-189">189</a></span>
-<span class="normal"><a href="#__codelineno-0-190">190</a></span>
-<span class="normal"><a href="#__codelineno-0-191">191</a></span>
-<span class="normal"><a href="#__codelineno-0-192">192</a></span>
-<span class="normal"><a href="#__codelineno-0-193">193</a></span>
-<span class="normal"><a href="#__codelineno-0-194">194</a></span>
-<span class="normal"><a href="#__codelineno-0-195">195</a></span>
-<span class="normal"><a href="#__codelineno-0-196">196</a></span>
-<span class="normal"><a href="#__codelineno-0-197">197</a></span>
-<span class="normal"><a href="#__codelineno-0-198">198</a></span>
-<span class="normal"><a href="#__codelineno-0-199">199</a></span>
-<span class="normal"><a href="#__codelineno-0-200">200</a></span>
-<span class="normal"><a href="#__codelineno-0-201">201</a></span>
-<span class="normal"><a href="#__codelineno-0-202">202</a></span>
-<span class="normal"><a href="#__codelineno-0-203">203</a></span>
-<span class="normal"><a href="#__codelineno-0-204">204</a></span>
-<span class="normal"><a href="#__codelineno-0-205">205</a></span>
-<span class="normal"><a href="#__codelineno-0-206">206</a></span>
-<span class="normal"><a href="#__codelineno-0-207">207</a></span>
-<span class="normal"><a href="#__codelineno-0-208">208</a></span>
-<span class="normal"><a href="#__codelineno-0-209">209</a></span>
-<span class="normal"><a href="#__codelineno-0-210">210</a></span>
-<span class="normal"><a href="#__codelineno-0-211">211</a></span>
-<span class="normal"><a href="#__codelineno-0-212">212</a></span>
-<span class="normal"><a href="#__codelineno-0-213">213</a></span>
-<span class="normal"><a href="#__codelineno-0-214">214</a></span>
-<span class="normal"><a href="#__codelineno-0-215">215</a></span>
-<span class="normal"><a href="#__codelineno-0-216">216</a></span>
-<span class="normal"><a href="#__codelineno-0-217">217</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_overlap_raster</span><span class="p">(</span>
-<a id="__codelineno-0-151" name="__codelineno-0-151"></a>    <span class="n">unlabeled_df</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">GeoDataFrame</span><span class="p">],</span>
-<a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="n">classes_raster</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
-<a id="__codelineno-0-153" name="__codelineno-0-153"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-154" name="__codelineno-0-154"></a>    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-155" name="__codelineno-0-155"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-<a id="__codelineno-0-156" name="__codelineno-0-156"></a><span class="w">    </span><span class="sd">"""Get the overlap for each polygon in the unlabeled DF with each class in the raster</span>
-<a id="__codelineno-0-157" name="__codelineno-0-157"></a>
-<a id="__codelineno-0-158" name="__codelineno-0-158"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-159" name="__codelineno-0-159"></a><span class="sd">        unlabeled_df (typing.Union[PATH_TYPE, GeoDataFrame]):</span>
-<a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="sd">            Dataframe or path to dataframe containing geometries per object</span>
-<a id="__codelineno-0-161" name="__codelineno-0-161"></a><span class="sd">        classes_raster (PATH_TYPE): Path to a categorical raster</span>
-<a id="__codelineno-0-162" name="__codelineno-0-162"></a><span class="sd">        num_classes (typing.Union[None, int], optional):</span>
-<a id="__codelineno-0-163" name="__codelineno-0-163"></a><span class="sd">            Number of classes, if None defaults to the highest overlapping class. Defaults to None.</span>
-<a id="__codelineno-0-164" name="__codelineno-0-164"></a><span class="sd">        normalize (bool, optional): Normalize counts matrix from pixels to fraction. Defaults to False.</span>
-<a id="__codelineno-0-165" name="__codelineno-0-165"></a>
-<a id="__codelineno-0-166" name="__codelineno-0-166"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-167" name="__codelineno-0-167"></a><span class="sd">        np.ndarray: (n_valid, n_classes) counts per polygon per class</span>
-<a id="__codelineno-0-168" name="__codelineno-0-168"></a><span class="sd">        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions</span>
-<a id="__codelineno-0-169" name="__codelineno-0-169"></a><span class="sd">    """</span>
-<a id="__codelineno-0-170" name="__codelineno-0-170"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
-<a id="__codelineno-0-171" name="__codelineno-0-171"></a>
-<a id="__codelineno-0-172" name="__codelineno-0-172"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">classes_raster</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
-<a id="__codelineno-0-173" name="__codelineno-0-173"></a>        <span class="n">raster_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
-<a id="__codelineno-0-174" name="__codelineno-0-174"></a>        <span class="c1"># Note this is a shapely object with no CRS, but we ensure</span>
-<a id="__codelineno-0-175" name="__codelineno-0-175"></a>        <span class="c1"># the vectors are converted to the same CRS</span>
-<a id="__codelineno-0-176" name="__codelineno-0-176"></a>        <span class="n">raster_bounds</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="o">*</span><span class="n">src</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span>
-<a id="__codelineno-0-177" name="__codelineno-0-177"></a>
-<a id="__codelineno-0-178" name="__codelineno-0-178"></a>    <span class="c1"># Ensure that the vector data is in the same CRS as the raster</span>
-<a id="__codelineno-0-179" name="__codelineno-0-179"></a>    <span class="k">if</span> <span class="n">raster_crs</span> <span class="o">!=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">:</span>
-<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="c1"># Avoid doing this in place because we don't want to modify the input dataframe</span>
-<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="c1"># This should properly create a copy</span>
-<a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">raster_crs</span><span class="p">)</span>
-<a id="__codelineno-0-183" name="__codelineno-0-183"></a>
-<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="c1"># Compute which polygons intersect the raster region</span>
-<a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="n">within_bounds_IDs</span> <span class="o">=</span> <span class="n">intersects_union_of_polygons</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">,</span> <span class="n">raster_bounds</span><span class="p">)</span>
-<a id="__codelineno-0-186" name="__codelineno-0-186"></a>
-<a id="__codelineno-0-187" name="__codelineno-0-187"></a>    <span class="c1"># Compute the stats</span>
-<a id="__codelineno-0-188" name="__codelineno-0-188"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">zonal_stats</span><span class="p">(</span>
-<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">within_bounds_IDs</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">classes_raster</span><span class="p">),</span> <span class="n">categorical</span><span class="o">=</span><span class="kc">True</span>
-<a id="__codelineno-0-190" name="__codelineno-0-190"></a>    <span class="p">)</span>
-<a id="__codelineno-0-191" name="__codelineno-0-191"></a>
-<a id="__codelineno-0-192" name="__codelineno-0-192"></a>    <span class="c1"># Find which polygons have non-null class predictions</span>
-<a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="c1"># Due to nondata regions, some polygons within the region may not have class information</span>
-<a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="n">valid_prediction_IDs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">([</span><span class="n">x</span> <span class="o">!=</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
-<a id="__codelineno-0-195" name="__codelineno-0-195"></a>
-<a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="c1"># Determine the number of classes if not set</span>
-<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="k">if</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-198" name="__codelineno-0-198"></a>        <span class="c1"># Find the max value that show up in valid predictions</span>
-<a id="__codelineno-0-199" name="__codelineno-0-199"></a>        <span class="n">num_classes</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a>            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">valid_prediction_IDs</span><span class="p">]</span>
-<a id="__codelineno-0-201" name="__codelineno-0-201"></a>        <span class="p">)</span>
-<a id="__codelineno-0-202" name="__codelineno-0-202"></a>
-<a id="__codelineno-0-203" name="__codelineno-0-203"></a>    <span class="c1"># Build the counts matrix for non-null predictions</span>
-<a id="__codelineno-0-204" name="__codelineno-0-204"></a>    <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_prediction_IDs</span><span class="p">),</span> <span class="n">num_classes</span><span class="p">))</span>
-<a id="__codelineno-0-205" name="__codelineno-0-205"></a>
-<a id="__codelineno-0-206" name="__codelineno-0-206"></a>    <span class="c1"># Fill the counts matrix</span>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">valid_prediction_IDs</span><span class="p">:</span>
-<a id="__codelineno-0-208" name="__codelineno-0-208"></a>        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-209" name="__codelineno-0-209"></a>            <span class="n">counts_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">count</span>
-<a id="__codelineno-0-210" name="__codelineno-0-210"></a>
-<a id="__codelineno-0-211" name="__codelineno-0-211"></a>    <span class="c1"># Bookkeeping to find the IDs that were both within the raster and non-null</span>
-<a id="__codelineno-0-212" name="__codelineno-0-212"></a>    <span class="n">valid_IDs_in_original</span> <span class="o">=</span> <span class="n">within_bounds_IDs</span><span class="p">[</span><span class="n">valid_prediction_IDs</span><span class="p">]</span>
-<a id="__codelineno-0-213" name="__codelineno-0-213"></a>
-<a id="__codelineno-0-214" name="__codelineno-0-214"></a>    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
-<a id="__codelineno-0-215" name="__codelineno-0-215"></a>        <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">counts_matrix</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-216" name="__codelineno-0-216"></a>
-<a id="__codelineno-0-217" name="__codelineno-0-217"></a>    <span class="k">return</span> <span class="n">counts_matrix</span><span class="p">,</span> <span class="n">valid_IDs_in_original</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-154">154</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-155">155</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-188">188</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-189">189</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-190">190</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-205">205</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-206">206</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-207">207</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-208">208</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-209">209</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-210">210</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-211">211</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-212">212</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-213">213</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-214">214</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-215">215</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-216">216</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-217">217</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-150" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-150"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_overlap_raster</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-151" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-151"></a>    <span class="n">unlabeled_df</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">GeoDataFrame</span><span class="p">],</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-152" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-152"></a>    <span class="n">classes_raster</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-153" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-153"></a>    <span class="n">num_classes</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-154" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-154"></a>    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-155" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-155"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-156" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-156"></a><span class="w">    </span><span class="sd">"""Get the overlap for each polygon in the unlabeled DF with each class in the raster</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-157" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-157"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-158" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-158"></a><span class="sd">    Args:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-159" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-159"></a><span class="sd">        unlabeled_df (typing.Union[PATH_TYPE, GeoDataFrame]):</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-160" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-160"></a><span class="sd">            Dataframe or path to dataframe containing geometries per object</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-161" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-161"></a><span class="sd">        classes_raster (PATH_TYPE): Path to a categorical raster</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-162" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-162"></a><span class="sd">        num_classes (typing.Union[None, int], optional):</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-163" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-163"></a><span class="sd">            Number of classes, if None defaults to the highest overlapping class. Defaults to None.</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-164" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-164"></a><span class="sd">        normalize (bool, optional): Normalize counts matrix from pixels to fraction. Defaults to False.</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-165" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-165"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-166" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-166"></a><span class="sd">    Returns:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-167" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-167"></a><span class="sd">        np.ndarray: (n_valid, n_classes) counts per polygon per class</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-168" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-168"></a><span class="sd">        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-169" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-169"></a><span class="sd">    """</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-170" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-170"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-171" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-171"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-172" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-172"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">classes_raster</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-173" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-173"></a>        <span class="n">raster_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-174" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-174"></a>        <span class="c1"># Note this is a shapely object with no CRS, but we ensure</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-175" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-175"></a>        <span class="c1"># the vectors are converted to the same CRS</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-176" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-176"></a>        <span class="n">raster_bounds</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="o">*</span><span class="n">src</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-177" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-177"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-178" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-178"></a>    <span class="c1"># Ensure that the vector data is in the same CRS as the raster</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-179" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-179"></a>    <span class="k">if</span> <span class="n">raster_crs</span> <span class="o">!=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-180" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-180"></a>        <span class="c1"># Avoid doing this in place because we don't want to modify the input dataframe</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-181" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-181"></a>        <span class="c1"># This should properly create a copy</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-182" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-182"></a>        <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">raster_crs</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-183" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-183"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-184" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-184"></a>    <span class="c1"># Compute which polygons intersect the raster region</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-185" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-185"></a>    <span class="n">within_bounds_IDs</span> <span class="o">=</span> <span class="n">intersects_union_of_polygons</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">,</span> <span class="n">raster_bounds</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-186" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-186"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-187" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-187"></a>    <span class="c1"># Compute the stats</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-188" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-188"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">zonal_stats</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-189" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-189"></a>        <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">within_bounds_IDs</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">classes_raster</span><span class="p">),</span> <span class="n">categorical</span><span class="o">=</span><span class="kc">True</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-190" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-190"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-191" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-191"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-192" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-192"></a>    <span class="c1"># Find which polygons have non-null class predictions</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-193" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-193"></a>    <span class="c1"># Due to nondata regions, some polygons within the region may not have class information</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-194" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-194"></a>    <span class="n">valid_prediction_IDs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">([</span><span class="n">x</span> <span class="o">!=</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-195" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-195"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-196" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-196"></a>    <span class="c1"># Determine the number of classes if not set</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-197" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-197"></a>    <span class="k">if</span> <span class="n">num_classes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-198" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-198"></a>        <span class="c1"># Find the max value that show up in valid predictions</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-199" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-199"></a>        <span class="n">num_classes</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-200" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-200"></a>            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">valid_prediction_IDs</span><span class="p">]</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-201" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-201"></a>        <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-202" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-202"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-203" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-203"></a>    <span class="c1"># Build the counts matrix for non-null predictions</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-204" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-204"></a>    <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_prediction_IDs</span><span class="p">),</span> <span class="n">num_classes</span><span class="p">))</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-205" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-205"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-206" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-206"></a>    <span class="c1"># Fill the counts matrix</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-207" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-207"></a>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">valid_prediction_IDs</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-208" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-208"></a>        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-209" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-209"></a>            <span class="n">counts_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">count</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-210" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-210"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-211" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-211"></a>    <span class="c1"># Bookkeeping to find the IDs that were both within the raster and non-null</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-212" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-212"></a>    <span class="n">valid_IDs_in_original</span> <span class="o">=</span> <span class="n">within_bounds_IDs</span><span class="p">[</span><span class="n">valid_prediction_IDs</span><span class="p">]</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-213" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-213"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-214" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-214"></a>    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-215" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-215"></a>        <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">counts_matrix</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-216" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-216"></a>
+<a id="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-217" name="geograypher.utils.geospatial.get_overlap_raster--source--__codelineno-0-217"></a>    <span class="k">return</span> <span class="n">counts_matrix</span><span class="p">,</span> <span class="n">valid_IDs_in_original</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2528,223 +2528,223 @@ classes_df</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/geospatial.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-221">221</a></span>
-<span class="normal"><a href="#__codelineno-0-222">222</a></span>
-<span class="normal"><a href="#__codelineno-0-223">223</a></span>
-<span class="normal"><a href="#__codelineno-0-224">224</a></span>
-<span class="normal"><a href="#__codelineno-0-225">225</a></span>
-<span class="normal"><a href="#__codelineno-0-226">226</a></span>
-<span class="normal"><a href="#__codelineno-0-227">227</a></span>
-<span class="normal"><a href="#__codelineno-0-228">228</a></span>
-<span class="normal"><a href="#__codelineno-0-229">229</a></span>
-<span class="normal"><a href="#__codelineno-0-230">230</a></span>
-<span class="normal"><a href="#__codelineno-0-231">231</a></span>
-<span class="normal"><a href="#__codelineno-0-232">232</a></span>
-<span class="normal"><a href="#__codelineno-0-233">233</a></span>
-<span class="normal"><a href="#__codelineno-0-234">234</a></span>
-<span class="normal"><a href="#__codelineno-0-235">235</a></span>
-<span class="normal"><a href="#__codelineno-0-236">236</a></span>
-<span class="normal"><a href="#__codelineno-0-237">237</a></span>
-<span class="normal"><a href="#__codelineno-0-238">238</a></span>
-<span class="normal"><a href="#__codelineno-0-239">239</a></span>
-<span class="normal"><a href="#__codelineno-0-240">240</a></span>
-<span class="normal"><a href="#__codelineno-0-241">241</a></span>
-<span class="normal"><a href="#__codelineno-0-242">242</a></span>
-<span class="normal"><a href="#__codelineno-0-243">243</a></span>
-<span class="normal"><a href="#__codelineno-0-244">244</a></span>
-<span class="normal"><a href="#__codelineno-0-245">245</a></span>
-<span class="normal"><a href="#__codelineno-0-246">246</a></span>
-<span class="normal"><a href="#__codelineno-0-247">247</a></span>
-<span class="normal"><a href="#__codelineno-0-248">248</a></span>
-<span class="normal"><a href="#__codelineno-0-249">249</a></span>
-<span class="normal"><a href="#__codelineno-0-250">250</a></span>
-<span class="normal"><a href="#__codelineno-0-251">251</a></span>
-<span class="normal"><a href="#__codelineno-0-252">252</a></span>
-<span class="normal"><a href="#__codelineno-0-253">253</a></span>
-<span class="normal"><a href="#__codelineno-0-254">254</a></span>
-<span class="normal"><a href="#__codelineno-0-255">255</a></span>
-<span class="normal"><a href="#__codelineno-0-256">256</a></span>
-<span class="normal"><a href="#__codelineno-0-257">257</a></span>
-<span class="normal"><a href="#__codelineno-0-258">258</a></span>
-<span class="normal"><a href="#__codelineno-0-259">259</a></span>
-<span class="normal"><a href="#__codelineno-0-260">260</a></span>
-<span class="normal"><a href="#__codelineno-0-261">261</a></span>
-<span class="normal"><a href="#__codelineno-0-262">262</a></span>
-<span class="normal"><a href="#__codelineno-0-263">263</a></span>
-<span class="normal"><a href="#__codelineno-0-264">264</a></span>
-<span class="normal"><a href="#__codelineno-0-265">265</a></span>
-<span class="normal"><a href="#__codelineno-0-266">266</a></span>
-<span class="normal"><a href="#__codelineno-0-267">267</a></span>
-<span class="normal"><a href="#__codelineno-0-268">268</a></span>
-<span class="normal"><a href="#__codelineno-0-269">269</a></span>
-<span class="normal"><a href="#__codelineno-0-270">270</a></span>
-<span class="normal"><a href="#__codelineno-0-271">271</a></span>
-<span class="normal"><a href="#__codelineno-0-272">272</a></span>
-<span class="normal"><a href="#__codelineno-0-273">273</a></span>
-<span class="normal"><a href="#__codelineno-0-274">274</a></span>
-<span class="normal"><a href="#__codelineno-0-275">275</a></span>
-<span class="normal"><a href="#__codelineno-0-276">276</a></span>
-<span class="normal"><a href="#__codelineno-0-277">277</a></span>
-<span class="normal"><a href="#__codelineno-0-278">278</a></span>
-<span class="normal"><a href="#__codelineno-0-279">279</a></span>
-<span class="normal"><a href="#__codelineno-0-280">280</a></span>
-<span class="normal"><a href="#__codelineno-0-281">281</a></span>
-<span class="normal"><a href="#__codelineno-0-282">282</a></span>
-<span class="normal"><a href="#__codelineno-0-283">283</a></span>
-<span class="normal"><a href="#__codelineno-0-284">284</a></span>
-<span class="normal"><a href="#__codelineno-0-285">285</a></span>
-<span class="normal"><a href="#__codelineno-0-286">286</a></span>
-<span class="normal"><a href="#__codelineno-0-287">287</a></span>
-<span class="normal"><a href="#__codelineno-0-288">288</a></span>
-<span class="normal"><a href="#__codelineno-0-289">289</a></span>
-<span class="normal"><a href="#__codelineno-0-290">290</a></span>
-<span class="normal"><a href="#__codelineno-0-291">291</a></span>
-<span class="normal"><a href="#__codelineno-0-292">292</a></span>
-<span class="normal"><a href="#__codelineno-0-293">293</a></span>
-<span class="normal"><a href="#__codelineno-0-294">294</a></span>
-<span class="normal"><a href="#__codelineno-0-295">295</a></span>
-<span class="normal"><a href="#__codelineno-0-296">296</a></span>
-<span class="normal"><a href="#__codelineno-0-297">297</a></span>
-<span class="normal"><a href="#__codelineno-0-298">298</a></span>
-<span class="normal"><a href="#__codelineno-0-299">299</a></span>
-<span class="normal"><a href="#__codelineno-0-300">300</a></span>
-<span class="normal"><a href="#__codelineno-0-301">301</a></span>
-<span class="normal"><a href="#__codelineno-0-302">302</a></span>
-<span class="normal"><a href="#__codelineno-0-303">303</a></span>
-<span class="normal"><a href="#__codelineno-0-304">304</a></span>
-<span class="normal"><a href="#__codelineno-0-305">305</a></span>
-<span class="normal"><a href="#__codelineno-0-306">306</a></span>
-<span class="normal"><a href="#__codelineno-0-307">307</a></span>
-<span class="normal"><a href="#__codelineno-0-308">308</a></span>
-<span class="normal"><a href="#__codelineno-0-309">309</a></span>
-<span class="normal"><a href="#__codelineno-0-310">310</a></span>
-<span class="normal"><a href="#__codelineno-0-311">311</a></span>
-<span class="normal"><a href="#__codelineno-0-312">312</a></span>
-<span class="normal"><a href="#__codelineno-0-313">313</a></span>
-<span class="normal"><a href="#__codelineno-0-314">314</a></span>
-<span class="normal"><a href="#__codelineno-0-315">315</a></span>
-<span class="normal"><a href="#__codelineno-0-316">316</a></span>
-<span class="normal"><a href="#__codelineno-0-317">317</a></span>
-<span class="normal"><a href="#__codelineno-0-318">318</a></span>
-<span class="normal"><a href="#__codelineno-0-319">319</a></span>
-<span class="normal"><a href="#__codelineno-0-320">320</a></span>
-<span class="normal"><a href="#__codelineno-0-321">321</a></span>
-<span class="normal"><a href="#__codelineno-0-322">322</a></span>
-<span class="normal"><a href="#__codelineno-0-323">323</a></span>
-<span class="normal"><a href="#__codelineno-0-324">324</a></span>
-<span class="normal"><a href="#__codelineno-0-325">325</a></span>
-<span class="normal"><a href="#__codelineno-0-326">326</a></span>
-<span class="normal"><a href="#__codelineno-0-327">327</a></span>
-<span class="normal"><a href="#__codelineno-0-328">328</a></span>
-<span class="normal"><a href="#__codelineno-0-329">329</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-221" name="__codelineno-0-221"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_overlap_vector</span><span class="p">(</span>
-<a id="__codelineno-0-222" name="__codelineno-0-222"></a>    <span class="n">unlabeled_df</span><span class="p">:</span> <span class="n">GeoDataFrame</span><span class="p">,</span>
-<a id="__codelineno-0-223" name="__codelineno-0-223"></a>    <span class="n">classes_df</span><span class="p">:</span> <span class="n">GeoDataFrame</span><span class="p">,</span>
-<a id="__codelineno-0-224" name="__codelineno-0-224"></a>    <span class="n">class_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-225" name="__codelineno-0-225"></a>    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-226" name="__codelineno-0-226"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-<a id="__codelineno-0-227" name="__codelineno-0-227"></a><span class="w">    </span><span class="sd">"""</span>
-<a id="__codelineno-0-228" name="__codelineno-0-228"></a><span class="sd">    For each element in unlabeled df, return the fractional overlap with each class in</span>
-<a id="__codelineno-0-229" name="__codelineno-0-229"></a><span class="sd">    classes_df</span>
-<a id="__codelineno-0-230" name="__codelineno-0-230"></a>
-<a id="__codelineno-0-231" name="__codelineno-0-231"></a>
-<a id="__codelineno-0-232" name="__codelineno-0-232"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-233" name="__codelineno-0-233"></a><span class="sd">        unlabeled_df (GeoDataFrame): A dataframe of geometries</span>
-<a id="__codelineno-0-234" name="__codelineno-0-234"></a><span class="sd">        classes_df (GeoDataFrame): A dataframe of classes</span>
-<a id="__codelineno-0-235" name="__codelineno-0-235"></a><span class="sd">        class_column (str, optional): Which column in the classes_df to use. Defaults to "names".</span>
-<a id="__codelineno-0-236" name="__codelineno-0-236"></a><span class="sd">        normalize (bool, optional): Normalize counts matrix from area to fraction. Defaults to False.</span>
-<a id="__codelineno-0-237" name="__codelineno-0-237"></a>
-<a id="__codelineno-0-238" name="__codelineno-0-238"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-239" name="__codelineno-0-239"></a><span class="sd">        np.ndarray: (n_valid, n_classes) counts per polygon per class</span>
-<a id="__codelineno-0-240" name="__codelineno-0-240"></a><span class="sd">        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions</span>
-<a id="__codelineno-0-241" name="__codelineno-0-241"></a><span class="sd">    """</span>
-<a id="__codelineno-0-242" name="__codelineno-0-242"></a>
-<a id="__codelineno-0-243" name="__codelineno-0-243"></a>    <span class="c1">## Preprocessing</span>
-<a id="__codelineno-0-244" name="__codelineno-0-244"></a>    <span class="c1"># Ensure that both a geodataframes</span>
-<a id="__codelineno-0-245" name="__codelineno-0-245"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
-<a id="__codelineno-0-246" name="__codelineno-0-246"></a>    <span class="n">classes_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">classes_df</span><span class="p">)</span>
-<a id="__codelineno-0-247" name="__codelineno-0-247"></a>
-<a id="__codelineno-0-248" name="__codelineno-0-248"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">ensure_projected_CRS</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
-<a id="__codelineno-0-249" name="__codelineno-0-249"></a>    <span class="k">if</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">crs</span> <span class="o">!=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">:</span>
-<a id="__codelineno-0-250" name="__codelineno-0-250"></a>        <span class="n">classes_df</span> <span class="o">=</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">)</span>
-<a id="__codelineno-0-251" name="__codelineno-0-251"></a>
-<a id="__codelineno-0-252" name="__codelineno-0-252"></a>    <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">geometry</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
-<a id="__codelineno-0-253" name="__codelineno-0-253"></a>    <span class="n">classes_df</span><span class="o">.</span><span class="n">geometry</span> <span class="o">=</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
-<a id="__codelineno-0-254" name="__codelineno-0-254"></a>
-<a id="__codelineno-0-255" name="__codelineno-0-255"></a>    <span class="k">if</span> <span class="n">class_column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-<a id="__codelineno-0-256" name="__codelineno-0-256"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Class column `</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">` not in </span><span class="si">{</span><span class="n">classes_df</span><span class="o">.</span><span class="n">columns</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-0-257" name="__codelineno-0-257"></a>
-<a id="__codelineno-0-258" name="__codelineno-0-258"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-259" name="__codelineno-0-259"></a>        <span class="s2">"Computing the intersection of the unlabeled polygons with the labeled region"</span>
-<a id="__codelineno-0-260" name="__codelineno-0-260"></a>    <span class="p">)</span>
-<a id="__codelineno-0-261" name="__codelineno-0-261"></a>    <span class="c1"># Find which unlabeled polygons intersect with the labeled region</span>
-<a id="__codelineno-0-262" name="__codelineno-0-262"></a>    <span class="n">intersection_IDs</span> <span class="o">=</span> <span class="n">intersects_union_of_polygons</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">,</span> <span class="n">classes_df</span><span class="p">)</span>
-<a id="__codelineno-0-263" name="__codelineno-0-263"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Finished computing intersection"</span><span class="p">)</span>
-<a id="__codelineno-0-264" name="__codelineno-0-264"></a>    <span class="c1"># Extract only these polygons</span>
-<a id="__codelineno-0-265" name="__codelineno-0-265"></a>    <span class="n">unlabeled_df_intersecting_classes</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">intersection_IDs</span><span class="p">]</span>
-<a id="__codelineno-0-266" name="__codelineno-0-266"></a>    <span class="n">unlabeled_df_intersecting_classes</span><span class="p">[</span><span class="s2">"index"</span><span class="p">]</span> <span class="o">=</span> <span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">index</span>
-<a id="__codelineno-0-267" name="__codelineno-0-267"></a>
-<a id="__codelineno-0-268" name="__codelineno-0-268"></a>    <span class="c1"># Add area field to each</span>
-<a id="__codelineno-0-269" name="__codelineno-0-269"></a>    <span class="n">unlabeled_df_intersecting_classes</span><span class="p">[</span><span class="s2">"unlabeled_area"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-270" name="__codelineno-0-270"></a>        <span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">area</span>
-<a id="__codelineno-0-271" name="__codelineno-0-271"></a>    <span class="p">)</span>
-<a id="__codelineno-0-272" name="__codelineno-0-272"></a>
-<a id="__codelineno-0-273" name="__codelineno-0-273"></a>    <span class="c1"># Find the intersecting geometries</span>
-<a id="__codelineno-0-274" name="__codelineno-0-274"></a>    <span class="c1"># We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified</span>
-<a id="__codelineno-0-275" name="__codelineno-0-275"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"computing overlay"</span><span class="p">)</span>
-<a id="__codelineno-0-276" name="__codelineno-0-276"></a>    <span class="n">overlay</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">overlay</span><span class="p">(</span>
-<a id="__codelineno-0-277" name="__codelineno-0-277"></a>        <span class="n">classes_df</span><span class="p">,</span>
-<a id="__codelineno-0-278" name="__codelineno-0-278"></a>        <span class="n">unlabeled_df_intersecting_classes</span><span class="p">,</span>
-<a id="__codelineno-0-279" name="__codelineno-0-279"></a>        <span class="n">how</span><span class="o">=</span><span class="s2">"union"</span><span class="p">,</span>
-<a id="__codelineno-0-280" name="__codelineno-0-280"></a>        <span class="n">keep_geom_type</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-281" name="__codelineno-0-281"></a>    <span class="p">)</span>
-<a id="__codelineno-0-282" name="__codelineno-0-282"></a>    <span class="c1"># Drop the rows that only contain information from the class_labels</span>
-<a id="__codelineno-0-283" name="__codelineno-0-283"></a>    <span class="n">overlay</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="s2">"index"</span><span class="p">)</span>
-<a id="__codelineno-0-284" name="__codelineno-0-284"></a>
-<a id="__codelineno-0-285" name="__codelineno-0-285"></a>    <span class="c1"># TODO look more into this part, something seems wrong</span>
-<a id="__codelineno-0-286" name="__codelineno-0-286"></a>    <span class="n">overlay</span><span class="p">[</span><span class="s2">"overlapping_area"</span><span class="p">]</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">area</span>
-<a id="__codelineno-0-287" name="__codelineno-0-287"></a>    <span class="c1"># overlay["per_class_area_fraction"] = (</span>
-<a id="__codelineno-0-288" name="__codelineno-0-288"></a>    <span class="c1">#    overlay["overlapping_area"] / overlay["unlabeled_area"]</span>
-<a id="__codelineno-0-289" name="__codelineno-0-289"></a>    <span class="c1"># )</span>
-<a id="__codelineno-0-290" name="__codelineno-0-290"></a>    <span class="c1"># Aggregating the results</span>
-<a id="__codelineno-0-291" name="__codelineno-0-291"></a>    <span class="c1"># WARNING Make sure that this is a list and not a tuple or it gets considered one key</span>
-<a id="__codelineno-0-292" name="__codelineno-0-292"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"computing groupby"</span><span class="p">)</span>
-<a id="__codelineno-0-293" name="__codelineno-0-293"></a>
-<a id="__codelineno-0-294" name="__codelineno-0-294"></a>    <span class="c1"># If the two dataframes have a column with the same name, they will be renamed</span>
-<a id="__codelineno-0-295" name="__codelineno-0-295"></a>    <span class="k">if</span> <span class="p">(</span>
-<a id="__codelineno-0-296" name="__codelineno-0-296"></a>        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_1"</span> <span class="ow">in</span> <span class="n">overlay</span><span class="o">.</span><span class="n">columns</span>
-<a id="__codelineno-0-297" name="__codelineno-0-297"></a>        <span class="ow">and</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_2"</span> <span class="ow">in</span> <span class="n">overlay</span><span class="o">.</span><span class="n">columns</span>
-<a id="__codelineno-0-298" name="__codelineno-0-298"></a>    <span class="p">):</span>
-<a id="__codelineno-0-299" name="__codelineno-0-299"></a>        <span class="n">aggregatation_class_column</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_1"</span>
-<a id="__codelineno-0-300" name="__codelineno-0-300"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-301" name="__codelineno-0-301"></a>        <span class="n">aggregatation_class_column</span> <span class="o">=</span> <span class="n">class_column</span>
-<a id="__codelineno-0-302" name="__codelineno-0-302"></a>
-<a id="__codelineno-0-303" name="__codelineno-0-303"></a>    <span class="c1"># Groupby and aggregate</span>
-<a id="__codelineno-0-304" name="__codelineno-0-304"></a>    <span class="n">grouped_by</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">"index"</span><span class="p">,</span> <span class="n">aggregatation_class_column</span><span class="p">])</span>
-<a id="__codelineno-0-305" name="__codelineno-0-305"></a>    <span class="n">aggregated</span> <span class="o">=</span> <span class="n">grouped_by</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="s2">"overlapping_area"</span><span class="p">:</span> <span class="s2">"sum"</span><span class="p">})</span>
-<a id="__codelineno-0-306" name="__codelineno-0-306"></a>
-<a id="__codelineno-0-307" name="__codelineno-0-307"></a>    <span class="c1"># Extract the original class names</span>
-<a id="__codelineno-0-308" name="__codelineno-0-308"></a>    <span class="n">unique_class_names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">classes_df</span><span class="p">[</span><span class="n">class_column</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
-<a id="__codelineno-0-309" name="__codelineno-0-309"></a>    <span class="c1"># And the indices from the original dataframe. This is relavent if the input</span>
-<a id="__codelineno-0-310" name="__codelineno-0-310"></a>    <span class="c1"># dataframe was a subset of an original one</span>
-<a id="__codelineno-0-311" name="__codelineno-0-311"></a>    <span class="n">unique_index_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
-<a id="__codelineno-0-312" name="__codelineno-0-312"></a>
-<a id="__codelineno-0-313" name="__codelineno-0-313"></a>    <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
-<a id="__codelineno-0-314" name="__codelineno-0-314"></a>        <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unlabeled_df_intersecting_classes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_class_names</span><span class="p">))</span>
-<a id="__codelineno-0-315" name="__codelineno-0-315"></a>    <span class="p">)</span>
-<a id="__codelineno-0-316" name="__codelineno-0-316"></a>
-<a id="__codelineno-0-317" name="__codelineno-0-317"></a>    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">aggregated</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
-<a id="__codelineno-0-318" name="__codelineno-0-318"></a>        <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">class_name</span><span class="p">),</span> <span class="n">area</span> <span class="o">=</span> <span class="n">r</span>
-<a id="__codelineno-0-319" name="__codelineno-0-319"></a>        <span class="c1"># The index is the index from the original unlabeled dataset, but we need the index into the subset</span>
-<a id="__codelineno-0-320" name="__codelineno-0-320"></a>        <span class="n">unlabled_object_ind</span> <span class="o">=</span> <span class="n">unique_index_values</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-<a id="__codelineno-0-321" name="__codelineno-0-321"></a>        <span class="c1"># Transform the class name into a class index</span>
-<a id="__codelineno-0-322" name="__codelineno-0-322"></a>        <span class="n">class_ind</span> <span class="o">=</span> <span class="n">unique_class_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">class_name</span><span class="p">)</span>
-<a id="__codelineno-0-323" name="__codelineno-0-323"></a>        <span class="c1"># Set the value to the area of the overlap between that unlabeled object and given class</span>
-<a id="__codelineno-0-324" name="__codelineno-0-324"></a>        <span class="n">counts_matrix</span><span class="p">[</span><span class="n">unlabled_object_ind</span><span class="p">,</span> <span class="n">class_ind</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">area</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-<a id="__codelineno-0-325" name="__codelineno-0-325"></a>
-<a id="__codelineno-0-326" name="__codelineno-0-326"></a>    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
-<a id="__codelineno-0-327" name="__codelineno-0-327"></a>        <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">counts_matrix</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-328" name="__codelineno-0-328"></a>
-<a id="__codelineno-0-329" name="__codelineno-0-329"></a>    <span class="k">return</span> <span class="n">counts_matrix</span><span class="p">,</span> <span class="n">intersection_IDs</span><span class="p">,</span> <span class="n">unique_class_names</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-221">221</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-222">222</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-223">223</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-224">224</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-225">225</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-226">226</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-227">227</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-228">228</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-230">230</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-231">231</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-246">246</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-247">247</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-248">248</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-249">249</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-250">250</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-251">251</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-252">252</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-253">253</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-254">254</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-255">255</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-256">256</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-257">257</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-258">258</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-259">259</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-260">260</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-261">261</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-262">262</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-263">263</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-264">264</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-265">265</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-266">266</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-267">267</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-268">268</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-269">269</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-270">270</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-271">271</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-272">272</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-273">273</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-274">274</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-275">275</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-276">276</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-277">277</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-278">278</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-283">283</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-284">284</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-290">290</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-291">291</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-292">292</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-293">293</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-294">294</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-295">295</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-296">296</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-297">297</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-298">298</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-299">299</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-300">300</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-301">301</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-302">302</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-303">303</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-304">304</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-305">305</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-306">306</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-307">307</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-308">308</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-309">309</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-310">310</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-311">311</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-312">312</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-313">313</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-314">314</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-315">315</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-316">316</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-317">317</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-318">318</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-319">319</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-320">320</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-321">321</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-322">322</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-323">323</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-324">324</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-325">325</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-326">326</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-327">327</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-328">328</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-329">329</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-221" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-221"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_overlap_vector</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-222" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-222"></a>    <span class="n">unlabeled_df</span><span class="p">:</span> <span class="n">GeoDataFrame</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-223" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-223"></a>    <span class="n">classes_df</span><span class="p">:</span> <span class="n">GeoDataFrame</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-224" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-224"></a>    <span class="n">class_column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-225" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-225"></a>    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-226" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-226"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-227" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-227"></a><span class="w">    </span><span class="sd">"""</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-228" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-228"></a><span class="sd">    For each element in unlabeled df, return the fractional overlap with each class in</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-229" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-229"></a><span class="sd">    classes_df</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-230" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-230"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-231" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-231"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-232" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-232"></a><span class="sd">    Args:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-233" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-233"></a><span class="sd">        unlabeled_df (GeoDataFrame): A dataframe of geometries</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-234" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-234"></a><span class="sd">        classes_df (GeoDataFrame): A dataframe of classes</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-235" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-235"></a><span class="sd">        class_column (str, optional): Which column in the classes_df to use. Defaults to "names".</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-236" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-236"></a><span class="sd">        normalize (bool, optional): Normalize counts matrix from area to fraction. Defaults to False.</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-237" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-237"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-238" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-238"></a><span class="sd">    Returns:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-239" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-239"></a><span class="sd">        np.ndarray: (n_valid, n_classes) counts per polygon per class</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-240" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-240"></a><span class="sd">        np.ndarray: (n_valid,) indices into the original array for polygons with non-null predictions</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-241" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-241"></a><span class="sd">    """</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-242" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-242"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-243" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-243"></a>    <span class="c1">## Preprocessing</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-244" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-244"></a>    <span class="c1"># Ensure that both a geodataframes</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-245" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-245"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-246" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-246"></a>    <span class="n">classes_df</span> <span class="o">=</span> <span class="n">coerce_to_geoframe</span><span class="p">(</span><span class="n">classes_df</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-247" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-247"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-248" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-248"></a>    <span class="n">unlabeled_df</span> <span class="o">=</span> <span class="n">ensure_projected_CRS</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-249" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-249"></a>    <span class="k">if</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">crs</span> <span class="o">!=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-250" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-250"></a>        <span class="n">classes_df</span> <span class="o">=</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="o">.</span><span class="n">crs</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-251" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-251"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-252" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-252"></a>    <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">geometry</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-253" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-253"></a>    <span class="n">classes_df</span><span class="o">.</span><span class="n">geometry</span> <span class="o">=</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">simplify</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-254" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-254"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-255" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-255"></a>    <span class="k">if</span> <span class="n">class_column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">classes_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-256" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-256"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Class column `</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">` not in </span><span class="si">{</span><span class="n">classes_df</span><span class="o">.</span><span class="n">columns</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-257" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-257"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-258" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-258"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-259" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-259"></a>        <span class="s2">"Computing the intersection of the unlabeled polygons with the labeled region"</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-260" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-260"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-261" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-261"></a>    <span class="c1"># Find which unlabeled polygons intersect with the labeled region</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-262" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-262"></a>    <span class="n">intersection_IDs</span> <span class="o">=</span> <span class="n">intersects_union_of_polygons</span><span class="p">(</span><span class="n">unlabeled_df</span><span class="p">,</span> <span class="n">classes_df</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-263" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-263"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Finished computing intersection"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-264" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-264"></a>    <span class="c1"># Extract only these polygons</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-265" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-265"></a>    <span class="n">unlabeled_df_intersecting_classes</span> <span class="o">=</span> <span class="n">unlabeled_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">intersection_IDs</span><span class="p">]</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-266" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-266"></a>    <span class="n">unlabeled_df_intersecting_classes</span><span class="p">[</span><span class="s2">"index"</span><span class="p">]</span> <span class="o">=</span> <span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">index</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-267" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-267"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-268" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-268"></a>    <span class="c1"># Add area field to each</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-269" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-269"></a>    <span class="n">unlabeled_df_intersecting_classes</span><span class="p">[</span><span class="s2">"unlabeled_area"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-270" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-270"></a>        <span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">area</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-271" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-271"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-272" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-272"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-273" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-273"></a>    <span class="c1"># Find the intersecting geometries</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-274" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-274"></a>    <span class="c1"># We want only the ones that have some overlap with the unlabeled geometry, but I don't think that can be specified</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-275" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-275"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"computing overlay"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-276" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-276"></a>    <span class="n">overlay</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">overlay</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-277" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-277"></a>        <span class="n">classes_df</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-278" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-278"></a>        <span class="n">unlabeled_df_intersecting_classes</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-279" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-279"></a>        <span class="n">how</span><span class="o">=</span><span class="s2">"union"</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-280" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-280"></a>        <span class="n">keep_geom_type</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-281" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-281"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-282" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-282"></a>    <span class="c1"># Drop the rows that only contain information from the class_labels</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-283" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-283"></a>    <span class="n">overlay</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="s2">"index"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-284" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-284"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-285" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-285"></a>    <span class="c1"># TODO look more into this part, something seems wrong</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-286" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-286"></a>    <span class="n">overlay</span><span class="p">[</span><span class="s2">"overlapping_area"</span><span class="p">]</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">area</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-287" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-287"></a>    <span class="c1"># overlay["per_class_area_fraction"] = (</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-288" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-288"></a>    <span class="c1">#    overlay["overlapping_area"] / overlay["unlabeled_area"]</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-289" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-289"></a>    <span class="c1"># )</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-290" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-290"></a>    <span class="c1"># Aggregating the results</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-291" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-291"></a>    <span class="c1"># WARNING Make sure that this is a list and not a tuple or it gets considered one key</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-292" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-292"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"computing groupby"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-293" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-293"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-294" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-294"></a>    <span class="c1"># If the two dataframes have a column with the same name, they will be renamed</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-295" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-295"></a>    <span class="k">if</span> <span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-296" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-296"></a>        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_1"</span> <span class="ow">in</span> <span class="n">overlay</span><span class="o">.</span><span class="n">columns</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-297" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-297"></a>        <span class="ow">and</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_2"</span> <span class="ow">in</span> <span class="n">overlay</span><span class="o">.</span><span class="n">columns</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-298" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-298"></a>    <span class="p">):</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-299" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-299"></a>        <span class="n">aggregatation_class_column</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">class_column</span><span class="si">}</span><span class="s2">_1"</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-300" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-300"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-301" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-301"></a>        <span class="n">aggregatation_class_column</span> <span class="o">=</span> <span class="n">class_column</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-302" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-302"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-303" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-303"></a>    <span class="c1"># Groupby and aggregate</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-304" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-304"></a>    <span class="n">grouped_by</span> <span class="o">=</span> <span class="n">overlay</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">"index"</span><span class="p">,</span> <span class="n">aggregatation_class_column</span><span class="p">])</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-305" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-305"></a>    <span class="n">aggregated</span> <span class="o">=</span> <span class="n">grouped_by</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="s2">"overlapping_area"</span><span class="p">:</span> <span class="s2">"sum"</span><span class="p">})</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-306" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-306"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-307" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-307"></a>    <span class="c1"># Extract the original class names</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-308" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-308"></a>    <span class="n">unique_class_names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">classes_df</span><span class="p">[</span><span class="n">class_column</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-309" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-309"></a>    <span class="c1"># And the indices from the original dataframe. This is relavent if the input</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-310" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-310"></a>    <span class="c1"># dataframe was a subset of an original one</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-311" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-311"></a>    <span class="n">unique_index_values</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">unlabeled_df_intersecting_classes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-312" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-312"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-313" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-313"></a>    <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-314" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-314"></a>        <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unlabeled_df_intersecting_classes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_class_names</span><span class="p">))</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-315" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-315"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-316" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-316"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-317" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-317"></a>    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">aggregated</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-318" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-318"></a>        <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">class_name</span><span class="p">),</span> <span class="n">area</span> <span class="o">=</span> <span class="n">r</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-319" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-319"></a>        <span class="c1"># The index is the index from the original unlabeled dataset, but we need the index into the subset</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-320" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-320"></a>        <span class="n">unlabled_object_ind</span> <span class="o">=</span> <span class="n">unique_index_values</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-321" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-321"></a>        <span class="c1"># Transform the class name into a class index</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-322" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-322"></a>        <span class="n">class_ind</span> <span class="o">=</span> <span class="n">unique_class_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">class_name</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-323" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-323"></a>        <span class="c1"># Set the value to the area of the overlap between that unlabeled object and given class</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-324" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-324"></a>        <span class="n">counts_matrix</span><span class="p">[</span><span class="n">unlabled_object_ind</span><span class="p">,</span> <span class="n">class_ind</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">area</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-325" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-325"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-326" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-326"></a>    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-327" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-327"></a>        <span class="n">counts_matrix</span> <span class="o">=</span> <span class="n">counts_matrix</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">counts_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-328" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-328"></a>
+<a id="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-329" name="geograypher.utils.geospatial.get_overlap_vector--source--__codelineno-0-329"></a>    <span class="k">return</span> <span class="n">counts_matrix</span><span class="p">,</span> <span class="n">intersection_IDs</span><span class="p">,</span> <span class="n">unique_class_names</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2854,67 +2854,67 @@ classes_df</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/geospatial.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-362">362</a></span>
-<span class="normal"><a href="#__codelineno-0-363">363</a></span>
-<span class="normal"><a href="#__codelineno-0-364">364</a></span>
-<span class="normal"><a href="#__codelineno-0-365">365</a></span>
-<span class="normal"><a href="#__codelineno-0-366">366</a></span>
-<span class="normal"><a href="#__codelineno-0-367">367</a></span>
-<span class="normal"><a href="#__codelineno-0-368">368</a></span>
-<span class="normal"><a href="#__codelineno-0-369">369</a></span>
-<span class="normal"><a href="#__codelineno-0-370">370</a></span>
-<span class="normal"><a href="#__codelineno-0-371">371</a></span>
-<span class="normal"><a href="#__codelineno-0-372">372</a></span>
-<span class="normal"><a href="#__codelineno-0-373">373</a></span>
-<span class="normal"><a href="#__codelineno-0-374">374</a></span>
-<span class="normal"><a href="#__codelineno-0-375">375</a></span>
-<span class="normal"><a href="#__codelineno-0-376">376</a></span>
-<span class="normal"><a href="#__codelineno-0-377">377</a></span>
-<span class="normal"><a href="#__codelineno-0-378">378</a></span>
-<span class="normal"><a href="#__codelineno-0-379">379</a></span>
-<span class="normal"><a href="#__codelineno-0-380">380</a></span>
-<span class="normal"><a href="#__codelineno-0-381">381</a></span>
-<span class="normal"><a href="#__codelineno-0-382">382</a></span>
-<span class="normal"><a href="#__codelineno-0-383">383</a></span>
-<span class="normal"><a href="#__codelineno-0-384">384</a></span>
-<span class="normal"><a href="#__codelineno-0-385">385</a></span>
-<span class="normal"><a href="#__codelineno-0-386">386</a></span>
-<span class="normal"><a href="#__codelineno-0-387">387</a></span>
-<span class="normal"><a href="#__codelineno-0-388">388</a></span>
-<span class="normal"><a href="#__codelineno-0-389">389</a></span>
-<span class="normal"><a href="#__codelineno-0-390">390</a></span>
-<span class="normal"><a href="#__codelineno-0-391">391</a></span>
-<span class="normal"><a href="#__codelineno-0-392">392</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-362" name="__codelineno-0-362"></a><span class="k">def</span><span class="w"> </span><span class="nf">load_downsampled_raster_data</span><span class="p">(</span><span class="n">dataset_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
-<a id="__codelineno-0-363" name="__codelineno-0-363"></a><span class="w">    </span><span class="sd">"""Load a raster file spatially downsampled</span>
-<a id="__codelineno-0-364" name="__codelineno-0-364"></a>
-<a id="__codelineno-0-365" name="__codelineno-0-365"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-366" name="__codelineno-0-366"></a><span class="sd">        dataset (PATH_TYPE): Path to the raster</span>
-<a id="__codelineno-0-367" name="__codelineno-0-367"></a><span class="sd">        downsample_factor (float): Downsample factor of 10 means that pixels are 10 times larger</span>
-<a id="__codelineno-0-368" name="__codelineno-0-368"></a>
-<a id="__codelineno-0-369" name="__codelineno-0-369"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-370" name="__codelineno-0-370"></a><span class="sd">        np.array: The downsampled array in the rasterio (c, h, w) convention</span>
-<a id="__codelineno-0-371" name="__codelineno-0-371"></a><span class="sd">        rio.DatasetReader: The reader with the transform updated</span>
-<a id="__codelineno-0-372" name="__codelineno-0-372"></a><span class="sd">        rio.Transform: The updated transform</span>
-<a id="__codelineno-0-373" name="__codelineno-0-373"></a><span class="sd">    """</span>
-<a id="__codelineno-0-374" name="__codelineno-0-374"></a>    <span class="c1"># Open the dataset handler. Note that this doesn't read into memory.</span>
-<a id="__codelineno-0-375" name="__codelineno-0-375"></a>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">dataset_filename</span><span class="p">)</span>
-<a id="__codelineno-0-376" name="__codelineno-0-376"></a>
-<a id="__codelineno-0-377" name="__codelineno-0-377"></a>    <span class="c1"># resample data to target shape</span>
-<a id="__codelineno-0-378" name="__codelineno-0-378"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
-<a id="__codelineno-0-379" name="__codelineno-0-379"></a>        <span class="n">out_shape</span><span class="o">=</span><span class="p">(</span>
-<a id="__codelineno-0-380" name="__codelineno-0-380"></a>            <span class="n">dataset</span><span class="o">.</span><span class="n">count</span><span class="p">,</span>
-<a id="__codelineno-0-381" name="__codelineno-0-381"></a>            <span class="nb">int</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">),</span>
-<a id="__codelineno-0-382" name="__codelineno-0-382"></a>            <span class="nb">int</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">),</span>
-<a id="__codelineno-0-383" name="__codelineno-0-383"></a>        <span class="p">),</span>
-<a id="__codelineno-0-384" name="__codelineno-0-384"></a>        <span class="n">resampling</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">Resampling</span><span class="o">.</span><span class="n">bilinear</span><span class="p">,</span>
-<a id="__codelineno-0-385" name="__codelineno-0-385"></a>    <span class="p">)</span>
-<a id="__codelineno-0-386" name="__codelineno-0-386"></a>
-<a id="__codelineno-0-387" name="__codelineno-0-387"></a>    <span class="c1"># scale image transform</span>
-<a id="__codelineno-0-388" name="__codelineno-0-388"></a>    <span class="n">updated_transform</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transform</span> <span class="o">*</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
-<a id="__codelineno-0-389" name="__codelineno-0-389"></a>        <span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
-<a id="__codelineno-0-390" name="__codelineno-0-390"></a>    <span class="p">)</span>
-<a id="__codelineno-0-391" name="__codelineno-0-391"></a>    <span class="c1"># Return the data and the transform</span>
-<a id="__codelineno-0-392" name="__codelineno-0-392"></a>    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">updated_transform</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-362">362</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-363">363</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-364">364</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-365">365</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-366">366</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-367">367</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-368">368</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-369">369</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-370">370</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-371">371</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-372">372</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-373">373</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-374">374</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-375">375</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-376">376</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-377">377</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-378">378</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-379">379</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-380">380</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-381">381</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-382">382</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-383">383</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-384">384</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-385">385</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-386">386</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-387">387</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-388">388</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-389">389</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-390">390</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-391">391</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-392">392</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-362" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-362"></a><span class="k">def</span><span class="w"> </span><span class="nf">load_downsampled_raster_data</span><span class="p">(</span><span class="n">dataset_filename</span><span class="p">:</span> <span class="n">PATH_TYPE</span><span class="p">,</span> <span class="n">downsample_factor</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-363" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-363"></a><span class="w">    </span><span class="sd">"""Load a raster file spatially downsampled</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-364" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-364"></a>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-365" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-365"></a><span class="sd">    Args:</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-366" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-366"></a><span class="sd">        dataset (PATH_TYPE): Path to the raster</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-367" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-367"></a><span class="sd">        downsample_factor (float): Downsample factor of 10 means that pixels are 10 times larger</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-368" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-368"></a>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-369" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-369"></a><span class="sd">    Returns:</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-370" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-370"></a><span class="sd">        np.array: The downsampled array in the rasterio (c, h, w) convention</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-371" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-371"></a><span class="sd">        rio.DatasetReader: The reader with the transform updated</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-372" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-372"></a><span class="sd">        rio.Transform: The updated transform</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-373" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-373"></a><span class="sd">    """</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-374" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-374"></a>    <span class="c1"># Open the dataset handler. Note that this doesn't read into memory.</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-375" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-375"></a>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">dataset_filename</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-376" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-376"></a>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-377" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-377"></a>    <span class="c1"># resample data to target shape</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-378" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-378"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-379" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-379"></a>        <span class="n">out_shape</span><span class="o">=</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-380" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-380"></a>            <span class="n">dataset</span><span class="o">.</span><span class="n">count</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-381" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-381"></a>            <span class="nb">int</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">),</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-382" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-382"></a>            <span class="nb">int</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">downsample_factor</span><span class="p">),</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-383" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-383"></a>        <span class="p">),</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-384" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-384"></a>        <span class="n">resampling</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">Resampling</span><span class="o">.</span><span class="n">bilinear</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-385" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-385"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-386" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-386"></a>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-387" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-387"></a>    <span class="c1"># scale image transform</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-388" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-388"></a>    <span class="n">updated_transform</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transform</span> <span class="o">*</span> <span class="n">dataset</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-389" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-389"></a>        <span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">width</span> <span class="o">/</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">height</span> <span class="o">/</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-390" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-390"></a>    <span class="p">)</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-391" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-391"></a>    <span class="c1"># Return the data and the transform</span>
+<a id="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-392" name="geograypher.utils.geospatial.load_downsampled_raster_data--source--__codelineno-0-392"></a>    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">updated_transform</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2935,59 +2935,59 @@ classes_df</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/geospatial.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-333">333</a></span>
-<span class="normal"><a href="#__codelineno-0-334">334</a></span>
-<span class="normal"><a href="#__codelineno-0-335">335</a></span>
-<span class="normal"><a href="#__codelineno-0-336">336</a></span>
-<span class="normal"><a href="#__codelineno-0-337">337</a></span>
-<span class="normal"><a href="#__codelineno-0-338">338</a></span>
-<span class="normal"><a href="#__codelineno-0-339">339</a></span>
-<span class="normal"><a href="#__codelineno-0-340">340</a></span>
-<span class="normal"><a href="#__codelineno-0-341">341</a></span>
-<span class="normal"><a href="#__codelineno-0-342">342</a></span>
-<span class="normal"><a href="#__codelineno-0-343">343</a></span>
-<span class="normal"><a href="#__codelineno-0-344">344</a></span>
-<span class="normal"><a href="#__codelineno-0-345">345</a></span>
-<span class="normal"><a href="#__codelineno-0-346">346</a></span>
-<span class="normal"><a href="#__codelineno-0-347">347</a></span>
-<span class="normal"><a href="#__codelineno-0-348">348</a></span>
-<span class="normal"><a href="#__codelineno-0-349">349</a></span>
-<span class="normal"><a href="#__codelineno-0-350">350</a></span>
-<span class="normal"><a href="#__codelineno-0-351">351</a></span>
-<span class="normal"><a href="#__codelineno-0-352">352</a></span>
-<span class="normal"><a href="#__codelineno-0-353">353</a></span>
-<span class="normal"><a href="#__codelineno-0-354">354</a></span>
-<span class="normal"><a href="#__codelineno-0-355">355</a></span>
-<span class="normal"><a href="#__codelineno-0-356">356</a></span>
-<span class="normal"><a href="#__codelineno-0-357">357</a></span>
-<span class="normal"><a href="#__codelineno-0-358">358</a></span>
-<span class="normal"><a href="#__codelineno-0-359">359</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-333" name="__codelineno-0-333"></a><span class="k">def</span><span class="w"> </span><span class="nf">reproject_raster</span><span class="p">(</span><span class="n">in_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">out_crs</span><span class="o">=</span><span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span><span class="o">.</span><span class="n">from_epsg</span><span class="p">(</span><span class="mi">4326</span><span class="p">)):</span>
-<a id="__codelineno-0-334" name="__codelineno-0-334"></a><span class="w">    </span><span class="sd">""" """</span>
-<a id="__codelineno-0-335" name="__codelineno-0-335"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">"Starting to reproject raster"</span><span class="p">)</span>
-<a id="__codelineno-0-336" name="__codelineno-0-336"></a>    <span class="c1"># reproject raster to project crs</span>
-<a id="__codelineno-0-337" name="__codelineno-0-337"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">in_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
-<a id="__codelineno-0-338" name="__codelineno-0-338"></a>        <span class="n">src_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
-<a id="__codelineno-0-339" name="__codelineno-0-339"></a>        <span class="n">transform</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">calculate_default_transform</span><span class="p">(</span>
-<a id="__codelineno-0-340" name="__codelineno-0-340"></a>            <span class="n">src_crs</span><span class="p">,</span> <span class="n">out_crs</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="o">*</span><span class="n">src</span><span class="o">.</span><span class="n">bounds</span>
-<a id="__codelineno-0-341" name="__codelineno-0-341"></a>        <span class="p">)</span>
-<a id="__codelineno-0-342" name="__codelineno-0-342"></a>        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<a id="__codelineno-0-343" name="__codelineno-0-343"></a>
-<a id="__codelineno-0-344" name="__codelineno-0-344"></a>        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-<a id="__codelineno-0-345" name="__codelineno-0-345"></a>            <span class="p">{</span><span class="s2">"crs"</span><span class="p">:</span> <span class="n">out_crs</span><span class="p">,</span> <span class="s2">"transform"</span><span class="p">:</span> <span class="n">transform</span><span class="p">,</span> <span class="s2">"width"</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span> <span class="s2">"height"</span><span class="p">:</span> <span class="n">height</span><span class="p">}</span>
-<a id="__codelineno-0-346" name="__codelineno-0-346"></a>        <span class="p">)</span>
-<a id="__codelineno-0-347" name="__codelineno-0-347"></a>
-<a id="__codelineno-0-348" name="__codelineno-0-348"></a>        <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
-<a id="__codelineno-0-349" name="__codelineno-0-349"></a>            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">"Reprojecting bands"</span><span class="p">):</span>
-<a id="__codelineno-0-350" name="__codelineno-0-350"></a>                <span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
-<a id="__codelineno-0-351" name="__codelineno-0-351"></a>                    <span class="n">source</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
-<a id="__codelineno-0-352" name="__codelineno-0-352"></a>                    <span class="n">destination</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
-<a id="__codelineno-0-353" name="__codelineno-0-353"></a>                    <span class="n">src_transform</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
-<a id="__codelineno-0-354" name="__codelineno-0-354"></a>                    <span class="n">src_crs</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
-<a id="__codelineno-0-355" name="__codelineno-0-355"></a>                    <span class="n">dst_transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
-<a id="__codelineno-0-356" name="__codelineno-0-356"></a>                    <span class="n">dst_crs</span><span class="o">=</span><span class="n">out_crs</span><span class="p">,</span>
-<a id="__codelineno-0-357" name="__codelineno-0-357"></a>                    <span class="n">resampling</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">Resampling</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
-<a id="__codelineno-0-358" name="__codelineno-0-358"></a>                <span class="p">)</span>
-<a id="__codelineno-0-359" name="__codelineno-0-359"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">"Done reprojecting raster"</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-333">333</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-334">334</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-335">335</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-336">336</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-337">337</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-338">338</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-339">339</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-340">340</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-341">341</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-342">342</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-343">343</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-344">344</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-345">345</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-346">346</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-347">347</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-348">348</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-349">349</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-350">350</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-351">351</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-352">352</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-353">353</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-354">354</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-355">355</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-356">356</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-357">357</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-358">358</a></span>
+<span class="normal"><a href="#geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-359">359</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-333" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-333"></a><span class="k">def</span><span class="w"> </span><span class="nf">reproject_raster</span><span class="p">(</span><span class="n">in_path</span><span class="p">,</span> <span class="n">out_path</span><span class="p">,</span> <span class="n">out_crs</span><span class="o">=</span><span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span><span class="o">.</span><span class="n">from_epsg</span><span class="p">(</span><span class="mi">4326</span><span class="p">)):</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-334" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-334"></a><span class="w">    </span><span class="sd">""" """</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-335" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-335"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">"Starting to reproject raster"</span><span class="p">)</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-336" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-336"></a>    <span class="c1"># reproject raster to project crs</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-337" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-337"></a>    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">in_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-338" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-338"></a>        <span class="n">src_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-339" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-339"></a>        <span class="n">transform</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">calculate_default_transform</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-340" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-340"></a>            <span class="n">src_crs</span><span class="p">,</span> <span class="n">out_crs</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="o">*</span><span class="n">src</span><span class="o">.</span><span class="n">bounds</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-341" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-341"></a>        <span class="p">)</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-342" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-342"></a>        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-343" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-343"></a>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-344" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-344"></a>        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-345" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-345"></a>            <span class="p">{</span><span class="s2">"crs"</span><span class="p">:</span> <span class="n">out_crs</span><span class="p">,</span> <span class="s2">"transform"</span><span class="p">:</span> <span class="n">transform</span><span class="p">,</span> <span class="s2">"width"</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span> <span class="s2">"height"</span><span class="p">:</span> <span class="n">height</span><span class="p">}</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-346" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-346"></a>        <span class="p">)</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-347" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-347"></a>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-348" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-348"></a>        <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-349" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-349"></a>            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">src</span><span class="o">.</span><span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">"Reprojecting bands"</span><span class="p">):</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-350" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-350"></a>                <span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-351" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-351"></a>                    <span class="n">source</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-352" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-352"></a>                    <span class="n">destination</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">band</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-353" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-353"></a>                    <span class="n">src_transform</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-354" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-354"></a>                    <span class="n">src_crs</span><span class="o">=</span><span class="n">src</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-355" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-355"></a>                    <span class="n">dst_transform</span><span class="o">=</span><span class="n">transform</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-356" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-356"></a>                    <span class="n">dst_crs</span><span class="o">=</span><span class="n">out_crs</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-357" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-357"></a>                    <span class="n">resampling</span><span class="o">=</span><span class="n">rio</span><span class="o">.</span><span class="n">warp</span><span class="o">.</span><span class="n">Resampling</span><span class="o">.</span><span class="n">nearest</span><span class="p">,</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-358" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-358"></a>                <span class="p">)</span>
+<a id="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-359" name="geograypher.utils.geospatial.reproject_raster--source--__codelineno-0-359"></a>    <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">"Done reprojecting raster"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3033,7 +3033,7 @@ classes_df</p>
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 22, 2023 19:10:05 UTC">May 22, 2023</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="July 8, 2024 15:21:39 UTC">July 8, 2024</span>
   </span>
 
     
@@ -3113,10 +3113,10 @@ classes_df</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.instant", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.instant", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

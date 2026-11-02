@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -27,10 +27,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2130,123 +2130,123 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>geograypher/utils/prediction_metrics.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-232">232</a></span>
-<span class="normal"><a href="#__codelineno-0-233">233</a></span>
-<span class="normal"><a href="#__codelineno-0-234">234</a></span>
-<span class="normal"><a href="#__codelineno-0-235">235</a></span>
-<span class="normal"><a href="#__codelineno-0-236">236</a></span>
-<span class="normal"><a href="#__codelineno-0-237">237</a></span>
-<span class="normal"><a href="#__codelineno-0-238">238</a></span>
-<span class="normal"><a href="#__codelineno-0-239">239</a></span>
-<span class="normal"><a href="#__codelineno-0-240">240</a></span>
-<span class="normal"><a href="#__codelineno-0-241">241</a></span>
-<span class="normal"><a href="#__codelineno-0-242">242</a></span>
-<span class="normal"><a href="#__codelineno-0-243">243</a></span>
-<span class="normal"><a href="#__codelineno-0-244">244</a></span>
-<span class="normal"><a href="#__codelineno-0-245">245</a></span>
-<span class="normal"><a href="#__codelineno-0-246">246</a></span>
-<span class="normal"><a href="#__codelineno-0-247">247</a></span>
-<span class="normal"><a href="#__codelineno-0-248">248</a></span>
-<span class="normal"><a href="#__codelineno-0-249">249</a></span>
-<span class="normal"><a href="#__codelineno-0-250">250</a></span>
-<span class="normal"><a href="#__codelineno-0-251">251</a></span>
-<span class="normal"><a href="#__codelineno-0-252">252</a></span>
-<span class="normal"><a href="#__codelineno-0-253">253</a></span>
-<span class="normal"><a href="#__codelineno-0-254">254</a></span>
-<span class="normal"><a href="#__codelineno-0-255">255</a></span>
-<span class="normal"><a href="#__codelineno-0-256">256</a></span>
-<span class="normal"><a href="#__codelineno-0-257">257</a></span>
-<span class="normal"><a href="#__codelineno-0-258">258</a></span>
-<span class="normal"><a href="#__codelineno-0-259">259</a></span>
-<span class="normal"><a href="#__codelineno-0-260">260</a></span>
-<span class="normal"><a href="#__codelineno-0-261">261</a></span>
-<span class="normal"><a href="#__codelineno-0-262">262</a></span>
-<span class="normal"><a href="#__codelineno-0-263">263</a></span>
-<span class="normal"><a href="#__codelineno-0-264">264</a></span>
-<span class="normal"><a href="#__codelineno-0-265">265</a></span>
-<span class="normal"><a href="#__codelineno-0-266">266</a></span>
-<span class="normal"><a href="#__codelineno-0-267">267</a></span>
-<span class="normal"><a href="#__codelineno-0-268">268</a></span>
-<span class="normal"><a href="#__codelineno-0-269">269</a></span>
-<span class="normal"><a href="#__codelineno-0-270">270</a></span>
-<span class="normal"><a href="#__codelineno-0-271">271</a></span>
-<span class="normal"><a href="#__codelineno-0-272">272</a></span>
-<span class="normal"><a href="#__codelineno-0-273">273</a></span>
-<span class="normal"><a href="#__codelineno-0-274">274</a></span>
-<span class="normal"><a href="#__codelineno-0-275">275</a></span>
-<span class="normal"><a href="#__codelineno-0-276">276</a></span>
-<span class="normal"><a href="#__codelineno-0-277">277</a></span>
-<span class="normal"><a href="#__codelineno-0-278">278</a></span>
-<span class="normal"><a href="#__codelineno-0-279">279</a></span>
-<span class="normal"><a href="#__codelineno-0-280">280</a></span>
-<span class="normal"><a href="#__codelineno-0-281">281</a></span>
-<span class="normal"><a href="#__codelineno-0-282">282</a></span>
-<span class="normal"><a href="#__codelineno-0-283">283</a></span>
-<span class="normal"><a href="#__codelineno-0-284">284</a></span>
-<span class="normal"><a href="#__codelineno-0-285">285</a></span>
-<span class="normal"><a href="#__codelineno-0-286">286</a></span>
-<span class="normal"><a href="#__codelineno-0-287">287</a></span>
-<span class="normal"><a href="#__codelineno-0-288">288</a></span>
-<span class="normal"><a href="#__codelineno-0-289">289</a></span>
-<span class="normal"><a href="#__codelineno-0-290">290</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-232" name="__codelineno-0-232"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_and_show_cf</span><span class="p">(</span>
-<a id="__codelineno-0-233" name="__codelineno-0-233"></a>    <span class="n">pred_labels</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
-<a id="__codelineno-0-234" name="__codelineno-0-234"></a>    <span class="n">gt_labels</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
-<a id="__codelineno-0-235" name="__codelineno-0-235"></a>    <span class="n">labels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-236" name="__codelineno-0-236"></a>    <span class="n">use_labels_from</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"both"</span><span class="p">,</span>
-<a id="__codelineno-0-237" name="__codelineno-0-237"></a>    <span class="n">vis</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-238" name="__codelineno-0-238"></a>    <span class="n">cf_plot_savefile</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">PATH_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-239" name="__codelineno-0-239"></a>    <span class="n">cf_np_savefile</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">PATH_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-240" name="__codelineno-0-240"></a><span class="p">):</span>
-<a id="__codelineno-0-241" name="__codelineno-0-241"></a><span class="w">    </span><span class="sd">"""_summary_</span>
-<a id="__codelineno-0-242" name="__codelineno-0-242"></a>
-<a id="__codelineno-0-243" name="__codelineno-0-243"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-244" name="__codelineno-0-244"></a><span class="sd">        pred_labels (list): _description_</span>
-<a id="__codelineno-0-245" name="__codelineno-0-245"></a><span class="sd">        gt_labels (list): _description_</span>
-<a id="__codelineno-0-246" name="__codelineno-0-246"></a><span class="sd">        labels (typing.Union[None, typing.List[str]], optional): _description_. Defaults to None.</span>
-<a id="__codelineno-0-247" name="__codelineno-0-247"></a><span class="sd">        use_labels_from (str, optional): _description_. Defaults to "both".</span>
-<a id="__codelineno-0-248" name="__codelineno-0-248"></a><span class="sd">        vis (bool, optional): _description_. Defaults to True.</span>
-<a id="__codelineno-0-249" name="__codelineno-0-249"></a><span class="sd">        cf_plot_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.</span>
-<a id="__codelineno-0-250" name="__codelineno-0-250"></a><span class="sd">        cf_np_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.</span>
-<a id="__codelineno-0-251" name="__codelineno-0-251"></a>
-<a id="__codelineno-0-252" name="__codelineno-0-252"></a><span class="sd">    Raises:</span>
-<a id="__codelineno-0-253" name="__codelineno-0-253"></a><span class="sd">        ValueError: _description_</span>
-<a id="__codelineno-0-254" name="__codelineno-0-254"></a>
-<a id="__codelineno-0-255" name="__codelineno-0-255"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-256" name="__codelineno-0-256"></a><span class="sd">        _type_: _description_</span>
-<a id="__codelineno-0-257" name="__codelineno-0-257"></a><span class="sd">    """</span>
-<a id="__codelineno-0-258" name="__codelineno-0-258"></a>    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-259" name="__codelineno-0-259"></a>        <span class="k">if</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"gt"</span><span class="p">:</span>
-<a id="__codelineno-0-260" name="__codelineno-0-260"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">gt_labels</span><span class="p">))</span>
-<a id="__codelineno-0-261" name="__codelineno-0-261"></a>        <span class="k">elif</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"pred"</span><span class="p">:</span>
-<a id="__codelineno-0-262" name="__codelineno-0-262"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">pred_labels</span><span class="p">))</span>
-<a id="__codelineno-0-263" name="__codelineno-0-263"></a>        <span class="k">elif</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"both"</span><span class="p">:</span>
-<a id="__codelineno-0-264" name="__codelineno-0-264"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">pred_labels</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">gt_labels</span><span class="p">))</span>
-<a id="__codelineno-0-265" name="__codelineno-0-265"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-266" name="__codelineno-0-266"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-267" name="__codelineno-0-267"></a>                <span class="sa">f</span><span class="s2">"Must use labels from gt, pred, or both but instead was </span><span class="si">{</span><span class="n">use_labels_from</span><span class="si">}</span><span class="s2">"</span>
-<a id="__codelineno-0-268" name="__codelineno-0-268"></a>            <span class="p">)</span>
-<a id="__codelineno-0-269" name="__codelineno-0-269"></a>
-<a id="__codelineno-0-270" name="__codelineno-0-270"></a>    <span class="n">cf_matrix</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">gt_labels</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">pred_labels</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
-<a id="__codelineno-0-271" name="__codelineno-0-271"></a>
-<a id="__codelineno-0-272" name="__codelineno-0-272"></a>    <span class="k">if</span> <span class="n">vis</span><span class="p">:</span>
-<a id="__codelineno-0-273" name="__codelineno-0-273"></a>        <span class="n">cf_disp</span> <span class="o">=</span> <span class="n">ConfusionMatrixDisplay</span><span class="p">(</span>
-<a id="__codelineno-0-274" name="__codelineno-0-274"></a>            <span class="n">confusion_matrix</span><span class="o">=</span><span class="n">cf_matrix</span><span class="p">,</span> <span class="n">display_labels</span><span class="o">=</span><span class="n">labels</span>
-<a id="__codelineno-0-275" name="__codelineno-0-275"></a>        <span class="p">)</span>
-<a id="__codelineno-0-276" name="__codelineno-0-276"></a>        <span class="n">cf_disp</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
-<a id="__codelineno-0-277" name="__codelineno-0-277"></a>        <span class="k">if</span> <span class="n">cf_plot_savefile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-278" name="__codelineno-0-278"></a>            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-<a id="__codelineno-0-279" name="__codelineno-0-279"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-280" name="__codelineno-0-280"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">cf_plot_savefile</span><span class="p">)</span>
-<a id="__codelineno-0-281" name="__codelineno-0-281"></a>            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">cf_plot_savefile</span><span class="p">)</span>
-<a id="__codelineno-0-282" name="__codelineno-0-282"></a>
-<a id="__codelineno-0-283" name="__codelineno-0-283"></a>    <span class="k">if</span> <span class="n">cf_np_savefile</span><span class="p">:</span>
-<a id="__codelineno-0-284" name="__codelineno-0-284"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">cf_np_savefile</span><span class="p">)</span>
-<a id="__codelineno-0-285" name="__codelineno-0-285"></a>        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">cf_np_savefile</span><span class="p">,</span> <span class="n">cf_matrix</span><span class="p">)</span>
-<a id="__codelineno-0-286" name="__codelineno-0-286"></a>
-<a id="__codelineno-0-287" name="__codelineno-0-287"></a>    <span class="c1"># TODO compute more comprehensive metrics here</span>
-<a id="__codelineno-0-288" name="__codelineno-0-288"></a>    <span class="n">accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cf_matrix</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">cf_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cf_matrix</span><span class="p">)</span>
-<a id="__codelineno-0-289" name="__codelineno-0-289"></a>
-<a id="__codelineno-0-290" name="__codelineno-0-290"></a>    <span class="k">return</span> <span class="n">cf_matrix</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">accuracy</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-240">240</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-241">241</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-242">242</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-243">243</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-244">244</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-245">245</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-246">246</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-247">247</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-248">248</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-249">249</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-250">250</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-251">251</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-252">252</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-253">253</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-254">254</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-255">255</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-256">256</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-257">257</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-258">258</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-259">259</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-260">260</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-261">261</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-262">262</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-263">263</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-264">264</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-265">265</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-266">266</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-267">267</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-268">268</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-269">269</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-270">270</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-271">271</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-272">272</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-273">273</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-274">274</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-275">275</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-276">276</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-277">277</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-278">278</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-279">279</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-280">280</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-281">281</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-282">282</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-283">283</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-284">284</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-285">285</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-286">286</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-287">287</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-288">288</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-289">289</a></span>
+<span class="normal"><a href="#geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-290">290</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-232" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-232"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_and_show_cf</span><span class="p">(</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-233" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-233"></a>    <span class="n">pred_labels</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-234" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-234"></a>    <span class="n">gt_labels</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-235" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-235"></a>    <span class="n">labels</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-236" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-236"></a>    <span class="n">use_labels_from</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"both"</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-237" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-237"></a>    <span class="n">vis</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-238" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-238"></a>    <span class="n">cf_plot_savefile</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">PATH_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-239" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-239"></a>    <span class="n">cf_np_savefile</span><span class="p">:</span> <span class="n">typing</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">PATH_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-240" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-240"></a><span class="p">):</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-241" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-241"></a><span class="w">    </span><span class="sd">"""_summary_</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-242" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-242"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-243" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-243"></a><span class="sd">    Args:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-244" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-244"></a><span class="sd">        pred_labels (list): _description_</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-245" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-245"></a><span class="sd">        gt_labels (list): _description_</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-246" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-246"></a><span class="sd">        labels (typing.Union[None, typing.List[str]], optional): _description_. Defaults to None.</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-247" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-247"></a><span class="sd">        use_labels_from (str, optional): _description_. Defaults to "both".</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-248" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-248"></a><span class="sd">        vis (bool, optional): _description_. Defaults to True.</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-249" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-249"></a><span class="sd">        cf_plot_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-250" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-250"></a><span class="sd">        cf_np_savefile (typing.Union[None, PATH_TYPE], optional): _description_. Defaults to None.</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-251" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-251"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-252" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-252"></a><span class="sd">    Raises:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-253" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-253"></a><span class="sd">        ValueError: _description_</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-254" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-254"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-255" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-255"></a><span class="sd">    Returns:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-256" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-256"></a><span class="sd">        _type_: _description_</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-257" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-257"></a><span class="sd">    """</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-258" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-258"></a>    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-259" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-259"></a>        <span class="k">if</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"gt"</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-260" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-260"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">gt_labels</span><span class="p">))</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-261" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-261"></a>        <span class="k">elif</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"pred"</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-262" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-262"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">pred_labels</span><span class="p">))</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-263" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-263"></a>        <span class="k">elif</span> <span class="n">use_labels_from</span> <span class="o">==</span> <span class="s2">"both"</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-264" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-264"></a>            <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">pred_labels</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">gt_labels</span><span class="p">))</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-265" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-265"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-266" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-266"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-267" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-267"></a>                <span class="sa">f</span><span class="s2">"Must use labels from gt, pred, or both but instead was </span><span class="si">{</span><span class="n">use_labels_from</span><span class="si">}</span><span class="s2">"</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-268" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-268"></a>            <span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-269" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-269"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-270" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-270"></a>    <span class="n">cf_matrix</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">y_true</span><span class="o">=</span><span class="n">gt_labels</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">pred_labels</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-271" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-271"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-272" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-272"></a>    <span class="k">if</span> <span class="n">vis</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-273" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-273"></a>        <span class="n">cf_disp</span> <span class="o">=</span> <span class="n">ConfusionMatrixDisplay</span><span class="p">(</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-274" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-274"></a>            <span class="n">confusion_matrix</span><span class="o">=</span><span class="n">cf_matrix</span><span class="p">,</span> <span class="n">display_labels</span><span class="o">=</span><span class="n">labels</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-275" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-275"></a>        <span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-276" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-276"></a>        <span class="n">cf_disp</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-277" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-277"></a>        <span class="k">if</span> <span class="n">cf_plot_savefile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-278" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-278"></a>            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-279" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-279"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-280" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-280"></a>            <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">cf_plot_savefile</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-281" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-281"></a>            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">cf_plot_savefile</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-282" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-282"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-283" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-283"></a>    <span class="k">if</span> <span class="n">cf_np_savefile</span><span class="p">:</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-284" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-284"></a>        <span class="n">ensure_containing_folder</span><span class="p">(</span><span class="n">cf_np_savefile</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-285" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-285"></a>        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">cf_np_savefile</span><span class="p">,</span> <span class="n">cf_matrix</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-286" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-286"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-287" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-287"></a>    <span class="c1"># TODO compute more comprehensive metrics here</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-288" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-288"></a>    <span class="n">accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cf_matrix</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">cf_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cf_matrix</span><span class="p">)</span>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-289" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-289"></a>
+<a id="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-290" name="geograypher.utils.prediction_metrics.compute_and_show_cf--source--__codelineno-0-290"></a>    <span class="k">return</span> <span class="n">cf_matrix</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">accuracy</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2292,7 +2292,7 @@
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="May 22, 2023 19:10:05 UTC">May 22, 2023</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="July 8, 2024 15:21:39 UTC">July 8, 2024</span>
   </span>
 
     
@@ -2372,10 +2372,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.instant", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.instant", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.action.edit"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
