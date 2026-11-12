@@ -256,7 +256,7 @@ def project_equirectangular_images(
     mesh = TexturedPhotogrammetryMesh(
         mesh_file,
         input_CRS=mesh_CRS,
-        ids_to_labels=ids_to_labels,
+        IDs_to_labels=ids_to_labels,
         ROI=ROI,
         ROI_buffer_meters=25,
         shift=mesh_shift,
@@ -271,7 +271,7 @@ def project_equirectangular_images(
         show_segmentation_labels(
             label_folder=predicted_image_labels_folder,
             image_folder=image_folder,
-            ids_to_labels=ids_to_labels,
+            IDs_to_labels=ids_to_labels,
             image_suffix=".png",
         )
 
@@ -297,12 +297,12 @@ def project_equirectangular_images(
         aggregate_img_scale=aggregate_image_scale,
         apply_distortion=False,
     )
+    predicted_face_classes = find_argmax_nonzero_value(
+        aggregated_face_labels, keepdims=True
+    )
 
     if vis:
         # Compute the most commonly projected class per face and show it
-        predicted_face_classes = find_argmax_nonzero_value(
-            aggregated_face_labels, keepdims=True
-        )
         mesh.vis(vis_scalars=predicted_face_classes, IDs_to_labels=ids_to_labels)
 
 
