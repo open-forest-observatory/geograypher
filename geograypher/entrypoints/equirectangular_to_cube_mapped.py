@@ -323,6 +323,7 @@ def main():
         args.oversample_factor,
         args.warp_order,
         args.photogrammetry_cameras_path,
+        n_workers=args.n_workers,
     )
 
     # Show and save where points are sampled from on the equirectangular image
