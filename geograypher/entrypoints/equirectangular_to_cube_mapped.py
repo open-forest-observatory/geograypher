@@ -1,6 +1,8 @@
 import argparse
 import logging
 import typing
+from functools import partial
+from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gpd
@@ -8,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from imageio.v2 import imread, imwrite
 from sklearn.cluster import KMeans
+from tqdm import tqdm
 
 from geograypher.cameras import MetashapeCameraSet
 from geograypher.utils.geospatial import ensure_projected_CRS
@@ -42,6 +45,41 @@ def select_indices_nearest_cluster_centers(points, num_clusters):
     return closest_indices
 
 
+def chip_one_image(
+    f, fyps, output_dir, input_dir, output_size, oversample_factor, warp_order
+):
+    """Create a set of perspective projection images from a single equirectangular image.
+
+    Args:
+        f (Path): Path to the equirectangular image
+        fyps (list[tuple[float, float, float]]): The field of view, yaw, and pitch angles defining the virtual camera rig.
+        output_dir (Path): Where to save the output projected images. The subfolder structure relative to `input_dir` is preserved.
+        input_dir (Path): Path to the folder of equirectangular images that `f` was found in. Used to determine the relative output path.
+        output_size (tuple[int, int]): Passed to `perspective_from_equirectangular` to define the output image size.
+        oversample_factor (int): Passed to `perspective_from_equirectangular` to define how many more pixels to sample than the outputs size.
+        warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
+    """
+    img = imread(f)
+    for fov, yaw, pitch in fyps:
+        resampled = perspective_from_equirectangular(
+            img,
+            fov_deg=fov,
+            output_size=output_size,
+            yaw_deg=yaw,
+            pitch_deg=pitch,
+            oversample_factor=oversample_factor,
+            warp_order=warp_order,
+            return_mask=False,
+        )
+        out_path = (
+            output_dir
+            / f.parent.relative_to(input_dir)
+            / f"{f.stem}_fov{int(round(fov))}_yaw{int(round(yaw))}_pitch{int(round(pitch))}.png"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        imwrite(out_path, resampled.astype(np.uint8))
+
+
 def chip_equirectangular_folder(
     input_dir: Path,
     output_dir: Path,
@@ -52,6 +90,7 @@ def chip_equirectangular_folder(
     warp_order: int,
     photogrammetry_cameras_path: typing.Union[Path, None] = None,
     image_extensions: list[str] = [".jpg", ".jpeg", ".png", ".tif", ".tiff"],
+    n_workers: int = 1,
 ) -> typing.Union[np.ndarray, None]:
     """Create a set of perspective projection images given a folder of equirectangular images.
 
@@ -65,6 +104,7 @@ def chip_equirectangular_folder(
         warp_order (int): Passed to `perspective_from_equirectangular` to define the interpolation order for resampling.
         photogrammetry_cameras_path (typing.Union[Path, None], optional): If provided, cameras will be selected using KMeans cluster centers. Otherwise, they will be subsampled sequentially. Defaults to None.
         image_extensions (list[str], optional): List of image file extensions to include searched files. Defaults to [".jpg", ".jpeg", ".png", ".tif", ".tiff"].
+        n_workers (int): The number of parallel workers to use since this task is highly parallelizable
 
     Returns:
         typing.Union[np.ndarray, None]: Either the last image loaded or None
@@ -141,27 +181,26 @@ def chip_equirectangular_folder(
                 files_to_save, size=n_images_to_save, replace=False
             )
 
-    last_img = None
-    for f in files_to_save:
-        last_img = imread(f)
-        for fov, yaw, pitch in fyps:
-            resampled = perspective_from_equirectangular(
-                last_img,
-                fov_deg=fov,
-                output_size=output_size,
-                yaw_deg=yaw,
-                pitch_deg=pitch,
-                oversample_factor=oversample_factor,
-                warp_order=warp_order,
-                return_mask=False,
-            )
-            out_path = (
-                output_dir
-                / f.parent.relative_to(input_dir)
-                / f"{f.stem}_fov{int(round(fov))}_yaw{int(round(yaw))}_pitch{int(round(pitch))}.png"
-            )
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            imwrite(out_path, resampled.astype(np.uint8))
+    chip_one_image_partial = partial(
+        chip_one_image,
+        fyps=fyps,
+        output_dir=output_dir,
+        input_dir=input_dir,
+        output_size=output_size,
+        oversample_factor=oversample_factor,
+        warp_order=warp_order,
+    )
+
+    with Pool(n_workers) as p:
+        # Iterate over the results so the progress bar updates as each image finishes
+        for _ in tqdm(
+            p.imap_unordered(chip_one_image_partial, files_to_save),
+            total=len(files_to_save),
+            desc="Chipping images",
+        ):
+            pass
+
+    last_img = imread(files_to_save[-1])
 
     return last_img
 
@@ -258,6 +297,11 @@ def parse_args():
     parser.add_argument(
         "--photogrammetry-cameras-path",
         help="Path to photogrammetry-produced camera file to use to sub-sample images geometrically",
+    )
+    parser.add_argument(
+        "--n-workers",
+        type=int,
+        help="The number of workers to use, parellelized at the image level.",
     )
     args = parser.parse_args()
 
