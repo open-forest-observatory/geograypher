@@ -1,5 +1,6 @@
 import argparse
 import json
+from  typing import Tuple
 
 import numpy as np
 import pyproj
@@ -17,6 +18,15 @@ from geograypher.utils.parsing import parse_metashape_mesh_metadata
 from geograypher.utils.geospatial import convert_CRS_3D_points
 
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
+
+GOPRO_MAX_2_RIG = {
+    "f": 1920 / 2,
+    "cx": 0.0,
+    "cy": 0.0,
+    "image_width": 1920,
+    "image_height": 1920,
+}
+AGGREGATE_IMAGE_SCALE=0.25
 
 
 def _json_arg(value):
@@ -39,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--aggregate-image-scale",
         type=float,
-        default=0.25,
+        default=AGGREGATE_IMAGE_SCALE,
         help="Aggregate images at this scale resolution",
     )
     parser.add_argument(
@@ -60,58 +70,40 @@ def parse_args():
     parser.add_argument(
         "--cameras-file",
         type=Path,
-        default=Path(
-            "/ofo-share/repos/david/under-canopy-mapping/data/photogrammetry_results/config-st-0077-gopro-360-photos-timelapse_cameras.xml"
-        ),
         help="Path to the camera data from metashape",
     )
     parser.add_argument(
         "--mesh-file",
         type=Path,
-        default=Path(
-            "/ofo-share/repos/david/under-canopy-mapping/data/photogrammetry_results/config-st-0077-gopro-360-photos-timelapse_mesh.ply"
-        ),
         help="Path to the mesh data from metashape",
     )
     parser.add_argument(
         "--mesh-metadata-file",
         type=Path,
-        default=Path(
-            "/ofo-share/repos/david/under-canopy-mapping/data/photogrammetry_results/metadata.xml"
-        ),
         help="Path to the mesh metadata from metashape",
     )
     parser.add_argument(
         "--image-folder",
         type=Path,
-        default=Path(
-            "/ofo-share/repos/david/under-canopy-mapping/data/data_to_annotate/2024-ofo-gopro__st-0077-gopro-360-photos-timelapse-subset"
-        ),
         help="Path to the images, resampled to frame camera representations",
     )
     parser.add_argument(
         "--predicted-image-labels-folder",
         type=Path,
-        default=Path(
-            "/ofo-share/repos/david/under-canopy-mapping/data/st_77_labels_2026_predictions"
-        ),
         help="Path to the corresponding semantic segmentation predictions for the images",
     )
     parser.add_argument(
         "--original-image-folder",
-        default="/ofo-share/repos/david/under-canopy-mapping/scratch/photogrammetry/st-0077-gopro-360-photos-timelapse",
         help="The location of the images when photogrammetry was run. Do not update this unless you use completely new photogrammetry data.",
     )
     parser.add_argument(
         "--vis-mesh-path",
         type=Path,
-        default=Path("/tmp", "labeled_mesh.ply"),
         help="Output path for the labeled mesh",
     )
     parser.add_argument(
         "--vis-cameras-path",
         type=Path,
-        default=Path("/tmp", "camera_rig_vis_mesh.ply"),
         help="Output path for the camera rig visualization mesh",
     )
     parser.add_argument(
@@ -120,13 +112,7 @@ def parse_args():
     parser.add_argument(
         "--rig-camera-def",
         type=_json_arg,
-        default={
-            "f": 1440 / 2,
-            "cx": 0.0,
-            "cy": 0.0,
-            "image_width": 1440,
-            "image_height": 1440,
-        },
+        default=GOPRO_MAX_2_RIG,
         help="Intrinsics of the perspective rig camera, as a JSON string or path to a JSON file",
     )
     parser.add_argument(
@@ -151,14 +137,25 @@ def parse_args():
 
 
 def save_visualizations(
-    mesh,
-    camera_set,
-    mesh_shift,
-    mesh_CRS,
-    predicted_face_classes,
-    vis_mesh_path,
-    vis_cameras_path,
+    mesh: TexturedPhotogrammetryMesh,
+    camera_set: SegmentorPhotogrammetryCameraSet,
+    mesh_shift: Tuple[float],
+    mesh_CRS: pyproj.CRS,
+    predicted_face_classes: np.array,
+    vis_mesh_path: Path,
+    vis_cameras_path: Path,
 ):
+    """Save visualizations of the scene as meshes
+
+    Args:
+        mesh (TexturedPhotogrammetryMesh): The geograypher mesh
+        camera_set (SegmentorPhotogrammetryCameraSet): the geograypher camera set
+        mesh_shift (Tuple[float]): the shift which transformed the mesh from local to global coordinates
+        mesh_CRS (pyproj.CRS): the with which to interpret the mesh coordinates
+        predicted_face_classes (np.array): the array of per-face class predictions
+        vis_mesh_path (Path): where to save the colormapped mesh
+        vis_cameras_path (Path): where to save the camera representation
+    """
     # Colormap the results and save them out
     # Get the mesh in the original CRS and shift
     pymesh = mesh.reproject_CRS(target_CRS=pyproj.CRS(mesh_CRS), inplace=False)
@@ -211,7 +208,7 @@ def project_equirectangular_images(
     vis,
     ids_to_labels,
     image_folder=None,
-    aggregate_image_scale=1.0,
+    aggregate_image_scale=AGGREGATE_IMAGE_SCALE,
     vis_mesh_path=None,
     vis_cameras_path=None,
 ):
@@ -288,10 +285,8 @@ def project_equirectangular_images(
         camera_set, segmentor=segmentor
     )
 
-    # Here the labels are finally projected to the mesh using techniques from computer graphics. Under the hood, this is performed with the OpenGL rendering stack.
-
-    # You can skip the expensive aggregation step by loading a cached version
-    # Otherwise, actually run agregation. This is slow, approximately 10-30 minutes depending on the system
+    # Here the labels are finally projected to the mesh using techniques from computer graphics.
+    # Under the hood, this is performed with the OpenGL rendering stack.
     aggregated_face_labels, _ = mesh.aggregate_projected_images(
         segmentor_camera_set,
         aggregate_img_scale=aggregate_image_scale,
@@ -304,6 +299,16 @@ def project_equirectangular_images(
     if vis:
         # Compute the most commonly projected class per face and show it
         mesh.vis(vis_scalars=predicted_face_classes, IDs_to_labels=ids_to_labels)
+
+        save_visualizations(
+            mesh=mesh,
+            camera_set=camera_set,
+            mesh_shift=mesh_shift,
+            mesh_CRS=mesh_CRS,
+            predicted_face_classes=predicted_face_classes,
+            vis_mesh_path=vis_mesh_path,
+            vis_cameras_path=vis_cameras_path,
+        )
 
 
 if __name__ == "__main__":
