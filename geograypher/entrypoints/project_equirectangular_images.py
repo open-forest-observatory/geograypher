@@ -1,6 +1,6 @@
 import argparse
 import json
-from  typing import Tuple
+from typing import Tuple
 
 import numpy as np
 import pyproj
@@ -26,7 +26,8 @@ GOPRO_MAX_2_RIG = {
     "image_width": 1920,
     "image_height": 1920,
 }
-AGGREGATE_IMAGE_SCALE=0.25
+AGGREGATE_IMAGE_SCALE = 0.25
+ROI_BUFFER_METERS = 5
 
 
 def _json_arg(value):
@@ -130,8 +131,14 @@ def parse_args():
     )
     parser.add_argument(
         "--resampled-format-str",
-        default="_yaw{yaw_deg:03.0f}_pitch{pitch_deg:03.0f}",
+        default="_fov90_yaw{yaw_deg:.0f}_pitch{pitch_deg:.0f}",
         help="Format string for the filename suffix of the resampled perspective images",
+    )
+    parser.add_argument(
+        "--ROI-buffer-meters",
+        default=ROI_BUFFER_METERS,
+        help="Retain the mesh within this horizontal distance of a camera",
+        type=float,
     )
     return parser.parse_args()
 
@@ -171,6 +178,7 @@ def save_visualizations(
 
     # Add the colors to the mesh and save
     pymesh.cell_data["RGB"] = colors
+    Path(vis_mesh_path).parent.mkdir(parents=True, exist_ok=True)
     pymesh.save(vis_mesh_path, texture="RGB")
 
     # # Save out the camera locations
@@ -193,6 +201,7 @@ def save_visualizations(
     # Apply the same shift that was applied to the scene mesh to avoid quantization
     camera_mesh.points -= np.array([mesh_shift[0], mesh_shift[1], 0])
     # Save the camera mesh
+    Path(vis_cameras_path).parent.mkdir(parents=True, exist_ok=True)
     camera_mesh.save(vis_cameras_path)
 
 
@@ -209,6 +218,7 @@ def project_equirectangular_images(
     ids_to_labels,
     image_folder=None,
     aggregate_image_scale=AGGREGATE_IMAGE_SCALE,
+    ROI_buffer_meters=ROI_BUFFER_METERS,
     vis_mesh_path=None,
     vis_cameras_path=None,
 ):
@@ -234,7 +244,7 @@ def project_equirectangular_images(
 
     # And show
     if vis:
-        camera_set.vis(frustum_scale=4.0)
+        camera_set.vis(frustum_scale=0.25)
 
     # Create a region of interest from the camera locations so we don't texture areas of the mesh
     # that are very far from cameras
@@ -255,7 +265,7 @@ def project_equirectangular_images(
         input_CRS=mesh_CRS,
         IDs_to_labels=ids_to_labels,
         ROI=ROI,
-        ROI_buffer_meters=25,
+        ROI_buffer_meters=ROI_buffer_meters,
         shift=mesh_shift,
     )
 
@@ -300,15 +310,15 @@ def project_equirectangular_images(
         # Compute the most commonly projected class per face and show it
         mesh.vis(vis_scalars=predicted_face_classes, IDs_to_labels=ids_to_labels)
 
-        save_visualizations(
-            mesh=mesh,
-            camera_set=camera_set,
-            mesh_shift=mesh_shift,
-            mesh_CRS=mesh_CRS,
-            predicted_face_classes=predicted_face_classes,
-            vis_mesh_path=vis_mesh_path,
-            vis_cameras_path=vis_cameras_path,
-        )
+    save_visualizations(
+        mesh=mesh,
+        camera_set=camera_set,
+        mesh_shift=mesh_shift,
+        mesh_CRS=mesh_CRS,
+        predicted_face_classes=predicted_face_classes,
+        vis_mesh_path=vis_mesh_path,
+        vis_cameras_path=vis_cameras_path,
+    )
 
 
 if __name__ == "__main__":
