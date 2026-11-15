@@ -10,7 +10,7 @@ from pathlib import Path
 
 from geograypher.cameras.rig_cameras import create_rig_cameras_from_equirectangular
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
-from geograypher.meshes import TexturedPhotogrammetryMesh
+from geograypher.meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.predictors.derived_segmentors import LookUpSegmentor
 from geograypher.utils.indexing import find_argmax_nonzero_value
 from geograypher.utils.visualization import show_segmentation_labels
@@ -144,7 +144,7 @@ def parse_args():
 
 
 def save_visualizations(
-    mesh: TexturedPhotogrammetryMesh,
+    mesh: TexturedPhotogrammetryMeshChunked,
     camera_set: SegmentorPhotogrammetryCameraSet,
     mesh_shift: Tuple[float],
     mesh_CRS: pyproj.CRS,
@@ -260,7 +260,7 @@ def project_equirectangular_images(
         plt.show()
 
     # Load the mesh, clipped to 25 meters from the camera locations. Once it's loaded, show it.
-    mesh = TexturedPhotogrammetryMesh(
+    mesh = TexturedPhotogrammetryMeshChunked(
         mesh_file,
         input_CRS=mesh_CRS,
         IDs_to_labels=ids_to_labels,
@@ -301,6 +301,8 @@ def project_equirectangular_images(
         segmentor_camera_set,
         aggregate_img_scale=aggregate_image_scale,
         apply_distortion=False,
+        n_clusters=20,
+        buffer_dist_meters=7.5,
     )
     predicted_face_classes = find_argmax_nonzero_value(
         aggregated_face_labels, keepdims=True
