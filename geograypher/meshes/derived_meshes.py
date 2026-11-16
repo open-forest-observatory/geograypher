@@ -18,6 +18,7 @@ from geograypher.constants import (
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
+from geograypher.constants import LAT_LON_CRS
 
 
 class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
@@ -54,17 +55,20 @@ class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
         """
         # Extract the points depending on whether it's a single camera or a set
         if isinstance(cameras, PhotogrammetryCamera):
-            camera_points = [Point(*cameras.get_lon_lat())]
+            # Note that the order must be reversed to be lon-lat, as expected by geopandas
+            camera_points = [
+                Point(*tuple(reversed(cameras.get_camera_location(as_CRS=LAT_LON_CRS))))
+            ]
         else:
             # Get the lat lon for each camera point and turn into a shapely Point
+            # Note that the order must be reversed to be lon-lat, as expected by geopandas
             camera_points = [
-                Point(*lon_lat) for lon_lat in cameras.get_lon_lat_coords()
+                Point(*tuple(reversed(lon_lat)))
+                for lon_lat in cameras.get_camera_locations(as_CRS=LAT_LON_CRS)
             ]
 
         # Create a geodataframe from the points
-        camera_points = gpd.GeoDataFrame(
-            geometry=camera_points, crs=pyproj.CRS.from_epsg("4326")
-        )
+        camera_points = gpd.GeoDataFrame(geometry=camera_points, crs=LAT_LON_CRS)
         # Make sure the gdf has a gemetric CRS so there is no warping of the space
         camera_points = ensure_projected_CRS(camera_points)
         # Extract the x, y points now in a geometric CRS
