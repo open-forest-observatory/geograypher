@@ -14,11 +14,11 @@ from geograypher.cameras import PhotogrammetryCamera, PhotogrammetryCameraSet
 from geograypher.constants import (
     CACHE_FOLDER,
     CHUNKED_MESH_BUFFER_DIST_METERS,
+    LAT_LON_CRS,
     PATH_TYPE,
 )
 from geograypher.meshes import TexturedPhotogrammetryMesh
 from geograypher.utils.geospatial import coerce_to_geoframe, ensure_projected_CRS
-from geograypher.constants import LAT_LON_CRS
 
 
 class TexturedPhotogrammetryMeshChunked(TexturedPhotogrammetryMesh):
