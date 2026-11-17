@@ -526,8 +526,8 @@ class PhotogrammetryCamera:
                 [3, 0, 2, 3],  # bottom
                 [3, 0, 3, 4],  # side
                 [3, 0, 4, 1],  # top
-                [3, 1, 2, 3],  # endcap triangle #1
-                [3, 3, 4, 1],  # endcap triangle #2
+                [3, 1, 3, 2],  # endcap triangle #1
+                [3, 3, 1, 4],  # endcap triangle #2
             ]
         )
         # All blue except the top (-Y) surface is red
@@ -1477,7 +1477,8 @@ class PhotogrammetryCameraSet:
             [
                 camera.get_vis_mesh(frustum_scale=frustum_scale)
                 for camera in self.cameras
-            ]
+            ],
+            merge_points=False
         )
 
     def calc_line_segments(
