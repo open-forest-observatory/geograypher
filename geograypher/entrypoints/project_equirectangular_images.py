@@ -1,23 +1,22 @@
 import argparse
 import json
+from pathlib import Path
 from typing import Tuple
 
+import geopandas as gpd
 import numpy as np
 import pyproj
 from matplotlib import pyplot as plt
-import geopandas as gpd
-from pathlib import Path
 
 from geograypher.cameras.rig_cameras import create_rig_cameras_from_equirectangular
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
+from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
 from geograypher.meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.predictors.derived_segmentors import LookUpSegmentor
-from geograypher.utils.indexing import find_argmax_nonzero_value
-from geograypher.utils.visualization import show_segmentation_labels
-from geograypher.utils.parsing import parse_metashape_mesh_metadata
 from geograypher.utils.geospatial import convert_CRS_3D_points
-
-from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
+from geograypher.utils.indexing import find_argmax_nonzero_value
+from geograypher.utils.parsing import parse_metashape_mesh_metadata
+from geograypher.utils.visualization import show_segmentation_labels
 
 GOPRO_MAX_2_RIG = {
     "f": 1920 / 2,
