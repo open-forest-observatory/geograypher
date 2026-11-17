@@ -1478,7 +1478,7 @@ class PhotogrammetryCameraSet:
                 camera.get_vis_mesh(frustum_scale=frustum_scale)
                 for camera in self.cameras
             ],
-            merge_points=False
+            merge_points=False,
         )
 
     def calc_line_segments(
