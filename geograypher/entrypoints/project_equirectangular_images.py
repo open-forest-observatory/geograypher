@@ -107,6 +107,11 @@ def parse_args():
         help="Output path for the camera rig visualization mesh",
     )
     parser.add_argument(
+        "--predicted-face-classes-savefile",
+        type=Path,
+        help="Output path for predicted class per face, as a .npy file."
+    )
+    parser.add_argument(
         "--vis", action="store_true", help="Show intermediate visualizations"
     )
     parser.add_argument(
@@ -150,6 +155,7 @@ def save_visualizations(
     predicted_face_classes: np.array,
     vis_mesh_path: Path,
     vis_cameras_path: Path,
+    predicted_face_classes_savefile: Path | None = None,
 ):
     """Save visualizations of the scene as meshes
 
@@ -161,6 +167,7 @@ def save_visualizations(
         predicted_face_classes (np.array): the array of per-face class predictions
         vis_mesh_path (Path): where to save the colormapped mesh
         vis_cameras_path (Path): where to save the camera representation
+        predicted_face_classes_savefile (Path | None): Where to save a class per face .npy representation. Defaults to None.
     """
     # Colormap the results and save them out
     # Get the mesh in the original CRS and shift
@@ -203,6 +210,11 @@ def save_visualizations(
     Path(vis_cameras_path).parent.mkdir(parents=True, exist_ok=True)
     camera_mesh.save(vis_cameras_path)
 
+    # Save the class per face if requested
+    if predicted_face_classes_savefile is not None:
+        Path(predicted_face_classes_savefile).parent.mkdir(exists_ok=True, parents=True)
+        np.save(predicted_face_classes_savefile, predicted_face_classes)
+
 
 def project_equirectangular_images(
     mesh_file,
@@ -220,6 +232,7 @@ def project_equirectangular_images(
     ROI_buffer_meters=ROI_BUFFER_METERS,
     vis_mesh_path=None,
     vis_cameras_path=None,
+    predicted_face_classes_savefile=None,
 ):
     # The mesh file format does not support metadata so it is saved in a sidecar file. Since the
     # values of geospatial coordinates are large, quantization from the limits of float precision
@@ -319,6 +332,7 @@ def project_equirectangular_images(
         predicted_face_classes=predicted_face_classes,
         vis_mesh_path=vis_mesh_path,
         vis_cameras_path=vis_cameras_path,
+        predicted_face_classes_savefile=predicted_face_classes_savefile,
     )
 
 
