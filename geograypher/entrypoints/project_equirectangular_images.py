@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from geograypher.cameras.rig_cameras import create_rig_cameras_from_equirectangular
 from geograypher.cameras.segmentor import SegmentorPhotogrammetryCameraSet
 from geograypher.constants import EARTH_CENTERED_EARTH_FIXED_CRS
-from geograypher.meshes import TexturedPhotogrammetryMeshChunked
+from geograypher.meshes.derived_meshes import TexturedPhotogrammetryMeshChunked
 from geograypher.predictors.derived_segmentors import LookUpSegmentor
 from geograypher.utils.geospatial import convert_CRS_3D_points
 from geograypher.utils.indexing import find_argmax_nonzero_value
