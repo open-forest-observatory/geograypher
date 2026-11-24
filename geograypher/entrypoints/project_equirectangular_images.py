@@ -212,7 +212,7 @@ def save_visualizations(
 
     # Save the class per face if requested
     if predicted_face_classes_savefile is not None:
-        Path(predicted_face_classes_savefile).parent.mkdir(exists_ok=True, parents=True)
+        Path(predicted_face_classes_savefile).parent.mkdir(exist_ok=True, parents=True)
         np.save(predicted_face_classes_savefile, predicted_face_classes)
 
 
