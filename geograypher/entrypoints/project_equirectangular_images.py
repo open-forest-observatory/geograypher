@@ -109,7 +109,7 @@ def parse_args():
     parser.add_argument(
         "--predicted-face-classes-savefile",
         type=Path,
-        help="Output path for predicted class per face, as a .npy file."
+        help="Output path for predicted class per face, as a .npy file.",
     )
     parser.add_argument(
         "--vis", action="store_true", help="Show intermediate visualizations"
